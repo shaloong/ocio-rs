@@ -5,7 +5,7 @@ use ocio_sys;
 use crate::{cstring, OcioError, Result, TransformDirection, CDLStyle};
 
 pub struct CDLTransform {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 
 impl CDLTransform {

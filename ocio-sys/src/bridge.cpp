@@ -34,14 +34,58 @@ struct GpuShaderDescHandle {
   std::shared_ptr<void> inner;
 };
 
-// Transform handles
-struct FileTransformHandle { std::shared_ptr<void> inner; };
-struct CDLTransformHandle { std::shared_ptr<void> inner; };
-struct ExponentTransformHandle { std::shared_ptr<void> inner; };
-struct MatrixTransformHandle { std::shared_ptr<void> inner; };
-struct LogTransformHandle { std::shared_ptr<void> inner; };
-struct RangeTransformHandle { std::shared_ptr<void> inner; };
-struct GroupTransformHandle { std::shared_ptr<void> inner; };
+// Transform base for cross-type dispatch
+struct TransformHandleBase {
+  virtual ~TransformHandleBase() = default;
+  virtual int get_transform_type_tag() const = 0;
+#ifndef OCIO_RS_STUB
+  virtual OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() = 0;
+#endif
+};
+
+// Transform handles — all inherit from TransformHandleBase for GroupTransform dispatch
+struct FileTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 8; } // TRANSFORM_TYPE_FILE
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct CDLTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 2; } // TRANSFORM_TYPE_CDL
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct ExponentTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 5; } // TRANSFORM_TYPE_EXPONENT
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct MatrixTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 21; } // TRANSFORM_TYPE_MATRIX
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct LogTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 17; } // TRANSFORM_TYPE_LOG
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct RangeTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 22; } // TRANSFORM_TYPE_RANGE
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct GroupTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 14; } // TRANSFORM_TYPE_GROUP
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 
 // Baker / Context / ColorSpace handles
 struct BakerHandle { std::shared_ptr<void> inner; };
@@ -158,6 +202,30 @@ struct RealContext {
 struct RealColorSpace {
   ocio::ColorSpaceRcPtr colorSpace;
 };
+
+// --- TransformHandleBase out-of-line implementations ---
+
+ocio::TransformRcPtr FileTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealFileTransform>(inner)->transform;
+}
+ocio::TransformRcPtr CDLTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealCDLTransform>(inner)->transform;
+}
+ocio::TransformRcPtr ExponentTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealExponentTransform>(inner)->transform;
+}
+ocio::TransformRcPtr MatrixTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealMatrixTransform>(inner)->transform;
+}
+ocio::TransformRcPtr LogTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLogTransform>(inner)->transform;
+}
+ocio::TransformRcPtr RangeTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealRangeTransform>(inner)->transform;
+}
+ocio::TransformRcPtr GroupTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealGroupTransform>(inner)->transform;
+}
 
 // --- Config real implementations ---
 
@@ -1074,7 +1142,7 @@ int ocio_transform_get_transform_type(void* transform) {
   (void)transform;
   return 0;
 #else
-  return 0;
+  return static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_transform_type_tag();
 #endif
 }
 
@@ -1083,7 +1151,76 @@ void* ocio_transform_create_editable_copy(void* transform) {
   (void)transform;
   return nullptr;
 #else
-  return nullptr;
+  if (!transform) return nullptr;
+  auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+  auto type = base->get_transform_type_tag();
+  TransformHandleBase* out = nullptr;
+  switch (type) {
+    case 2: { // CDLTransform
+      auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealCDLTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::CDLTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 8: { // FileTransform
+      auto* h = static_cast<ocio_rs_bridge::FileTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealFileTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealFileTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::FileTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 5: { // ExponentTransform
+      auto* h = static_cast<ocio_rs_bridge::ExponentTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealExponentTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealExponentTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::ExponentTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 17: { // LogTransform
+      auto* h = static_cast<ocio_rs_bridge::LogTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLogTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLogTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::LogTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 21: { // MatrixTransform
+      auto* h = static_cast<ocio_rs_bridge::MatrixTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealMatrixTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealMatrixTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::MatrixTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 22: { // RangeTransform
+      auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealRangeTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::RangeTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 14: { // GroupTransform
+      auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+  }
+  return out;
 #endif
 }
 
@@ -1841,11 +1978,78 @@ void* ocio_group_transform_get_transform(void* transform, int index) {
 #else
   try {
     auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
-    auto child = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform->getTransform(index);
-    // Wrap the child transform in a new handle based on its type
-    // For now, return nullptr as this requires dynamic type dispatch
-    (void)child;
-    return nullptr;
+    auto ut = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform;
+    auto child = ut->getTransform(index);
+    if (!child) return nullptr;
+    int type = static_cast<int>(child->getTransformType());
+    TransformHandleBase* out = nullptr;
+    switch (type) {
+      case 2: { // CDL
+        auto t = ocio::DynamicPtrCast<const ocio::CDLTransform>(child);
+        auto hdl = std::make_unique<CDLTransformHandle>();
+        auto r = std::make_shared<RealCDLTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 5: { // Exponent
+        auto t = ocio::DynamicPtrCast<const ocio::ExponentTransform>(child);
+        auto hdl = std::make_unique<ExponentTransformHandle>();
+        auto r = std::make_shared<RealExponentTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 8: { // File
+        auto t = ocio::DynamicPtrCast<const ocio::FileTransform>(child);
+        auto hdl = std::make_unique<FileTransformHandle>();
+        auto r = std::make_shared<RealFileTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 14: { // Group
+        auto t = ocio::DynamicPtrCast<const ocio::GroupTransform>(child);
+        auto hdl = std::make_unique<GroupTransformHandle>();
+        auto r = std::make_shared<RealGroupTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 17: { // Log
+        auto t = ocio::DynamicPtrCast<const ocio::LogTransform>(child);
+        auto hdl = std::make_unique<LogTransformHandle>();
+        auto r = std::make_shared<RealLogTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 21: { // Matrix
+        auto t = ocio::DynamicPtrCast<const ocio::MatrixTransform>(child);
+        auto hdl = std::make_unique<MatrixTransformHandle>();
+        auto r = std::make_shared<RealMatrixTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 22: { // Range
+        auto t = ocio::DynamicPtrCast<const ocio::RangeTransform>(child);
+        auto hdl = std::make_unique<RangeTransformHandle>();
+        auto r = std::make_shared<RealRangeTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      default: return nullptr;
+    }
+    return out;
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1853,15 +2057,33 @@ void* ocio_group_transform_get_transform(void* transform, int index) {
 void ocio_group_transform_append_transform(void* transform, void* child) {
 #ifdef OCIO_RS_STUB
   (void)transform; (void)child;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto group = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner);
+    auto* child_base = static_cast<ocio_rs_bridge::TransformHandleBase*>(child);
+    auto child_t = child_base->get_ocio_transform();
+    if (child_t) {
+      group->transform->appendTransform(child_t);
+    }
+  } catch (...) {}
 #endif
-  // Requires Transform base class bridging
 }
 
 void ocio_group_transform_prepend_transform(void* transform, void* child) {
 #ifdef OCIO_RS_STUB
   (void)transform; (void)child;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto group = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner);
+    auto* child_base = static_cast<ocio_rs_bridge::TransformHandleBase*>(child);
+    auto child_t = child_base->get_ocio_transform();
+    if (child_t) {
+      group->transform->prependTransform(child_t);
+    }
+  } catch (...) {}
 #endif
-  // Requires Transform base class bridging
 }
 
 int ocio_group_transform_get_direction(void* transform) {

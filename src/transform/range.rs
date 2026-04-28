@@ -5,7 +5,7 @@ use ocio_sys;
 use crate::{OcioError, Result, TransformDirection, RangeStyle};
 
 pub struct RangeTransform {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 
 impl RangeTransform {
