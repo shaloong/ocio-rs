@@ -1,9 +1,16 @@
+mod baker;
+mod colorspace;
 mod config;
+mod context;
 mod processor;
+pub mod transform;
 mod types;
 
+pub use baker::Baker;
+pub use colorspace::ColorSpace;
 pub use config::Config;
-pub use processor::Processor;
+pub use context::Context;
+pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, Processor, TextureInfo};
 pub use types::*;
 
 use std::ffi::CString;
