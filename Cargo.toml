@@ -1,0 +1,11 @@
+[package]
+name = "ocio-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ocio-sys = { path = "ocio-sys" }
+thiserror = "1.0"
+
+[workspace]
+members = ["ocio-sys"]

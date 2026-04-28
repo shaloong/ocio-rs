@@ -1,0 +1,16 @@
+[package]
+name = "ocio-sys"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+links = "OpenColorIO"
+
+[dependencies]
+
+[build-dependencies]
+cc = "1.0"
+cmake = "0.1"
+
+[features]
+default = ["bundled"]
+bundled = []
