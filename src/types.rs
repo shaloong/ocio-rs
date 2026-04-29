@@ -178,6 +178,15 @@ pub enum NegativeStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
+pub enum RGBCurveType {
+    Red = 0,
+    Green = 1,
+    Blue = 2,
+    Master = 3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
 pub enum GradingStyle {
     Log = 0,
     Lin = 1,

@@ -141,6 +141,12 @@ struct LookTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct GradingRGBCurveTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 12; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 struct GradingPrimaryTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 11; }
 #ifndef OCIO_RS_STUB
@@ -320,6 +326,9 @@ struct RealColorSpaceTransform {
 struct RealLookTransform {
   ocio::LookTransformRcPtr transform;
 };
+struct RealGradingRGBCurveTransform {
+  ocio::GradingRGBCurveTransformRcPtr transform;
+};
 struct RealGradingPrimaryTransform {
   ocio::GradingPrimaryTransformRcPtr transform;
 };
@@ -384,6 +393,9 @@ ocio::TransformRcPtr LookTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealLookTransform>(inner)->transform;
 }
 
+ocio::TransformRcPtr GradingRGBCurveTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealGradingRGBCurveTransform>(inner)->transform;
+}
 ocio::TransformRcPtr GradingPrimaryTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealGradingPrimaryTransform>(inner)->transform;
 }
@@ -1569,6 +1581,15 @@ void* ocio_transform_create_editable_copy(void* transform) {
       auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
       r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform->createEditableCopy();
       auto hdl = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 12: { // GradingRGBCurveTransform
+      auto* h = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::GradingRGBCurveTransformHandle>();
       hdl->inner = r;
       out = hdl.release();
       break;
@@ -5443,6 +5464,232 @@ void ocio_grading_tone_transform_set_direction(void* transform, int direction) {
 
 void ocio_grading_tone_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(handle);
+}
+
+// --- GradingRGBCurveTransform ---
+
+void* ocio_grading_rgb_curve_transform_create(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return new ocio_rs_bridge::GradingRGBCurveTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>();
+  r->transform = ocio::GradingRGBCurveTransform::Create(static_cast<ocio::GradingStyle>(style));
+  auto hdl = std::make_unique<ocio_rs_bridge::GradingRGBCurveTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+int ocio_grading_rgb_curve_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return static_cast<int>(real->transform->getStyle());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->setStyle(static_cast<ocio::GradingStyle>(style));
+  END_TRY_VOID
+#endif
+}
+
+int ocio_grading_rgb_curve_transform_get_num_control_points(void* transform, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  auto curve = real->transform->getValue();
+  return static_cast<int>(curve->getNumControlPoints(static_cast<ocio::RGBCurveType>(curveType)));
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_get_control_point(void* transform, int curveType, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  auto curve = real->transform->getValue();
+  const auto& pt = curve->getControlPoint(static_cast<ocio::RGBCurveType>(curveType), index);
+  *x = pt.m_x;
+  *y = pt.m_y;
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_num_control_points(void* transform, int curveType, int num) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType; (void)num;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  auto curve = real->transform->getValue();
+  curve->setNumControlPoints(static_cast<ocio::RGBCurveType>(curveType), num);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_control_point(void* transform, int curveType, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  auto curve = real->transform->getValue();
+  curve->getControlPoint(static_cast<ocio::RGBCurveType>(curveType), index) = ocio::GradingControlPoint(x, y);
+  END_TRY_VOID
+#endif
+}
+
+float ocio_grading_rgb_curve_transform_get_slope(void* transform, int curveType, int index) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType; (void)index;
+  return 0.0f;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return real->transform->getSlope(static_cast<ocio::RGBCurveType>(curveType), index);
+  END_TRY(0.0f)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_slope(void* transform, int curveType, int index, float slope) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType; (void)index; (void)slope;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->setSlope(static_cast<ocio::RGBCurveType>(curveType), index, slope);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_grading_rgb_curve_transform_slopes_are_default(void* transform, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)curveType;
+  return true;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return real->transform->slopesAreDefault(static_cast<ocio::RGBCurveType>(curveType));
+  END_TRY(true)
+#endif
+}
+
+bool ocio_grading_rgb_curve_transform_get_bypass_lin_to_log(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return real->transform->getBypassLinToLog();
+  END_TRY(false)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_bypass_lin_to_log(void* transform, bool bypass) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bypass;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->setBypassLinToLog(bypass);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_grading_rgb_curve_transform_is_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return real->transform->isDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_make_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->makeDynamic();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_make_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->makeNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+int ocio_grading_rgb_curve_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurveTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(handle);
 }
 
 // --- AllocationTransform ---

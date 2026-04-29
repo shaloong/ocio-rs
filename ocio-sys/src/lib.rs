@@ -492,6 +492,26 @@ unsafe extern "C" {
     pub fn ocio_grading_tone_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_grading_tone_transform_destroy(handle: *mut c_void);
 
+    // --- GradingRGBCurveTransform ---
+    pub fn ocio_grading_rgb_curve_transform_create(style: i32) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_rgb_curve_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_grading_rgb_curve_transform_get_num_control_points(transform: *mut c_void, curveType: i32) -> i32;
+    pub fn ocio_grading_rgb_curve_transform_get_control_point(transform: *mut c_void, curveType: i32, index: i32, x: *mut f32, y: *mut f32);
+    pub fn ocio_grading_rgb_curve_transform_set_num_control_points(transform: *mut c_void, curveType: i32, num: i32);
+    pub fn ocio_grading_rgb_curve_transform_set_control_point(transform: *mut c_void, curveType: i32, index: i32, x: f32, y: f32);
+    pub fn ocio_grading_rgb_curve_transform_get_slope(transform: *mut c_void, curveType: i32, index: i32) -> f32;
+    pub fn ocio_grading_rgb_curve_transform_set_slope(transform: *mut c_void, curveType: i32, index: i32, slope: f32);
+    pub fn ocio_grading_rgb_curve_transform_slopes_are_default(transform: *mut c_void, curveType: i32) -> bool;
+    pub fn ocio_grading_rgb_curve_transform_get_bypass_lin_to_log(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_rgb_curve_transform_set_bypass_lin_to_log(transform: *mut c_void, bypass: bool);
+    pub fn ocio_grading_rgb_curve_transform_is_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_rgb_curve_transform_make_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_rgb_curve_transform_make_non_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_rgb_curve_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_rgb_curve_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_grading_rgb_curve_transform_destroy(handle: *mut c_void);
+
     // --- AllocationTransform ---
     pub fn ocio_allocation_transform_create() -> *mut c_void;
     pub fn ocio_allocation_transform_get_allocation(transform: *mut c_void) -> i32;

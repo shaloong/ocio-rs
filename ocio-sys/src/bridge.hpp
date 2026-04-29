@@ -457,6 +457,26 @@ int ocio_grading_tone_transform_get_direction(void* transform);
 void ocio_grading_tone_transform_set_direction(void* transform, int direction);
 void ocio_grading_tone_transform_destroy(void* handle);
 
+// --- GradingRGBCurveTransform ---
+void* ocio_grading_rgb_curve_transform_create(int style);
+int ocio_grading_rgb_curve_transform_get_style(void* transform);
+void ocio_grading_rgb_curve_transform_set_style(void* transform, int style);
+int ocio_grading_rgb_curve_transform_get_num_control_points(void* transform, int curveType);
+void ocio_grading_rgb_curve_transform_get_control_point(void* transform, int curveType, int index, float* x, float* y);
+void ocio_grading_rgb_curve_transform_set_num_control_points(void* transform, int curveType, int num);
+void ocio_grading_rgb_curve_transform_set_control_point(void* transform, int curveType, int index, float x, float y);
+float ocio_grading_rgb_curve_transform_get_slope(void* transform, int curveType, int index);
+void ocio_grading_rgb_curve_transform_set_slope(void* transform, int curveType, int index, float slope);
+bool ocio_grading_rgb_curve_transform_slopes_are_default(void* transform, int curveType);
+bool ocio_grading_rgb_curve_transform_get_bypass_lin_to_log(void* transform);
+void ocio_grading_rgb_curve_transform_set_bypass_lin_to_log(void* transform, bool bypass);
+bool ocio_grading_rgb_curve_transform_is_dynamic(void* transform);
+void ocio_grading_rgb_curve_transform_make_dynamic(void* transform);
+void ocio_grading_rgb_curve_transform_make_non_dynamic(void* transform);
+int ocio_grading_rgb_curve_transform_get_direction(void* transform);
+void ocio_grading_rgb_curve_transform_set_direction(void* transform, int direction);
+void ocio_grading_rgb_curve_transform_destroy(void* handle);
+
 // --- AllocationTransform ---
 void* ocio_allocation_transform_create(void);
 int ocio_allocation_transform_get_allocation(void* transform);
