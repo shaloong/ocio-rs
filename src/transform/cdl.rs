@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstring, OcioError, Result, TransformDirection, CDLStyle};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection, CDLStyle};
 
 pub struct CDLTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -78,6 +78,16 @@ impl CDLTransform {
         unsafe { ocio_sys::ocio_cdl_transform_set_style(self.handle.as_ptr(), style as i32) };
     }
 
+    pub fn id(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_cdl_transform_get_id(self.handle.as_ptr())) }
+    }
+
+    pub fn set_id(&self, id: impl AsRef<str>) -> Result<()> {
+        let id = cstring(id)?;
+        unsafe { ocio_sys::ocio_cdl_transform_set_id(self.handle.as_ptr(), id.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_cdl_transform_get_direction(self.handle.as_ptr()) };
         match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
@@ -134,6 +144,13 @@ mod tests {
         let cdl = CDLTransform::create().unwrap();
         let _ = cdl.style();
         cdl.set_style(CDLStyle::NoClamp);
+    }
+
+    #[test]
+    fn id_no_crash() {
+        let cdl = CDLTransform::create().unwrap();
+        let _ = cdl.id();
+        assert!(cdl.set_id("MyID").is_ok());
     }
 
     #[test]

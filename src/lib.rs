@@ -29,6 +29,8 @@ pub use ocio_sys;
 pub enum OcioError {
     #[error("OpenColorIO error: {0}")]
     Ocio(String),
+    #[error("Validation failed: {0}")]
+    ValidationFailed(String),
     #[error("path contains interior NUL byte")]
     InteriorNul,
     #[error("OpenColorIO handle allocation failed")]

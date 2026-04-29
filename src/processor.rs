@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType};
+use crate::transform::{Transform, GroupTransform, transform_from_raw_handle};
 
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
@@ -57,6 +58,18 @@ impl Processor {
             ocio_sys::ocio_processor_get_dynamic_property(self.handle.as_ptr(), property_type as i32)
         };
         NonNull::new(handle).map(|h| DynamicProperty { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn num_transforms(&self) -> i32 {
+        unsafe { ocio_sys::ocio_processor_get_num_transforms(self.handle.as_ptr()) }
+    }
+
+    pub fn create_group_transform(&self) -> Option<GroupTransform> {
+        let handle = unsafe { ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr()) };
+        match transform_from_raw_handle(handle) {
+            Some(Transform::Group(gt)) => Some(gt),
+            _ => None,
+        }
     }
 }
 
@@ -386,6 +399,22 @@ mod tests {
             let _ = desc.set_resource_prefix("ocio_");
             desc.finalize();
         }
+    }
+
+    #[test]
+    fn processor_num_transforms() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        // Stub mode returns 0
+        assert!(proc.num_transforms() >= 0);
+    }
+
+    #[test]
+    fn processor_create_group_transform() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        // Stub mode returns None
+        let _ = proc.create_group_transform();
     }
 
     #[test]

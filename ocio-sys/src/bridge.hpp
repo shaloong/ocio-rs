@@ -58,6 +58,25 @@ const char* ocio_config_get_role_color_space_by_name(void* config, const char* r
 const char* ocio_config_get_active_displays(void* config);
 const char* ocio_config_get_active_views(void* config);
 
+// Config: search paths & strict parsing
+const char* ocio_config_get_search_path(void* config);
+void ocio_config_set_search_path(void* config, const char* path);
+bool ocio_config_is_strict_parsing_enabled(void* config);
+void ocio_config_set_strict_parsing_enabled(void* config, bool enabled);
+
+// Config: roles (mutable)
+void ocio_config_set_role(void* config, const char* role, const char* colorSpace);
+
+// Config: family separator
+void ocio_config_set_family_separator(void* config, char separator);
+
+// Config: validate & serialize
+const char* ocio_config_validate(void* config);
+const char* ocio_config_serialize(void* config);
+
+// Config: editable copy
+void* ocio_config_create_editable_copy(void* config);
+
 // Config: processors
 void* ocio_config_get_processor(
     void* config, const char* src, const char* dst);
@@ -71,6 +90,8 @@ bool ocio_processor_is_no_op(void* processor);
 bool ocio_processor_has_channel_crosstalk(void* processor);
 const char* ocio_processor_get_cache_id(void* processor);
 void ocio_processor_apply_rgba(void* processor, float* rgba, size_t len);
+int ocio_processor_get_num_transforms(void* processor);
+void* ocio_processor_create_group_transform(void* processor);
 void ocio_processor_destroy(void* handle);
 
 // --- CPUProcessor ---
@@ -129,6 +150,8 @@ const char* ocio_file_transform_get_ccc_id(void* transform);
 void ocio_file_transform_set_ccc_id(void* transform, const char* id);
 int ocio_file_transform_get_interpolation(void* transform);
 void ocio_file_transform_set_interpolation(void* transform, int interp);
+int ocio_file_transform_get_cdl_style(void* transform);
+void ocio_file_transform_set_cdl_style(void* transform, int style);
 int ocio_file_transform_get_direction(void* transform);
 void ocio_file_transform_set_direction(void* transform, int direction);
 void ocio_file_transform_destroy(void* handle);
@@ -147,6 +170,8 @@ void ocio_cdl_transform_set_sat(void* transform, double sat);
 void ocio_cdl_transform_get_sat_luma_coefs(void* transform, double* rgb);
 int ocio_cdl_transform_get_style(void* transform);
 void ocio_cdl_transform_set_style(void* transform, int style);
+const char* ocio_cdl_transform_get_id(void* transform);
+void ocio_cdl_transform_set_id(void* transform, const char* id);
 int ocio_cdl_transform_get_direction(void* transform);
 void ocio_cdl_transform_set_direction(void* transform, int direction);
 void ocio_cdl_transform_destroy(void* handle);
@@ -341,6 +366,8 @@ const char* ocio_look_get_name(void* look);
 void ocio_look_set_name(void* look, const char* name);
 const char* ocio_look_get_process_space(void* look);
 void ocio_look_set_process_space(void* look, const char* processSpace);
+void* ocio_look_get_transform(void* look);
+void ocio_look_set_transform(void* look, const void* transform);
 int ocio_look_get_direction(void* look);
 void ocio_look_set_direction(void* look, int direction);
 void ocio_look_destroy(void* handle);

@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct Look {
     pub(crate) handle: NonNull<c_void>,
@@ -37,6 +38,20 @@ impl Look {
         let s = cstring(space)?;
         unsafe { ocio_sys::ocio_look_set_process_space(self.handle.as_ptr(), s.as_ptr().cast()) };
         Ok(())
+    }
+
+    pub fn transform(&self) -> Option<Transform> {
+        let handle = unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr()) };
+        transform_from_raw_handle(handle)
+    }
+
+    pub fn set_transform(&self, transform: &impl TransformHandle) {
+        unsafe {
+            ocio_sys::ocio_look_set_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *const c_void,
+            );
+        }
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -86,5 +101,18 @@ mod tests {
         let look = Look::create().unwrap();
         look.set_direction(TransformDirection::Inverse);
         let _ = look.direction();
+    }
+
+    #[test]
+    fn transform_no_crash() {
+        let look = Look::create().unwrap();
+        let _ = look.transform();
+    }
+
+    #[test]
+    fn set_transform_no_crash() {
+        let look = Look::create().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        look.set_transform(&ft);
     }
 }

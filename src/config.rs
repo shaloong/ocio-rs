@@ -312,6 +312,71 @@ impl Config {
             ocio_sys::ocio_config_add_look(self.handle.as_ptr(), look.handle.as_ptr());
         }
     }
+
+    // --- Search paths ---
+
+    pub fn search_path(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_search_path(self.handle.as_ptr())) }
+    }
+
+    pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
+        let p = cstring(path)?;
+        unsafe { ocio_sys::ocio_config_set_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
+        Ok(())
+    }
+
+    // --- Strict parsing ---
+
+    pub fn is_strict_parsing_enabled(&self) -> bool {
+        unsafe { ocio_sys::ocio_config_is_strict_parsing_enabled(self.handle.as_ptr()) }
+    }
+
+    pub fn set_strict_parsing_enabled(&self, enabled: bool) {
+        unsafe { ocio_sys::ocio_config_set_strict_parsing_enabled(self.handle.as_ptr(), enabled) };
+    }
+
+    // --- Roles (mutable) ---
+
+    pub fn set_role(&self, role: impl AsRef<str>, color_space: impl AsRef<str>) -> Result<()> {
+        let r = cstring(role)?;
+        let cs = cstring(color_space)?;
+        unsafe {
+            ocio_sys::ocio_config_set_role(self.handle.as_ptr(), r.as_ptr().cast(), cs.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    // --- Family separator ---
+
+    pub fn set_family_separator(&self, separator: char) {
+        unsafe {
+            ocio_sys::ocio_config_set_family_separator(self.handle.as_ptr(), separator as i8);
+        }
+    }
+
+    // --- Validate ---
+
+    pub fn validate(&self) -> Result<()> {
+        let err = unsafe { ocio_sys::ocio_config_validate(self.handle.as_ptr()) };
+        if let Some(msg) = unsafe { cstr_to_opt_string(err) } {
+            Err(OcioError::ValidationFailed(msg))
+        } else {
+            Ok(())
+        }
+    }
+
+    // --- Serialize ---
+
+    pub fn serialize(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_serialize(self.handle.as_ptr())) }
+    }
+
+    // --- Editable copy ---
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for Config {
@@ -443,6 +508,51 @@ mod tests {
         let config = Config::raw().unwrap();
         let look = Look::create().unwrap();
         config.add_look(&look);
+    }
+
+    #[test]
+    fn search_path_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.search_path();
+        assert!(config.set_search_path("/path/to/ocio").is_ok());
+    }
+
+    #[test]
+    fn strict_parsing_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.is_strict_parsing_enabled();
+        config.set_strict_parsing_enabled(true);
+        config.set_strict_parsing_enabled(false);
+    }
+
+    #[test]
+    fn set_role_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.set_role("default", "raw").is_ok());
+    }
+
+    #[test]
+    fn set_family_separator_no_crash() {
+        let config = Config::raw().unwrap();
+        config.set_family_separator('|');
+    }
+
+    #[test]
+    fn validate_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.validate();
+    }
+
+    #[test]
+    fn serialize_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.serialize();
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.create_editable_copy();
     }
 
     #[test]

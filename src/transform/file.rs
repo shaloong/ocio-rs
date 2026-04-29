@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection, Interpolation};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection, Interpolation, CDLStyle};
 
 pub struct FileTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -51,6 +51,15 @@ impl FileTransform {
         unsafe {
             ocio_sys::ocio_file_transform_set_interpolation(self.handle.as_ptr(), interp as i32);
         }
+    }
+
+    pub fn cdl_style(&self) -> CDLStyle {
+        let s = unsafe { ocio_sys::ocio_file_transform_get_cdl_style(self.handle.as_ptr()) };
+        match s { 1 => CDLStyle::NoClamp, _ => CDLStyle::Asc }
+    }
+
+    pub fn set_cdl_style(&self, style: CDLStyle) {
+        unsafe { ocio_sys::ocio_file_transform_set_cdl_style(self.handle.as_ptr(), style as i32); }
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -107,6 +116,13 @@ mod tests {
         let ft = FileTransform::create().unwrap();
         ft.set_direction(TransformDirection::Inverse);
         let _ = ft.direction();
+    }
+
+    #[test]
+    fn cdl_style_no_crash() {
+        let ft = FileTransform::create().unwrap();
+        let _ = ft.cdl_style();
+        ft.set_cdl_style(CDLStyle::NoClamp);
     }
 
     #[test]
