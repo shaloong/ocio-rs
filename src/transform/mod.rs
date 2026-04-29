@@ -7,6 +7,8 @@ mod range;
 mod group;
 mod builtin;
 mod fixed_function;
+mod lut1d;
+mod lut3d;
 
 use std::ffi::c_void;
 
@@ -19,6 +21,8 @@ pub use range::RangeTransform;
 pub use group::GroupTransform;
 pub use builtin::BuiltinTransform;
 pub use fixed_function::FixedFunctionTransform;
+pub use lut1d::Lut1DTransform;
+pub use lut3d::Lut3DTransform;
 
 pub trait TransformHandle {
     fn as_ptr(&self) -> *mut c_void;
@@ -51,6 +55,12 @@ impl TransformHandle for BuiltinTransform {
 impl TransformHandle for FixedFunctionTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for Lut1DTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for Lut3DTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 
 pub enum Transform {
     File(FileTransform),
@@ -62,6 +72,8 @@ pub enum Transform {
     Group(GroupTransform),
     Builtin(BuiltinTransform),
     FixedFunction(FixedFunctionTransform),
+    Lut1D(Lut1DTransform),
+    Lut3D(Lut3DTransform),
 }
 
 impl TransformHandle for Transform {
@@ -76,6 +88,8 @@ impl TransformHandle for Transform {
             Transform::Group(t) => t.as_ptr(),
             Transform::Builtin(t) => t.as_ptr(),
             Transform::FixedFunction(t) => t.as_ptr(),
+            Transform::Lut1D(t) => t.as_ptr(),
+            Transform::Lut3D(t) => t.as_ptr(),
         }
     }
 }

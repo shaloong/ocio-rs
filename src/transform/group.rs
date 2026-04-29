@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use ocio_sys;
 use crate::{OcioError, Result, TransformDirection};
 use super::{TransformHandle, Transform};
-use super::{FileTransform, CDLTransform, ExponentTransform, MatrixTransform, LogTransform, RangeTransform, BuiltinTransform, FixedFunctionTransform};
+use super::{FileTransform, CDLTransform, ExponentTransform, MatrixTransform, LogTransform, RangeTransform, BuiltinTransform, FixedFunctionTransform, Lut1DTransform, Lut3DTransform};
 
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -47,6 +47,8 @@ impl GroupTransform {
             8 => Some(Transform::File(FileTransform { handle: NonNull::new(handle).unwrap() })),
             9 => Some(Transform::FixedFunction(FixedFunctionTransform { handle: NonNull::new(handle).unwrap() })),
             14 => Some(Transform::Group(GroupTransform { handle: NonNull::new(handle).unwrap() })),
+            19 => Some(Transform::Lut1D(Lut1DTransform { handle: NonNull::new(handle).unwrap() })),
+            20 => Some(Transform::Lut3D(Lut3DTransform { handle: NonNull::new(handle).unwrap() })),
             17 => Some(Transform::Log(LogTransform { handle: NonNull::new(handle).unwrap() })),
             21 => Some(Transform::Matrix(MatrixTransform { handle: NonNull::new(handle).unwrap() })),
             22 => Some(Transform::Range(RangeTransform { handle: NonNull::new(handle).unwrap() })),

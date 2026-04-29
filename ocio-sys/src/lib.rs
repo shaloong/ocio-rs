@@ -253,6 +253,26 @@ unsafe extern "C" {
     pub fn ocio_fixed_function_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_fixed_function_transform_destroy(handle: *mut c_void);
 
+    // --- Lut1DTransform ---
+    pub fn ocio_lut1d_transform_create() -> *mut c_void;
+    pub fn ocio_lut1d_transform_get_interpolation(transform: *mut c_void) -> i32;
+    pub fn ocio_lut1d_transform_set_interpolation(transform: *mut c_void, interpolation: i32);
+    pub fn ocio_lut1d_transform_get_file_output_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_lut1d_transform_set_file_output_bit_depth(transform: *mut c_void, bit_depth: i32);
+    pub fn ocio_lut1d_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_lut1d_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_lut1d_transform_destroy(handle: *mut c_void);
+
+    // --- Lut3DTransform ---
+    pub fn ocio_lut3d_transform_create() -> *mut c_void;
+    pub fn ocio_lut3d_transform_get_interpolation(transform: *mut c_void) -> i32;
+    pub fn ocio_lut3d_transform_set_interpolation(transform: *mut c_void, interpolation: i32);
+    pub fn ocio_lut3d_transform_get_file_output_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_lut3d_transform_set_file_output_bit_depth(transform: *mut c_void, bit_depth: i32);
+    pub fn ocio_lut3d_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_lut3d_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_lut3d_transform_destroy(handle: *mut c_void);
+
     // --- Baker ---
     pub fn ocio_baker_create() -> *mut c_void;
     pub fn ocio_baker_create_editable_copy(baker: *mut c_void) -> *mut c_void;

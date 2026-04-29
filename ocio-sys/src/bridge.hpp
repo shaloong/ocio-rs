@@ -216,6 +216,26 @@ int ocio_fixed_function_transform_get_direction(void* transform);
 void ocio_fixed_function_transform_set_direction(void* transform, int direction);
 void ocio_fixed_function_transform_destroy(void* handle);
 
+// --- Lut1DTransform ---
+void* ocio_lut1d_transform_create(void);
+int ocio_lut1d_transform_get_interpolation(void* transform);
+void ocio_lut1d_transform_set_interpolation(void* transform, int interpolation);
+int ocio_lut1d_transform_get_file_output_bit_depth(void* transform);
+void ocio_lut1d_transform_set_file_output_bit_depth(void* transform, int bit_depth);
+int ocio_lut1d_transform_get_direction(void* transform);
+void ocio_lut1d_transform_set_direction(void* transform, int direction);
+void ocio_lut1d_transform_destroy(void* handle);
+
+// --- Lut3DTransform ---
+void* ocio_lut3d_transform_create(void);
+int ocio_lut3d_transform_get_interpolation(void* transform);
+void ocio_lut3d_transform_set_interpolation(void* transform, int interpolation);
+int ocio_lut3d_transform_get_file_output_bit_depth(void* transform);
+void ocio_lut3d_transform_set_file_output_bit_depth(void* transform, int bit_depth);
+int ocio_lut3d_transform_get_direction(void* transform);
+void ocio_lut3d_transform_set_direction(void* transform, int direction);
+void ocio_lut3d_transform_destroy(void* handle);
+
 // --- Baker ---
 void* ocio_baker_create(void);
 void* ocio_baker_create_editable_copy(void* baker);

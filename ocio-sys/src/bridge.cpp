@@ -101,6 +101,20 @@ struct FixedFunctionTransformHandle : TransformHandleBase { std::shared_ptr<void
 #endif
 };
 
+struct Lut1DTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 19; } // TRANSFORM_TYPE_LUT1D
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+
+struct Lut3DTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 20; } // TRANSFORM_TYPE_LUT3D
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+
 // Baker / Context / ColorSpace handles
 struct BakerHandle { std::shared_ptr<void> inner; };
 struct ContextHandle { std::shared_ptr<void> inner; };
@@ -213,6 +227,14 @@ struct RealFixedFunctionTransform {
   ocio::FixedFunctionTransformRcPtr transform;
 };
 
+struct RealLut1DTransform {
+  ocio::Lut1DTransformRcPtr transform;
+};
+
+struct RealLut3DTransform {
+  ocio::Lut3DTransformRcPtr transform;
+};
+
 struct RealBaker {
   ocio::BakerRcPtr baker;
 };
@@ -253,6 +275,12 @@ ocio::TransformRcPtr BuiltinTransformHandle::get_ocio_transform() {
 }
 ocio::TransformRcPtr FixedFunctionTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealFixedFunctionTransform>(inner)->transform;
+}
+ocio::TransformRcPtr Lut1DTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLut1DTransform>(inner)->transform;
+}
+ocio::TransformRcPtr Lut3DTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLut3DTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -1260,6 +1288,24 @@ void* ocio_transform_create_editable_copy(void* transform) {
       out = hdl.release();
       break;
     }
+    case 19: { // Lut1DTransform
+      auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLut1DTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::Lut1DTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 20: { // Lut3DTransform
+      auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLut3DTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::Lut3DTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
     case 14: { // GroupTransform
       auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(base);
       auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
@@ -2079,6 +2125,24 @@ void* ocio_group_transform_get_transform(void* transform, int index) {
         out = hdl.release();
         break;
       }
+      case 19: { // Lut1D
+        auto t = ocio::DynamicPtrCast<const ocio::Lut1DTransform>(child);
+        auto hdl = std::make_unique<Lut1DTransformHandle>();
+        auto r = std::make_shared<RealLut1DTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 20: { // Lut3D
+        auto t = ocio::DynamicPtrCast<const ocio::Lut3DTransform>(child);
+        auto hdl = std::make_unique<Lut3DTransformHandle>();
+        auto r = std::make_shared<RealLut3DTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
       case 14: { // Group
         auto t = ocio::DynamicPtrCast<const ocio::GroupTransform>(child);
         auto hdl = std::make_unique<GroupTransformHandle>();
@@ -2371,6 +2435,190 @@ void ocio_fixed_function_transform_set_direction(void* transform, int direction)
 
 void ocio_fixed_function_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(handle);
+}
+
+// --- Lut1DTransform ---
+
+void* ocio_lut1d_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::Lut1DTransformHandle{};
+#else
+  try {
+    auto r = std::make_shared<ocio_rs_bridge::RealLut1DTransform>();
+    r->transform = ocio::Lut1DTransform::Create();
+    auto hdl = std::make_unique<ocio_rs_bridge::Lut1DTransformHandle>();
+    hdl->inner = r;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_lut1d_transform_get_interpolation(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getInterpolation());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_set_interpolation(void* transform, int interpolation) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)interpolation;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setInterpolation(static_cast<ocio::Interpolation>(interpolation));
+  } catch (...) {}
+#endif
+}
+
+int ocio_lut1d_transform_get_file_output_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getFileOutputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_set_file_output_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setFileOutputBitDepth(static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+int ocio_lut1d_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut1d_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(handle);
+}
+
+// --- Lut3DTransform ---
+
+void* ocio_lut3d_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::Lut3DTransformHandle{};
+#else
+  try {
+    auto r = std::make_shared<ocio_rs_bridge::RealLut3DTransform>();
+    r->transform = ocio::Lut3DTransform::Create();
+    auto hdl = std::make_unique<ocio_rs_bridge::Lut3DTransformHandle>();
+    hdl->inner = r;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_lut3d_transform_get_interpolation(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getInterpolation());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut3d_transform_set_interpolation(void* transform, int interpolation) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)interpolation;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->setInterpolation(static_cast<ocio::Interpolation>(interpolation));
+  } catch (...) {}
+#endif
+}
+
+int ocio_lut3d_transform_get_file_output_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getFileOutputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut3d_transform_set_file_output_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->setFileOutputBitDepth(static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+int ocio_lut3d_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut3d_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut3d_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(handle);
 }
 
 // --- Baker ---
