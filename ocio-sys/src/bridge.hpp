@@ -345,4 +345,22 @@ int ocio_look_get_direction(void* look);
 void ocio_look_set_direction(void* look, int direction);
 void ocio_look_destroy(void* handle);
 
+// --- ViewTransform ---
+void* ocio_view_transform_create(int referenceSpace);
+const char* ocio_view_transform_get_src(void* viewTransform);
+void ocio_view_transform_set_src(void* viewTransform, const char* src);
+const char* ocio_view_transform_get_display(void* viewTransform);
+void ocio_view_transform_set_display(void* viewTransform, const char* display);
+const char* ocio_view_transform_get_view(void* viewTransform);
+void ocio_view_transform_set_view(void* viewTransform, const char* view);
+bool ocio_view_transform_get_looks_bypass(void* viewTransform);
+void ocio_view_transform_set_looks_bypass(void* viewTransform, bool bypass);
+const char* ocio_view_transform_get_rule(void* viewTransform);
+void ocio_view_transform_set_rule(void* viewTransform, const char* rule);
+void* ocio_view_transform_get_transform(void* viewTransform);
+void ocio_view_transform_set_transform(void* viewTransform, const void* transform);
+int ocio_view_transform_get_direction(void* viewTransform);
+void ocio_view_transform_set_direction(void* viewTransform, int direction);
+void ocio_view_transform_destroy(void* handle);
+
 }

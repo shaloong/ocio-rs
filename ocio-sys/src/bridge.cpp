@@ -120,6 +120,7 @@ struct BakerHandle { std::shared_ptr<void> inner; };
 struct ContextHandle { std::shared_ptr<void> inner; };
 struct ColorSpaceHandle { std::shared_ptr<void> inner; };
 struct LookHandle { std::shared_ptr<void> inner; };
+struct ViewTransformHandle { std::shared_ptr<void> inner; };
 
 #ifdef OCIO_RS_STUB
 
@@ -250,6 +251,9 @@ struct RealColorSpace {
 
 struct RealLook {
   ocio::LookRcPtr look;
+};
+struct RealViewTransform {
+  ocio::ViewTransformRcPtr transform;
 };
 
 // --- TransformHandleBase out-of-line implementations ---
@@ -3839,6 +3843,287 @@ void ocio_look_set_direction(void* look, int direction) {
 
 void ocio_look_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LookHandle*>(handle);
+}
+
+// --- ViewTransform ---
+
+void* ocio_view_transform_create(int /*referenceSpace*/) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::ViewTransformHandle{};
+#else
+  BEGIN_TRY
+  auto vt = ocio::ViewTransform::Create(static_cast<ocio::ReferenceSpaceType>(0));
+  return new ocio_rs_bridge::ViewTransformHandle{std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{vt})};
+  END_TRY(nullptr)
+#endif
+}
+
+const char* ocio_view_transform_get_src(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getSrc();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_src(void* viewTransform, const char* src) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)src;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setSrc(src);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_view_transform_get_display(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getDisplay();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_display(void* viewTransform, const char* display) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)display;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setDisplay(display);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_view_transform_get_view(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getView();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_view(void* viewTransform, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)view;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setView(view);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_view_transform_get_looks_bypass(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return false;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  return real->transform->getLooksBypass();
+  END_TRY(false)
+#endif
+}
+
+void ocio_view_transform_set_looks_bypass(void* viewTransform, bool bypass) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)bypass;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setLooksBypass(bypass);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_view_transform_get_rule(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getRule();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_rule(void* viewTransform, const char* rule) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)rule;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setRule(rule);
+  END_TRY_VOID
+#endif
+}
+
+void* ocio_view_transform_get_transform(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  ocio::ConstTransformRcPtr t = real->transform->getTransform();
+  if (!t) return nullptr;
+  // Type dispatch on the inner transform to create appropriate handle
+  // Follow the same pattern as ocio_color_space_get_transform
+  switch (t->getTransformType()) {
+    case ocio::TRANSFORM_TYPE_BUILTIN: {
+      auto builtin = ocio::DynamicPtrCast<ocio::BuiltinTransform>(t);
+      auto handle = new ocio_rs_bridge::BuiltinTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>(ocio_rs_bridge::RealBuiltinTransform{builtin});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_CDL: {
+      auto cdl = ocio::DynamicPtrCast<ocio::CDLTransform>(t);
+      auto handle = new ocio_rs_bridge::CDLTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(ocio_rs_bridge::RealCDLTransform{cdl});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPONENT: {
+      auto exp = ocio::DynamicPtrCast<ocio::ExponentTransform>(t);
+      auto handle = new ocio_rs_bridge::ExponentTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExponentTransform>(ocio_rs_bridge::RealExponentTransform{exp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FILE: {
+      auto file = ocio::DynamicPtrCast<ocio::FileTransform>(t);
+      auto handle = new ocio_rs_bridge::FileTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(ocio_rs_bridge::RealFileTransform{file});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FIXED_FUNCTION: {
+      auto ff = ocio::DynamicPtrCast<ocio::FixedFunctionTransform>(t);
+      auto handle = new ocio_rs_bridge::FixedFunctionHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{ff});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GROUP: {
+      auto grp = ocio::DynamicPtrCast<ocio::GroupTransform>(t);
+      auto handle = new ocio_rs_bridge::GroupTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{grp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG: {
+      auto log = ocio::DynamicPtrCast<ocio::LogTransform>(t);
+      auto handle = new ocio_rs_bridge::LogTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogTransform>(ocio_rs_bridge::RealLogTransform{log});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT1D: {
+      auto lut1d = ocio::DynamicPtrCast<ocio::Lut1DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut1DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{lut1d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT3D: {
+      auto lut3d = ocio::DynamicPtrCast<ocio::Lut3DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut3DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{lut3d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_MATRIX: {
+      auto mat = ocio::DynamicPtrCast<ocio::MatrixTransform>(t);
+      auto handle = new ocio_rs_bridge::MatrixTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{mat});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_RANGE: {
+      auto range = ocio::DynamicPtrCast<ocio::RangeTransform>(t);
+      auto handle = new ocio_rs_bridge::RangeTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealRangeTransform>(ocio_rs_bridge::RealRangeTransform{range});
+      return handle;
+    }
+    default: return nullptr;
+  }
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_transform(void* viewTransform, const void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)transform;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  if (transform) {
+    auto th = static_cast<const ocio_rs_bridge::TransformHandleBase*>(transform);
+    real->transform->setTransform(th->get_ocio_transform());
+  } else {
+    real->transform->setTransform(nullptr);
+  }
+  END_TRY_VOID
+#endif
+}
+
+int ocio_view_transform_get_direction(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_view_transform_set_direction(void* viewTransform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)direction;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_view_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ViewTransformHandle*>(handle);
 }
 
 }  // extern "C"

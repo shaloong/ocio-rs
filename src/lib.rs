@@ -6,6 +6,7 @@ mod look;
 mod processor;
 pub mod transform;
 mod types;
+mod view_transform;
 
 pub use baker::Baker;
 pub use colorspace::ColorSpace;
@@ -14,6 +15,7 @@ pub use context::Context;
 pub use look::Look;
 pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, Processor, TextureInfo};
 pub use types::*;
+pub use view_transform::ViewTransform;
 
 use std::ffi::CString;
 use thiserror::Error;

@@ -379,4 +379,22 @@ unsafe extern "C" {
     pub fn ocio_look_get_direction(look: *mut c_void) -> i32;
     pub fn ocio_look_set_direction(look: *mut c_void, direction: i32);
     pub fn ocio_look_destroy(handle: *mut c_void);
+
+    // --- ViewTransform ---
+    pub fn ocio_view_transform_create(referenceSpace: i32) -> *mut c_void;
+    pub fn ocio_view_transform_get_src(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_src(viewTransform: *mut c_void, src: *const i8);
+    pub fn ocio_view_transform_get_display(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_display(viewTransform: *mut c_void, display: *const i8);
+    pub fn ocio_view_transform_get_view(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_view(viewTransform: *mut c_void, view: *const i8);
+    pub fn ocio_view_transform_get_looks_bypass(viewTransform: *mut c_void) -> bool;
+    pub fn ocio_view_transform_set_looks_bypass(viewTransform: *mut c_void, bypass: bool);
+    pub fn ocio_view_transform_get_rule(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_rule(viewTransform: *mut c_void, rule: *const i8);
+    pub fn ocio_view_transform_get_transform(viewTransform: *mut c_void) -> *mut c_void;
+    pub fn ocio_view_transform_set_transform(viewTransform: *mut c_void, transform: *const c_void);
+    pub fn ocio_view_transform_get_direction(viewTransform: *mut c_void) -> i32;
+    pub fn ocio_view_transform_set_direction(viewTransform: *mut c_void, direction: i32);
+    pub fn ocio_view_transform_destroy(handle: *mut c_void);
 }
