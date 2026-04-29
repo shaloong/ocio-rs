@@ -87,6 +87,20 @@ struct GroupTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
 #endif
 };
 
+struct BuiltinTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 1; } // TRANSFORM_TYPE_BUILTIN
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+
+struct FixedFunctionTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 9; } // TRANSFORM_TYPE_FIXED_FUNCTION
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+
 // Baker / Context / ColorSpace handles
 struct BakerHandle { std::shared_ptr<void> inner; };
 struct ContextHandle { std::shared_ptr<void> inner; };
@@ -191,6 +205,14 @@ struct RealGroupTransform {
   ocio::GroupTransformRcPtr transform;
 };
 
+struct RealBuiltinTransform {
+  ocio::BuiltinTransformRcPtr transform;
+};
+
+struct RealFixedFunctionTransform {
+  ocio::FixedFunctionTransformRcPtr transform;
+};
+
 struct RealBaker {
   ocio::BakerRcPtr baker;
 };
@@ -225,6 +247,12 @@ ocio::TransformRcPtr RangeTransformHandle::get_ocio_transform() {
 }
 ocio::TransformRcPtr GroupTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealGroupTransform>(inner)->transform;
+}
+ocio::TransformRcPtr BuiltinTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealBuiltinTransform>(inner)->transform;
+}
+ocio::TransformRcPtr FixedFunctionTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealFixedFunctionTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -1214,6 +1242,24 @@ void* ocio_transform_create_editable_copy(void* transform) {
       out = hdl.release();
       break;
     }
+    case 1: { // BuiltinTransform
+      auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::BuiltinTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 9: { // FixedFunctionTransform
+      auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
     case 14: { // GroupTransform
       auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(base);
       auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
@@ -1988,6 +2034,15 @@ void* ocio_group_transform_get_transform(void* transform, int index) {
     int type = static_cast<int>(child->getTransformType());
     TransformHandleBase* out = nullptr;
     switch (type) {
+      case 1: { // Builtin
+        auto t = ocio::DynamicPtrCast<const ocio::BuiltinTransform>(child);
+        auto hdl = std::make_unique<BuiltinTransformHandle>();
+        auto r = std::make_shared<RealBuiltinTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
       case 2: { // CDL
         auto t = ocio::DynamicPtrCast<const ocio::CDLTransform>(child);
         auto hdl = std::make_unique<CDLTransformHandle>();
@@ -2010,6 +2065,15 @@ void* ocio_group_transform_get_transform(void* transform, int index) {
         auto t = ocio::DynamicPtrCast<const ocio::FileTransform>(child);
         auto hdl = std::make_unique<FileTransformHandle>();
         auto r = std::make_shared<RealFileTransform>();
+        r->transform = t->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 9: { // FixedFunction
+        auto t = ocio::DynamicPtrCast<const ocio::FixedFunctionTransform>(child);
+        auto hdl = std::make_unique<FixedFunctionTransformHandle>();
+        auto r = std::make_shared<RealFixedFunctionTransform>();
         r->transform = t->createEditableCopy();
         hdl->inner = r;
         out = hdl.release();
@@ -2115,6 +2179,198 @@ void ocio_group_transform_set_direction(void* transform, int direction) {
 
 void ocio_group_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GroupTransformHandle*>(handle);
+}
+
+// --- BuiltinTransform ---
+
+void* ocio_builtin_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::BuiltinTransformHandle{};
+#else
+  try {
+    auto r = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>();
+    r->transform = ocio::BuiltinTransform::Create();
+    auto hdl = std::make_unique<ocio_rs_bridge::BuiltinTransformHandle>();
+    hdl->inner = r;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_builtin_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform;
+    // Call getStyle() and cache the result to avoid returning a dangling pointer
+    static thread_local std::string cached;
+    cached = t->getStyle();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_builtin_transform_set_style(void* transform, const char* style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform;
+    t->setStyle(style);
+  } catch (...) {}
+#endif
+}
+
+int ocio_builtin_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform;
+    return static_cast<int>(t->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_builtin_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform;
+    t->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_builtin_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(handle);
+}
+
+// --- FixedFunctionTransform ---
+
+void* ocio_fixed_function_transform_create(int style) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::FixedFunctionTransformHandle{};
+#else
+  try {
+    auto r = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>();
+    r->transform = ocio::FixedFunctionTransform::Create(
+        static_cast<ocio::FixedFunctionStyle>(style));
+    auto hdl = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
+    hdl->inner = r;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_fixed_function_transform_create_with_params(int style, const double* params, int num_params) {
+#ifdef OCIO_RS_STUB
+  (void)params; (void)num_params;
+  return new ocio_rs_bridge::FixedFunctionTransformHandle{};
+#else
+  try {
+    auto r = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>();
+    r->transform = ocio::FixedFunctionTransform::Create(
+        static_cast<ocio::FixedFunctionStyle>(style), params, num_params);
+    auto hdl = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
+    hdl->inner = r;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_fixed_function_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    return static_cast<int>(t->getStyle());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_fixed_function_transform_set_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    t->setStyle(static_cast<ocio::FixedFunctionStyle>(style));
+  } catch (...) {}
+#endif
+}
+
+int ocio_fixed_function_transform_get_num_params(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    return static_cast<int>(t->getNumParams());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_fixed_function_transform_get_params(void* transform, double* params) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)params;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    t->getParams(params);
+  } catch (...) {}
+#endif
+}
+
+void ocio_fixed_function_transform_set_params(void* transform, const double* params, int num_params) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)params; (void)num_params;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    t->setParams(params, num_params);
+  } catch (...) {}
+#endif
+}
+
+int ocio_fixed_function_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    return static_cast<int>(t->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_fixed_function_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealFixedFunctionTransform>(h->inner)->transform;
+    t->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_fixed_function_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(handle);
 }
 
 // --- Baker ---

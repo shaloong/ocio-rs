@@ -5,6 +5,8 @@ mod matrix;
 mod log;
 mod range;
 mod group;
+mod builtin;
+mod fixed_function;
 
 use std::ffi::c_void;
 
@@ -15,6 +17,8 @@ pub use matrix::MatrixTransform;
 pub use log::LogTransform;
 pub use range::RangeTransform;
 pub use group::GroupTransform;
+pub use builtin::BuiltinTransform;
+pub use fixed_function::FixedFunctionTransform;
 
 pub trait TransformHandle {
     fn as_ptr(&self) -> *mut c_void;
@@ -41,6 +45,12 @@ impl TransformHandle for RangeTransform {
 impl TransformHandle for GroupTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for BuiltinTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for FixedFunctionTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 
 pub enum Transform {
     File(FileTransform),
@@ -50,6 +60,8 @@ pub enum Transform {
     Log(LogTransform),
     Range(RangeTransform),
     Group(GroupTransform),
+    Builtin(BuiltinTransform),
+    FixedFunction(FixedFunctionTransform),
 }
 
 impl TransformHandle for Transform {
@@ -62,6 +74,8 @@ impl TransformHandle for Transform {
             Transform::Log(t) => t.as_ptr(),
             Transform::Range(t) => t.as_ptr(),
             Transform::Group(t) => t.as_ptr(),
+            Transform::Builtin(t) => t.as_ptr(),
+            Transform::FixedFunction(t) => t.as_ptr(),
         }
     }
 }

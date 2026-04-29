@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use ocio_sys;
 use crate::{OcioError, Result, TransformDirection};
 use super::{TransformHandle, Transform};
-use super::{FileTransform, CDLTransform, ExponentTransform, MatrixTransform, LogTransform, RangeTransform};
+use super::{FileTransform, CDLTransform, ExponentTransform, MatrixTransform, LogTransform, RangeTransform, BuiltinTransform, FixedFunctionTransform};
 
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -41,9 +41,11 @@ impl GroupTransform {
         }
         let type_tag = unsafe { ocio_sys::ocio_transform_get_transform_type(handle) };
         match type_tag {
+            1 => Some(Transform::Builtin(BuiltinTransform { handle: NonNull::new(handle).unwrap() })),
             2 => Some(Transform::CDL(CDLTransform { handle: NonNull::new(handle).unwrap() })),
             5 => Some(Transform::Exponent(ExponentTransform { handle: NonNull::new(handle).unwrap() })),
             8 => Some(Transform::File(FileTransform { handle: NonNull::new(handle).unwrap() })),
+            9 => Some(Transform::FixedFunction(FixedFunctionTransform { handle: NonNull::new(handle).unwrap() })),
             14 => Some(Transform::Group(GroupTransform { handle: NonNull::new(handle).unwrap() })),
             17 => Some(Transform::Log(LogTransform { handle: NonNull::new(handle).unwrap() })),
             21 => Some(Transform::Matrix(MatrixTransform { handle: NonNull::new(handle).unwrap() })),

@@ -229,6 +229,30 @@ unsafe extern "C" {
     pub fn ocio_group_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_group_transform_destroy(handle: *mut c_void);
 
+    // --- BuiltinTransform ---
+    pub fn ocio_builtin_transform_create() -> *mut c_void;
+    pub fn ocio_builtin_transform_get_style(transform: *mut c_void) -> *const i8;
+    pub fn ocio_builtin_transform_set_style(transform: *mut c_void, style: *const i8);
+    pub fn ocio_builtin_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_builtin_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_builtin_transform_destroy(handle: *mut c_void);
+
+    // --- FixedFunctionTransform ---
+    pub fn ocio_fixed_function_transform_create(style: i32) -> *mut c_void;
+    pub fn ocio_fixed_function_transform_create_with_params(
+        style: i32, params: *const f64, num_params: i32,
+    ) -> *mut c_void;
+    pub fn ocio_fixed_function_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_fixed_function_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_fixed_function_transform_get_num_params(transform: *mut c_void) -> i32;
+    pub fn ocio_fixed_function_transform_get_params(transform: *mut c_void, params: *mut f64);
+    pub fn ocio_fixed_function_transform_set_params(
+        transform: *mut c_void, params: *const f64, num_params: i32,
+    );
+    pub fn ocio_fixed_function_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_fixed_function_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_fixed_function_transform_destroy(handle: *mut c_void);
+
     // --- Baker ---
     pub fn ocio_baker_create() -> *mut c_void;
     pub fn ocio_baker_create_editable_copy(baker: *mut c_void) -> *mut c_void;

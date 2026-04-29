@@ -196,6 +196,26 @@ int ocio_group_transform_get_direction(void* transform);
 void ocio_group_transform_set_direction(void* transform, int direction);
 void ocio_group_transform_destroy(void* handle);
 
+// --- BuiltinTransform ---
+void* ocio_builtin_transform_create(void);
+const char* ocio_builtin_transform_get_style(void* transform);
+void ocio_builtin_transform_set_style(void* transform, const char* style);
+int ocio_builtin_transform_get_direction(void* transform);
+void ocio_builtin_transform_set_direction(void* transform, int direction);
+void ocio_builtin_transform_destroy(void* handle);
+
+// --- FixedFunctionTransform ---
+void* ocio_fixed_function_transform_create(int style);
+void* ocio_fixed_function_transform_create_with_params(int style, const double* params, int num_params);
+int ocio_fixed_function_transform_get_style(void* transform);
+void ocio_fixed_function_transform_set_style(void* transform, int style);
+int ocio_fixed_function_transform_get_num_params(void* transform);
+void ocio_fixed_function_transform_get_params(void* transform, double* params);
+void ocio_fixed_function_transform_set_params(void* transform, const double* params, int num_params);
+int ocio_fixed_function_transform_get_direction(void* transform);
+void ocio_fixed_function_transform_set_direction(void* transform, int direction);
+void ocio_fixed_function_transform_destroy(void* handle);
+
 // --- Baker ---
 void* ocio_baker_create(void);
 void* ocio_baker_create_editable_copy(void* baker);
