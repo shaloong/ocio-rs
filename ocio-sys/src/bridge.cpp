@@ -135,6 +135,30 @@ struct ColorSpaceTransformHandle : TransformHandleBase { std::shared_ptr<void> i
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct LookTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 18; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct AllocationTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 0; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct LogAffineTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 15; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct LogCameraTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 16; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 
 #ifdef OCIO_RS_STUB
 
@@ -281,6 +305,18 @@ struct RealExposureContrastTransform {
 struct RealColorSpaceTransform {
   ocio::ColorSpaceTransformRcPtr transform;
 };
+struct RealLookTransform {
+  ocio::LookTransformRcPtr transform;
+};
+struct RealAllocationTransform {
+  ocio::AllocationTransformRcPtr transform;
+};
+struct RealLogAffineTransform {
+  ocio::LogAffineTransformRcPtr transform;
+};
+struct RealLogCameraTransform {
+  ocio::LogCameraTransformRcPtr transform;
+};
 
 // --- TransformHandleBase out-of-line implementations ---
 
@@ -324,6 +360,20 @@ ocio::TransformRcPtr ExposureContrastTransformHandle::get_ocio_transform() {
 
 ocio::TransformRcPtr ColorSpaceTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealColorSpaceTransform>(inner)->transform;
+}
+
+ocio::TransformRcPtr LookTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLookTransform>(inner)->transform;
+}
+
+ocio::TransformRcPtr AllocationTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealAllocationTransform>(inner)->transform;
+}
+ocio::TransformRcPtr LogAffineTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLogAffineTransform>(inner)->transform;
+}
+ocio::TransformRcPtr LogCameraTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealLogCameraTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -1445,6 +1495,15 @@ void* ocio_transform_create_editable_copy(void* transform) {
       out = hdl.release();
       break;
     }
+    case 18: { // LookTransform
+      auto* h = static_cast<ocio_rs_bridge::LookTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLookTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::LookTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
     case 1: { // BuiltinTransform
       auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(base);
       auto r = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>();
@@ -1486,6 +1545,33 @@ void* ocio_transform_create_editable_copy(void* transform) {
       auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
       r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform->createEditableCopy();
       auto hdl = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 0: { // AllocationTransform
+      auto* h = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealAllocationTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::AllocationTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 15: { // LogAffineTransform
+      auto* h = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLogAffineTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::LogAffineTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 16: { // LogCameraTransform
+      auto* h = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::LogCameraTransformHandle>();
       hdl->inner = r;
       out = hdl.release();
       break;
@@ -4850,6 +4936,588 @@ void ocio_color_space_transform_set_direction(void* transform, int direction) {
 
 void ocio_color_space_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(handle);
+}
+
+// --- LookTransform ---
+
+void* ocio_look_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::LookTransformHandle{};
+#else
+  BEGIN_TRY
+  auto t = ocio::LookTransform::Create();
+  auto handle = new ocio_rs_bridge::LookTransformHandle{};
+  handle->inner = std::make_shared<ocio_rs_bridge::RealLookTransform>(ocio_rs_bridge::RealLookTransform{t});
+  return handle;
+  END_TRY(nullptr)
+#endif
+}
+
+const char* ocio_look_transform_get_src(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  const char* result = real->transform->getSrc();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_look_transform_set_src(void* transform, const char* src) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)src;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  real->transform->setSrc(src);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_look_transform_get_dst(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  const char* result = real->transform->getDst();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_look_transform_set_dst(void* transform, const char* dst) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)dst;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  real->transform->setDst(dst);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_look_transform_get_looks(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  const char* result = real->transform->getLooks();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_look_transform_set_looks(void* transform, const char* looks) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)looks;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  real->transform->setLooks(looks);
+  END_TRY_VOID
+#endif
+}
+
+int ocio_look_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_look_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_look_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::LookTransformHandle*>(handle);
+}
+
+// --- AllocationTransform ---
+
+void* ocio_allocation_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::AllocationTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealAllocationTransform>();
+  r->transform = ocio::AllocationTransform::Create();
+  auto hdl = std::make_unique<ocio_rs_bridge::AllocationTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+int ocio_allocation_transform_get_allocation(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  return static_cast<int>(real->transform->getAllocation());
+  END_TRY(0)
+#endif
+}
+
+void ocio_allocation_transform_set_allocation(void* transform, int allocation) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)allocation;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  real->transform->setAllocation(static_cast<ocio::Allocation>(allocation));
+  END_TRY_VOID
+#endif
+}
+
+int ocio_allocation_transform_get_num_vars(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  return real->transform->getNumVars();
+  END_TRY(0)
+#endif
+}
+
+void ocio_allocation_transform_get_vars(void* transform, float* vars) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)vars;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  real->transform->getVars(vars);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_allocation_transform_set_vars(void* transform, int numvars, const float* vars) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)numvars; (void)vars;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  real->transform->setVars(numvars, vars);
+  END_TRY_VOID
+#endif
+}
+
+int ocio_allocation_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_allocation_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::AllocationTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealAllocationTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_allocation_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::AllocationTransformHandle*>(handle);
+}
+
+// --- LogAffineTransform ---
+
+void* ocio_log_affine_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::LogAffineTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealLogAffineTransform>();
+  r->transform = ocio::LogAffineTransform::Create();
+  auto hdl = std::make_unique<ocio_rs_bridge::LogAffineTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+double ocio_log_affine_transform_get_base(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 2.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  return real->transform->getBase();
+  END_TRY(2.0)
+#endif
+}
+
+void ocio_log_affine_transform_set_base(void* transform, double base) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)base;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setBase(base);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_destroy(void* handle);
+void ocio_log_camera_transform_destroy(void* handle);
+
+void ocio_log_affine_transform_get_log_side_slope_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->getLogSideSlopeValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_set_log_side_slope_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setLogSideSlopeValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_get_log_side_offset_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->getLogSideOffsetValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_set_log_side_offset_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setLogSideOffsetValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_get_lin_side_slope_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->getLinSideSlopeValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_set_lin_side_slope_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setLinSideSlopeValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_get_lin_side_offset_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->getLinSideOffsetValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_set_lin_side_offset_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setLinSideOffsetValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_affine_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(handle);
+}
+
+// --- LogCameraTransform ---
+
+void* ocio_log_camera_transform_create(const double* linSideBreakValues) {
+#ifdef OCIO_RS_STUB
+  (void)linSideBreakValues;
+  return new ocio_rs_bridge::LogCameraTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>();
+  r->transform = ocio::LogCameraTransform::Create(*reinterpret_cast<const double(*)[3]>(linSideBreakValues));
+  auto hdl = std::make_unique<ocio_rs_bridge::LogCameraTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+double ocio_log_camera_transform_get_base(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 2.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  return real->transform->getBase();
+  END_TRY(2.0)
+#endif
+}
+
+void ocio_log_camera_transform_set_base(void* transform, double base) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)base;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setBase(base);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_get_log_side_slope_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->getLogSideSlopeValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_set_log_side_slope_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLogSideSlopeValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_get_log_side_offset_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->getLogSideOffsetValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_set_log_side_offset_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLogSideOffsetValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_slope_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->getLinSideSlopeValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_slope_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLinSideSlopeValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_offset_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->getLinSideOffsetValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_offset_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLinSideOffsetValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_break_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->getLinSideBreakValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_break_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLinSideBreakValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_log_camera_transform_get_linear_slope_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  return real->transform->getLinearSlopeValue(reinterpret_cast<double(&)[3]>(*values));
+  END_TRY(false)
+#endif
+}
+
+void ocio_log_camera_transform_set_linear_slope_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setLinearSlopeValue(*reinterpret_cast<const double(*)[3]>(values));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_unset_linear_slope_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->unsetLinearSlopeValue();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_log_camera_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(handle);
 }
 
 }  // extern "C"

@@ -453,4 +453,60 @@ unsafe extern "C" {
     pub fn ocio_color_space_transform_get_direction(transform: *mut c_void) -> i32;
     pub fn ocio_color_space_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_color_space_transform_destroy(handle: *mut c_void);
+
+    // --- LookTransform ---
+    pub fn ocio_look_transform_create() -> *mut c_void;
+    pub fn ocio_look_transform_get_src(transform: *mut c_void) -> *const i8;
+    pub fn ocio_look_transform_set_src(transform: *mut c_void, src: *const i8);
+    pub fn ocio_look_transform_get_dst(transform: *mut c_void) -> *const i8;
+    pub fn ocio_look_transform_set_dst(transform: *mut c_void, dst: *const i8);
+    pub fn ocio_look_transform_get_looks(transform: *mut c_void) -> *const i8;
+    pub fn ocio_look_transform_set_looks(transform: *mut c_void, looks: *const i8);
+    pub fn ocio_look_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_look_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_look_transform_destroy(handle: *mut c_void);
+
+    // --- AllocationTransform ---
+    pub fn ocio_allocation_transform_create() -> *mut c_void;
+    pub fn ocio_allocation_transform_get_allocation(transform: *mut c_void) -> i32;
+    pub fn ocio_allocation_transform_set_allocation(transform: *mut c_void, allocation: i32);
+    pub fn ocio_allocation_transform_get_num_vars(transform: *mut c_void) -> i32;
+    pub fn ocio_allocation_transform_get_vars(transform: *mut c_void, vars: *mut f32);
+    pub fn ocio_allocation_transform_set_vars(transform: *mut c_void, numvars: i32, vars: *const f32);
+    pub fn ocio_allocation_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_allocation_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_allocation_transform_destroy(handle: *mut c_void);
+
+    // --- LogAffineTransform ---
+    pub fn ocio_log_affine_transform_create() -> *mut c_void;
+    pub fn ocio_log_affine_transform_get_base(transform: *mut c_void) -> f64;
+    pub fn ocio_log_affine_transform_set_base(transform: *mut c_void, base: f64);
+    pub fn ocio_log_affine_transform_get_log_side_slope_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_affine_transform_set_log_side_slope_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_affine_transform_get_log_side_offset_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_affine_transform_set_log_side_offset_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_affine_transform_get_lin_side_slope_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_affine_transform_set_lin_side_slope_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_affine_transform_get_lin_side_offset_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_affine_transform_set_lin_side_offset_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_affine_transform_destroy(handle: *mut c_void);
+
+    // --- LogCameraTransform ---
+    pub fn ocio_log_camera_transform_create(linSideBreakValues: *const f64) -> *mut c_void;
+    pub fn ocio_log_camera_transform_get_base(transform: *mut c_void) -> f64;
+    pub fn ocio_log_camera_transform_set_base(transform: *mut c_void, base: f64);
+    pub fn ocio_log_camera_transform_get_log_side_slope_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_camera_transform_set_log_side_slope_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_get_log_side_offset_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_camera_transform_set_log_side_offset_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_get_lin_side_slope_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_camera_transform_set_lin_side_slope_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_get_lin_side_offset_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_camera_transform_set_lin_side_offset_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_get_lin_side_break_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_log_camera_transform_set_lin_side_break_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_get_linear_slope_value(transform: *mut c_void, values: *mut f64) -> bool;
+    pub fn ocio_log_camera_transform_set_linear_slope_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_log_camera_transform_unset_linear_slope_value(transform: *mut c_void);
+    pub fn ocio_log_camera_transform_destroy(handle: *mut c_void);
 }

@@ -12,6 +12,9 @@ mod lut3d;
 mod exposure_contrast;
 mod color_space;
 mod look_transform;
+mod allocation;
+mod log_affine;
+mod log_camera;
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -32,6 +35,9 @@ pub use lut3d::Lut3DTransform;
 pub use exposure_contrast::ExposureContrastTransform;
 pub use color_space::ColorSpaceTransform;
 pub use look_transform::LookTransform;
+pub use allocation::AllocationTransform;
+pub use log_affine::LogAffineTransform;
+pub use log_camera::LogCameraTransform;
 
 pub trait TransformHandle {
     fn as_ptr(&self) -> *mut c_void;
@@ -79,6 +85,15 @@ impl TransformHandle for ColorSpaceTransform {
 impl TransformHandle for LookTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for AllocationTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for LogAffineTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for LogCameraTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 
 pub enum Transform {
     File(FileTransform),
@@ -95,6 +110,9 @@ pub enum Transform {
     ExposureContrast(ExposureContrastTransform),
     ColorSpace(ColorSpaceTransform),
     Look(LookTransform),
+    Allocation(AllocationTransform),
+    LogAffine(LogAffineTransform),
+    LogCamera(LogCameraTransform),
 }
 
 impl TransformHandle for Transform {
@@ -114,6 +132,9 @@ impl TransformHandle for Transform {
             Transform::ExposureContrast(t) => t.as_ptr(),
             Transform::ColorSpace(t) => t.as_ptr(),
             Transform::Look(t) => t.as_ptr(),
+            Transform::Allocation(t) => t.as_ptr(),
+            Transform::LogAffine(t) => t.as_ptr(),
+            Transform::LogCamera(t) => t.as_ptr(),
         }
     }
 }
@@ -139,6 +160,9 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         7 => Some(Transform::ExposureContrast(ExposureContrastTransform { handle: nn })),
         4 => Some(Transform::ColorSpace(ColorSpaceTransform { handle: nn })),
         18 => Some(Transform::Look(LookTransform { handle: nn })),
+        0 => Some(Transform::Allocation(AllocationTransform { handle: nn })),
+        15 => Some(Transform::LogAffine(LogAffineTransform { handle: nn })),
+        16 => Some(Transform::LogCamera(LogCameraTransform { handle: nn })),
         _ => None,
     }
 }

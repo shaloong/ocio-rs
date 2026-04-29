@@ -419,4 +419,60 @@ int ocio_color_space_transform_get_direction(void* transform);
 void ocio_color_space_transform_set_direction(void* transform, int direction);
 void ocio_color_space_transform_destroy(void* handle);
 
+// --- LookTransform ---
+void* ocio_look_transform_create(void);
+const char* ocio_look_transform_get_src(void* transform);
+void ocio_look_transform_set_src(void* transform, const char* src);
+const char* ocio_look_transform_get_dst(void* transform);
+void ocio_look_transform_set_dst(void* transform, const char* dst);
+const char* ocio_look_transform_get_looks(void* transform);
+void ocio_look_transform_set_looks(void* transform, const char* looks);
+int ocio_look_transform_get_direction(void* transform);
+void ocio_look_transform_set_direction(void* transform, int direction);
+void ocio_look_transform_destroy(void* handle);
+
+// --- AllocationTransform ---
+void* ocio_allocation_transform_create(void);
+int ocio_allocation_transform_get_allocation(void* transform);
+void ocio_allocation_transform_set_allocation(void* transform, int allocation);
+int ocio_allocation_transform_get_num_vars(void* transform);
+void ocio_allocation_transform_get_vars(void* transform, float* vars);
+void ocio_allocation_transform_set_vars(void* transform, int numvars, const float* vars);
+int ocio_allocation_transform_get_direction(void* transform);
+void ocio_allocation_transform_set_direction(void* transform, int direction);
+void ocio_allocation_transform_destroy(void* handle);
+
+// --- LogAffineTransform ---
+void* ocio_log_affine_transform_create(void);
+double ocio_log_affine_transform_get_base(void* transform);
+void ocio_log_affine_transform_set_base(void* transform, double base);
+void ocio_log_affine_transform_get_log_side_slope_value(void* transform, double* values);
+void ocio_log_affine_transform_set_log_side_slope_value(void* transform, const double* values);
+void ocio_log_affine_transform_get_log_side_offset_value(void* transform, double* values);
+void ocio_log_affine_transform_set_log_side_offset_value(void* transform, const double* values);
+void ocio_log_affine_transform_get_lin_side_slope_value(void* transform, double* values);
+void ocio_log_affine_transform_set_lin_side_slope_value(void* transform, const double* values);
+void ocio_log_affine_transform_get_lin_side_offset_value(void* transform, double* values);
+void ocio_log_affine_transform_set_lin_side_offset_value(void* transform, const double* values);
+void ocio_log_affine_transform_destroy(void* handle);
+
+// --- LogCameraTransform ---
+void* ocio_log_camera_transform_create(const double* linSideBreakValues);
+double ocio_log_camera_transform_get_base(void* transform);
+void ocio_log_camera_transform_set_base(void* transform, double base);
+void ocio_log_camera_transform_get_log_side_slope_value(void* transform, double* values);
+void ocio_log_camera_transform_set_log_side_slope_value(void* transform, const double* values);
+void ocio_log_camera_transform_get_log_side_offset_value(void* transform, double* values);
+void ocio_log_camera_transform_set_log_side_offset_value(void* transform, const double* values);
+void ocio_log_camera_transform_get_lin_side_slope_value(void* transform, double* values);
+void ocio_log_camera_transform_set_lin_side_slope_value(void* transform, const double* values);
+void ocio_log_camera_transform_get_lin_side_offset_value(void* transform, double* values);
+void ocio_log_camera_transform_set_lin_side_offset_value(void* transform, const double* values);
+void ocio_log_camera_transform_get_lin_side_break_value(void* transform, double* values);
+void ocio_log_camera_transform_set_lin_side_break_value(void* transform, const double* values);
+bool ocio_log_camera_transform_get_linear_slope_value(void* transform, double* values);
+void ocio_log_camera_transform_set_linear_slope_value(void* transform, const double* values);
+void ocio_log_camera_transform_unset_linear_slope_value(void* transform);
+void ocio_log_camera_transform_destroy(void* handle);
+
 }
