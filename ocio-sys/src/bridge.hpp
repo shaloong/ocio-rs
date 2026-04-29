@@ -378,4 +378,11 @@ void* ocio_named_transform_get_transform(void* namedTransform, int direction);
 void ocio_named_transform_set_transform(void* namedTransform, const void* transform, int direction);
 void ocio_named_transform_destroy(void* handle);
 
+// --- DynamicProperty ---
+void* ocio_processor_get_dynamic_property(void* processor, int propertyType);
+int ocio_dynamic_property_get_type(void* prop);
+double ocio_dynamic_property_double_get_value(void* prop);
+void ocio_dynamic_property_double_set_value(void* prop, double value);
+void ocio_dynamic_property_destroy(void* handle);
+
 }

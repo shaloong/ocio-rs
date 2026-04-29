@@ -412,4 +412,11 @@ unsafe extern "C" {
     pub fn ocio_named_transform_get_transform(namedTransform: *mut c_void, direction: i32) -> *mut c_void;
     pub fn ocio_named_transform_set_transform(namedTransform: *mut c_void, transform: *const c_void, direction: i32);
     pub fn ocio_named_transform_destroy(handle: *mut c_void);
+
+    // --- DynamicProperty ---
+    pub fn ocio_processor_get_dynamic_property(processor: *mut c_void, propertyType: i32) -> *mut c_void;
+    pub fn ocio_dynamic_property_get_type(prop: *mut c_void) -> i32;
+    pub fn ocio_dynamic_property_double_get_value(prop: *mut c_void) -> f64;
+    pub fn ocio_dynamic_property_double_set_value(prop: *mut c_void, value: f64);
+    pub fn ocio_dynamic_property_destroy(handle: *mut c_void);
 }

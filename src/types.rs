@@ -253,3 +253,14 @@ pub enum NamedTransformVisibility {
     Inactive = 1,
     All = 2,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum DynamicPropertyType {
+    Exposure = 0,
+    Contrast = 1,
+    Gamma = 2,
+    GradingPrimary = 3,
+    GradingRgbCurve = 4,
+    GradingTone = 5,
+}

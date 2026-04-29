@@ -122,6 +122,7 @@ struct ColorSpaceHandle { std::shared_ptr<void> inner; };
 struct LookHandle { std::shared_ptr<void> inner; };
 struct ViewTransformHandle { std::shared_ptr<void> inner; };
 struct NamedTransformHandle { std::shared_ptr<void> inner; };
+struct DynamicPropertyHandle { std::shared_ptr<void> inner; };
 
 #ifdef OCIO_RS_STUB
 
@@ -258,6 +259,9 @@ struct RealViewTransform {
 };
 struct RealNamedTransform {
   ocio::NamedTransformRcPtr transform;
+};
+struct RealDynamicProperty {
+  ocio::DynamicPropertyRcPtr prop;
 };
 
 // --- TransformHandleBase out-of-line implementations ---
@@ -4371,6 +4375,68 @@ void ocio_named_transform_set_transform(void* namedTransform, const void* transf
 
 void ocio_named_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::NamedTransformHandle*>(handle);
+}
+
+// --- DynamicProperty ---
+
+void* ocio_processor_get_dynamic_property(void* processor, int propertyType) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)propertyType;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto proc = static_cast<ocio_rs_bridge::ProcessorHandle*>(processor);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(proc->inner);
+  auto dp = real->processor->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(propertyType));
+  if (!dp) return nullptr;
+  return new ocio_rs_bridge::DynamicPropertyHandle{std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{dp})};
+  END_TRY(nullptr)
+#endif
+}
+
+int ocio_dynamic_property_get_type(void* prop) {
+#ifdef OCIO_RS_STUB
+  (void)prop;
+  return -1;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  return static_cast<int>(real->prop->getType());
+  END_TRY(-1)
+#endif
+}
+
+double ocio_dynamic_property_double_get_value(void* prop) {
+#ifdef OCIO_RS_STUB
+  (void)prop;
+  return 0.0;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto dbl = ocio::DynamicPtrCast<ocio::DynamicPropertyDouble>(real->prop);
+  if (!dbl) return 0.0;
+  return dbl->getValue();
+  END_TRY(0.0)
+#endif
+}
+
+void ocio_dynamic_property_double_set_value(void* prop, double value) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)value;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto dbl = ocio::DynamicPtrCast<ocio::DynamicPropertyDouble>(real->prop);
+  if (dbl) dbl->setValue(value);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
 }
 
 }  // extern "C"

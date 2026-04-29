@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType};
 
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
@@ -50,6 +50,13 @@ impl Processor {
             ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags)
         };
         NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_dynamic_property(self.handle.as_ptr(), property_type as i32)
+        };
+        NonNull::new(handle).map(|h| DynamicProperty { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 }
 
@@ -280,6 +287,41 @@ pub struct TextureInfo {
     pub interpolation: i32,
 }
 
+// --- DynamicProperty ---
+
+pub struct DynamicProperty {
+    handle: NonNull<c_void>,
+}
+
+impl DynamicProperty {
+    pub fn property_type(&self) -> DynamicPropertyType {
+        let t = unsafe { ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr()) };
+        match t {
+            0 => DynamicPropertyType::Exposure,
+            1 => DynamicPropertyType::Contrast,
+            2 => DynamicPropertyType::Gamma,
+            3 => DynamicPropertyType::GradingPrimary,
+            4 => DynamicPropertyType::GradingRgbCurve,
+            5 => DynamicPropertyType::GradingTone,
+            _ => DynamicPropertyType::Exposure,
+        }
+    }
+
+    pub fn double_value(&self) -> f64 {
+        unsafe { ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr()) }
+    }
+
+    pub fn set_double_value(&self, value: f64) {
+        unsafe { ocio_sys::ocio_dynamic_property_double_set_value(self.handle.as_ptr(), value) };
+    }
+}
+
+impl Drop for DynamicProperty {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_dynamic_property_destroy(self.handle.as_ptr()) };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,6 +385,18 @@ mod tests {
             let _ = desc.set_pixel_name("outColor");
             let _ = desc.set_resource_prefix("ocio_");
             desc.finalize();
+        }
+    }
+
+    #[test]
+    fn dynamic_property() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        // In stub mode, creating a dynamic property may or may not succeed
+        if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::Exposure) {
+            let _ = dp.property_type();
+            let _ = dp.double_value();
+            dp.set_double_value(1.5);
         }
     }
 }

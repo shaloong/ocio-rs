@@ -15,7 +15,7 @@ pub use config::Config;
 pub use context::Context;
 pub use look::Look;
 pub use named_transform::NamedTransform;
-pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, Processor, TextureInfo};
+pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, DynamicProperty, Processor, TextureInfo};
 pub use types::*;
 pub use view_transform::ViewTransform;
 
