@@ -121,6 +121,7 @@ struct ContextHandle { std::shared_ptr<void> inner; };
 struct ColorSpaceHandle { std::shared_ptr<void> inner; };
 struct LookHandle { std::shared_ptr<void> inner; };
 struct ViewTransformHandle { std::shared_ptr<void> inner; };
+struct NamedTransformHandle { std::shared_ptr<void> inner; };
 
 #ifdef OCIO_RS_STUB
 
@@ -254,6 +255,9 @@ struct RealLook {
 };
 struct RealViewTransform {
   ocio::ViewTransformRcPtr transform;
+};
+struct RealNamedTransform {
+  ocio::NamedTransformRcPtr transform;
 };
 
 // --- TransformHandleBase out-of-line implementations ---
@@ -4124,6 +4128,249 @@ void ocio_view_transform_set_direction(void* viewTransform, int direction) {
 
 void ocio_view_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ViewTransformHandle*>(handle);
+}
+
+// --- NamedTransform ---
+
+void* ocio_named_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::NamedTransformHandle{};
+#else
+  BEGIN_TRY
+  auto nt = ocio::NamedTransform::Create();
+  return new ocio_rs_bridge::NamedTransformHandle{std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{nt})};
+  END_TRY(nullptr)
+#endif
+}
+
+void* ocio_named_transform_create_editable_copy(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  auto copy = real->transform->createEditableCopy();
+  return new ocio_rs_bridge::NamedTransformHandle{std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{copy})};
+  END_TRY(nullptr)
+#endif
+}
+
+const char* ocio_named_transform_get_name(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  const char* result = real->transform->getName();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_named_transform_set_name(void* namedTransform, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)name;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  real->transform->setName(name);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_named_transform_get_family(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  const char* result = real->transform->getFamily();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_named_transform_set_family(void* namedTransform, const char* family) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)family;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  real->transform->setFamily(family);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_named_transform_get_description(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  const char* result = real->transform->getDescription();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_named_transform_set_description(void* namedTransform, const char* description) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)description;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  real->transform->setDescription(description);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_named_transform_get_encoding(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  const char* result = real->transform->getEncoding();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_named_transform_set_encoding(void* namedTransform, const char* encoding) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)encoding;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  real->transform->setEncoding(encoding);
+  END_TRY_VOID
+#endif
+}
+
+void* ocio_named_transform_get_transform(void* namedTransform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)direction;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  ocio::ConstTransformRcPtr t = real->transform->getTransform(static_cast<ocio::TransformDirection>(direction));
+  if (!t) return nullptr;
+  switch (t->getTransformType()) {
+    case ocio::TRANSFORM_TYPE_BUILTIN: {
+      auto builtin = ocio::DynamicPtrCast<ocio::BuiltinTransform>(t);
+      auto handle = new ocio_rs_bridge::BuiltinTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>(ocio_rs_bridge::RealBuiltinTransform{builtin});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_CDL: {
+      auto cdl = ocio::DynamicPtrCast<ocio::CDLTransform>(t);
+      auto handle = new ocio_rs_bridge::CDLTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(ocio_rs_bridge::RealCDLTransform{cdl});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPONENT: {
+      auto exp = ocio::DynamicPtrCast<ocio::ExponentTransform>(t);
+      auto handle = new ocio_rs_bridge::ExponentTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExponentTransform>(ocio_rs_bridge::RealExponentTransform{exp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FILE: {
+      auto file = ocio::DynamicPtrCast<ocio::FileTransform>(t);
+      auto handle = new ocio_rs_bridge::FileTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(ocio_rs_bridge::RealFileTransform{file});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FIXED_FUNCTION: {
+      auto ff = ocio::DynamicPtrCast<ocio::FixedFunctionTransform>(t);
+      auto handle = new ocio_rs_bridge::FixedFunctionHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{ff});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GROUP: {
+      auto grp = ocio::DynamicPtrCast<ocio::GroupTransform>(t);
+      auto handle = new ocio_rs_bridge::GroupTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{grp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG: {
+      auto log = ocio::DynamicPtrCast<ocio::LogTransform>(t);
+      auto handle = new ocio_rs_bridge::LogTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogTransform>(ocio_rs_bridge::RealLogTransform{log});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT1D: {
+      auto lut1d = ocio::DynamicPtrCast<ocio::Lut1DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut1DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{lut1d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT3D: {
+      auto lut3d = ocio::DynamicPtrCast<ocio::Lut3DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut3DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{lut3d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_MATRIX: {
+      auto mat = ocio::DynamicPtrCast<ocio::MatrixTransform>(t);
+      auto handle = new ocio_rs_bridge::MatrixTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{mat});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_RANGE: {
+      auto range = ocio::DynamicPtrCast<ocio::RangeTransform>(t);
+      auto handle = new ocio_rs_bridge::RangeTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealRangeTransform>(ocio_rs_bridge::RealRangeTransform{range});
+      return handle;
+    }
+    default: return nullptr;
+  }
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_named_transform_set_transform(void* namedTransform, const void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform; (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  if (transform) {
+    auto th = static_cast<const ocio_rs_bridge::TransformHandleBase*>(transform);
+    real->transform->setTransform(th->get_ocio_transform(), static_cast<ocio::TransformDirection>(direction));
+  } else {
+    real->transform->setTransform(nullptr, static_cast<ocio::TransformDirection>(direction));
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_named_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::NamedTransformHandle*>(handle);
 }
 
 }  // extern "C"

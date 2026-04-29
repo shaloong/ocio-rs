@@ -397,4 +397,19 @@ unsafe extern "C" {
     pub fn ocio_view_transform_get_direction(viewTransform: *mut c_void) -> i32;
     pub fn ocio_view_transform_set_direction(viewTransform: *mut c_void, direction: i32);
     pub fn ocio_view_transform_destroy(handle: *mut c_void);
+
+    // --- NamedTransform ---
+    pub fn ocio_named_transform_create() -> *mut c_void;
+    pub fn ocio_named_transform_create_editable_copy(namedTransform: *mut c_void) -> *mut c_void;
+    pub fn ocio_named_transform_get_name(namedTransform: *mut c_void) -> *const i8;
+    pub fn ocio_named_transform_set_name(namedTransform: *mut c_void, name: *const i8);
+    pub fn ocio_named_transform_get_family(namedTransform: *mut c_void) -> *const i8;
+    pub fn ocio_named_transform_set_family(namedTransform: *mut c_void, family: *const i8);
+    pub fn ocio_named_transform_get_description(namedTransform: *mut c_void) -> *const i8;
+    pub fn ocio_named_transform_set_description(namedTransform: *mut c_void, description: *const i8);
+    pub fn ocio_named_transform_get_encoding(namedTransform: *mut c_void) -> *const i8;
+    pub fn ocio_named_transform_set_encoding(namedTransform: *mut c_void, encoding: *const i8);
+    pub fn ocio_named_transform_get_transform(namedTransform: *mut c_void, direction: i32) -> *mut c_void;
+    pub fn ocio_named_transform_set_transform(namedTransform: *mut c_void, transform: *const c_void, direction: i32);
+    pub fn ocio_named_transform_destroy(handle: *mut c_void);
 }

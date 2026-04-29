@@ -363,4 +363,19 @@ int ocio_view_transform_get_direction(void* viewTransform);
 void ocio_view_transform_set_direction(void* viewTransform, int direction);
 void ocio_view_transform_destroy(void* handle);
 
+// --- NamedTransform ---
+void* ocio_named_transform_create(void);
+void* ocio_named_transform_create_editable_copy(void* namedTransform);
+const char* ocio_named_transform_get_name(void* namedTransform);
+void ocio_named_transform_set_name(void* namedTransform, const char* name);
+const char* ocio_named_transform_get_family(void* namedTransform);
+void ocio_named_transform_set_family(void* namedTransform, const char* family);
+const char* ocio_named_transform_get_description(void* namedTransform);
+void ocio_named_transform_set_description(void* namedTransform, const char* description);
+const char* ocio_named_transform_get_encoding(void* namedTransform);
+void ocio_named_transform_set_encoding(void* namedTransform, const char* encoding);
+void* ocio_named_transform_get_transform(void* namedTransform, int direction);
+void ocio_named_transform_set_transform(void* namedTransform, const void* transform, int direction);
+void ocio_named_transform_destroy(void* handle);
+
 }
