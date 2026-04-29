@@ -32,6 +32,11 @@ impl LogTransform {
             ocio_sys::ocio_log_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for LogTransform {
@@ -55,5 +60,11 @@ mod tests {
         let lt = LogTransform::create().unwrap();
         let _ = lt.base();
         lt.set_base(10.0);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let lt = LogTransform::create().unwrap();
+        let _ = lt.create_editable_copy();
     }
 }

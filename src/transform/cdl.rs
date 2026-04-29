@@ -88,6 +88,11 @@ impl CDLTransform {
             ocio_sys::ocio_cdl_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for CDLTransform {
@@ -129,5 +134,11 @@ mod tests {
         let cdl = CDLTransform::create().unwrap();
         let _ = cdl.style();
         cdl.set_style(CDLStyle::NoClamp);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let cdl = CDLTransform::create().unwrap();
+        let _ = cdl.create_editable_copy();
     }
 }

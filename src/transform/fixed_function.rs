@@ -82,6 +82,11 @@ impl FixedFunctionTransform {
             ocio_sys::ocio_fixed_function_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for FixedFunctionTransform {
@@ -128,5 +133,11 @@ mod tests {
             FixedFunctionStyle::AcesRedMod03, &[1.0, 2.0],
         );
         assert!(ft.is_ok());
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let ft = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
+        let _ = ft.create_editable_copy();
     }
 }

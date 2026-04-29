@@ -65,6 +65,11 @@ impl RangeTransform {
             ocio_sys::ocio_range_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for RangeTransform {
@@ -94,5 +99,11 @@ mod tests {
         rt.set_max_in_value(0.9);
         rt.set_min_out_value(0.05);
         rt.set_max_out_value(0.95);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let rt = RangeTransform::create().unwrap();
+        let _ = rt.create_editable_copy();
     }
 }

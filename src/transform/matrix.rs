@@ -45,6 +45,11 @@ impl MatrixTransform {
             ocio_sys::ocio_matrix_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for MatrixTransform {
@@ -75,5 +80,11 @@ mod tests {
         // Default offset is zero
         let o = mt.offset();
         assert_eq!(o, [0.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let mt = MatrixTransform::create().unwrap();
+        let _ = mt.create_editable_copy();
     }
 }

@@ -48,6 +48,11 @@ impl GroupTransform {
             ocio_sys::ocio_group_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for GroupTransform {
@@ -115,5 +120,11 @@ mod tests {
         let gt = GroupTransform::create().unwrap();
         let t = Transform::File(FileTransform::create().unwrap());
         gt.append_transform(&t);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let gt = GroupTransform::create().unwrap();
+        let _ = gt.create_editable_copy();
     }
 }

@@ -66,6 +66,11 @@ impl FileTransform {
             ocio_sys::ocio_file_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for FileTransform {
@@ -102,5 +107,11 @@ mod tests {
         let ft = FileTransform::create().unwrap();
         ft.set_direction(TransformDirection::Inverse);
         let _ = ft.direction();
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let ft = FileTransform::create().unwrap();
+        let _ = ft.create_editable_copy();
     }
 }

@@ -66,6 +66,11 @@ impl Lut3DTransform {
             ocio_sys::ocio_lut3d_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for Lut3DTransform {
@@ -103,5 +108,11 @@ mod tests {
         let lt = Lut3DTransform::create().unwrap();
         let _ = lt.direction();
         lt.set_direction(TransformDirection::Inverse);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let lt = Lut3DTransform::create().unwrap();
+        let _ = lt.create_editable_copy();
     }
 }
