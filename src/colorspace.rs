@@ -6,7 +6,7 @@ use crate::{cstr_to_opt_string, cstring, OcioError, Result, ReferenceSpaceType, 
 use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct ColorSpace {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 
 impl ColorSpace {

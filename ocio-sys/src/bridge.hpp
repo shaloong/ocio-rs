@@ -325,4 +325,15 @@ void ocio_config_add_look(void* config, void* look);
 // --- Config: processor from transform ---
 void* ocio_config_get_processor_transform(void* config, void* transform, int direction);
 
+// --- Look ---
+void* ocio_look_create(void);
+void* ocio_look_create_editable_copy(void* look);
+const char* ocio_look_get_name(void* look);
+void ocio_look_set_name(void* look, const char* name);
+const char* ocio_look_get_process_space(void* look);
+void ocio_look_set_process_space(void* look, const char* processSpace);
+int ocio_look_get_direction(void* look);
+void ocio_look_set_direction(void* look, int direction);
+void ocio_look_destroy(void* handle);
+
 }

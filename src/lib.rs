@@ -2,6 +2,7 @@ mod baker;
 mod colorspace;
 mod config;
 mod context;
+mod look;
 mod processor;
 pub mod transform;
 mod types;
@@ -10,6 +11,7 @@ pub use baker::Baker;
 pub use colorspace::ColorSpace;
 pub use config::Config;
 pub use context::Context;
+pub use look::Look;
 pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, Processor, TextureInfo};
 pub use types::*;
 

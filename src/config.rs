@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Processor, Result, TransformDirection, ReferenceSpaceType};
+use crate::{cstr_to_opt_string, cstring, OcioError, Processor, ColorSpace, Look, Result, TransformDirection, ReferenceSpaceType};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -256,6 +256,62 @@ impl Config {
         };
         NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
+        let n = cstring(name).ok()?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_color_space(self.handle.as_ptr(), n.as_ptr().cast())
+        };
+        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+    }
+
+    pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
+        let n = cstring(name);
+        match n {
+            Ok(n) => unsafe {
+                ocio_sys::ocio_config_get_index_for_color_space(self.handle.as_ptr(), n.as_ptr().cast())
+            },
+            Err(_) => -1,
+        }
+    }
+
+    pub fn add_color_space(&self, cs: &ColorSpace) {
+        unsafe {
+            ocio_sys::ocio_config_add_color_space(self.handle.as_ptr(), cs.handle.as_ptr());
+        }
+    }
+
+    pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_config_remove_color_space(self.handle.as_ptr(), n.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    pub fn is_color_space_used(&self, name: impl AsRef<str>) -> bool {
+        let n = cstring(name);
+        match n {
+            Ok(n) => unsafe {
+                ocio_sys::ocio_config_is_color_space_used(self.handle.as_ptr(), n.as_ptr().cast())
+            },
+            Err(_) => false,
+        }
+    }
+
+    pub fn get_look(&self, name: impl AsRef<str>) -> Option<Look> {
+        let n = cstring(name).ok()?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_look(self.handle.as_ptr(), n.as_ptr().cast())
+        };
+        NonNull::new(handle).map(|h| Look { handle: h })
+    }
+
+    pub fn add_look(&self, look: &Look) {
+        unsafe {
+            ocio_sys::ocio_config_add_look(self.handle.as_ptr(), look.handle.as_ptr());
+        }
+    }
 }
 
 impl Drop for Config {
@@ -357,6 +413,36 @@ mod tests {
         let ft = crate::transform::FileTransform::create().unwrap();
         let proc = config.processor_from_transform(&ft, TransformDirection::Forward);
         let _ = proc;
+    }
+
+    #[test]
+    fn get_color_space_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.get_color_space("raw");
+    }
+
+    #[test]
+    fn add_remove_color_space_no_crash() {
+        let config = Config::raw().unwrap();
+        let cs = ColorSpace::create().unwrap();
+        cs.set_name("TestCS").unwrap();
+        config.add_color_space(&cs);
+        let _ = config.get_index_for_color_space("TestCS");
+        let _ = config.is_color_space_used("TestCS");
+        let _ = config.remove_color_space("TestCS");
+    }
+
+    #[test]
+    fn get_look_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.get_look("look_name");
+    }
+
+    #[test]
+    fn add_look_no_crash() {
+        let config = Config::raw().unwrap();
+        let look = Look::create().unwrap();
+        config.add_look(&look);
     }
 
     #[test]

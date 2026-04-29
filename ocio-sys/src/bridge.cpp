@@ -119,6 +119,7 @@ struct Lut3DTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
 struct BakerHandle { std::shared_ptr<void> inner; };
 struct ContextHandle { std::shared_ptr<void> inner; };
 struct ColorSpaceHandle { std::shared_ptr<void> inner; };
+struct LookHandle { std::shared_ptr<void> inner; };
 
 #ifdef OCIO_RS_STUB
 
@@ -245,6 +246,10 @@ struct RealContext {
 
 struct RealColorSpace {
   ocio::ColorSpaceRcPtr colorSpace;
+};
+
+struct RealLook {
+  ocio::LookRcPtr look;
 };
 
 // --- TransformHandleBase out-of-line implementations ---
@@ -3586,8 +3591,15 @@ void* ocio_config_get_look(void* config, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)name; return nullptr;
 #else
-  (void)config; (void)name;
-  return nullptr; // Look struct not yet wrapped
+  try {
+    auto lk = ocio_rs_bridge::get_real_config(config)->getLook(name);
+    if (!lk) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::LookHandle>();
+    auto wrapper = std::make_shared<ocio_rs_bridge::RealLook>();
+    wrapper->look = lk->createEditableCopy();
+    handle->inner = wrapper;
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -3595,9 +3607,124 @@ void ocio_config_add_look(void* config, void* look) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)look;
 #else
-  (void)config; (void)look;
-  // Look struct not yet wrapped
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    ocio_rs_bridge::get_real_config(config)->addLook(lk->look);
+  } catch (...) {}
 #endif
+}
+
+// --- Look ---
+
+void* ocio_look_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::LookHandle{};
+#else
+  try {
+    auto handle = std::make_unique<ocio_rs_bridge::LookHandle>();
+    auto wrapper = std::make_shared<ocio_rs_bridge::RealLook>();
+    wrapper->look = ocio::Look::Create();
+    handle->inner = wrapper;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_look_create_editable_copy(void* look) {
+#ifdef OCIO_RS_STUB
+  (void)look; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    auto handle = std::make_unique<ocio_rs_bridge::LookHandle>();
+    auto wrapper = std::make_shared<ocio_rs_bridge::RealLook>();
+    wrapper->look = lk->look->createEditableCopy();
+    handle->inner = wrapper;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_look_get_name(void* look) {
+#ifdef OCIO_RS_STUB
+  (void)look; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    static thread_local std::string cached;
+    cached = lk->look->getName();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_look_set_name(void* look, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)look; (void)name;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    lk->look->setName(name);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_look_get_process_space(void* look) {
+#ifdef OCIO_RS_STUB
+  (void)look; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    static thread_local std::string cached;
+    cached = lk->look->getProcessSpace();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_look_set_process_space(void* look, const char* processSpace) {
+#ifdef OCIO_RS_STUB
+  (void)look; (void)processSpace;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    lk->look->setProcessSpace(processSpace);
+  } catch (...) {}
+#endif
+}
+
+int ocio_look_get_direction(void* look) {
+#ifdef OCIO_RS_STUB
+  (void)look; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    return static_cast<int>(lk->look->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_look_set_direction(void* look, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)look; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookHandle*>(look);
+    auto lk = std::static_pointer_cast<ocio_rs_bridge::RealLook>(h->inner);
+    lk->look->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_look_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::LookHandle*>(handle);
 }
 
 }  // extern "C"

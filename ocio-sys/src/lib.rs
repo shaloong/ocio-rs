@@ -359,4 +359,15 @@ unsafe extern "C" {
     pub fn ocio_color_space_get_encoding(colorSpace: *mut c_void) -> *const i8;
     pub fn ocio_color_space_set_encoding(colorSpace: *mut c_void, encoding: *const i8);
     pub fn ocio_color_space_destroy(handle: *mut c_void);
+
+    // --- Look ---
+    pub fn ocio_look_create() -> *mut c_void;
+    pub fn ocio_look_create_editable_copy(look: *mut c_void) -> *mut c_void;
+    pub fn ocio_look_get_name(look: *mut c_void) -> *const i8;
+    pub fn ocio_look_set_name(look: *mut c_void, name: *const i8);
+    pub fn ocio_look_get_process_space(look: *mut c_void) -> *const i8;
+    pub fn ocio_look_set_process_space(look: *mut c_void, processSpace: *const i8);
+    pub fn ocio_look_get_direction(look: *mut c_void) -> i32;
+    pub fn ocio_look_set_direction(look: *mut c_void, direction: i32);
+    pub fn ocio_look_destroy(handle: *mut c_void);
 }
