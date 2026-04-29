@@ -775,15 +775,19 @@ void* ocio_config_get_processor_display(
 void* ocio_config_get_processor_transform(void* config, void* transform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)transform; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto cfg = ocio_rs_bridge::get_real_config(config);
-    // The transform pointer here is a GroupTransformHandle which implements
-    // ocio::Transform. We need to extract the actual OCIO transform.
-    // For now, this is a placeholder — it requires Transform base class bridging.
-    (void)cfg;
-    return nullptr;
+    auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto ocio_transform = base->get_ocio_transform();
+    if (!ocio_transform) return nullptr;
+    auto processor = cfg->getProcessor(
+        ocio_transform, static_cast<ocio::TransformDirection>(direction));
+    auto hdl = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    hdl->inner = std::make_shared<ocio_rs_bridge::RealProcessor>();
+    std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(hdl->inner)->processor = processor;
+    return hdl.release();
   } catch (...) { return nullptr; }
 #endif
 }

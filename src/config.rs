@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 use crate::{cstr_to_opt_string, cstring, OcioError, Processor, Result, TransformDirection, ReferenceSpaceType};
+use crate::transform::TransformHandle;
 
 pub struct Config {
     pub(crate) handle: NonNull<c_void>,
@@ -240,6 +241,21 @@ impl Config {
         };
         NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn processor_from_transform(
+        &self,
+        transform: &impl TransformHandle,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr(),
+                direction as i32,
+            )
+        };
+        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for Config {
@@ -332,6 +348,14 @@ mod tests {
         // In stub mode this returns error since stub config has no displays
         let proc = config.processor_display("raw", "sRGB", "Film", TransformDirection::Forward);
         // Just check it doesn't crash
+        let _ = proc;
+    }
+
+    #[test]
+    fn processor_from_transform_no_crash() {
+        let config = Config::raw().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        let proc = config.processor_from_transform(&ft, TransformDirection::Forward);
         let _ = proc;
     }
 
