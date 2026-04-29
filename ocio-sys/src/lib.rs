@@ -466,6 +466,32 @@ unsafe extern "C" {
     pub fn ocio_look_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_look_transform_destroy(handle: *mut c_void);
 
+    // --- GradingPrimaryTransform ---
+    pub fn ocio_grading_primary_transform_create(style: i32) -> *mut c_void;
+    pub fn ocio_grading_primary_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_primary_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_grading_primary_transform_get_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_grading_primary_transform_set_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_grading_primary_transform_is_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_primary_transform_make_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_primary_transform_make_non_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_primary_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_primary_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_grading_primary_transform_destroy(handle: *mut c_void);
+
+    // --- GradingToneTransform ---
+    pub fn ocio_grading_tone_transform_create(style: i32) -> *mut c_void;
+    pub fn ocio_grading_tone_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_tone_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_grading_tone_transform_get_value(transform: *mut c_void, values: *mut f64);
+    pub fn ocio_grading_tone_transform_set_value(transform: *mut c_void, values: *const f64);
+    pub fn ocio_grading_tone_transform_is_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_tone_transform_make_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_tone_transform_make_non_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_tone_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_tone_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_grading_tone_transform_destroy(handle: *mut c_void);
+
     // --- AllocationTransform ---
     pub fn ocio_allocation_transform_create() -> *mut c_void;
     pub fn ocio_allocation_transform_get_allocation(transform: *mut c_void) -> i32;

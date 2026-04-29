@@ -2,6 +2,7 @@ mod baker;
 mod colorspace;
 mod config;
 mod context;
+pub mod grading;
 mod look;
 mod named_transform;
 mod processor;

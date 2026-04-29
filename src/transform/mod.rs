@@ -15,6 +15,8 @@ mod look_transform;
 mod allocation;
 mod log_affine;
 mod log_camera;
+mod grading_primary;
+mod grading_tone;
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -38,6 +40,8 @@ pub use look_transform::LookTransform;
 pub use allocation::AllocationTransform;
 pub use log_affine::LogAffineTransform;
 pub use log_camera::LogCameraTransform;
+pub use grading_primary::GradingPrimaryTransform;
+pub use grading_tone::GradingToneTransform;
 
 pub trait TransformHandle {
     fn as_ptr(&self) -> *mut c_void;
@@ -94,6 +98,12 @@ impl TransformHandle for LogAffineTransform {
 impl TransformHandle for LogCameraTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for GradingPrimaryTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for GradingToneTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 
 pub enum Transform {
     File(FileTransform),
@@ -113,6 +123,8 @@ pub enum Transform {
     Allocation(AllocationTransform),
     LogAffine(LogAffineTransform),
     LogCamera(LogCameraTransform),
+    GradingPrimary(GradingPrimaryTransform),
+    GradingTone(GradingToneTransform),
 }
 
 impl TransformHandle for Transform {
@@ -135,6 +147,8 @@ impl TransformHandle for Transform {
             Transform::Allocation(t) => t.as_ptr(),
             Transform::LogAffine(t) => t.as_ptr(),
             Transform::LogCamera(t) => t.as_ptr(),
+            Transform::GradingPrimary(t) => t.as_ptr(),
+            Transform::GradingTone(t) => t.as_ptr(),
         }
     }
 }
@@ -163,6 +177,8 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         0 => Some(Transform::Allocation(AllocationTransform { handle: nn })),
         15 => Some(Transform::LogAffine(LogAffineTransform { handle: nn })),
         16 => Some(Transform::LogCamera(LogCameraTransform { handle: nn })),
+        11 => Some(Transform::GradingPrimary(GradingPrimaryTransform { handle: nn })),
+        13 => Some(Transform::GradingTone(GradingToneTransform { handle: nn })),
         _ => None,
     }
 }

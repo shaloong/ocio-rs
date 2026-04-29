@@ -1,0 +1,121 @@
+use std::ffi::c_void;
+use std::ptr::NonNull;
+
+use ocio_sys;
+use crate::{grading::GradingTone, GradingStyle, OcioError, Result, TransformDirection};
+
+pub struct GradingToneTransform {
+    pub(crate) handle: NonNull<c_void>,
+}
+
+impl GradingToneTransform {
+    pub fn create(style: GradingStyle) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_grading_tone_transform_create(style as i32) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn style(&self) -> GradingStyle {
+        let v = unsafe { ocio_sys::ocio_grading_tone_transform_get_style(self.handle.as_ptr()) };
+        match v { 1 => GradingStyle::Lin, 2 => GradingStyle::Video, _ => GradingStyle::Log }
+    }
+
+    pub fn set_style(&self, style: GradingStyle) {
+        unsafe { ocio_sys::ocio_grading_tone_transform_set_style(self.handle.as_ptr(), style as i32); }
+    }
+
+    pub fn value(&self) -> GradingTone {
+        let mut flat = [0.0f64; 31];
+        unsafe { ocio_sys::ocio_grading_tone_transform_get_value(self.handle.as_ptr(), flat.as_mut_ptr()); }
+        GradingTone::from_flat_array(&flat)
+    }
+
+    pub fn set_value(&self, value: &GradingTone) {
+        let flat = value.to_flat_array();
+        unsafe { ocio_sys::ocio_grading_tone_transform_set_value(self.handle.as_ptr(), flat.as_ptr()); }
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        unsafe { ocio_sys::ocio_grading_tone_transform_is_dynamic(self.handle.as_ptr()) }
+    }
+
+    pub fn make_dynamic(&self) {
+        unsafe { ocio_sys::ocio_grading_tone_transform_make_dynamic(self.handle.as_ptr()); }
+    }
+
+    pub fn make_non_dynamic(&self) {
+        unsafe { ocio_sys::ocio_grading_tone_transform_make_non_dynamic(self.handle.as_ptr()); }
+    }
+
+    pub fn direction(&self) -> TransformDirection {
+        let dir = unsafe { ocio_sys::ocio_grading_tone_transform_get_direction(self.handle.as_ptr()) };
+        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+    }
+
+    pub fn set_direction(&self, direction: TransformDirection) {
+        unsafe { ocio_sys::ocio_grading_tone_transform_set_direction(self.handle.as_ptr(), direction as i32); }
+    }
+}
+
+impl Drop for GradingToneTransform {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_grading_tone_transform_destroy(self.handle.as_ptr()) };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_grading_tone() {
+        let t = GradingToneTransform::create(GradingStyle::Log);
+        assert!(t.is_ok());
+    }
+
+    #[test]
+    fn grading_tone_methods_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Lin).unwrap();
+        let _ = t.style();
+        let _ = t.value();
+        let _ = t.is_dynamic();
+        let _ = t.direction();
+    }
+
+    #[test]
+    fn set_style_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
+        t.set_style(GradingStyle::Lin);
+        t.set_style(GradingStyle::Video);
+    }
+
+    #[test]
+    fn set_value_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
+        let v = GradingTone::new(GradingStyle::Log);
+        t.set_value(&v);
+    }
+
+    #[test]
+    fn make_dynamic_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
+        t.make_dynamic();
+        t.make_non_dynamic();
+    }
+
+    #[test]
+    fn direction_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
+        t.set_direction(TransformDirection::Inverse);
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
+        let _ = t.create_editable_copy();
+    }
+}

@@ -141,6 +141,18 @@ struct LookTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct GradingPrimaryTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 11; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct GradingToneTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 13; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 struct AllocationTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 0; }
 #ifndef OCIO_RS_STUB
@@ -308,6 +320,12 @@ struct RealColorSpaceTransform {
 struct RealLookTransform {
   ocio::LookTransformRcPtr transform;
 };
+struct RealGradingPrimaryTransform {
+  ocio::GradingPrimaryTransformRcPtr transform;
+};
+struct RealGradingToneTransform {
+  ocio::GradingToneTransformRcPtr transform;
+};
 struct RealAllocationTransform {
   ocio::AllocationTransformRcPtr transform;
 };
@@ -366,6 +384,12 @@ ocio::TransformRcPtr LookTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealLookTransform>(inner)->transform;
 }
 
+ocio::TransformRcPtr GradingPrimaryTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealGradingPrimaryTransform>(inner)->transform;
+}
+ocio::TransformRcPtr GradingToneTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealGradingToneTransform>(inner)->transform;
+}
 ocio::TransformRcPtr AllocationTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealAllocationTransform>(inner)->transform;
 }
@@ -1545,6 +1569,24 @@ void* ocio_transform_create_editable_copy(void* transform) {
       auto r = std::make_shared<ocio_rs_bridge::RealGroupTransform>();
       r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner)->transform->createEditableCopy();
       auto hdl = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 11: { // GradingPrimaryTransform
+      auto* h = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::GradingPrimaryTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 13: { // GradingToneTransform
+      auto* h = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::GradingToneTransformHandle>();
       hdl->inner = r;
       out = hdl.release();
       break;
@@ -5064,6 +5106,343 @@ void ocio_look_transform_set_direction(void* transform, int direction) {
 
 void ocio_look_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LookTransformHandle*>(handle);
+}
+
+// --- GradingPrimaryTransform ---
+
+void* ocio_grading_primary_transform_create(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return new ocio_rs_bridge::GradingPrimaryTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>();
+  r->transform = ocio::GradingPrimaryTransform::Create(static_cast<ocio::GradingStyle>(style));
+  auto hdl = std::make_unique<ocio_rs_bridge::GradingPrimaryTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+int ocio_grading_primary_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  return static_cast<int>(real->transform->getStyle());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_primary_transform_set_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  real->transform->setStyle(static_cast<ocio::GradingStyle>(style));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_primary_transform_get_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  const auto& v = real->transform->getValue();
+  // Serialize: 7 GradingRGBM (4 doubles each) + 6 scalar doubles = 34 doubles
+  int off = 0;
+  auto write_rgbm = [&](const ocio::GradingRGBM& g) {
+    values[off++] = g.m_red;
+    values[off++] = g.m_green;
+    values[off++] = g.m_blue;
+    values[off++] = g.m_master;
+  };
+  write_rgbm(v.m_brightness);
+  write_rgbm(v.m_contrast);
+  write_rgbm(v.m_gamma);
+  write_rgbm(v.m_offset);
+  write_rgbm(v.m_exposure);
+  write_rgbm(v.m_lift);
+  write_rgbm(v.m_gain);
+  values[off++] = v.m_saturation;
+  values[off++] = v.m_pivot;
+  values[off++] = v.m_pivotBlack;
+  values[off++] = v.m_pivotWhite;
+  values[off++] = v.m_clampBlack;
+  values[off++] = v.m_clampWhite;
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_primary_transform_set_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  ocio::GradingPrimary v(ocio::GRADING_LOG);
+  int off = 0;
+  auto read_rgbm = [&](ocio::GradingRGBM& g) {
+    g.m_red   = values[off++];
+    g.m_green = values[off++];
+    g.m_blue  = values[off++];
+    g.m_master= values[off++];
+  };
+  read_rgbm(v.m_brightness);
+  read_rgbm(v.m_contrast);
+  read_rgbm(v.m_gamma);
+  read_rgbm(v.m_offset);
+  read_rgbm(v.m_exposure);
+  read_rgbm(v.m_lift);
+  read_rgbm(v.m_gain);
+  v.m_saturation = values[off++];
+  v.m_pivot      = values[off++];
+  v.m_pivotBlack = values[off++];
+  v.m_pivotWhite = values[off++];
+  v.m_clampBlack = values[off++];
+  v.m_clampWhite = values[off++];
+  real->transform->setValue(v);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_grading_primary_transform_is_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  return real->transform->isDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_grading_primary_transform_make_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  real->transform->makeDynamic();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_primary_transform_make_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  real->transform->makeNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+int ocio_grading_primary_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_primary_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_primary_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(handle);
+}
+
+// --- GradingToneTransform ---
+
+void* ocio_grading_tone_transform_create(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return new ocio_rs_bridge::GradingToneTransformHandle{};
+#else
+  BEGIN_TRY
+  auto r = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>();
+  r->transform = ocio::GradingToneTransform::Create(static_cast<ocio::GradingStyle>(style));
+  auto hdl = std::make_unique<ocio_rs_bridge::GradingToneTransformHandle>();
+  hdl->inner = r;
+  return hdl.release();
+  END_TRY(nullptr)
+#endif
+}
+
+int ocio_grading_tone_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  return static_cast<int>(real->transform->getStyle());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_tone_transform_set_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  real->transform->setStyle(static_cast<ocio::GradingStyle>(style));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_tone_transform_get_value(void* transform, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  const auto& v = real->transform->getValue();
+  int off = 0;
+  auto write_rgbmsw = [&](const ocio::GradingRGBMSW& g) {
+    values[off++] = g.m_red;
+    values[off++] = g.m_green;
+    values[off++] = g.m_blue;
+    values[off++] = g.m_master;
+    values[off++] = g.m_start;
+    values[off++] = g.m_width;
+  };
+  write_rgbmsw(v.m_blacks);
+  write_rgbmsw(v.m_shadows);
+  write_rgbmsw(v.m_midtones);
+  write_rgbmsw(v.m_highlights);
+  write_rgbmsw(v.m_whites);
+  values[off++] = v.m_scontrast;
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_tone_transform_set_value(void* transform, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)values;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  ocio::GradingTone v(ocio::GRADING_LOG);
+  int off = 0;
+  auto read_rgbmsw = [&](ocio::GradingRGBMSW& g) {
+    g.m_red    = values[off++];
+    g.m_green  = values[off++];
+    g.m_blue   = values[off++];
+    g.m_master = values[off++];
+    g.m_start  = values[off++];
+    g.m_width  = values[off++];
+  };
+  read_rgbmsw(v.m_blacks);
+  read_rgbmsw(v.m_shadows);
+  read_rgbmsw(v.m_midtones);
+  read_rgbmsw(v.m_highlights);
+  read_rgbmsw(v.m_whites);
+  v.m_scontrast = values[off++];
+  real->transform->setValue(v);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_grading_tone_transform_is_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  return real->transform->isDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_grading_tone_transform_make_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  real->transform->makeDynamic();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_tone_transform_make_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  real->transform->makeNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+int ocio_grading_tone_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_grading_tone_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealGradingToneTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_grading_tone_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(handle);
 }
 
 // --- AllocationTransform ---

@@ -431,6 +431,32 @@ int ocio_look_transform_get_direction(void* transform);
 void ocio_look_transform_set_direction(void* transform, int direction);
 void ocio_look_transform_destroy(void* handle);
 
+// --- GradingPrimaryTransform ---
+void* ocio_grading_primary_transform_create(int style);
+int ocio_grading_primary_transform_get_style(void* transform);
+void ocio_grading_primary_transform_set_style(void* transform, int style);
+void ocio_grading_primary_transform_get_value(void* transform, double* values);
+void ocio_grading_primary_transform_set_value(void* transform, const double* values);
+bool ocio_grading_primary_transform_is_dynamic(void* transform);
+void ocio_grading_primary_transform_make_dynamic(void* transform);
+void ocio_grading_primary_transform_make_non_dynamic(void* transform);
+int ocio_grading_primary_transform_get_direction(void* transform);
+void ocio_grading_primary_transform_set_direction(void* transform, int direction);
+void ocio_grading_primary_transform_destroy(void* handle);
+
+// --- GradingToneTransform ---
+void* ocio_grading_tone_transform_create(int style);
+int ocio_grading_tone_transform_get_style(void* transform);
+void ocio_grading_tone_transform_set_style(void* transform, int style);
+void ocio_grading_tone_transform_get_value(void* transform, double* values);
+void ocio_grading_tone_transform_set_value(void* transform, const double* values);
+bool ocio_grading_tone_transform_is_dynamic(void* transform);
+void ocio_grading_tone_transform_make_dynamic(void* transform);
+void ocio_grading_tone_transform_make_non_dynamic(void* transform);
+int ocio_grading_tone_transform_get_direction(void* transform);
+void ocio_grading_tone_transform_set_direction(void* transform, int direction);
+void ocio_grading_tone_transform_destroy(void* handle);
+
 // --- AllocationTransform ---
 void* ocio_allocation_transform_create(void);
 int ocio_allocation_transform_get_allocation(void* transform);
