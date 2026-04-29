@@ -3,8 +3,7 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 use crate::{OcioError, Result, TransformDirection};
-use super::{TransformHandle, Transform};
-use super::{FileTransform, CDLTransform, ExponentTransform, MatrixTransform, LogTransform, RangeTransform, BuiltinTransform, FixedFunctionTransform, Lut1DTransform, Lut3DTransform};
+use super::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -36,24 +35,7 @@ impl GroupTransform {
         let handle = unsafe {
             ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index)
         };
-        if handle.is_null() {
-            return None;
-        }
-        let type_tag = unsafe { ocio_sys::ocio_transform_get_transform_type(handle) };
-        match type_tag {
-            1 => Some(Transform::Builtin(BuiltinTransform { handle: NonNull::new(handle).unwrap() })),
-            2 => Some(Transform::CDL(CDLTransform { handle: NonNull::new(handle).unwrap() })),
-            5 => Some(Transform::Exponent(ExponentTransform { handle: NonNull::new(handle).unwrap() })),
-            8 => Some(Transform::File(FileTransform { handle: NonNull::new(handle).unwrap() })),
-            9 => Some(Transform::FixedFunction(FixedFunctionTransform { handle: NonNull::new(handle).unwrap() })),
-            14 => Some(Transform::Group(GroupTransform { handle: NonNull::new(handle).unwrap() })),
-            19 => Some(Transform::Lut1D(Lut1DTransform { handle: NonNull::new(handle).unwrap() })),
-            20 => Some(Transform::Lut3D(Lut3DTransform { handle: NonNull::new(handle).unwrap() })),
-            17 => Some(Transform::Log(LogTransform { handle: NonNull::new(handle).unwrap() })),
-            21 => Some(Transform::Matrix(MatrixTransform { handle: NonNull::new(handle).unwrap() })),
-            22 => Some(Transform::Range(RangeTransform { handle: NonNull::new(handle).unwrap() })),
-            _ => None,
-        }
+        transform_from_raw_handle(handle)
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -77,6 +59,7 @@ impl Drop for GroupTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transform::{FileTransform, CDLTransform};
 
     #[test]
     fn create_group() {

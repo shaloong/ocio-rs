@@ -11,6 +11,9 @@ mod lut1d;
 mod lut3d;
 
 use std::ffi::c_void;
+use std::ptr::NonNull;
+
+use ocio_sys;
 
 pub use file::FileTransform;
 pub use cdl::CDLTransform;
@@ -91,5 +94,27 @@ impl TransformHandle for Transform {
             Transform::Lut1D(t) => t.as_ptr(),
             Transform::Lut3D(t) => t.as_ptr(),
         }
+    }
+}
+
+pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform> {
+    if handle.is_null() {
+        return None;
+    }
+    let type_tag = unsafe { ocio_sys::ocio_transform_get_transform_type(handle) };
+    let nn = NonNull::new(handle).unwrap();
+    match type_tag {
+        1 => Some(Transform::Builtin(BuiltinTransform { handle: nn })),
+        2 => Some(Transform::CDL(CDLTransform { handle: nn })),
+        5 => Some(Transform::Exponent(ExponentTransform { handle: nn })),
+        8 => Some(Transform::File(FileTransform { handle: nn })),
+        9 => Some(Transform::FixedFunction(FixedFunctionTransform { handle: nn })),
+        14 => Some(Transform::Group(GroupTransform { handle: nn })),
+        17 => Some(Transform::Log(LogTransform { handle: nn })),
+        19 => Some(Transform::Lut1D(Lut1DTransform { handle: nn })),
+        20 => Some(Transform::Lut3D(Lut3DTransform { handle: nn })),
+        21 => Some(Transform::Matrix(MatrixTransform { handle: nn })),
+        22 => Some(Transform::Range(RangeTransform { handle: nn })),
+        _ => None,
     }
 }

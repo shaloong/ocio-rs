@@ -3368,9 +3368,112 @@ void* ocio_color_space_get_transform(void* colorSpace, int direction) {
     auto* h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace);
     auto t = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(h->inner)->colorSpace->getTransform(
         static_cast<ocio::ColorSpaceDirection>(direction));
-    // Transform is a ConstTransformRcPtr; wrapping it requires dynamic dispatch
-    (void)t;
-    return nullptr;
+    if (!t) return nullptr;
+    int type = static_cast<int>(t->getTransformType());
+    TransformHandleBase* out = nullptr;
+    switch (type) {
+      case 1: { // Builtin
+        auto ct = ocio::DynamicPtrCast<const ocio::BuiltinTransform>(t);
+        auto hdl = std::make_unique<BuiltinTransformHandle>();
+        auto r = std::make_shared<RealBuiltinTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 2: { // CDL
+        auto ct = ocio::DynamicPtrCast<const ocio::CDLTransform>(t);
+        auto hdl = std::make_unique<CDLTransformHandle>();
+        auto r = std::make_shared<RealCDLTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 5: { // Exponent
+        auto ct = ocio::DynamicPtrCast<const ocio::ExponentTransform>(t);
+        auto hdl = std::make_unique<ExponentTransformHandle>();
+        auto r = std::make_shared<RealExponentTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 8: { // File
+        auto ct = ocio::DynamicPtrCast<const ocio::FileTransform>(t);
+        auto hdl = std::make_unique<FileTransformHandle>();
+        auto r = std::make_shared<RealFileTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 9: { // FixedFunction
+        auto ct = ocio::DynamicPtrCast<const ocio::FixedFunctionTransform>(t);
+        auto hdl = std::make_unique<FixedFunctionTransformHandle>();
+        auto r = std::make_shared<RealFixedFunctionTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 14: { // Group
+        auto ct = ocio::DynamicPtrCast<const ocio::GroupTransform>(t);
+        auto hdl = std::make_unique<GroupTransformHandle>();
+        auto r = std::make_shared<RealGroupTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 17: { // Log
+        auto ct = ocio::DynamicPtrCast<const ocio::LogTransform>(t);
+        auto hdl = std::make_unique<LogTransformHandle>();
+        auto r = std::make_shared<RealLogTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 19: { // Lut1D
+        auto ct = ocio::DynamicPtrCast<const ocio::Lut1DTransform>(t);
+        auto hdl = std::make_unique<Lut1DTransformHandle>();
+        auto r = std::make_shared<RealLut1DTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 20: { // Lut3D
+        auto ct = ocio::DynamicPtrCast<const ocio::Lut3DTransform>(t);
+        auto hdl = std::make_unique<Lut3DTransformHandle>();
+        auto r = std::make_shared<RealLut3DTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 21: { // Matrix
+        auto ct = ocio::DynamicPtrCast<const ocio::MatrixTransform>(t);
+        auto hdl = std::make_unique<MatrixTransformHandle>();
+        auto r = std::make_shared<RealMatrixTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      case 22: { // Range
+        auto ct = ocio::DynamicPtrCast<const ocio::RangeTransform>(t);
+        auto hdl = std::make_unique<RangeTransformHandle>();
+        auto r = std::make_shared<RealRangeTransform>();
+        r->transform = ct->createEditableCopy();
+        hdl->inner = r;
+        out = hdl.release();
+        break;
+      }
+      default: return nullptr;
+    }
+    return out;
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3379,7 +3482,15 @@ void ocio_color_space_set_transform(void* colorSpace, const void* transform, int
 #ifdef OCIO_RS_STUB
   (void)colorSpace; (void)transform; (void)direction;
 #else
-  // Requires Transform base class bridging
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace);
+    auto cs = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(h->inner)->colorSpace;
+    auto* base = static_cast<const ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto ocio_transform = base->get_ocio_transform();
+    if (ocio_transform) {
+      cs->setTransform(ocio_transform, static_cast<ocio::ColorSpaceDirection>(direction));
+    }
+  } catch (...) {}
 #endif
 }
 

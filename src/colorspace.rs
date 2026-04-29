@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 use crate::{cstr_to_opt_string, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection};
+use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct ColorSpace {
     handle: NonNull<c_void>,
@@ -140,15 +141,21 @@ impl ColorSpace {
         Ok(())
     }
 
-    pub fn transform(&self, direction: ColorSpaceDirection) -> Result<()> {
-        // getTransform returns a ConstTransformRcPtr — wrapping requires
-        // dynamic dispatch on the transform type, not yet implemented.
-        let _handle = unsafe {
+    pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
+        let handle = unsafe {
             ocio_sys::ocio_color_space_get_transform(self.handle.as_ptr(), direction as i32)
         };
-        // Placeholder: in real mode, _handle is currently null because the
-        // bridge doesn't wrap the returned transform yet.
-        Ok(())
+        transform_from_raw_handle(handle)
+    }
+
+    pub fn set_transform(&self, transform: &impl TransformHandle, direction: ColorSpaceDirection) {
+        unsafe {
+            ocio_sys::ocio_color_space_set_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *const c_void,
+                direction as i32,
+            );
+        }
     }
 }
 
@@ -192,5 +199,19 @@ mod tests {
         let cs = ColorSpace::create().unwrap();
         cs.set_is_data(true);
         let _ = cs.is_data();
+    }
+
+    #[test]
+    fn transform_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        // In stub mode, returns None since bridge has no transform
+        let _ = cs.transform(ColorSpaceDirection::ToReference);
+    }
+
+    #[test]
+    fn set_transform_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        cs.set_transform(&ft, ColorSpaceDirection::ToReference);
     }
 }
