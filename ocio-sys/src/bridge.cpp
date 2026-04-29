@@ -1181,6 +1181,120 @@ const float* ocio_gpu_shader_desc_get_texture_values(void* shader_desc, unsigned
 #endif
 }
 
+int ocio_gpu_shader_desc_get_language(void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; return 0;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    return static_cast<int>((*desc)->getLanguage());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_language(void* shader_desc, int language) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; (void)language;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    (*desc)->setLanguage(static_cast<ocio::GpuLanguage>(language));
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_function_name(void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; return nullptr;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    static thread_local std::string cached;
+    cached = (*desc)->getFunctionName();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_function_name(void* shader_desc, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; (void)name;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    (*desc)->setFunctionName(name);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_pixel_name(void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; return nullptr;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    static thread_local std::string cached;
+    cached = (*desc)->getPixelName();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_pixel_name(void* shader_desc, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; (void)name;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    (*desc)->setPixelName(name);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_resource_prefix(void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; return nullptr;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    static thread_local std::string cached;
+    cached = (*desc)->getResourcePrefix();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_resource_prefix(void* shader_desc, const char* prefix) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc; (void)prefix;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    (*desc)->setResourcePrefix(prefix);
+  } catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_finalize(void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)shader_desc;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shader_desc);
+    auto desc = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    (*desc)->finalize();
+  } catch (...) {}
+#endif
+}
+
 void ocio_gpu_shader_desc_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(handle);
 }

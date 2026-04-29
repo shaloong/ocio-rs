@@ -96,6 +96,14 @@ void ocio_gpu_processor_destroy(void* handle);
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create(void);
 const char* ocio_gpu_shader_desc_get_shader_text(void* shader_desc);
+int ocio_gpu_shader_desc_get_language(void* shader_desc);
+void ocio_gpu_shader_desc_set_language(void* shader_desc, int language);
+const char* ocio_gpu_shader_desc_get_function_name(void* shader_desc);
+void ocio_gpu_shader_desc_set_function_name(void* shader_desc, const char* name);
+const char* ocio_gpu_shader_desc_get_pixel_name(void* shader_desc);
+void ocio_gpu_shader_desc_set_pixel_name(void* shader_desc, const char* name);
+const char* ocio_gpu_shader_desc_get_resource_prefix(void* shader_desc);
+void ocio_gpu_shader_desc_set_resource_prefix(void* shader_desc, const char* prefix);
 unsigned int ocio_gpu_shader_desc_get_num_textures(void* shader_desc);
 void ocio_gpu_shader_desc_get_texture(
     void* shader_desc, unsigned int index,
@@ -103,6 +111,7 @@ void ocio_gpu_shader_desc_get_texture(
     unsigned int* width, unsigned int* height,
     int* channel, int* dimensions, int* interpolation);
 const float* ocio_gpu_shader_desc_get_texture_values(void* shader_desc, unsigned int index);
+void ocio_gpu_shader_desc_finalize(void* shader_desc);
 void ocio_gpu_shader_desc_destroy(void* handle);
 
 // --- Transform base ---

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, OcioError, Result};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage};
 
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
@@ -196,6 +196,72 @@ impl GpuShaderDesc {
             interpolation,
         })
     }
+
+    pub fn language(&self) -> GpuLanguage {
+        let l = unsafe { ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr()) };
+        match l {
+            0 => GpuLanguage::Cg,
+            1 => GpuLanguage::Glsl1_2,
+            2 => GpuLanguage::Glsl1_3,
+            3 => GpuLanguage::Glsl4_0,
+            9 => GpuLanguage::Msl2_0,
+            _ => GpuLanguage::Glsl1_2,
+        }
+    }
+
+    pub fn set_language(&self, language: GpuLanguage) {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_language(self.handle.as_ptr(), language as i32);
+        }
+    }
+
+    pub fn function_name(&self) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(self.handle.as_ptr()))
+        }
+    }
+
+    pub fn set_function_name(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_function_name(self.handle.as_ptr(), n.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    pub fn pixel_name(&self) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(self.handle.as_ptr()))
+        }
+    }
+
+    pub fn set_pixel_name(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_pixel_name(self.handle.as_ptr(), n.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    pub fn resource_prefix(&self) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(self.handle.as_ptr()))
+        }
+    }
+
+    pub fn set_resource_prefix(&self, prefix: impl AsRef<str>) -> Result<()> {
+        let p = cstring(prefix)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_resource_prefix(self.handle.as_ptr(), p.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    pub fn finalize(&self) {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr());
+        }
+    }
 }
 
 impl Drop for GpuShaderDesc {
@@ -268,6 +334,15 @@ mod tests {
             // Stub mode returns empty shader text
             let _ = desc.shader_text();
             let _ = desc.num_textures();
+            let _ = desc.language();
+            let _ = desc.function_name();
+            let _ = desc.pixel_name();
+            let _ = desc.resource_prefix();
+            desc.set_language(GpuLanguage::Glsl1_2);
+            let _ = desc.set_function_name("main");
+            let _ = desc.set_pixel_name("outColor");
+            let _ = desc.set_resource_prefix("ocio_");
+            desc.finalize();
         }
     }
 }

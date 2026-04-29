@@ -136,6 +136,15 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_get_texture_values(
         shader_desc: *mut c_void, index: u32,
     ) -> *const f32;
+    pub fn ocio_gpu_shader_desc_get_language(shader_desc: *mut c_void) -> i32;
+    pub fn ocio_gpu_shader_desc_set_language(shader_desc: *mut c_void, language: i32);
+    pub fn ocio_gpu_shader_desc_get_function_name(shader_desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_set_function_name(shader_desc: *mut c_void, name: *const i8);
+    pub fn ocio_gpu_shader_desc_get_pixel_name(shader_desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_set_pixel_name(shader_desc: *mut c_void, name: *const i8);
+    pub fn ocio_gpu_shader_desc_get_resource_prefix(shader_desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_set_resource_prefix(shader_desc: *mut c_void, prefix: *const i8);
+    pub fn ocio_gpu_shader_desc_finalize(shader_desc: *mut c_void);
     pub fn ocio_gpu_shader_desc_destroy(handle: *mut c_void);
 
     // --- Transform base ---
