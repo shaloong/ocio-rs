@@ -407,4 +407,16 @@ int ocio_exposure_contrast_transform_get_direction(void* transform);
 void ocio_exposure_contrast_transform_set_direction(void* transform, int direction);
 void ocio_exposure_contrast_transform_destroy(void* handle);
 
+// --- ColorSpaceTransform ---
+void* ocio_color_space_transform_create(void);
+const char* ocio_color_space_transform_get_src(void* transform);
+void ocio_color_space_transform_set_src(void* transform, const char* src);
+const char* ocio_color_space_transform_get_dst(void* transform);
+void ocio_color_space_transform_set_dst(void* transform, const char* dst);
+bool ocio_color_space_transform_get_data_bypass(void* transform);
+void ocio_color_space_transform_set_data_bypass(void* transform, bool bypass);
+int ocio_color_space_transform_get_direction(void* transform);
+void ocio_color_space_transform_set_direction(void* transform, int direction);
+void ocio_color_space_transform_destroy(void* handle);
+
 }

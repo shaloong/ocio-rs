@@ -129,6 +129,12 @@ struct ExposureContrastTransformHandle : TransformHandleBase { std::shared_ptr<v
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct ColorSpaceTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 4; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 
 #ifdef OCIO_RS_STUB
 
@@ -272,6 +278,9 @@ struct RealDynamicProperty {
 struct RealExposureContrastTransform {
   ocio::ExposureContrastTransformRcPtr transform;
 };
+struct RealColorSpaceTransform {
+  ocio::ColorSpaceTransformRcPtr transform;
+};
 
 // --- TransformHandleBase out-of-line implementations ---
 
@@ -311,6 +320,10 @@ ocio::TransformRcPtr Lut3DTransformHandle::get_ocio_transform() {
 
 ocio::TransformRcPtr ExposureContrastTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealExposureContrastTransform>(inner)->transform;
+}
+
+ocio::TransformRcPtr ColorSpaceTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealColorSpaceTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -1419,6 +1432,15 @@ void* ocio_transform_create_editable_copy(void* transform) {
       auto r = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>();
       r->transform = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(h->inner)->transform->createEditableCopy();
       auto hdl = std::make_unique<ocio_rs_bridge::ExposureContrastTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 4: { // ColorSpaceTransform
+      auto* h = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::ColorSpaceTransformHandle>();
       hdl->inner = r;
       out = hdl.release();
       break;
@@ -4703,6 +4725,131 @@ void ocio_exposure_contrast_transform_set_direction(void* transform, int directi
 
 void ocio_exposure_contrast_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(handle);
+}
+
+// --- ColorSpaceTransform ---
+
+void* ocio_color_space_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::ColorSpaceTransformHandle{};
+#else
+  BEGIN_TRY
+  auto t = ocio::ColorSpaceTransform::Create();
+  auto handle = new ocio_rs_bridge::ColorSpaceTransformHandle{};
+  handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>(ocio_rs_bridge::RealColorSpaceTransform{t});
+  return handle;
+  END_TRY(nullptr)
+#endif
+}
+
+const char* ocio_color_space_transform_get_src(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  const char* result = real->transform->getSrc();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_color_space_transform_set_src(void* transform, const char* src) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)src;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  real->transform->setSrc(src);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_color_space_transform_get_dst(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  const char* result = real->transform->getDst();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_color_space_transform_set_dst(void* transform, const char* dst) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)dst;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  real->transform->setDst(dst);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_color_space_transform_get_data_bypass(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  return real->transform->getDataBypass();
+  END_TRY(false)
+#endif
+}
+
+void ocio_color_space_transform_set_data_bypass(void* transform, bool bypass) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bypass;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  real->transform->setDataBypass(bypass);
+  END_TRY_VOID
+#endif
+}
+
+int ocio_color_space_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_color_space_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_color_space_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(handle);
 }
 
 }  // extern "C"

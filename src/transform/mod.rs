@@ -10,6 +10,7 @@ mod fixed_function;
 mod lut1d;
 mod lut3d;
 mod exposure_contrast;
+mod color_space;
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -28,6 +29,7 @@ pub use fixed_function::FixedFunctionTransform;
 pub use lut1d::Lut1DTransform;
 pub use lut3d::Lut3DTransform;
 pub use exposure_contrast::ExposureContrastTransform;
+pub use color_space::ColorSpaceTransform;
 
 pub trait TransformHandle {
     fn as_ptr(&self) -> *mut c_void;
@@ -69,6 +71,9 @@ impl TransformHandle for Lut3DTransform {
 impl TransformHandle for ExposureContrastTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for ColorSpaceTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 
 pub enum Transform {
     File(FileTransform),
@@ -83,6 +88,7 @@ pub enum Transform {
     Lut1D(Lut1DTransform),
     Lut3D(Lut3DTransform),
     ExposureContrast(ExposureContrastTransform),
+    ColorSpace(ColorSpaceTransform),
 }
 
 impl TransformHandle for Transform {
@@ -100,6 +106,7 @@ impl TransformHandle for Transform {
             Transform::Lut1D(t) => t.as_ptr(),
             Transform::Lut3D(t) => t.as_ptr(),
             Transform::ExposureContrast(t) => t.as_ptr(),
+            Transform::ColorSpace(t) => t.as_ptr(),
         }
     }
 }
@@ -123,6 +130,7 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         21 => Some(Transform::Matrix(MatrixTransform { handle: nn })),
         22 => Some(Transform::Range(RangeTransform { handle: nn })),
         7 => Some(Transform::ExposureContrast(ExposureContrastTransform { handle: nn })),
+        4 => Some(Transform::ColorSpace(ColorSpaceTransform { handle: nn })),
         _ => None,
     }
 }

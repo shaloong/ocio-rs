@@ -441,4 +441,16 @@ unsafe extern "C" {
     pub fn ocio_exposure_contrast_transform_get_direction(transform: *mut c_void) -> i32;
     pub fn ocio_exposure_contrast_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_exposure_contrast_transform_destroy(handle: *mut c_void);
+
+    // --- ColorSpaceTransform ---
+    pub fn ocio_color_space_transform_create() -> *mut c_void;
+    pub fn ocio_color_space_transform_get_src(transform: *mut c_void) -> *const i8;
+    pub fn ocio_color_space_transform_set_src(transform: *mut c_void, src: *const i8);
+    pub fn ocio_color_space_transform_get_dst(transform: *mut c_void) -> *const i8;
+    pub fn ocio_color_space_transform_set_dst(transform: *mut c_void, dst: *const i8);
+    pub fn ocio_color_space_transform_get_data_bypass(transform: *mut c_void) -> bool;
+    pub fn ocio_color_space_transform_set_data_bypass(transform: *mut c_void, bypass: bool);
+    pub fn ocio_color_space_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_color_space_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_color_space_transform_destroy(handle: *mut c_void);
 }
