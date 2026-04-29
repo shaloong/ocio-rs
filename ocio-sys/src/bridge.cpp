@@ -123,6 +123,12 @@ struct LookHandle { std::shared_ptr<void> inner; };
 struct ViewTransformHandle { std::shared_ptr<void> inner; };
 struct NamedTransformHandle { std::shared_ptr<void> inner; };
 struct DynamicPropertyHandle { std::shared_ptr<void> inner; };
+struct ExposureContrastTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 7; }
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 
 #ifdef OCIO_RS_STUB
 
@@ -263,6 +269,9 @@ struct RealNamedTransform {
 struct RealDynamicProperty {
   ocio::DynamicPropertyRcPtr prop;
 };
+struct RealExposureContrastTransform {
+  ocio::ExposureContrastTransformRcPtr transform;
+};
 
 // --- TransformHandleBase out-of-line implementations ---
 
@@ -298,6 +307,10 @@ ocio::TransformRcPtr Lut1DTransformHandle::get_ocio_transform() {
 }
 ocio::TransformRcPtr Lut3DTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealLut3DTransform>(inner)->transform;
+}
+
+ocio::TransformRcPtr ExposureContrastTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealExposureContrastTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -1397,6 +1410,15 @@ void* ocio_transform_create_editable_copy(void* transform) {
       auto r = std::make_shared<ocio_rs_bridge::RealRangeTransform>();
       r->transform = std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->createEditableCopy();
       auto hdl = std::make_unique<ocio_rs_bridge::RangeTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
+    case 7: { // ExposureContrastTransform
+      auto* h = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::ExposureContrastTransformHandle>();
       hdl->inner = r;
       out = hdl.release();
       break;
@@ -4437,6 +4459,250 @@ void ocio_dynamic_property_double_set_value(void* prop, double value) {
 
 void ocio_dynamic_property_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
+}
+
+// --- ExposureContrastTransform ---
+
+void* ocio_exposure_contrast_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::ExposureContrastTransformHandle{};
+#else
+  BEGIN_TRY
+  auto t = ocio::ExposureContrastTransform::Create();
+  auto handle = new ocio_rs_bridge::ExposureContrastTransformHandle{};
+  handle->inner = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>(ocio_rs_bridge::RealExposureContrastTransform{t});
+  return handle;
+  END_TRY(nullptr)
+#endif
+}
+
+double ocio_exposure_contrast_transform_get_exposure(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getExposure();
+  END_TRY(0.0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_exposure(void* transform, double exposure) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)exposure;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setExposure(exposure);
+  END_TRY_VOID
+#endif
+}
+
+double ocio_exposure_contrast_transform_get_contrast(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 1.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getContrast();
+  END_TRY(1.0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_contrast(void* transform, double contrast) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)contrast;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setContrast(contrast);
+  END_TRY_VOID
+#endif
+}
+
+double ocio_exposure_contrast_transform_get_gamma(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 1.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getGamma();
+  END_TRY(1.0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_gamma(void* transform, double gamma) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)gamma;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setGamma(gamma);
+  END_TRY_VOID
+#endif
+}
+
+double ocio_exposure_contrast_transform_get_pivot(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0.18;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getPivot();
+  END_TRY(0.18)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_pivot(void* transform, double pivot) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)pivot;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setPivot(pivot);
+  END_TRY_VOID
+#endif
+}
+
+int ocio_exposure_contrast_transform_get_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return static_cast<int>(real->transform->getStyle());
+  END_TRY(0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setStyle(static_cast<ocio::ExposureContrastStyle>(style));
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_exposure_contrast_transform_is_exposure_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->isExposureDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_exposure_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeExposureDynamic();
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_exposure_contrast_transform_is_contrast_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->isContrastDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_contrast_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeContrastDynamic();
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_exposure_contrast_transform_is_gamma_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->isGammaDynamic();
+  END_TRY(false)
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_gamma_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeGammaDynamic();
+  END_TRY_VOID
+#endif
+}
+
+int ocio_exposure_contrast_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_exposure_contrast_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(handle);
 }
 
 }  // extern "C"

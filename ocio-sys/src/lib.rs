@@ -419,4 +419,26 @@ unsafe extern "C" {
     pub fn ocio_dynamic_property_double_get_value(prop: *mut c_void) -> f64;
     pub fn ocio_dynamic_property_double_set_value(prop: *mut c_void, value: f64);
     pub fn ocio_dynamic_property_destroy(handle: *mut c_void);
+
+    // --- ExposureContrastTransform ---
+    pub fn ocio_exposure_contrast_transform_create() -> *mut c_void;
+    pub fn ocio_exposure_contrast_transform_get_exposure(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_exposure(transform: *mut c_void, exposure: f64);
+    pub fn ocio_exposure_contrast_transform_get_contrast(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_contrast(transform: *mut c_void, contrast: f64);
+    pub fn ocio_exposure_contrast_transform_get_gamma(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_gamma(transform: *mut c_void, gamma: f64);
+    pub fn ocio_exposure_contrast_transform_get_pivot(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_pivot(transform: *mut c_void, pivot: f64);
+    pub fn ocio_exposure_contrast_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_exposure_contrast_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_exposure_contrast_transform_is_exposure_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_exposure_contrast_transform_make_exposure_dynamic(transform: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_is_contrast_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_exposure_contrast_transform_make_contrast_dynamic(transform: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_is_gamma_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_exposure_contrast_transform_make_gamma_dynamic(transform: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_exposure_contrast_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_exposure_contrast_transform_destroy(handle: *mut c_void);
 }

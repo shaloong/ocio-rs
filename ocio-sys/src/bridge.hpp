@@ -385,4 +385,26 @@ double ocio_dynamic_property_double_get_value(void* prop);
 void ocio_dynamic_property_double_set_value(void* prop, double value);
 void ocio_dynamic_property_destroy(void* handle);
 
+// --- ExposureContrastTransform ---
+void* ocio_exposure_contrast_transform_create(void);
+double ocio_exposure_contrast_transform_get_exposure(void* transform);
+void ocio_exposure_contrast_transform_set_exposure(void* transform, double exposure);
+double ocio_exposure_contrast_transform_get_contrast(void* transform);
+void ocio_exposure_contrast_transform_set_contrast(void* transform, double contrast);
+double ocio_exposure_contrast_transform_get_gamma(void* transform);
+void ocio_exposure_contrast_transform_set_gamma(void* transform, double gamma);
+double ocio_exposure_contrast_transform_get_pivot(void* transform);
+void ocio_exposure_contrast_transform_set_pivot(void* transform, double pivot);
+int ocio_exposure_contrast_transform_get_style(void* transform);
+void ocio_exposure_contrast_transform_set_style(void* transform, int style);
+bool ocio_exposure_contrast_transform_is_exposure_dynamic(void* transform);
+void ocio_exposure_contrast_transform_make_exposure_dynamic(void* transform);
+bool ocio_exposure_contrast_transform_is_contrast_dynamic(void* transform);
+void ocio_exposure_contrast_transform_make_contrast_dynamic(void* transform);
+bool ocio_exposure_contrast_transform_is_gamma_dynamic(void* transform);
+void ocio_exposure_contrast_transform_make_gamma_dynamic(void* transform);
+int ocio_exposure_contrast_transform_get_direction(void* transform);
+void ocio_exposure_contrast_transform_set_direction(void* transform, int direction);
+void ocio_exposure_contrast_transform_destroy(void* handle);
+
 }
