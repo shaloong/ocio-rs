@@ -644,6 +644,34 @@ impl Config {
         let handle = unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| FileRules { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn set_file_rules(&self, file_rules: &FileRules) {
+        unsafe {
+            ocio_sys::ocio_config_set_file_rules(self.handle.as_ptr(), file_rules.handle.as_ptr());
+        }
+    }
+
+    // --- Inactive color spaces ---
+
+    pub fn set_inactive_color_spaces(&self, inactive: impl AsRef<str>) -> Result<()> {
+        let s = cstring(inactive)?;
+        unsafe {
+            ocio_sys::ocio_config_set_inactive_color_spaces(self.handle.as_ptr(), s.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    // --- Archivable ---
+
+    pub fn is_archivable(&self) -> bool {
+        unsafe { ocio_sys::ocio_config_is_archivable(self.handle.as_ptr()) }
+    }
+
+    // --- Processor cache ---
+
+    pub fn clear_processor_cache(&self) {
+        unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr()) };
+    }
 }
 
 impl Drop for Config {
@@ -934,5 +962,32 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.working_dir();
         assert!(config.set_working_dir("/path/to/working").is_ok());
+    }
+
+    #[test]
+    fn file_rules_set_no_crash() {
+        let config = Config::raw().unwrap();
+        // Stub mode creates a default FileRules, real mode gets from config
+        if let Ok(rules) = config.file_rules() {
+            config.set_file_rules(&rules);
+        }
+    }
+
+    #[test]
+    fn inactive_color_spaces_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.set_inactive_color_spaces("inactive_cs").is_ok());
+    }
+
+    #[test]
+    fn is_archivable_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.is_archivable();
+    }
+
+    #[test]
+    fn clear_processor_cache_no_crash() {
+        let config = Config::raw().unwrap();
+        config.clear_processor_cache();
     }
 }

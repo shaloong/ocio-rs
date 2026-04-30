@@ -125,6 +125,20 @@ impl Baker {
         let handle = unsafe { ocio_sys::ocio_baker_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| FormatMetadata { handle: h })
     }
+
+    // --- Static format metadata ---
+
+    pub fn get_num_formats() -> i32 {
+        unsafe { ocio_sys::ocio_baker_get_num_formats() }
+    }
+
+    pub fn get_format_name_by_index(index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_name_by_index(index)) }
+    }
+
+    pub fn get_format_extension_by_index(index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_extension_by_index(index)) }
+    }
 }
 
 impl Drop for Baker {
@@ -158,5 +172,17 @@ mod tests {
         let baker = Baker::create().unwrap();
         let md = baker.format_metadata();
         assert!(md.is_some());
+    }
+
+    #[test]
+    fn static_format_metadata() {
+        let num = Baker::get_num_formats();
+        assert!(num >= 0);
+        if num > 0 {
+            let name = Baker::get_format_name_by_index(0);
+            let ext = Baker::get_format_extension_by_index(0);
+            assert!(name.is_some());
+            assert!(ext.is_some());
+        }
     }
 }

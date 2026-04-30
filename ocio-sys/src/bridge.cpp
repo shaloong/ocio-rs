@@ -1711,6 +1711,82 @@ void ocio_processor_apply_rgba(void* processor, float* rgba, size_t len) {
 #endif
 }
 
+// --- Processor: bit-depth CPU/GPU processor access ---
+
+void* ocio_processor_get_default_cpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)inBitDepth; (void)outBitDepth;
+  return ocio_rs_bridge::make_stub_cpu_processor().release();
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    auto handle = std::make_unique<CPUProcessorHandle>();
+    auto cpu = std::make_shared<RealCPUProcessor>();
+    cpu->cpu = proc->getDefaultCPUProcessor(
+        static_cast<ocio::BitDepth>(inBitDepth),
+        static_cast<ocio::BitDepth>(outBitDepth));
+    handle->inner = cpu;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_processor_get_optimized_cpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth, unsigned long flags) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)inBitDepth; (void)outBitDepth; (void)flags;
+  return ocio_rs_bridge::make_stub_cpu_processor().release();
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    auto handle = std::make_unique<CPUProcessorHandle>();
+    auto cpu = std::make_shared<RealCPUProcessor>();
+    cpu->cpu = proc->getOptimizedCPUProcessor(
+        static_cast<ocio::BitDepth>(inBitDepth),
+        static_cast<ocio::BitDepth>(outBitDepth),
+        static_cast<ocio::OptimizationFlags>(flags));
+    handle->inner = cpu;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_processor_get_default_gpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)inBitDepth; (void)outBitDepth;
+  return ocio_rs_bridge::make_stub_gpu_processor().release();
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    auto handle = std::make_unique<GPUProcessorHandle>();
+    auto gpu = std::make_shared<RealGPUProcessor>();
+    gpu->gpu = proc->getDefaultGPUProcessor(
+        static_cast<ocio::BitDepth>(inBitDepth),
+        static_cast<ocio::BitDepth>(outBitDepth));
+    handle->inner = gpu;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_processor_get_optimized_gpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth, unsigned long flags) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)inBitDepth; (void)outBitDepth; (void)flags;
+  return ocio_rs_bridge::make_stub_gpu_processor().release();
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    auto handle = std::make_unique<GPUProcessorHandle>();
+    auto gpu = std::make_shared<RealGPUProcessor>();
+    gpu->gpu = proc->getOptimizedGPUProcessor(
+        static_cast<ocio::BitDepth>(inBitDepth),
+        static_cast<ocio::BitDepth>(outBitDepth),
+        static_cast<ocio::OptimizationFlags>(flags));
+    handle->inner = gpu;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 // --- CPUProcessor ---
 
 void ocio_cpu_processor_apply_rgba(void* cpu_processor, float* rgba) {
@@ -1801,6 +1877,28 @@ bool ocio_cpu_processor_is_identity(void* cpu_processor) {
 
 void ocio_cpu_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::CPUProcessorHandle*>(handle);
+}
+
+// --- CPUProcessor: packed pixel processing ---
+
+void ocio_cpu_processor_apply_rgba_packed(void* cpu_processor, void* rgba, int bitDepth, long numPixels, long stride) {
+#ifdef OCIO_RS_STUB
+  (void)cpu_processor; (void)rgba; (void)bitDepth; (void)numPixels; (void)stride;
+#else
+  try {
+    ocio_rs_bridge::get_real_cpu_processor(cpu_processor)->applyRGBA(rgba, static_cast<ocio::BitDepth>(bitDepth), numPixels, stride);
+  } catch (...) {}
+#endif
+}
+
+void ocio_cpu_processor_apply_rgb_packed(void* cpu_processor, void* rgb, int bitDepth, long numPixels, long stride) {
+#ifdef OCIO_RS_STUB
+  (void)cpu_processor; (void)rgb; (void)bitDepth; (void)numPixels; (void)stride;
+#else
+  try {
+    ocio_rs_bridge::get_real_cpu_processor(cpu_processor)->applyRGB(rgb, static_cast<ocio::BitDepth>(bitDepth), numPixels, stride);
+  } catch (...) {}
+#endif
 }
 
 // --- GPUProcessor ---
@@ -4168,6 +4266,42 @@ void ocio_baker_bake(void* baker, const char* outputPath) {
 
 void ocio_baker_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::BakerHandle*>(handle);
+}
+
+// --- Baker: static format metadata ---
+
+int ocio_baker_get_num_formats(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    return OCIO::Baker::getNumFormats();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_baker_get_format_name_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  static const char* empty = "";
+  return empty;
+#else
+  try {
+    return OCIO::Baker::getFormatNameByIndex(index);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_baker_get_format_extension_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  static const char* empty = "";
+  return empty;
+#else
+  try {
+    return OCIO::Baker::getFormatExtensionByIndex(index);
+  } catch (...) { return nullptr; }
+#endif
 }
 
 // --- Context ---
@@ -8829,6 +8963,50 @@ void ocio_config_set_working_dir(void* config, const char* dirName) {
 #else
   try {
     ocio_rs_bridge::get_real_config(config)->setWorkingDir(dirName);
+  } catch (...) {}
+#endif
+}
+
+// --- Config: inactive color spaces, archivable, processor cache, file rules ---
+
+void ocio_config_set_inactive_color_spaces(void* config, const char* inactive) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)inactive;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setInactiveColorSpaces(inactive);
+  } catch (...) {}
+#endif
+}
+
+bool ocio_config_is_archivable(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return false;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->isArchivable();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_config_clear_processor_cache(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->clearProcessorCache();
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_set_file_rules(void* config, void* fileRules) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)fileRules;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(fileRules);
+    auto rules = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    ocio_rs_bridge::get_real_config(config)->setFileRules(rules);
   } catch (...) {}
 #endif
 }

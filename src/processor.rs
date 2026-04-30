@@ -59,6 +59,42 @@ impl Processor {
         NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
+    pub fn default_cpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32) -> Result<CPUProcessor> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_default_cpu_processor_bitdepth(
+                self.handle.as_ptr(), in_bit_depth, out_bit_depth,
+            )
+        };
+        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn optimized_cpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32, flags: u64) -> Result<CPUProcessor> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_cpu_processor_bitdepth(
+                self.handle.as_ptr(), in_bit_depth, out_bit_depth, flags,
+            )
+        };
+        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn default_gpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32) -> Result<GPUProcessor> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_default_gpu_processor_bitdepth(
+                self.handle.as_ptr(), in_bit_depth, out_bit_depth,
+            )
+        };
+        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn optimized_gpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32, flags: u64) -> Result<GPUProcessor> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_gpu_processor_bitdepth(
+                self.handle.as_ptr(), in_bit_depth, out_bit_depth, flags,
+            )
+        };
+        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_dynamic_property(self.handle.as_ptr(), property_type as i32)
@@ -113,6 +149,22 @@ impl CPUProcessor {
     pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_pixels(self.handle.as_ptr(), rgb.as_mut_ptr(), num_pixels, stride);
+        }
+    }
+
+    pub fn apply_rgba_packed(&self, rgba: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_rgba_packed(
+                self.handle.as_ptr(), rgba.as_mut_ptr() as *mut std::ffi::c_void, bit_depth, num_pixels, stride,
+            );
+        }
+    }
+
+    pub fn apply_rgb_packed(&self, rgb: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_rgb_packed(
+                self.handle.as_ptr(), rgb.as_mut_ptr() as *mut std::ffi::c_void, bit_depth, num_pixels, stride,
+            );
         }
     }
 
@@ -491,6 +543,38 @@ mod tests {
             cpu.apply_rgba_pixels(&mut rgba, 4, 4);
             let mut rgb = vec![0.0f32; 12]; // 4 pixels RGB
             cpu.apply_rgb_pixels(&mut rgb, 4, 3);
+        }
+    }
+
+    #[test]
+    fn cpu_processor_apply_packed_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(cpu) = proc.default_cpu_processor() {
+            let mut rgba = vec![0u8; 32]; // packed rgba bytes
+            cpu.apply_rgba_packed(&mut rgba, 8, 8, 4); // BIT_DEPTH_UINT8 = 0
+            let mut rgb = vec![0u8; 24]; // packed rgb bytes
+            cpu.apply_rgb_packed(&mut rgb, 8, 8, 3); // BIT_DEPTH_UINT8 = 0
+        }
+    }
+
+    #[test]
+    fn processor_bitdepth_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        // BIT_DEPTH_F32 = 8
+        if let Ok(cpu) = proc.default_cpu_processor_bitdepth(8, 8) {
+            let _ = cpu.is_no_op();
+            let _ = cpu.is_identity();
+        }
+        if let Ok(cpu) = proc.optimized_cpu_processor_bitdepth(8, 8, 0) {
+            let _ = cpu.is_no_op();
+        }
+        if let Ok(gpu) = proc.default_gpu_processor_bitdepth(8, 8) {
+            let _ = gpu.is_no_op();
+        }
+        if let Ok(gpu) = proc.optimized_gpu_processor_bitdepth(8, 8, 0) {
+            let _ = gpu.is_no_op();
         }
     }
 }

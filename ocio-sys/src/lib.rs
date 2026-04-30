@@ -147,6 +147,12 @@ unsafe extern "C" {
     pub fn ocio_processor_create_group_transform(processor: *mut c_void) -> *mut c_void;
     pub fn ocio_processor_destroy(handle: *mut c_void);
 
+    // --- Processor: bit-depth CPU/GPU processor access ---
+    pub fn ocio_processor_get_default_cpu_processor_bitdepth(processor: *mut c_void, inBitDepth: i32, outBitDepth: i32) -> *mut c_void;
+    pub fn ocio_processor_get_optimized_cpu_processor_bitdepth(processor: *mut c_void, inBitDepth: i32, outBitDepth: i32, flags: u64) -> *mut c_void;
+    pub fn ocio_processor_get_default_gpu_processor_bitdepth(processor: *mut c_void, inBitDepth: i32, outBitDepth: i32) -> *mut c_void;
+    pub fn ocio_processor_get_optimized_gpu_processor_bitdepth(processor: *mut c_void, inBitDepth: i32, outBitDepth: i32, flags: u64) -> *mut c_void;
+
     // --- CPUProcessor ---
     pub fn ocio_cpu_processor_apply_rgba(cpu_processor: *mut c_void, rgba: *mut f32);
     pub fn ocio_cpu_processor_apply_rgb(cpu_processor: *mut c_void, rgb: *mut f32);
@@ -157,6 +163,10 @@ unsafe extern "C" {
     pub fn ocio_cpu_processor_get_output_bit_depth(cpu_processor: *mut c_void) -> i32;
     pub fn ocio_cpu_processor_is_identity(cpu_processor: *mut c_void) -> bool;
     pub fn ocio_cpu_processor_destroy(handle: *mut c_void);
+
+    // --- CPUProcessor: packed pixel processing ---
+    pub fn ocio_cpu_processor_apply_rgba_packed(cpu_processor: *mut c_void, rgba: *mut c_void, bitDepth: i32, numPixels: i64, stride: i64);
+    pub fn ocio_cpu_processor_apply_rgb_packed(cpu_processor: *mut c_void, rgb: *mut c_void, bitDepth: i32, numPixels: i64, stride: i64);
 
     // --- GPUProcessor ---
     pub fn ocio_processor_get_default_gpu_processor(processor: *mut c_void) -> *mut c_void;
@@ -372,6 +382,9 @@ unsafe extern "C" {
     pub fn ocio_baker_get_cube_size(baker: *mut c_void) -> i32;
     pub fn ocio_baker_set_cube_size(baker: *mut c_void, size: i32);
     pub fn ocio_baker_bake(baker: *mut c_void, outputPath: *const i8);
+    pub fn ocio_baker_get_num_formats() -> i32;
+    pub fn ocio_baker_get_format_name_by_index(index: i32) -> *const i8;
+    pub fn ocio_baker_get_format_extension_by_index(index: i32) -> *const i8;
     pub fn ocio_baker_destroy(handle: *mut c_void);
 
     // --- Context ---
@@ -804,6 +817,12 @@ unsafe extern "C" {
     pub fn ocio_config_set_default_interpolation(config: *mut c_void, interpolation: i32);
     pub fn ocio_config_get_working_dir(config: *mut c_void) -> *const i8;
     pub fn ocio_config_set_working_dir(config: *mut c_void, dirName: *const i8);
+
+    // --- Config: inactive color spaces, archivable, processor cache, file rules ---
+    pub fn ocio_config_set_inactive_color_spaces(config: *mut c_void, inactive: *const i8);
+    pub fn ocio_config_is_archivable(config: *mut c_void) -> bool;
+    pub fn ocio_config_clear_processor_cache(config: *mut c_void);
+    pub fn ocio_config_set_file_rules(config: *mut c_void, fileRules: *mut c_void);
 
     // --- ColorSpace: visibility + set_reference_space_type ---
     pub fn ocio_color_space_get_visibility(colorSpace: *mut c_void) -> i32;

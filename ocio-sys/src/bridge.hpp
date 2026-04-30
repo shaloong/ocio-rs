@@ -132,6 +132,12 @@ int ocio_processor_get_num_transforms(void* processor);
 void* ocio_processor_create_group_transform(void* processor);
 void ocio_processor_destroy(void* handle);
 
+// --- Processor: bit-depth CPU/GPU processor access ---
+void* ocio_processor_get_default_cpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth);
+void* ocio_processor_get_optimized_cpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth, unsigned long flags);
+void* ocio_processor_get_default_gpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth);
+void* ocio_processor_get_optimized_gpu_processor_bitdepth(void* processor, int inBitDepth, int outBitDepth, unsigned long flags);
+
 // --- CPUProcessor ---
 void ocio_cpu_processor_apply_rgba(void* cpu_processor, float* rgba);
 void ocio_cpu_processor_apply_rgb(void* cpu_processor, float* rgb);
@@ -142,6 +148,10 @@ int ocio_cpu_processor_get_input_bit_depth(void* cpu_processor);
 int ocio_cpu_processor_get_output_bit_depth(void* cpu_processor);
 bool ocio_cpu_processor_is_identity(void* cpu_processor);
 void ocio_cpu_processor_destroy(void* handle);
+
+// --- CPUProcessor: packed pixel processing ---
+void ocio_cpu_processor_apply_rgba_packed(void* cpu_processor, void* rgba, int bitDepth, long numPixels, long stride);
+void ocio_cpu_processor_apply_rgb_packed(void* cpu_processor, void* rgb, int bitDepth, long numPixels, long stride);
 
 // --- GPUProcessor ---
 void* ocio_processor_get_default_gpu_processor(void* processor);
@@ -344,6 +354,9 @@ void ocio_baker_set_shaper_size(void* baker, int size);
 int ocio_baker_get_cube_size(void* baker);
 void ocio_baker_set_cube_size(void* baker, int size);
 void ocio_baker_bake(void* baker, const char* outputPath);
+int ocio_baker_get_num_formats(void);
+const char* ocio_baker_get_format_name_by_index(int index);
+const char* ocio_baker_get_format_extension_by_index(int index);
 void ocio_baker_destroy(void* handle);
 
 // --- Context ---
@@ -776,6 +789,12 @@ int ocio_config_get_default_interpolation(void* config);
 void ocio_config_set_default_interpolation(void* config, int interpolation);
 const char* ocio_config_get_working_dir(void* config);
 void ocio_config_set_working_dir(void* config, const char* dirName);
+
+// --- Config: inactive color spaces, archivable, processor cache, file rules ---
+void ocio_config_set_inactive_color_spaces(void* config, const char* inactive);
+bool ocio_config_is_archivable(void* config);
+void ocio_config_clear_processor_cache(void* config);
+void ocio_config_set_file_rules(void* config, void* fileRules);
 
 // --- ColorSpace: visibility + set_reference_space_type ---
 int ocio_color_space_get_visibility(void* colorSpace);
