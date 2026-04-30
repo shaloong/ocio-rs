@@ -230,11 +230,8 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
 
     // --- Transform base ---
-    pub fn ocio_transform_get_direction(transform: *mut c_void) -> i32;
-    pub fn ocio_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_transform_get_transform_type(transform: *mut c_void) -> i32;
     pub fn ocio_transform_create_editable_copy(transform: *mut c_void) -> *mut c_void;
-    pub fn ocio_transform_destroy(handle: *mut c_void);
 
     // --- FileTransform ---
     pub fn ocio_file_transform_create() -> *mut c_void;

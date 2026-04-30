@@ -205,11 +205,8 @@ unsigned int ocio_gpu_shader_desc_get_texture_max_height(void* desc, int index);
 const char* ocio_gpu_shader_desc_get_cache_id(void* desc);
 
 // --- Transform base ---
-int ocio_transform_get_direction(void* transform);
-void ocio_transform_set_direction(void* transform, int direction);
 int ocio_transform_get_transform_type(void* transform);
 void* ocio_transform_create_editable_copy(void* transform);
-void ocio_transform_destroy(void* handle);
 
 // --- FileTransform ---
 void* ocio_file_transform_create(void);

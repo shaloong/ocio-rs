@@ -2350,21 +2350,6 @@ const char* ocio_gpu_shader_desc_get_cache_id(void* desc) {
 
 // --- Transform base ---
 
-int ocio_transform_get_direction(void* transform) {
-#ifdef OCIO_RS_STUB
-  (void)transform;
-  return 0;
-#else
-  return 0;
-#endif
-}
-
-void ocio_transform_set_direction(void* transform, int direction) {
-#ifdef OCIO_RS_STUB
-  (void)transform; (void)direction;
-#endif
-}
-
 int ocio_transform_get_transform_type(void* transform) {
 #ifdef OCIO_RS_STUB
   (void)transform;
@@ -2587,10 +2572,6 @@ void* ocio_transform_create_editable_copy(void* transform) {
 #endif
 }
 
-void ocio_transform_destroy(void* handle) {
-  // Base transform destruction handled by subclass-specific destroy functions
-  (void)handle;
-}
 
 // --- Config destruction ---
 
