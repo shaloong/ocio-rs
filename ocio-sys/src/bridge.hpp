@@ -24,6 +24,11 @@ extern "C" {
 // --- Runtime ---
 bool ocio_runtime_is_stub(void);
 
+// --- Global config ---
+void* ocio_get_current_config(void);
+void ocio_set_current_config(void* config);
+void ocio_clear_all_caches(void);
+
 // --- BuiltinConfigRegistry ---
 void* ocio_builtin_config_registry_get(void);
 int ocio_builtin_config_registry_get_num_builtin_configs(void* registry);
@@ -73,6 +78,8 @@ const char* ocio_config_get_display(void* config, int index);
 const char* ocio_config_get_default_view(void* config, const char* display);
 int ocio_config_get_num_views(void* config, const char* display);
 const char* ocio_config_get_view(void* config, const char* display, int index);
+void ocio_config_set_default_display(void* config, const char* display);
+void ocio_config_set_default_view(void* config, const char* view);
 
 // Config: looks
 int ocio_config_get_num_looks(void* config);
@@ -95,6 +102,8 @@ const char* ocio_config_get_active_views(void* config);
 // Config: search paths & strict parsing
 const char* ocio_config_get_search_path(void* config);
 void ocio_config_set_search_path(void* config, const char* path);
+int ocio_config_get_num_search_paths(void* config);
+const char* ocio_config_get_search_path_by_index(void* config, int index);
 bool ocio_config_is_strict_parsing_enabled(void* config);
 void ocio_config_set_strict_parsing_enabled(void* config, bool enabled);
 
@@ -120,6 +129,8 @@ void* ocio_config_get_processor(
     void* config, const char* src, const char* dst);
 void* ocio_config_get_processor_display(
     void* config, const char* src, const char* display, const char* view, int direction);
+void* ocio_config_get_processor_with_context(
+    void* config, const char* src, const char* dst, void* context);
 
 // --- Processor ---
 void* ocio_processor_get_default_cpu_processor(void* processor);
@@ -160,6 +171,7 @@ bool ocio_gpu_processor_is_no_op(void* gpu_processor);
 bool ocio_gpu_processor_has_channel_crosstalk(void* gpu_processor);
 const char* ocio_gpu_processor_get_cache_id(void* gpu_processor);
 void ocio_gpu_processor_extract_shader_info(void* gpu_processor, void* shader_desc);
+const char* ocio_gpu_processor_extract_gpu_shader_info_cache_id(void* gpu_processor, void* shader_desc);
 void ocio_gpu_processor_destroy(void* handle);
 
 // --- GpuShaderDesc ---
@@ -182,6 +194,11 @@ void ocio_gpu_shader_desc_get_texture(
 const float* ocio_gpu_shader_desc_get_texture_values(void* shader_desc, unsigned int index);
 void ocio_gpu_shader_desc_finalize(void* shader_desc);
 void ocio_gpu_shader_desc_destroy(void* handle);
+
+// --- GpuShaderDesc: texture dimensions & cache ---
+unsigned int ocio_gpu_shader_desc_get_texture_max_width(void* desc, int index);
+unsigned int ocio_gpu_shader_desc_get_texture_max_height(void* desc, int index);
+const char* ocio_gpu_shader_desc_get_cache_id(void* desc);
 
 // --- Transform base ---
 int ocio_transform_get_direction(void* transform);
@@ -299,6 +316,11 @@ int ocio_builtin_transform_get_direction(void* transform);
 void ocio_builtin_transform_set_direction(void* transform, int direction);
 void ocio_builtin_transform_destroy(void* handle);
 
+// --- BuiltinTransform: static methods ---
+int ocio_builtin_transform_get_num_styles(void);
+const char* ocio_builtin_transform_get_style_by_index(int index);
+bool ocio_builtin_transform_is_valid_style(const char* style);
+
 // --- FixedFunctionTransform ---
 void* ocio_fixed_function_transform_create(int style);
 void* ocio_fixed_function_transform_create_with_params(int style, const double* params, int num_params);
@@ -409,6 +431,10 @@ const char* ocio_color_space_get_encoding(void* colorSpace);
 void ocio_color_space_set_encoding(void* colorSpace, const char* encoding);
 void ocio_color_space_destroy(void* handle);
 
+// --- ColorSpace: category ---
+const char* ocio_color_space_get_category(void* colorSpace);
+void ocio_color_space_set_category(void* colorSpace, const char* category);
+
 // --- Config: ColorSpace by object ---
 void* ocio_config_get_color_space(void* config, const char* name);
 int ocio_config_get_index_for_color_space(void* config, const char* name);
@@ -430,6 +456,8 @@ const char* ocio_look_get_name(void* look);
 void ocio_look_set_name(void* look, const char* name);
 const char* ocio_look_get_process_space(void* look);
 void ocio_look_set_process_space(void* look, const char* processSpace);
+const char* ocio_look_get_description(void* look);
+void ocio_look_set_description(void* look, const char* description);
 void* ocio_look_get_transform(void* look);
 void ocio_look_set_transform(void* look, const void* transform);
 int ocio_look_get_direction(void* look);
@@ -792,6 +820,7 @@ void ocio_config_set_working_dir(void* config, const char* dirName);
 
 // --- Config: inactive color spaces, archivable, processor cache, file rules ---
 void ocio_config_set_inactive_color_spaces(void* config, const char* inactive);
+const char* ocio_config_get_inactive_color_spaces(void* config);
 bool ocio_config_is_archivable(void* config);
 void ocio_config_clear_processor_cache(void* config);
 void ocio_config_set_file_rules(void* config, void* fileRules);

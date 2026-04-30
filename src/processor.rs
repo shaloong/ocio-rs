@@ -225,6 +225,14 @@ impl GPUProcessor {
             );
         }
     }
+
+    pub fn extract_gpu_shader_info_cache_id(&self, shader_desc: &mut GpuShaderDesc) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_cache_id(
+                self.handle.as_ptr(), shader_desc.handle.as_ptr(),
+            ))
+        }
+    }
 }
 
 impl Drop for GPUProcessor {
@@ -378,6 +386,18 @@ impl GpuShaderDesc {
             ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr());
         }
     }
+
+    pub fn texture_max_width(&self, index: i32) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_max_width(self.handle.as_ptr(), index) }
+    }
+
+    pub fn texture_max_height(&self, index: i32) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_max_height(self.handle.as_ptr(), index) }
+    }
+
+    pub fn cache_id(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr())) }
+    }
 }
 
 impl Drop for GpuShaderDesc {
@@ -481,6 +501,17 @@ mod tests {
     }
 
     #[test]
+    fn gpu_processor_extract_cache_id() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(gpu) = proc.default_gpu_processor() {
+            if let Ok(mut desc) = GpuShaderDesc::create() {
+                let _ = gpu.extract_gpu_shader_info_cache_id(&mut desc);
+            }
+        }
+    }
+
+    #[test]
     fn gpu_shader_desc() {
         if let Ok(desc) = GpuShaderDesc::create() {
             // Stub mode returns empty shader text
@@ -495,6 +526,21 @@ mod tests {
             let _ = desc.set_pixel_name("outColor");
             let _ = desc.set_resource_prefix("ocio_");
             desc.finalize();
+        }
+    }
+
+    #[test]
+    fn gpu_shader_desc_texture_max_no_crash() {
+        if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.texture_max_width(0);
+            let _ = desc.texture_max_height(0);
+        }
+    }
+
+    #[test]
+    fn gpu_shader_desc_cache_id_no_crash() {
+        if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.cache_id();
         }
     }
 

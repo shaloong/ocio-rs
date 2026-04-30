@@ -116,6 +116,12 @@ impl Config {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_default_display(self.handle.as_ptr())) }
     }
 
+    pub fn set_default_display(&self, display: impl AsRef<str>) -> Result<()> {
+        let d = cstring(display)?;
+        unsafe { ocio_sys::ocio_config_set_default_display(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn num_displays(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_displays(self.handle.as_ptr()) }
     }
@@ -133,6 +139,12 @@ impl Config {
                 self.handle.as_ptr(), display.as_ptr().cast(),
             ))
         }
+    }
+
+    pub fn set_default_view(&self, view: impl AsRef<str>) -> Result<()> {
+        let v = cstring(view)?;
+        unsafe { ocio_sys::ocio_config_set_default_view(self.handle.as_ptr(), v.as_ptr().cast()) };
+        Ok(())
     }
 
     pub fn num_views(&self, display: impl AsRef<str>) -> i32 {
@@ -302,6 +314,25 @@ impl Config {
                 self.handle.as_ptr(),
                 transform.as_ptr(),
                 direction as i32,
+            )
+        };
+        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn processor_with_context(
+        &self,
+        src: impl AsRef<str>,
+        dst: impl AsRef<str>,
+        context: &crate::Context,
+    ) -> Result<Processor> {
+        let src = cstring(src)?;
+        let dst = cstring(dst)?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_with_context(
+                self.handle.as_ptr(),
+                src.as_ptr().cast(),
+                dst.as_ptr().cast(),
+                context.handle.as_ptr(),
             )
         };
         NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
@@ -510,6 +541,14 @@ impl Config {
         Ok(())
     }
 
+    pub fn num_search_paths(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_search_paths(self.handle.as_ptr()) }
+    }
+
+    pub fn search_path_by_index(&self, index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_search_path_by_index(self.handle.as_ptr(), index)) }
+    }
+
     // --- Strict parsing ---
 
     pub fn is_strict_parsing_enabled(&self) -> bool {
@@ -652,6 +691,10 @@ impl Config {
     }
 
     // --- Inactive color spaces ---
+
+    pub fn inactive_color_spaces(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_inactive_color_spaces(self.handle.as_ptr())) }
+    }
 
     pub fn set_inactive_color_spaces(&self, inactive: impl AsRef<str>) -> Result<()> {
         let s = cstring(inactive)?;
@@ -989,5 +1032,35 @@ mod tests {
     fn clear_processor_cache_no_crash() {
         let config = Config::raw().unwrap();
         config.clear_processor_cache();
+    }
+
+    #[test]
+    fn config_num_search_paths_no_crash() {
+        let config = Config::raw().unwrap();
+        let n = config.num_search_paths();
+        assert!(n >= 0);
+        let _ = config.search_path_by_index(0);
+    }
+
+    #[test]
+    fn set_default_display_view_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.set_default_display("sRGB").is_ok());
+        assert!(config.set_default_view("Film").is_ok());
+    }
+
+    #[test]
+    fn get_inactive_color_spaces_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.inactive_color_spaces();
+    }
+
+    #[test]
+    fn processor_with_context_no_crash() {
+        let config = Config::raw().unwrap();
+        if let Some(ctx) = config.current_context() {
+            let proc = config.processor_with_context("raw", "raw", &ctx);
+            let _ = proc;
+        }
     }
 }

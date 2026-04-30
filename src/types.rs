@@ -237,11 +237,20 @@ pub enum LoggingLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ProcessorCacheFlags {
-    Off = 0x00000000,
-    Enabled = 0x00000001,
-    ShareDynProperties = 0x00000002,
+pub struct ProcessorCacheFlags(pub u32);
+
+impl ProcessorCacheFlags {
+    pub const OFF: Self = Self(0x00000000);
+    pub const ENABLED: Self = Self(0x00000001);
+    pub const SHARE_DYN_PROPERTIES: Self = Self(0x00000002);
+    pub const DEFAULT: Self = Self::ENABLED;
+}
+
+impl std::ops::BitOr for ProcessorCacheFlags {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

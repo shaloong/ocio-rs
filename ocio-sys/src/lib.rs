@@ -66,6 +66,8 @@ unsafe extern "C" {
     pub fn ocio_config_get_view(
         config: *mut c_void, display: *const i8, index: i32,
     ) -> *const i8;
+    pub fn ocio_config_set_default_display(config: *mut c_void, display: *const i8);
+    pub fn ocio_config_set_default_view(config: *mut c_void, view: *const i8);
 
     // --- Config: looks ---
     pub fn ocio_config_get_num_looks(config: *mut c_void) -> i32;
@@ -94,6 +96,8 @@ unsafe extern "C" {
     pub fn ocio_config_set_search_path(config: *mut c_void, path: *const i8);
     pub fn ocio_config_is_strict_parsing_enabled(config: *mut c_void) -> bool;
     pub fn ocio_config_set_strict_parsing_enabled(config: *mut c_void, enabled: bool);
+    pub fn ocio_config_get_num_search_paths(config: *mut c_void) -> i32;
+    pub fn ocio_config_get_search_path_by_index(config: *mut c_void, index: i32) -> *const i8;
 
     // --- Config: roles (mutable) ---
     pub fn ocio_config_set_role(config: *mut c_void, role: *const i8, colorSpace: *const i8);
@@ -121,6 +125,9 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub fn ocio_config_get_processor_transform(
         config: *mut c_void, transform: *mut c_void, direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_processor_with_context(
+        config: *mut c_void, src: *const i8, dst: *const i8, context: *mut c_void,
     ) -> *mut c_void;
 
     // --- Config: ColorSpace object ---
@@ -179,6 +186,9 @@ unsafe extern "C" {
     pub fn ocio_gpu_processor_extract_shader_info(
         gpu_processor: *mut c_void, shader_desc: *mut c_void,
     );
+    pub fn ocio_gpu_processor_extract_gpu_shader_info_cache_id(
+        gpu_processor: *mut c_void, shader_desc: *mut c_void,
+    ) -> *const i8;
     pub fn ocio_gpu_processor_destroy(handle: *mut c_void);
 
     // --- GpuShaderDesc ---
@@ -204,6 +214,11 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_set_resource_prefix(shader_desc: *mut c_void, prefix: *const i8);
     pub fn ocio_gpu_shader_desc_finalize(shader_desc: *mut c_void);
     pub fn ocio_gpu_shader_desc_destroy(handle: *mut c_void);
+
+    // --- GpuShaderDesc: texture dimensions & cache ---
+    pub fn ocio_gpu_shader_desc_get_texture_max_width(desc: *mut c_void, index: i32) -> u32;
+    pub fn ocio_gpu_shader_desc_get_texture_max_height(desc: *mut c_void, index: i32) -> u32;
+    pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
 
     // --- Transform base ---
     pub fn ocio_transform_get_direction(transform: *mut c_void) -> i32;
@@ -819,6 +834,7 @@ unsafe extern "C" {
     pub fn ocio_config_set_working_dir(config: *mut c_void, dirName: *const i8);
 
     // --- Config: inactive color spaces, archivable, processor cache, file rules ---
+    pub fn ocio_config_get_inactive_color_spaces(config: *mut c_void) -> *const i8;
     pub fn ocio_config_set_inactive_color_spaces(config: *mut c_void, inactive: *const i8);
     pub fn ocio_config_is_archivable(config: *mut c_void) -> bool;
     pub fn ocio_config_clear_processor_cache(config: *mut c_void);
@@ -883,6 +899,11 @@ unsafe extern "C" {
     pub fn ocio_format_metadata_get_id(metadata: *mut c_void) -> *const i8;
     pub fn ocio_format_metadata_set_id(metadata: *mut c_void, id: *const i8);
     pub fn ocio_format_metadata_destroy(handle: *mut c_void);
+
+    // --- BuiltinTransform: static methods ---
+    pub fn ocio_builtin_transform_get_num_styles() -> i32;
+    pub fn ocio_builtin_transform_get_style_by_index(index: i32) -> *const i8;
+    pub fn ocio_builtin_transform_is_valid_style(style: *const i8) -> bool;
 
     // --- BuiltinTransform: description ---
     pub fn ocio_builtin_transform_get_description(transform: *mut c_void) -> *const i8;

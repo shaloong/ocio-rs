@@ -98,16 +98,11 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
     let flags = unsafe { ocio_sys::ocio_get_processor_cache_flags() };
-    match flags {
-        0 => crate::ProcessorCacheFlags::Off,
-        1 => crate::ProcessorCacheFlags::Enabled,
-        2 => crate::ProcessorCacheFlags::ShareDynProperties,
-        _ => crate::ProcessorCacheFlags::Off,
-    }
+    crate::ProcessorCacheFlags(flags as u32)
 }
 
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
-    unsafe { ocio_sys::ocio_set_processor_cache_flags(flags as i32) };
+    unsafe { ocio_sys::ocio_set_processor_cache_flags(flags.0 as i32) };
 }
 
 pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {

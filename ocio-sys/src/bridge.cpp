@@ -1096,6 +1096,26 @@ const char* ocio_config_get_view(void* config, const char* display, int index) {
 #endif
 }
 
+void ocio_config_set_default_display(void* config, const char* display) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)display;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setDefaultDisplay(display);
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_set_default_view(void* config, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)view;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setDefaultView(view);
+  } catch (...) {}
+#endif
+}
+
 // --- Config: looks ---
 
 int ocio_config_get_num_looks(void* config) {
@@ -1253,6 +1273,26 @@ void ocio_config_set_strict_parsing_enabled(void* config, bool enabled) {
   try {
     ocio_rs_bridge::get_real_config(config)->setStrictParsingEnabled(enabled);
   } catch (...) {}
+#endif
+}
+
+int ocio_config_get_num_search_paths(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->getNumSearchPaths();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_config_get_search_path_by_index(void* config, int index) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)index; return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->getSearchPath(index);
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -1637,6 +1677,25 @@ void* ocio_config_get_processor_transform(void* config, void* transform, int dir
 #endif
 }
 
+void* ocio_config_get_processor_with_context(
+    void* config, const char* src, const char* dst, void* context) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)src; (void)dst; (void)context;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    auto* ctx_handle = static_cast<ocio_rs_bridge::ContextHandle*>(context);
+    auto ocio_ctx = std::static_pointer_cast<ocio_rs_bridge::RealContext>(ctx_handle->inner)->context;
+    auto processor = cfg->getProcessor(src, dst, ocio_ctx);
+    auto hdl = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    hdl->inner = std::make_shared<ocio_rs_bridge::RealProcessor>();
+    std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(hdl->inner)->processor = processor;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 // --- Processor ---
 
 void* ocio_processor_get_default_cpu_processor(void* processor) {
@@ -1974,6 +2033,20 @@ void ocio_gpu_processor_extract_shader_info(void* gpu_processor, void* shader_de
 #endif
 }
 
+const char* ocio_gpu_processor_extract_gpu_shader_info_cache_id(void* gpu_processor, void* shader_desc) {
+#ifdef OCIO_RS_STUB
+  (void)gpu_processor; (void)shader_desc; return nullptr;
+#else
+  try {
+    auto gpu = ocio_rs_bridge::get_real_gpu_processor(gpu_processor);
+    auto* sd = static_cast<ocio::GpuShaderDesc*>(shader_desc);
+    static thread_local std::string cached;
+    cached = gpu->extractGpuShaderInfoCacheID(*sd);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void ocio_gpu_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GPUProcessorHandle*>(handle);
 }
@@ -2179,6 +2252,46 @@ void ocio_gpu_shader_desc_finalize(void* shader_desc) {
 
 void ocio_gpu_shader_desc_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(handle);
+}
+
+// --- GpuShaderDesc: texture dimensions & cache ---
+
+unsigned int ocio_gpu_shader_desc_get_texture_max_width(void* desc, int index) {
+#ifdef OCIO_RS_STUB
+  (void)desc; (void)index; return 0;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(desc);
+    auto d = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    return (*d)->getTextureMaxWidth(index);
+  } catch (...) { return 0; }
+#endif
+}
+
+unsigned int ocio_gpu_shader_desc_get_texture_max_height(void* desc, int index) {
+#ifdef OCIO_RS_STUB
+  (void)desc; (void)index; return 0;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(desc);
+    auto d = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    return (*d)->getTextureMaxHeight(index);
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_cache_id(void* desc) {
+#ifdef OCIO_RS_STUB
+  (void)desc; return nullptr;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(desc);
+    auto d = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    static thread_local std::string cached;
+    cached = (*d)->getCacheID();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
 }
 
 // --- Transform base ---
@@ -3694,6 +3807,40 @@ void ocio_builtin_transform_set_direction(void* transform, int direction) {
 
 void ocio_builtin_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(handle);
+}
+
+// --- BuiltinTransform: static methods ---
+
+int ocio_builtin_transform_get_num_styles(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    return ocio::BuiltinTransform::GetNumBuiltinStyles();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_builtin_transform_get_style_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index; return nullptr;
+#else
+  try {
+    static thread_local std::string cached;
+    cached = ocio::BuiltinTransform::GetBuiltinStyle(index);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_builtin_transform_is_valid_style(const char* style) {
+#ifdef OCIO_RS_STUB
+  (void)style; return false;
+#else
+  try {
+    return ocio::BuiltinTransform::IsValidBuiltinStyle(style);
+  } catch (...) { return false; }
+#endif
 }
 
 // --- FixedFunctionTransform ---
@@ -8968,6 +9115,16 @@ void ocio_config_set_working_dir(void* config, const char* dirName) {
 }
 
 // --- Config: inactive color spaces, archivable, processor cache, file rules ---
+
+const char* ocio_config_get_inactive_color_spaces(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->getInactiveColorSpaces();
+  } catch (...) { return nullptr; }
+#endif
+}
 
 void ocio_config_set_inactive_color_spaces(void* config, const char* inactive) {
 #ifdef OCIO_RS_STUB
