@@ -1,6 +1,7 @@
 mod file;
 mod cdl;
 mod exponent;
+mod exponent_with_linear;
 mod matrix;
 mod log;
 mod range;
@@ -12,6 +13,7 @@ mod lut3d;
 mod exposure_contrast;
 mod color_space;
 mod look_transform;
+mod display_view;
 mod allocation;
 mod log_affine;
 mod log_camera;
@@ -28,6 +30,7 @@ use ocio_sys;
 pub use file::FileTransform;
 pub use cdl::CDLTransform;
 pub use exponent::ExponentTransform;
+pub use exponent_with_linear::ExponentWithLinearTransform;
 pub use matrix::MatrixTransform;
 pub use log::LogTransform;
 pub use range::RangeTransform;
@@ -39,6 +42,7 @@ pub use lut3d::Lut3DTransform;
 pub use exposure_contrast::ExposureContrastTransform;
 pub use color_space::ColorSpaceTransform;
 pub use look_transform::LookTransform;
+pub use display_view::DisplayViewTransform;
 pub use allocation::AllocationTransform;
 pub use log_affine::LogAffineTransform;
 pub use log_camera::LogCameraTransform;
@@ -58,6 +62,9 @@ impl TransformHandle for CDLTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
 impl TransformHandle for ExponentTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
+impl TransformHandle for ExponentWithLinearTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
 impl TransformHandle for MatrixTransform {
@@ -93,6 +100,9 @@ impl TransformHandle for ColorSpaceTransform {
 impl TransformHandle for LookTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
+impl TransformHandle for DisplayViewTransform {
+    fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
+}
 impl TransformHandle for AllocationTransform {
     fn as_ptr(&self) -> *mut c_void { self.handle.as_ptr() }
 }
@@ -119,6 +129,7 @@ pub enum Transform {
     File(FileTransform),
     CDL(CDLTransform),
     Exponent(ExponentTransform),
+    ExponentWithLinear(ExponentWithLinearTransform),
     Matrix(MatrixTransform),
     Log(LogTransform),
     Range(RangeTransform),
@@ -130,6 +141,7 @@ pub enum Transform {
     ExposureContrast(ExposureContrastTransform),
     ColorSpace(ColorSpaceTransform),
     Look(LookTransform),
+    DisplayView(DisplayViewTransform),
     Allocation(AllocationTransform),
     LogAffine(LogAffineTransform),
     LogCamera(LogCameraTransform),
@@ -145,6 +157,7 @@ impl TransformHandle for Transform {
             Transform::File(t) => t.as_ptr(),
             Transform::CDL(t) => t.as_ptr(),
             Transform::Exponent(t) => t.as_ptr(),
+            Transform::ExponentWithLinear(t) => t.as_ptr(),
             Transform::Matrix(t) => t.as_ptr(),
             Transform::Log(t) => t.as_ptr(),
             Transform::Range(t) => t.as_ptr(),
@@ -156,6 +169,7 @@ impl TransformHandle for Transform {
             Transform::ExposureContrast(t) => t.as_ptr(),
             Transform::ColorSpace(t) => t.as_ptr(),
             Transform::Look(t) => t.as_ptr(),
+            Transform::DisplayView(t) => t.as_ptr(),
             Transform::Allocation(t) => t.as_ptr(),
             Transform::LogAffine(t) => t.as_ptr(),
             Transform::LogCamera(t) => t.as_ptr(),
@@ -177,6 +191,7 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         1 => Some(Transform::Builtin(BuiltinTransform { handle: nn })),
         2 => Some(Transform::CDL(CDLTransform { handle: nn })),
         5 => Some(Transform::Exponent(ExponentTransform { handle: nn })),
+        6 => Some(Transform::ExponentWithLinear(ExponentWithLinearTransform { handle: nn })),
         8 => Some(Transform::File(FileTransform { handle: nn })),
         9 => Some(Transform::FixedFunction(FixedFunctionTransform { handle: nn })),
         14 => Some(Transform::Group(GroupTransform { handle: nn })),
@@ -186,8 +201,9 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         21 => Some(Transform::Matrix(MatrixTransform { handle: nn })),
         22 => Some(Transform::Range(RangeTransform { handle: nn })),
         7 => Some(Transform::ExposureContrast(ExposureContrastTransform { handle: nn })),
-        4 => Some(Transform::ColorSpace(ColorSpaceTransform { handle: nn })),
+        3 => Some(Transform::ColorSpace(ColorSpaceTransform { handle: nn })),
         18 => Some(Transform::Look(LookTransform { handle: nn })),
+        4 => Some(Transform::DisplayView(DisplayViewTransform { handle: nn })),
         0 => Some(Transform::Allocation(AllocationTransform { handle: nn })),
         15 => Some(Transform::LogAffine(LogAffineTransform { handle: nn })),
         16 => Some(Transform::LogCamera(LogCameraTransform { handle: nn })),

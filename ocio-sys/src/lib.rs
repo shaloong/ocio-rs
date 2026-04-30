@@ -32,7 +32,9 @@ unsafe extern "C" {
 
     // --- Config: name & metadata ---
     pub fn ocio_config_get_name(config: *mut c_void) -> *const i8;
+    pub fn ocio_config_set_name(config: *mut c_void, name: *const i8);
     pub fn ocio_config_get_description(config: *mut c_void) -> *const i8;
+    pub fn ocio_config_set_description(config: *mut c_void, desc: *const i8);
     pub fn ocio_config_get_cache_id(config: *mut c_void) -> *const i8;
 
     // --- Config: version ---
@@ -226,6 +228,7 @@ unsafe extern "C" {
     pub fn ocio_cdl_transform_get_sat(transform: *mut c_void) -> f64;
     pub fn ocio_cdl_transform_set_sat(transform: *mut c_void, sat: f64);
     pub fn ocio_cdl_transform_get_sat_luma_coefs(transform: *mut c_void, rgb: *mut f64);
+    pub fn ocio_cdl_transform_set_sat_luma_coefs(transform: *mut c_void, rgb: *const f64);
     pub fn ocio_cdl_transform_get_style(transform: *mut c_void) -> i32;
     pub fn ocio_cdl_transform_set_style(transform: *mut c_void, style: i32);
     pub fn ocio_cdl_transform_get_id(transform: *mut c_void) -> *const i8;
@@ -243,6 +246,16 @@ unsafe extern "C" {
     pub fn ocio_exponent_transform_get_direction(transform: *mut c_void) -> i32;
     pub fn ocio_exponent_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_exponent_transform_destroy(handle: *mut c_void);
+
+    // --- ExponentWithLinearTransform ---
+    pub fn ocio_exponent_with_linear_transform_create() -> *mut c_void;
+    pub fn ocio_exponent_with_linear_transform_get_value(transform: *mut c_void, vec4: *mut f64);
+    pub fn ocio_exponent_with_linear_transform_set_value(transform: *mut c_void, vec4: *const f64);
+    pub fn ocio_exponent_with_linear_transform_get_negative_style(transform: *mut c_void) -> i32;
+    pub fn ocio_exponent_with_linear_transform_set_negative_style(transform: *mut c_void, style: i32);
+    pub fn ocio_exponent_with_linear_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_exponent_with_linear_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_exponent_with_linear_transform_destroy(handle: *mut c_void);
 
     // --- MatrixTransform ---
     pub fn ocio_matrix_transform_create() -> *mut c_void;
@@ -522,6 +535,20 @@ unsafe extern "C" {
     pub fn ocio_look_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_look_transform_destroy(handle: *mut c_void);
 
+    // --- DisplayViewTransform ---
+    pub fn ocio_display_view_transform_create() -> *mut c_void;
+    pub fn ocio_display_view_transform_get_src(transform: *mut c_void) -> *const i8;
+    pub fn ocio_display_view_transform_set_src(transform: *mut c_void, src: *const i8);
+    pub fn ocio_display_view_transform_get_display(transform: *mut c_void) -> *const i8;
+    pub fn ocio_display_view_transform_set_display(transform: *mut c_void, display: *const i8);
+    pub fn ocio_display_view_transform_get_view(transform: *mut c_void) -> *const i8;
+    pub fn ocio_display_view_transform_set_view(transform: *mut c_void, view: *const i8);
+    pub fn ocio_display_view_transform_get_looks_bypass(transform: *mut c_void) -> bool;
+    pub fn ocio_display_view_transform_set_looks_bypass(transform: *mut c_void, bypass: bool);
+    pub fn ocio_display_view_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_display_view_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_display_view_transform_destroy(handle: *mut c_void);
+
     // --- GradingPrimaryTransform ---
     pub fn ocio_grading_primary_transform_create(style: i32) -> *mut c_void;
     pub fn ocio_grading_primary_transform_get_style(transform: *mut c_void) -> i32;
@@ -719,4 +746,35 @@ unsafe extern "C" {
 
     // --- ViewTransform: editable copy ---
     pub fn ocio_view_transform_create_editable_copy(viewTransform: *mut c_void) -> *mut c_void;
+
+    // --- FileRules ---
+    pub fn ocio_file_rules_create() -> *mut c_void;
+    pub fn ocio_file_rules_create_editable_copy(rules: *mut c_void) -> *mut c_void;
+    pub fn ocio_file_rules_get_num_entries(rules: *mut c_void) -> u64;
+    pub fn ocio_file_rules_get_index_for_rule(rules: *mut c_void, ruleName: *const i8) -> u64;
+    pub fn ocio_file_rules_get_name(rules: *mut c_void, ruleIndex: u64) -> *const i8;
+    pub fn ocio_file_rules_get_pattern(rules: *mut c_void, ruleIndex: u64) -> *const i8;
+    pub fn ocio_file_rules_set_pattern(rules: *mut c_void, ruleIndex: u64, pattern: *const i8);
+    pub fn ocio_file_rules_get_extension(rules: *mut c_void, ruleIndex: u64) -> *const i8;
+    pub fn ocio_file_rules_set_extension(rules: *mut c_void, ruleIndex: u64, extension: *const i8);
+    pub fn ocio_file_rules_get_regex(rules: *mut c_void, ruleIndex: u64) -> *const i8;
+    pub fn ocio_file_rules_set_regex(rules: *mut c_void, ruleIndex: u64, regex: *const i8);
+    pub fn ocio_file_rules_get_color_space(rules: *mut c_void, ruleIndex: u64) -> *const i8;
+    pub fn ocio_file_rules_set_color_space(rules: *mut c_void, ruleIndex: u64, colorSpace: *const i8);
+    pub fn ocio_file_rules_get_num_custom_keys(rules: *mut c_void, ruleIndex: u64) -> u64;
+    pub fn ocio_file_rules_get_custom_key_name(rules: *mut c_void, ruleIndex: u64, key: u64) -> *const i8;
+    pub fn ocio_file_rules_get_custom_key_value(rules: *mut c_void, ruleIndex: u64, key: u64) -> *const i8;
+    pub fn ocio_file_rules_set_custom_key(rules: *mut c_void, ruleIndex: u64, key: *const i8, value: *const i8);
+    pub fn ocio_file_rules_insert_rule(rules: *mut c_void, ruleIndex: u64, name: *const i8, colorSpace: *const i8, pattern: *const i8, extension: *const i8);
+    pub fn ocio_file_rules_insert_rule_regex(rules: *mut c_void, ruleIndex: u64, name: *const i8, colorSpace: *const i8, regex: *const i8);
+    pub fn ocio_file_rules_insert_path_search_rule(rules: *mut c_void, ruleIndex: u64);
+    pub fn ocio_file_rules_set_default_rule_color_space(rules: *mut c_void, colorSpace: *const i8);
+    pub fn ocio_file_rules_remove_rule(rules: *mut c_void, ruleIndex: u64);
+    pub fn ocio_file_rules_increase_rule_priority(rules: *mut c_void, ruleIndex: u64);
+    pub fn ocio_file_rules_decrease_rule_priority(rules: *mut c_void, ruleIndex: u64);
+    pub fn ocio_file_rules_is_default(rules: *mut c_void) -> bool;
+    pub fn ocio_file_rules_destroy(handle: *mut c_void);
+
+    // --- Config: FileRules ---
+    pub fn ocio_config_get_file_rules(config: *mut c_void) -> *mut c_void;
 }

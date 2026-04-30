@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform};
+use crate::{cstr_to_opt_string, cstring, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -27,8 +27,20 @@ impl Config {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_name(self.handle.as_ptr())) }
     }
 
+    pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
+        let name = cstring(name)?;
+        unsafe { ocio_sys::ocio_config_set_name(self.handle.as_ptr(), name.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn description(&self) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_description(self.handle.as_ptr())) }
+    }
+
+    pub fn set_description(&self, desc: impl AsRef<str>) -> Result<()> {
+        let desc = cstring(desc)?;
+        unsafe { ocio_sys::ocio_config_set_description(self.handle.as_ptr(), desc.as_ptr().cast()) };
+        Ok(())
     }
 
     pub fn cache_id(&self) -> Option<String> {
@@ -562,6 +574,13 @@ impl Config {
         unsafe {
             ocio_sys::ocio_config_set_current_context(self.handle.as_ptr(), context.handle.as_ptr());
         }
+    }
+
+    // --- FileRules ---
+
+    pub fn file_rules(&self) -> Result<FileRules> {
+        let handle = unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| FileRules { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 }
 

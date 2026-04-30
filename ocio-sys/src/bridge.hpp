@@ -31,7 +31,9 @@ void ocio_config_destroy(void* handle);
 
 // Config: name & metadata
 const char* ocio_config_get_name(void* config);
+void ocio_config_set_name(void* config, const char* name);
 const char* ocio_config_get_description(void* config);
+void ocio_config_set_description(void* config, const char* desc);
 const char* ocio_config_get_cache_id(void* config);
 
 // Config: version
@@ -184,6 +186,7 @@ void ocio_cdl_transform_set_power(void* transform, const double* rgb);
 double ocio_cdl_transform_get_sat(void* transform);
 void ocio_cdl_transform_set_sat(void* transform, double sat);
 void ocio_cdl_transform_get_sat_luma_coefs(void* transform, double* rgb);
+void ocio_cdl_transform_set_sat_luma_coefs(void* transform, const double* rgb);
 int ocio_cdl_transform_get_style(void* transform);
 void ocio_cdl_transform_set_style(void* transform, int style);
 const char* ocio_cdl_transform_get_id(void* transform);
@@ -201,6 +204,16 @@ void ocio_exponent_transform_set_negative_style(void* transform, int style);
 int ocio_exponent_transform_get_direction(void* transform);
 void ocio_exponent_transform_set_direction(void* transform, int direction);
 void ocio_exponent_transform_destroy(void* handle);
+
+// --- ExponentWithLinearTransform ---
+void* ocio_exponent_with_linear_transform_create(void);
+void ocio_exponent_with_linear_transform_get_value(void* transform, double* vec4);
+void ocio_exponent_with_linear_transform_set_value(void* transform, const double* vec4);
+int ocio_exponent_with_linear_transform_get_negative_style(void* transform);
+void ocio_exponent_with_linear_transform_set_negative_style(void* transform, int style);
+int ocio_exponent_with_linear_transform_get_direction(void* transform);
+void ocio_exponent_with_linear_transform_set_direction(void* transform, int direction);
+void ocio_exponent_with_linear_transform_destroy(void* handle);
 
 // --- MatrixTransform ---
 void* ocio_matrix_transform_create(void);
@@ -474,6 +487,20 @@ int ocio_look_transform_get_direction(void* transform);
 void ocio_look_transform_set_direction(void* transform, int direction);
 void ocio_look_transform_destroy(void* handle);
 
+// --- DisplayViewTransform ---
+void* ocio_display_view_transform_create(void);
+const char* ocio_display_view_transform_get_src(void* transform);
+void ocio_display_view_transform_set_src(void* transform, const char* src);
+const char* ocio_display_view_transform_get_display(void* transform);
+void ocio_display_view_transform_set_display(void* transform, const char* display);
+const char* ocio_display_view_transform_get_view(void* transform);
+void ocio_display_view_transform_set_view(void* transform, const char* view);
+bool ocio_display_view_transform_get_looks_bypass(void* transform);
+void ocio_display_view_transform_set_looks_bypass(void* transform, bool bypass);
+int ocio_display_view_transform_get_direction(void* transform);
+void ocio_display_view_transform_set_direction(void* transform, int direction);
+void ocio_display_view_transform_destroy(void* handle);
+
 // --- GradingPrimaryTransform ---
 void* ocio_grading_primary_transform_create(int style);
 int ocio_grading_primary_transform_get_style(void* transform);
@@ -671,5 +698,36 @@ void ocio_view_transform_set_description(void* viewTransform, const char* descri
 
 // --- ViewTransform: editable copy ---
 void* ocio_view_transform_create_editable_copy(void* viewTransform);
+
+// --- FileRules ---
+void* ocio_file_rules_create(void);
+void* ocio_file_rules_create_editable_copy(void* rules);
+unsigned long long ocio_file_rules_get_num_entries(void* rules);
+unsigned long long ocio_file_rules_get_index_for_rule(void* rules, const char* ruleName);
+const char* ocio_file_rules_get_name(void* rules, unsigned long long ruleIndex);
+const char* ocio_file_rules_get_pattern(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_set_pattern(void* rules, unsigned long long ruleIndex, const char* pattern);
+const char* ocio_file_rules_get_extension(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_set_extension(void* rules, unsigned long long ruleIndex, const char* extension);
+const char* ocio_file_rules_get_regex(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_set_regex(void* rules, unsigned long long ruleIndex, const char* regex);
+const char* ocio_file_rules_get_color_space(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_set_color_space(void* rules, unsigned long long ruleIndex, const char* colorSpace);
+unsigned long long ocio_file_rules_get_num_custom_keys(void* rules, unsigned long long ruleIndex);
+const char* ocio_file_rules_get_custom_key_name(void* rules, unsigned long long ruleIndex, unsigned long long key);
+const char* ocio_file_rules_get_custom_key_value(void* rules, unsigned long long ruleIndex, unsigned long long key);
+void ocio_file_rules_set_custom_key(void* rules, unsigned long long ruleIndex, const char* key, const char* value);
+void ocio_file_rules_insert_rule(void* rules, unsigned long long ruleIndex, const char* name, const char* colorSpace, const char* pattern, const char* extension);
+void ocio_file_rules_insert_rule_regex(void* rules, unsigned long long ruleIndex, const char* name, const char* colorSpace, const char* regex);
+void ocio_file_rules_insert_path_search_rule(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_set_default_rule_color_space(void* rules, const char* colorSpace);
+void ocio_file_rules_remove_rule(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_increase_rule_priority(void* rules, unsigned long long ruleIndex);
+void ocio_file_rules_decrease_rule_priority(void* rules, unsigned long long ruleIndex);
+bool ocio_file_rules_is_default(void* rules);
+void ocio_file_rules_destroy(void* handle);
+
+// --- Config: FileRules ---
+void* ocio_config_get_file_rules(void* config);
 
 }

@@ -69,6 +69,12 @@ impl CDLTransform {
         rgb
     }
 
+    pub fn set_sat_luma_coefs(&self, rgb: &[f64; 3]) {
+        unsafe {
+            ocio_sys::ocio_cdl_transform_set_sat_luma_coefs(self.handle.as_ptr(), rgb.as_ptr());
+        }
+    }
+
     pub fn style(&self) -> CDLStyle {
         let s = unsafe { ocio_sys::ocio_cdl_transform_get_style(self.handle.as_ptr()) };
         match s { 1 => CDLStyle::NoClamp, _ => CDLStyle::Asc }

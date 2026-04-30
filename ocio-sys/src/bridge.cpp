@@ -63,6 +63,12 @@ struct ExponentTransformHandle : TransformHandleBase { std::shared_ptr<void> inn
   OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct ExponentWithLinearTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 6; } // TRANSFORM_TYPE_EXPONENT_WITH_LINEAR
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 struct MatrixTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 21; } // TRANSFORM_TYPE_MATRIX
 #ifndef OCIO_RS_STUB
@@ -125,6 +131,7 @@ struct ViewTransformHandle { std::shared_ptr<void> inner; };
 struct NamedTransformHandle { std::shared_ptr<void> inner; };
 struct DynamicPropertyHandle { std::shared_ptr<void> inner; };
 struct BuiltinConfigRegistryHandle { std::shared_ptr<void> inner; };
+struct FileRulesHandle { std::shared_ptr<void> inner; };
 struct ExposureContrastTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 7; }
 #ifndef OCIO_RS_STUB
@@ -132,7 +139,7 @@ struct ExposureContrastTransformHandle : TransformHandleBase { std::shared_ptr<v
 #endif
 };
 struct ColorSpaceTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
-  int get_transform_type_tag() const override { return 4; }
+  int get_transform_type_tag() const override { return 3; }
 #ifndef OCIO_RS_STUB
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
@@ -185,6 +192,12 @@ struct LogCameraTransformHandle : TransformHandleBase { std::shared_ptr<void> in
   ocio::TransformRcPtr get_ocio_transform() override;
 #endif
 };
+struct DisplayViewTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 4; } // TRANSFORM_TYPE_DISPLAY_VIEW
+#ifndef OCIO_RS_STUB
+  ocio::TransformRcPtr get_ocio_transform() override;
+#endif
+};
 
 #ifdef OCIO_RS_STUB
 
@@ -197,6 +210,7 @@ struct StubGpuShaderDesc {};
 struct StubFileTransform {};
 struct StubCDLTransform {};
 struct StubExponentTransform {};
+struct StubExponentWithLinearTransform {};
 struct StubMatrixTransform {};
 struct StubLogTransform {};
 struct StubRangeTransform {};
@@ -204,6 +218,7 @@ struct StubGroupTransform {};
 struct StubBaker {};
 struct StubContext {};
 struct StubColorSpace {};
+struct StubFileRules {};
 
 // Stub factories
 static std::unique_ptr<ConfigHandle> make_stub_config() {
@@ -233,6 +248,12 @@ static std::unique_ptr<GPUProcessorHandle> make_stub_gpu_processor() {
 static std::unique_ptr<GpuShaderDescHandle> make_stub_gpu_shader_desc() {
   auto handle = std::make_unique<GpuShaderDescHandle>();
   handle->inner = std::make_shared<StubGpuShaderDesc>();
+  return handle;
+}
+
+static std::unique_ptr<FileRulesHandle> make_stub_file_rules() {
+  auto handle = std::make_unique<FileRulesHandle>();
+  handle->inner = std::make_shared<StubFileRules>();
   return handle;
 }
 
@@ -267,6 +288,10 @@ struct RealCDLTransform {
 
 struct RealExponentTransform {
   ocio::ExponentTransformRcPtr transform;
+};
+
+struct RealExponentWithLinearTransform {
+  ocio::ExponentWithLinearTransformRcPtr transform;
 };
 
 struct RealMatrixTransform {
@@ -358,6 +383,12 @@ struct RealLogAffineTransform {
 struct RealLogCameraTransform {
   ocio::LogCameraTransformRcPtr transform;
 };
+struct RealDisplayViewTransform {
+  ocio::DisplayViewTransformRcPtr transform;
+};
+struct RealFileRules {
+  ocio::FileRulesRcPtr rules;
+};
 
 // --- TransformHandleBase out-of-line implementations ---
 
@@ -369,6 +400,9 @@ ocio::TransformRcPtr CDLTransformHandle::get_ocio_transform() {
 }
 ocio::TransformRcPtr ExponentTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealExponentTransform>(inner)->transform;
+}
+ocio::TransformRcPtr ExponentWithLinearTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealExponentWithLinearTransform>(inner)->transform;
 }
 ocio::TransformRcPtr MatrixTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealMatrixTransform>(inner)->transform;
@@ -427,6 +461,9 @@ ocio::TransformRcPtr LogAffineTransformHandle::get_ocio_transform() {
 }
 ocio::TransformRcPtr LogCameraTransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealLogCameraTransform>(inner)->transform;
+}
+ocio::TransformRcPtr DisplayViewTransformHandle::get_ocio_transform() {
+  return std::static_pointer_cast<RealDisplayViewTransform>(inner)->transform;
 }
 
 // --- Config real implementations ---
@@ -828,6 +865,16 @@ const char* ocio_config_get_name(void* config) {
 #endif
 }
 
+void ocio_config_set_name(void* config, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)name;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setName(name);
+  } catch (...) {}
+#endif
+}
+
 const char* ocio_config_get_description(void* config) {
 #ifdef OCIO_RS_STUB
   (void)config;
@@ -836,6 +883,16 @@ const char* ocio_config_get_description(void* config) {
   try {
     return ocio_rs_bridge::get_real_config(config)->getDescription();
   } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_config_set_description(void* config, const char* desc) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)desc;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setDescription(desc);
+  } catch (...) {}
 #endif
 }
 
@@ -2064,6 +2121,15 @@ void* ocio_transform_create_editable_copy(void* transform) {
       out = hdl.release();
       break;
     }
+    case 6: { // ExponentWithLinearTransform
+      auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(base);
+      auto r = std::make_shared<ocio_rs_bridge::RealExponentWithLinearTransform>();
+      r->transform = std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->createEditableCopy();
+      auto hdl = std::make_unique<ocio_rs_bridge::ExponentWithLinearTransformHandle>();
+      hdl->inner = r;
+      out = hdl.release();
+      break;
+    }
     case 17: { // LogTransform
       auto* h = static_cast<ocio_rs_bridge::LogTransformHandle*>(base);
       auto r = std::make_shared<ocio_rs_bridge::RealLogTransform>();
@@ -2547,6 +2613,17 @@ void ocio_cdl_transform_get_sat_luma_coefs(void* transform, double* rgb) {
 #endif
 }
 
+void ocio_cdl_transform_set_sat_luma_coefs(void* transform, const double* rgb) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)rgb;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->setSatLumaCoefs(rgb);
+  } catch (...) {}
+#endif
+}
+
 int ocio_cdl_transform_get_style(void* transform) {
 #ifdef OCIO_RS_STUB
   (void)transform; return 0;
@@ -2708,6 +2785,97 @@ void ocio_exponent_transform_set_direction(void* transform, int direction) {
 
 void ocio_exponent_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ExponentTransformHandle*>(handle);
+}
+
+// --- ExponentWithLinearTransform ---
+
+void* ocio_exponent_with_linear_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  auto handle = std::make_unique<ocio_rs_bridge::ExponentWithLinearTransformHandle>();
+  handle->inner = std::make_shared<ocio_rs_bridge::StubExponentWithLinearTransform>();
+  return handle.release();
+#else
+  try {
+    auto handle = std::make_unique<ocio_rs_bridge::ExponentWithLinearTransformHandle>();
+    auto t = std::make_shared<ocio_rs_bridge::RealExponentWithLinearTransform>();
+    t->transform = ocio::ExponentWithLinearTransform::Create();
+    handle->inner = t;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_exponent_with_linear_transform_get_value(void* transform, double* vec4) {
+  vec4[0] = vec4[1] = vec4[2] = vec4[3] = 1.0;
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getValue(vec4);
+  } catch (...) {}
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_value(void* transform, const double* vec4) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)vec4;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setValue(vec4);
+  } catch (...) {}
+#endif
+}
+
+int ocio_exponent_with_linear_transform_get_negative_style(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getNegativeStyle());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_negative_style(void* transform, int style) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)style;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setNegativeStyle(
+        static_cast<ocio::NegativeStyle>(style));
+  } catch (...) {}
+#endif
+}
+
+int ocio_exponent_with_linear_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getDirection());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setDirection(
+        static_cast<ocio::TransformDirection>(direction));
+  } catch (...) {}
+#endif
+}
+
+void ocio_exponent_with_linear_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(handle);
 }
 
 // --- MatrixTransform ---
@@ -7915,6 +8083,505 @@ void ocio_log_camera_transform_unset_linear_slope_value(void* transform) {
 
 void ocio_log_camera_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(handle);
+}
+
+// --- DisplayViewTransform ---
+
+void* ocio_display_view_transform_create(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::DisplayViewTransformHandle{};
+#else
+  BEGIN_TRY
+  auto t = ocio::DisplayViewTransform::Create();
+  auto handle = new ocio_rs_bridge::DisplayViewTransformHandle{};
+  handle->inner = std::make_shared<ocio_rs_bridge::RealDisplayViewTransform>(ocio_rs_bridge::RealDisplayViewTransform{t});
+  return handle;
+  END_TRY(nullptr)
+#endif
+}
+
+const char* ocio_display_view_transform_get_src(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  const char* result = real->transform->getSrc();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_display_view_transform_set_src(void* transform, const char* src) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)src;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setSrc(src);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_display_view_transform_get_display(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  const char* result = real->transform->getDisplay();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_display_view_transform_set_display(void* transform, const char* display) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)display;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setDisplay(display);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_display_view_transform_get_view(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  const char* result = real->transform->getView();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_display_view_transform_set_view(void* transform, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)view;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setView(view);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_display_view_transform_get_looks_bypass(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  return real->transform->getLooksBypass();
+  END_TRY(false)
+#endif
+}
+
+void ocio_display_view_transform_set_looks_bypass(void* transform, bool bypass) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bypass;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setLooksBypass(bypass);
+  END_TRY_VOID
+#endif
+}
+
+int ocio_display_view_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_display_view_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+void ocio_display_view_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(handle);
+}
+
+// --- FileRules ---
+
+void* ocio_file_rules_create(void) {
+#ifdef OCIO_RS_STUB
+  return ocio_rs_bridge::make_stub_file_rules().release();
+#else
+  try {
+    auto r = ocio::FileRules::Create();
+    if (!r) return nullptr;
+    auto* h = new ocio_rs_bridge::FileRulesHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{r});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_file_rules_create_editable_copy(void* rules) {
+#ifdef OCIO_RS_STUB
+  (void)rules; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    auto copy = r->createEditableCopy();
+    if (!copy) return nullptr;
+    auto* new_h = new ocio_rs_bridge::FileRulesHandle;
+    new_h->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{copy});
+    return static_cast<void*>(new_h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+unsigned long long ocio_file_rules_get_num_entries(void* rules) {
+#ifdef OCIO_RS_STUB
+  (void)rules; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    return static_cast<unsigned long long>(r->getNumEntries());
+  } catch (...) { return 0; }
+#endif
+}
+
+unsigned long long ocio_file_rules_get_index_for_rule(void* rules, const char* ruleName) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleName; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    return static_cast<unsigned long long>(r->getIndexForRule(ruleName));
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_file_rules_get_name(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getName((size_t)ruleIndex);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_file_rules_get_pattern(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getPattern((size_t)ruleIndex);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_file_rules_set_pattern(void* rules, unsigned long long ruleIndex, const char* pattern) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)pattern;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setPattern((size_t)ruleIndex, pattern);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_file_rules_get_extension(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getExtension((size_t)ruleIndex);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_file_rules_set_extension(void* rules, unsigned long long ruleIndex, const char* extension) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)extension;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setExtension((size_t)ruleIndex, extension);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_file_rules_get_regex(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getRegex((size_t)ruleIndex);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_file_rules_set_regex(void* rules, unsigned long long ruleIndex, const char* regex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)regex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setRegex((size_t)ruleIndex, regex);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_file_rules_get_color_space(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getColorSpace((size_t)ruleIndex);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_file_rules_set_color_space(void* rules, unsigned long long ruleIndex, const char* colorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)colorSpace;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setColorSpace((size_t)ruleIndex, colorSpace);
+  } catch (...) {}
+#endif
+}
+
+unsigned long long ocio_file_rules_get_num_custom_keys(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    return static_cast<unsigned long long>(r->getNumCustomKeys((size_t)ruleIndex));
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_file_rules_get_custom_key_name(void* rules, unsigned long long ruleIndex, unsigned long long key) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)key; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getCustomKeyName((size_t)ruleIndex, (size_t)key);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_file_rules_get_custom_key_value(void* rules, unsigned long long ruleIndex, unsigned long long key) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)key; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    thread_local std::string cached;
+    cached = r->getCustomKeyValue((size_t)ruleIndex, (size_t)key);
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_file_rules_set_custom_key(void* rules, unsigned long long ruleIndex, const char* key, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)key; (void)value;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setCustomKey((size_t)ruleIndex, key, value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_insert_rule(void* rules, unsigned long long ruleIndex, const char* name, const char* colorSpace, const char* pattern, const char* extension) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)name; (void)colorSpace; (void)pattern; (void)extension;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->insertRule((size_t)ruleIndex, name, colorSpace, pattern, extension);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_insert_rule_regex(void* rules, unsigned long long ruleIndex, const char* name, const char* colorSpace, const char* regex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex; (void)name; (void)colorSpace; (void)regex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->insertRule((size_t)ruleIndex, name, colorSpace, regex);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_insert_path_search_rule(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->insertPathSearchRule((size_t)ruleIndex);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_set_default_rule_color_space(void* rules, const char* colorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)colorSpace;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->setDefaultRuleColorSpace(colorSpace);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_remove_rule(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->removeRule((size_t)ruleIndex);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_increase_rule_priority(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->increaseRulePriority((size_t)ruleIndex);
+  } catch (...) {}
+#endif
+}
+
+void ocio_file_rules_decrease_rule_priority(void* rules, unsigned long long ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)ruleIndex;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    r->decreaseRulePriority((size_t)ruleIndex);
+  } catch (...) {}
+#endif
+}
+
+bool ocio_file_rules_is_default(void* rules) {
+#ifdef OCIO_RS_STUB
+  (void)rules; return true;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    return r->isDefault();
+  } catch (...) { return true; }
+#endif
+}
+
+void ocio_file_rules_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  try { delete static_cast<ocio_rs_bridge::FileRulesHandle*>(handle); } catch (...) {}
+#endif
+}
+
+// --- Config: FileRules ---
+
+void* ocio_config_get_file_rules(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return ocio_rs_bridge::make_stub_file_rules().release();
+#else
+  try {
+    auto r = ocio_rs_bridge::get_real_config(config)->getFileRules();
+    if (!r) return nullptr;
+    auto* h = new ocio_rs_bridge::FileRulesHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{r});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
 }
 
 }  // extern "C"
