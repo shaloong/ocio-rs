@@ -46,6 +46,7 @@ unsafe extern "C" {
     // --- Config: color spaces ---
     pub fn ocio_config_get_num_color_spaces(config: *mut c_void) -> i32;
     pub fn ocio_config_get_color_space_name_by_index(config: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_config_get_color_spaces(config: *mut c_void) -> *const i8;
     pub fn ocio_config_get_canonical_name(config: *mut c_void, name: *const i8) -> *const i8;
     pub fn ocio_config_is_color_space_linear(
         config: *mut c_void, colorSpace: *const i8, referenceSpaceType: i32,
@@ -79,6 +80,7 @@ unsafe extern "C" {
     // --- Config: looks ---
     pub fn ocio_config_get_num_looks(config: *mut c_void) -> i32;
     pub fn ocio_config_get_look_name_by_index(config: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_config_get_looks(config: *mut c_void) -> *const i8;
 
     // --- Config: luma coefs ---
     pub fn ocio_config_get_default_luma_coefs(config: *mut c_void, rgb: *mut f64);
@@ -233,6 +235,7 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_get_texture_max_width(desc: *mut c_void, index: i32) -> u32;
     pub fn ocio_gpu_shader_desc_get_texture_max_height(desc: *mut c_void, index: i32) -> u32;
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_get_texture_uid(desc: *mut c_void, index: i32) -> *const i8;
 
     // --- Transform base ---
     pub fn ocio_transform_get_transform_type(transform: *mut c_void) -> i32;
@@ -749,6 +752,8 @@ unsafe extern "C" {
     // --- Config: clear collections ---
     pub fn ocio_config_clear_color_spaces(config: *mut c_void);
     pub fn ocio_config_clear_looks(config: *mut c_void);
+    pub fn ocio_config_clear_named_transforms(config: *mut c_void);
+    pub fn ocio_config_clear_view_transforms(config: *mut c_void);
 
     // --- Config: default luma setter ---
     pub fn ocio_config_set_default_luma_coefs(config: *mut c_void, rgb: *const f64);
@@ -889,6 +894,11 @@ unsafe extern "C" {
     pub fn ocio_config_is_archivable(config: *mut c_void) -> bool;
     pub fn ocio_config_clear_processor_cache(config: *mut c_void);
     pub fn ocio_config_set_file_rules(config: *mut c_void, fileRules: *mut c_void);
+
+    // --- Config: environment mode ---
+    pub fn ocio_config_set_environment_mode(config: *mut c_void, mode: i32);
+    pub fn ocio_config_get_environment_mode(config: *mut c_void) -> i32;
+    pub fn ocio_config_load_environment(config: *mut c_void);
 
     // --- ColorSpace: visibility + set_reference_space_type ---
     pub fn ocio_color_space_get_visibility(colorSpace: *mut c_void) -> i32;

@@ -66,6 +66,7 @@ char ocio_config_get_family_separator(void* config);
 // Config: color spaces
 int ocio_config_get_num_color_spaces(void* config);
 const char* ocio_config_get_color_space_name_by_index(void* config, int index);
+const char* ocio_config_get_color_spaces(void* config);
 const char* ocio_config_get_canonical_name(void* config, const char* name);
 bool ocio_config_is_color_space_linear(void* config, const char* colorSpace, int referenceSpaceType);
 const char* ocio_config_get_color_space_from_filepath(void* config, const char* filePath);
@@ -87,6 +88,7 @@ void ocio_config_set_default_view(void* config, const char* view);
 // Config: looks
 int ocio_config_get_num_looks(void* config);
 const char* ocio_config_get_look_name_by_index(void* config, int index);
+const char* ocio_config_get_looks(void* config);
 
 // Config: luma coefs
 void ocio_config_get_default_luma_coefs(void* config, double* rgb);
@@ -207,6 +209,7 @@ void ocio_gpu_shader_desc_destroy(void* handle);
 unsigned int ocio_gpu_shader_desc_get_texture_max_width(void* desc, int index);
 unsigned int ocio_gpu_shader_desc_get_texture_max_height(void* desc, int index);
 const char* ocio_gpu_shader_desc_get_cache_id(void* desc);
+const char* ocio_gpu_shader_desc_get_texture_uid(void* desc, int index);
 
 // --- Transform base ---
 int ocio_transform_get_transform_type(void* transform);
@@ -729,6 +732,8 @@ void* ocio_config_get_default_scene_to_display_view_transform(void* config);
 // --- Config: clear collections ---
 void ocio_config_clear_color_spaces(void* config);
 void ocio_config_clear_looks(void* config);
+void ocio_config_clear_named_transforms(void* config);
+void ocio_config_clear_view_transforms(void* config);
 
 // --- Config: default luma setter ---
 void ocio_config_set_default_luma_coefs(void* config, const double* rgb);
@@ -869,6 +874,11 @@ const char* ocio_config_get_inactive_color_spaces(void* config);
 bool ocio_config_is_archivable(void* config);
 void ocio_config_clear_processor_cache(void* config);
 void ocio_config_set_file_rules(void* config, void* fileRules);
+
+// --- Config: environment mode ---
+void ocio_config_set_environment_mode(void* config, int mode);
+int ocio_config_get_environment_mode(void* config);
+void ocio_config_load_environment(void* config);
 
 // --- ColorSpace: visibility + set_reference_space_type ---
 int ocio_color_space_get_visibility(void* colorSpace);

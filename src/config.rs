@@ -85,6 +85,10 @@ impl Config {
         }
     }
 
+    pub fn color_spaces(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_color_spaces(self.handle.as_ptr())) }
+    }
+
     pub fn canonical_name(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -182,6 +186,10 @@ impl Config {
                 self.handle.as_ptr(), index,
             ))
         }
+    }
+
+    pub fn looks(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_looks(self.handle.as_ptr())) }
     }
 
     // --- Luma coefficients ---
@@ -469,6 +477,14 @@ impl Config {
 
     pub fn clear_looks(&self) {
         unsafe { ocio_sys::ocio_config_clear_looks(self.handle.as_ptr()) };
+    }
+
+    pub fn clear_named_transforms(&self) {
+        unsafe { ocio_sys::ocio_config_clear_named_transforms(self.handle.as_ptr()) };
+    }
+
+    pub fn clear_view_transforms(&self) {
+        unsafe { ocio_sys::ocio_config_clear_view_transforms(self.handle.as_ptr()) };
     }
 
     // --- Display/view management ---
@@ -771,6 +787,23 @@ impl Config {
         unsafe {
             ocio_sys::ocio_config_set_file_rules(self.handle.as_ptr(), file_rules.handle.as_ptr());
         }
+    }
+
+    // --- Environment mode ---
+
+    pub fn set_environment_mode(&self, mode: crate::EnvironmentMode) {
+        unsafe {
+            ocio_sys::ocio_config_set_environment_mode(self.handle.as_ptr(), mode as i32);
+        }
+    }
+
+    pub fn environment_mode(&self) -> crate::EnvironmentMode {
+        let m = unsafe { ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr()) };
+        match m { 1 => crate::EnvironmentMode::LoadAll, _ => crate::EnvironmentMode::LoadPredefined }
+    }
+
+    pub fn load_environment(&self) {
+        unsafe { ocio_sys::ocio_config_load_environment(self.handle.as_ptr()) };
     }
 
     // --- Inactive color spaces ---
@@ -1193,5 +1226,28 @@ mod tests {
     fn default_scene_to_display_view_transform_no_crash() {
         let config = Config::raw().unwrap();
         let _ = config.default_scene_to_display_view_transform();
+    }
+
+    #[test]
+    fn color_spaces_looks_string_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.color_spaces();
+        let _ = config.looks();
+    }
+
+    #[test]
+    fn clear_named_view_transforms_no_crash() {
+        let config = Config::raw().unwrap();
+        config.clear_named_transforms();
+        config.clear_view_transforms();
+    }
+
+    #[test]
+    fn environment_mode_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.environment_mode();
+        config.set_environment_mode(crate::EnvironmentMode::LoadAll);
+        config.set_environment_mode(crate::EnvironmentMode::LoadPredefined);
+        config.load_environment();
     }
 }

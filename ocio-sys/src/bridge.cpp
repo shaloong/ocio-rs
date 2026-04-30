@@ -1187,6 +1187,44 @@ const char* ocio_config_get_look_name_by_index(void* config, int index) {
 #endif
 }
 
+const char* ocio_config_get_color_spaces(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  return nullptr;
+#else
+  try {
+    auto* real = ocio_rs_bridge::get_real_config(config);
+    static thread_local std::string cached;
+    cached.clear();
+    int n = real->getNumColorSpaces();
+    for (int i = 0; i < n; ++i) {
+      if (i > 0) cached += ", ";
+      cached += real->getColorSpaceNameByIndex(i);
+    }
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_config_get_looks(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  return nullptr;
+#else
+  try {
+    auto* real = ocio_rs_bridge::get_real_config(config);
+    static thread_local std::string cached;
+    cached.clear();
+    int n = real->getNumLooks();
+    for (int i = 0; i < n; ++i) {
+      if (i > 0) cached += ", ";
+      cached += real->getLookNameByIndex(i);
+    }
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 // --- Config: luma coefs ---
 
 void ocio_config_get_default_luma_coefs(void* config, double* rgb) {
@@ -1666,6 +1704,42 @@ void ocio_config_clear_looks(void* config) {
 #else
   try {
     ocio_rs_bridge::get_real_config(config)->clearLooks();
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_clear_named_transforms(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    auto* real = ocio_rs_bridge::get_real_config(config);
+    std::vector<std::string> names;
+    int n = real->getNumNamedTransforms();
+    for (int i = 0; i < n; ++i) {
+      names.push_back(real->getNamedTransformNameByIndex(i));
+    }
+    for (const auto& name : names) {
+      real->removeNamedTransform(name.c_str());
+    }
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_clear_view_transforms(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    auto* real = ocio_rs_bridge::get_real_config(config);
+    std::vector<std::string> names;
+    int n = real->getNumViewTransforms();
+    for (int i = 0; i < n; ++i) {
+      names.push_back(real->getViewTransformNameByIndex(i));
+    }
+    for (const auto& name : names) {
+      real->removeViewTransform(name.c_str());
+    }
   } catch (...) {}
 #endif
 }
@@ -2519,6 +2593,20 @@ const char* ocio_gpu_shader_desc_get_cache_id(void* desc) {
     auto d = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
     static thread_local std::string cached;
     cached = (*d)->getCacheID();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_texture_uid(void* desc, int index) {
+#ifdef OCIO_RS_STUB
+  (void)desc; (void)index; return nullptr;
+#else
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(desc);
+    auto d = std::static_pointer_cast<ocio::GpuShaderDescRcPtr>(handle->inner);
+    static thread_local std::string cached;
+    cached = (*d)->getTextureUID(index);
     return cached.c_str();
   } catch (...) { return nullptr; }
 #endif
@@ -10225,6 +10313,38 @@ void ocio_config_set_file_rules(void* config, void* fileRules) {
     auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(fileRules);
     auto rules = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
     ocio_rs_bridge::get_real_config(config)->setFileRules(rules);
+  } catch (...) {}
+#endif
+}
+
+// --- Config: environment mode ---
+
+void ocio_config_set_environment_mode(void* config, int mode) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)mode;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setEnvironmentMode(static_cast<OCIO_NAMESPACE::EnvironmentMode>(mode));
+  } catch (...) {}
+#endif
+}
+
+int ocio_config_get_environment_mode(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return 0;
+#else
+  try {
+    return static_cast<int>(ocio_rs_bridge::get_real_config(config)->getEnvironmentMode());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_config_load_environment(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->loadEnvironment();
   } catch (...) {}
 #endif
 }

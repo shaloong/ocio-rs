@@ -407,6 +407,10 @@ impl GpuShaderDesc {
     pub fn cache_id(&self) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr())) }
     }
+
+    pub fn texture_uid(&self, index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(self.handle.as_ptr(), index)) }
+    }
 }
 
 impl Drop for GpuShaderDesc {
@@ -712,6 +716,13 @@ mod tests {
     fn gpu_shader_desc_cache_id_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
             let _ = desc.cache_id();
+        }
+    }
+
+    #[test]
+    fn gpu_shader_desc_texture_uid_no_crash() {
+        if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.texture_uid(0);
         }
     }
 
