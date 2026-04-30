@@ -284,3 +284,21 @@ pub enum DynamicPropertyType {
     GradingTone = 5,
     GradingHueCurve = 6,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum Lut1DHueAdjust {
+    None_ = 0,
+    Dw3 = 1,
+    Wypn = 2,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum ChannelOrdering {
+    Rgba = 0,
+    Bgra = 1,
+    Abgr = 2,
+    Rgb = 3,
+    Bgr = 4,
+}

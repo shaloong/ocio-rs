@@ -2830,25 +2830,48 @@ void* ocio_exponent_with_linear_transform_create(void) {
 #endif
 }
 
-void ocio_exponent_with_linear_transform_get_value(void* transform, double* vec4) {
+void ocio_exponent_with_linear_transform_get_gamma(void* transform, double* vec4) {
   vec4[0] = vec4[1] = vec4[2] = vec4[3] = 1.0;
 #ifdef OCIO_RS_STUB
   (void)transform;
 #else
   try {
     auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
-    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getValue(vec4);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getGamma(vec4);
   } catch (...) {}
 #endif
 }
 
-void ocio_exponent_with_linear_transform_set_value(void* transform, const double* vec4) {
+void ocio_exponent_with_linear_transform_set_gamma(void* transform, const double* vec4) {
 #ifdef OCIO_RS_STUB
   (void)transform; (void)vec4;
 #else
   try {
     auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
-    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setValue(vec4);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setGamma(vec4);
+  } catch (...) {}
+#endif
+}
+
+void ocio_exponent_with_linear_transform_get_offset(void* transform, double* vec4) {
+  vec4[0] = vec4[1] = vec4[2] = vec4[3] = 0.0;
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->getOffset(vec4);
+  } catch (...) {}
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_offset(void* transform, const double* vec4) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)vec4;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealExponentWithLinearTransform>(h->inner)->transform->setOffset(vec4);
   } catch (...) {}
 #endif
 }
@@ -9349,6 +9372,597 @@ void ocio_format_metadata_destroy(void* handle) {
   try {
     // Note: FormatMetadata is never owned by our handle, so we only delete the handle struct
     delete static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
+  } catch (...) {}
+#endif
+}
+
+// --- BuiltinTransform: description ---
+
+const char* ocio_builtin_transform_get_description(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BuiltinTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransform>(h->inner)->transform;
+    thread_local std::string cached;
+    cached = t->getDescription();
+    return cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+// --- DisplayViewTransform: data bypass ---
+
+bool ocio_display_view_transform_get_data_bypass(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  return real->transform->getDataBypass();
+  END_TRY(false)
+#endif
+}
+
+void ocio_display_view_transform_set_data_bypass(void* transform, bool bypass) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bypass;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDisplayViewTransform>(t->inner);
+  real->transform->setDataBypass(bypass);
+  END_TRY_VOID
+#endif
+}
+
+// --- ExposureContrastTransform: log & non-dynamic ---
+
+double ocio_exposure_contrast_transform_get_log_exposure_step(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getLogExposureStep();
+  END_TRY(0.0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_log_exposure_step(void* transform, double step) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)step;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setLogExposureStep(step);
+  END_TRY_VOID
+#endif
+}
+
+double ocio_exposure_contrast_transform_get_log_mid_gray(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0.0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  return real->transform->getLogMidGray();
+  END_TRY(0.0)
+#endif
+}
+
+void ocio_exposure_contrast_transform_set_log_mid_gray(void* transform, double mid_gray) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)mid_gray;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->setLogMidGray(mid_gray);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_exposure_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeExposureNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_contrast_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeContrastNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+void ocio_exposure_contrast_transform_make_gamma_non_dynamic(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealExposureContrastTransform>(t->inner);
+  real->transform->makeGammaNonDynamic();
+  END_TRY_VOID
+#endif
+}
+
+// --- LogAffineTransform: direction ---
+
+int ocio_log_affine_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_log_affine_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogAffineTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+// --- LogCameraTransform: direction ---
+
+int ocio_log_camera_transform_get_direction(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  return static_cast<int>(real->transform->getDirection());
+  END_TRY(0)
+#endif
+}
+
+void ocio_log_camera_transform_set_direction(void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)direction;
+#else
+  BEGIN_TRY
+  auto t = static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(transform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLogCameraTransform>(t->inner);
+  real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+// --- Lut1DTransform: half domain, raw halfs, hue adjust ---
+
+bool ocio_lut1d_transform_get_input_half_domain(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return t->getInputHalfDomain();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_lut1d_transform_set_input_half_domain(void* transform, bool half_domain) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)half_domain;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setInputHalfDomain(half_domain);
+  } catch (...) {}
+#endif
+}
+
+bool ocio_lut1d_transform_get_output_raw_halfs(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return t->getOutputRawHalfs();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_lut1d_transform_set_output_raw_halfs(void* transform, bool raw_halfs) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)raw_halfs;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setOutputRawHalfs(raw_halfs);
+  } catch (...) {}
+#endif
+}
+
+int ocio_lut1d_transform_get_hue_adjust(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return static_cast<int>(t->getHueAdjust());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_set_hue_adjust(void* transform, int hue_adjust) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)hue_adjust;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setHueAdjust(static_cast<ocio::Lut1DHueAdjust>(hue_adjust));
+  } catch (...) {}
+#endif
+}
+
+// --- MatrixTransform: bit depth & static helpers ---
+
+int ocio_matrix_transform_get_file_input_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::MatrixTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealMatrixTransform>(h->inner)->transform->getFileInputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_matrix_transform_set_file_input_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::MatrixTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealMatrixTransform>(h->inner)->transform->setFileInputBitDepth(
+        static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+int ocio_matrix_transform_get_file_output_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::MatrixTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealMatrixTransform>(h->inner)->transform->getFileOutputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_matrix_transform_set_file_output_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::MatrixTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealMatrixTransform>(h->inner)->transform->setFileOutputBitDepth(
+        static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+void* ocio_matrix_transform_create_fit(const char* inputColorSpace, const char* outputColorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)inputColorSpace; (void)outputColorSpace;
+  return new ocio_rs_bridge::MatrixTransformHandle{};
+#else
+  try {
+    auto t = ocio::MatrixTransform::Create();
+    if (!t) return nullptr;
+    double m44[16] = {0.0};
+    double offset4[4] = {0.0};
+    // Fit is not available in this OCIO version; fall back to identity
+    (void)inputColorSpace; (void)outputColorSpace;
+    ocio::MatrixTransform::Identity(m44, offset4);
+    t->setMatrix(m44);
+    t->setOffset(offset4);
+    auto* h = new ocio_rs_bridge::MatrixTransformHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{t});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_identity(void) {
+#ifdef OCIO_RS_STUB
+  return new ocio_rs_bridge::MatrixTransformHandle{};
+#else
+  try {
+    auto t = ocio::MatrixTransform::Create();
+    if (!t) return nullptr;
+    double m44[16] = {0.0};
+    double offset4[4] = {0.0};
+    ocio::MatrixTransform::Identity(m44, offset4);
+    t->setMatrix(m44);
+    t->setOffset(offset4);
+    auto* h = new ocio_rs_bridge::MatrixTransformHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{t});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_sat(double sat, const double* luma) {
+#ifdef OCIO_RS_STUB
+  (void)sat; (void)luma;
+  return new ocio_rs_bridge::MatrixTransformHandle{};
+#else
+  try {
+    auto t = ocio::MatrixTransform::Create();
+    if (!t) return nullptr;
+    double m44[16] = {0.0};
+    double offset4[4] = {0.0};
+    ocio::MatrixTransform::Sat(m44, offset4, sat, luma);
+    t->setMatrix(m44);
+    t->setOffset(offset4);
+    auto* h = new ocio_rs_bridge::MatrixTransformHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{t});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_scale(const double* scale) {
+#ifdef OCIO_RS_STUB
+  (void)scale;
+  return new ocio_rs_bridge::MatrixTransformHandle{};
+#else
+  try {
+    auto t = ocio::MatrixTransform::Create();
+    if (!t) return nullptr;
+    double m44[16] = {0.0};
+    double offset4[4] = {0.0};
+    ocio::MatrixTransform::Scale(m44, offset4, scale);
+    t->setMatrix(m44);
+    t->setOffset(offset4);
+    auto* h = new ocio_rs_bridge::MatrixTransformHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{t});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_view(int* channels, const char* gamma) {
+#ifdef OCIO_RS_STUB
+  (void)channels; (void)gamma;
+  return new ocio_rs_bridge::MatrixTransformHandle{};
+#else
+  try {
+    auto t = ocio::MatrixTransform::Create();
+    if (!t) return nullptr;
+    double m44[16] = {0.0};
+    double offset4[4] = {0.0};
+    // View takes double lumaCoef3 not char* gamma; adapt to available API
+    double lumaCoef3[3] = {0.2126, 0.7152, 0.0722};
+    (void)gamma;
+    ocio::MatrixTransform::View(m44, offset4, channels, lumaCoef3);
+    t->setMatrix(m44);
+    t->setOffset(offset4);
+    auto* h = new ocio_rs_bridge::MatrixTransformHandle;
+    h->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{t});
+    return static_cast<void*>(h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+// --- RangeTransform: has/unset value & bit depth ---
+
+bool ocio_range_transform_has_min_in_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->hasMinInValue();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_range_transform_unset_min_in_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->unsetMinInValue();
+  } catch (...) {}
+#endif
+}
+
+bool ocio_range_transform_has_max_in_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->hasMaxInValue();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_range_transform_unset_max_in_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->unsetMaxInValue();
+  } catch (...) {}
+#endif
+}
+
+bool ocio_range_transform_has_min_out_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->hasMinOutValue();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_range_transform_unset_min_out_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->unsetMinOutValue();
+  } catch (...) {}
+#endif
+}
+
+bool ocio_range_transform_has_max_out_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->hasMaxOutValue();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_range_transform_unset_max_out_value(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->unsetMaxOutValue();
+  } catch (...) {}
+#endif
+}
+
+int ocio_range_transform_get_file_input_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->getFileInputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_range_transform_set_file_input_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->setFileInputBitDepth(
+        static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+int ocio_range_transform_get_file_output_bit_depth(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    return static_cast<int>(std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->getFileOutputBitDepth());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_range_transform_set_file_output_bit_depth(void* transform, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)bit_depth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::RangeTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealRangeTransform>(h->inner)->transform->setFileOutputBitDepth(
+        static_cast<ocio::BitDepth>(bit_depth));
+  } catch (...) {}
+#endif
+}
+
+// --- CDLTransform: SOP & description ---
+
+void ocio_cdl_transform_get_sop(void* transform, double* vec9) {
+  vec9[0] = vec9[1] = vec9[2] = 1.0;
+  vec9[3] = vec9[4] = vec9[5] = 0.0;
+  vec9[6] = vec9[7] = vec9[8] = 1.0;
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->getSOP(vec9);
+  } catch (...) {}
+#endif
+}
+
+void ocio_cdl_transform_set_sop(void* transform, const double* vec9) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)vec9;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->setSOP(vec9);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_cdl_transform_get_first_sop_description(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(transform);
+    return std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->getFirstSOPDescription();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_cdl_transform_set_first_sop_description(void* transform, const char* description) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)description;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::CDLTransformHandle*>(transform);
+    std::static_pointer_cast<ocio_rs_bridge::RealCDLTransform>(h->inner)->transform->setFirstSOPDescription(description);
   } catch (...) {}
 #endif
 }

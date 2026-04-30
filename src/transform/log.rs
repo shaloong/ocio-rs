@@ -37,6 +37,11 @@ impl LogTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for LogTransform {
@@ -66,5 +71,11 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let lt = LogTransform::create().unwrap();
         let _ = lt.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let lt = LogTransform::create().unwrap();
+        let _ = lt.format_metadata();
     }
 }

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, Interpolation, BitDepth};
+use crate::{OcioError, Result, TransformDirection, Interpolation, BitDepth, Lut1DHueAdjust};
 
 pub struct Lut1DTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -90,6 +90,39 @@ impl Lut1DTransform {
     pub fn set_values(&self, data: &[f64]) {
         unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
     }
+
+    pub fn input_half_domain(&self) -> bool {
+        unsafe { ocio_sys::ocio_lut1d_transform_get_input_half_domain(self.handle.as_ptr()) }
+    }
+
+    pub fn set_input_half_domain(&self, half_domain: bool) {
+        unsafe { ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain) };
+    }
+
+    pub fn output_raw_halfs(&self) -> bool {
+        unsafe { ocio_sys::ocio_lut1d_transform_get_output_raw_halfs(self.handle.as_ptr()) }
+    }
+
+    pub fn set_output_raw_halfs(&self, raw_halfs: bool) {
+        unsafe { ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs) };
+    }
+
+    pub fn hue_adjust(&self) -> Lut1DHueAdjust {
+        match unsafe { ocio_sys::ocio_lut1d_transform_get_hue_adjust(self.handle.as_ptr()) } {
+            1 => Lut1DHueAdjust::Dw3,
+            2 => Lut1DHueAdjust::Wypn,
+            _ => Lut1DHueAdjust::None_,
+        }
+    }
+
+    pub fn set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) {
+        unsafe { ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32) };
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for Lut1DTransform {
@@ -142,5 +175,27 @@ mod tests {
         t.set_length(32);
         let v = t.values();
         t.set_values(&v);
+    }
+
+    #[test]
+    fn half_domain_no_crash() {
+        let t = Lut1DTransform::create().unwrap();
+        let _ = t.input_half_domain();
+        t.set_input_half_domain(true);
+        let _ = t.output_raw_halfs();
+        t.set_output_raw_halfs(true);
+    }
+
+    #[test]
+    fn hue_adjust_no_crash() {
+        let t = Lut1DTransform::create().unwrap();
+        let _ = t.hue_adjust();
+        t.set_hue_adjust(Lut1DHueAdjust::Dw3);
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = Lut1DTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

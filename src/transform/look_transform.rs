@@ -60,6 +60,11 @@ impl LookTransform {
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
     pub fn skip_color_space_conversion(&self) -> bool {
         unsafe { ocio_sys::ocio_look_transform_get_skip_color_space_conversion(self.handle.as_ptr()) }
     }
@@ -123,5 +128,11 @@ mod tests {
         let _ = t.skip_color_space_conversion();
         t.set_skip_color_space_conversion(true);
         t.set_skip_color_space_conversion(false);
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = LookTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

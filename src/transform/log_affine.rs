@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{OcioError, Result};
+use crate::{OcioError, Result, TransformDirection};
 
 pub struct LogAffineTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -52,9 +52,25 @@ impl LogAffineTransform {
         unsafe { ocio_sys::ocio_log_affine_transform_set_lin_side_slope_value(self.handle.as_ptr(), values.as_ptr()); }
     }
 
+    pub fn direction(&self) -> TransformDirection {
+        let dir = unsafe { ocio_sys::ocio_log_affine_transform_get_direction(self.handle.as_ptr()) };
+        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+    }
+
+    pub fn set_direction(&self, direction: TransformDirection) {
+        unsafe {
+            ocio_sys::ocio_log_affine_transform_set_direction(self.handle.as_ptr(), direction as i32);
+        }
+    }
+
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
     pub fn lin_side_offset_value(&self) -> [f64; 3] {
@@ -105,8 +121,21 @@ mod tests {
     }
 
     #[test]
+    fn direction_no_crash() {
+        let t = LogAffineTransform::create().unwrap();
+        let _ = t.direction();
+        t.set_direction(TransformDirection::Inverse);
+    }
+
+    #[test]
     fn create_editable_copy_no_crash() {
         let t = LogAffineTransform::create().unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = LogAffineTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

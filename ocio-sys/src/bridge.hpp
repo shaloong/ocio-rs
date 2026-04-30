@@ -3,6 +3,22 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#ifndef BEGIN_TRY
+#define BEGIN_TRY try {
+#endif
+
+#ifndef END_TRY
+#define END_TRY(return_value) \
+  } catch (...) {             \
+    return (return_value);    \
+  }
+#endif
+
+#ifndef END_TRY_VOID
+#define END_TRY_VOID \
+  } catch (...) {}
+#endif
+
 extern "C" {
 
 // --- Runtime ---
@@ -94,6 +110,10 @@ const char* ocio_config_serialize(void* config);
 
 // Config: editable copy
 void* ocio_config_create_editable_copy(void* config);
+
+// Config: context
+void* ocio_config_get_current_context(void* config);
+void ocio_config_set_current_context(void* config, void* context);
 
 // Config: processors
 void* ocio_config_get_processor(
@@ -207,8 +227,10 @@ void ocio_exponent_transform_destroy(void* handle);
 
 // --- ExponentWithLinearTransform ---
 void* ocio_exponent_with_linear_transform_create(void);
-void ocio_exponent_with_linear_transform_get_value(void* transform, double* vec4);
-void ocio_exponent_with_linear_transform_set_value(void* transform, const double* vec4);
+void ocio_exponent_with_linear_transform_get_gamma(void* transform, double* vec4);
+void ocio_exponent_with_linear_transform_set_gamma(void* transform, const double* vec4);
+void ocio_exponent_with_linear_transform_get_offset(void* transform, double* vec4);
+void ocio_exponent_with_linear_transform_set_offset(void* transform, const double* vec4);
 int ocio_exponent_with_linear_transform_get_negative_style(void* transform);
 void ocio_exponent_with_linear_transform_set_negative_style(void* transform, int style);
 int ocio_exponent_with_linear_transform_get_direction(void* transform);
@@ -814,5 +836,68 @@ void ocio_format_metadata_set_name(void* metadata, const char* name);
 const char* ocio_format_metadata_get_id(void* metadata);
 void ocio_format_metadata_set_id(void* metadata, const char* id);
 void ocio_format_metadata_destroy(void* handle);
+
+// --- BuiltinTransform: description ---
+const char* ocio_builtin_transform_get_description(void* transform);
+
+// --- DisplayViewTransform: data bypass ---
+bool ocio_display_view_transform_get_data_bypass(void* transform);
+void ocio_display_view_transform_set_data_bypass(void* transform, bool bypass);
+
+// --- ExposureContrastTransform: log & dynamic ---
+double ocio_exposure_contrast_transform_get_log_exposure_step(void* transform);
+void ocio_exposure_contrast_transform_set_log_exposure_step(void* transform, double step);
+double ocio_exposure_contrast_transform_get_log_mid_gray(void* transform);
+void ocio_exposure_contrast_transform_set_log_mid_gray(void* transform, double mid_gray);
+void ocio_exposure_contrast_transform_make_exposure_non_dynamic(void* transform);
+void ocio_exposure_contrast_transform_make_contrast_non_dynamic(void* transform);
+void ocio_exposure_contrast_transform_make_gamma_non_dynamic(void* transform);
+
+// --- LogAffineTransform: direction ---
+int ocio_log_affine_transform_get_direction(void* transform);
+void ocio_log_affine_transform_set_direction(void* transform, int direction);
+
+// --- LogCameraTransform: direction ---
+int ocio_log_camera_transform_get_direction(void* transform);
+void ocio_log_camera_transform_set_direction(void* transform, int direction);
+
+// --- Lut1DTransform: half domain, raw halfs, hue adjust ---
+bool ocio_lut1d_transform_get_input_half_domain(void* transform);
+void ocio_lut1d_transform_set_input_half_domain(void* transform, bool half_domain);
+bool ocio_lut1d_transform_get_output_raw_halfs(void* transform);
+void ocio_lut1d_transform_set_output_raw_halfs(void* transform, bool raw_halfs);
+int ocio_lut1d_transform_get_hue_adjust(void* transform);
+void ocio_lut1d_transform_set_hue_adjust(void* transform, int hue_adjust);
+
+// --- MatrixTransform: bit depth & static helpers ---
+int ocio_matrix_transform_get_file_input_bit_depth(void* transform);
+void ocio_matrix_transform_set_file_input_bit_depth(void* transform, int bit_depth);
+int ocio_matrix_transform_get_file_output_bit_depth(void* transform);
+void ocio_matrix_transform_set_file_output_bit_depth(void* transform, int bit_depth);
+void* ocio_matrix_transform_create_fit(const char* inputColorSpace, const char* outputColorSpace);
+void* ocio_matrix_transform_create_identity(void);
+void* ocio_matrix_transform_create_sat(double sat, const double* luma);
+void* ocio_matrix_transform_create_scale(const double* scale);
+void* ocio_matrix_transform_create_view(int* channels, const char* gamma);
+
+// --- RangeTransform: has/unset value & bit depth ---
+bool ocio_range_transform_has_min_in_value(void* transform);
+void ocio_range_transform_unset_min_in_value(void* transform);
+bool ocio_range_transform_has_max_in_value(void* transform);
+void ocio_range_transform_unset_max_in_value(void* transform);
+bool ocio_range_transform_has_min_out_value(void* transform);
+void ocio_range_transform_unset_min_out_value(void* transform);
+bool ocio_range_transform_has_max_out_value(void* transform);
+void ocio_range_transform_unset_max_out_value(void* transform);
+int ocio_range_transform_get_file_input_bit_depth(void* transform);
+void ocio_range_transform_set_file_input_bit_depth(void* transform, int bit_depth);
+int ocio_range_transform_get_file_output_bit_depth(void* transform);
+void ocio_range_transform_set_file_output_bit_depth(void* transform, int bit_depth);
+
+// --- CDLTransform: SOP & description ---
+void ocio_cdl_transform_get_sop(void* transform, double* vec9);
+void ocio_cdl_transform_set_sop(void* transform, const double* vec9);
+const char* ocio_cdl_transform_get_first_sop_description(void* transform);
+void ocio_cdl_transform_set_first_sop_description(void* transform, const char* description);
 
 }

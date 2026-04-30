@@ -35,9 +35,18 @@ impl BuiltinTransform {
         }
     }
 
+    pub fn description(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_builtin_transform_get_description(self.handle.as_ptr())) }
+    }
+
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 }
 
@@ -72,8 +81,20 @@ mod tests {
     }
 
     #[test]
+    fn description_no_crash() {
+        let bt = BuiltinTransform::create().unwrap();
+        let _ = bt.description();
+    }
+
+    #[test]
     fn create_editable_copy_no_crash() {
         let bt = BuiltinTransform::create().unwrap();
         let _ = bt.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let bt = BuiltinTransform::create().unwrap();
+        let _ = bt.format_metadata();
     }
 }

@@ -249,8 +249,10 @@ unsafe extern "C" {
 
     // --- ExponentWithLinearTransform ---
     pub fn ocio_exponent_with_linear_transform_create() -> *mut c_void;
-    pub fn ocio_exponent_with_linear_transform_get_value(transform: *mut c_void, vec4: *mut f64);
-    pub fn ocio_exponent_with_linear_transform_set_value(transform: *mut c_void, vec4: *const f64);
+    pub fn ocio_exponent_with_linear_transform_get_gamma(transform: *mut c_void, vec4: *mut f64);
+    pub fn ocio_exponent_with_linear_transform_set_gamma(transform: *mut c_void, vec4: *const f64);
+    pub fn ocio_exponent_with_linear_transform_get_offset(transform: *mut c_void, vec4: *mut f64);
+    pub fn ocio_exponent_with_linear_transform_set_offset(transform: *mut c_void, vec4: *const f64);
     pub fn ocio_exponent_with_linear_transform_get_negative_style(transform: *mut c_void) -> i32;
     pub fn ocio_exponent_with_linear_transform_set_negative_style(transform: *mut c_void, style: i32);
     pub fn ocio_exponent_with_linear_transform_get_direction(transform: *mut c_void) -> i32;
@@ -862,4 +864,67 @@ unsafe extern "C" {
     pub fn ocio_format_metadata_get_id(metadata: *mut c_void) -> *const i8;
     pub fn ocio_format_metadata_set_id(metadata: *mut c_void, id: *const i8);
     pub fn ocio_format_metadata_destroy(handle: *mut c_void);
+
+    // --- BuiltinTransform: description ---
+    pub fn ocio_builtin_transform_get_description(transform: *mut c_void) -> *const i8;
+
+    // --- DisplayViewTransform: data bypass ---
+    pub fn ocio_display_view_transform_get_data_bypass(transform: *mut c_void) -> bool;
+    pub fn ocio_display_view_transform_set_data_bypass(transform: *mut c_void, bypass: bool);
+
+    // --- ExposureContrastTransform: log & non-dynamic ---
+    pub fn ocio_exposure_contrast_transform_get_log_exposure_step(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_log_exposure_step(transform: *mut c_void, step: f64);
+    pub fn ocio_exposure_contrast_transform_get_log_mid_gray(transform: *mut c_void) -> f64;
+    pub fn ocio_exposure_contrast_transform_set_log_mid_gray(transform: *mut c_void, mid_gray: f64);
+    pub fn ocio_exposure_contrast_transform_make_exposure_non_dynamic(transform: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_make_contrast_non_dynamic(transform: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_make_gamma_non_dynamic(transform: *mut c_void);
+
+    // --- LogAffineTransform: direction ---
+    pub fn ocio_log_affine_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_log_affine_transform_set_direction(transform: *mut c_void, direction: i32);
+
+    // --- LogCameraTransform: direction ---
+    pub fn ocio_log_camera_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_log_camera_transform_set_direction(transform: *mut c_void, direction: i32);
+
+    // --- Lut1DTransform: half domain, raw halfs, hue adjust ---
+    pub fn ocio_lut1d_transform_get_input_half_domain(transform: *mut c_void) -> bool;
+    pub fn ocio_lut1d_transform_set_input_half_domain(transform: *mut c_void, half_domain: bool);
+    pub fn ocio_lut1d_transform_get_output_raw_halfs(transform: *mut c_void) -> bool;
+    pub fn ocio_lut1d_transform_set_output_raw_halfs(transform: *mut c_void, raw_halfs: bool);
+    pub fn ocio_lut1d_transform_get_hue_adjust(transform: *mut c_void) -> i32;
+    pub fn ocio_lut1d_transform_set_hue_adjust(transform: *mut c_void, hue_adjust: i32);
+
+    // --- MatrixTransform: bit depth & static helpers ---
+    pub fn ocio_matrix_transform_get_file_input_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_matrix_transform_set_file_input_bit_depth(transform: *mut c_void, bit_depth: i32);
+    pub fn ocio_matrix_transform_get_file_output_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_matrix_transform_set_file_output_bit_depth(transform: *mut c_void, bit_depth: i32);
+    pub fn ocio_matrix_transform_create_fit(inputColorSpace: *const i8, outputColorSpace: *const i8) -> *mut c_void;
+    pub fn ocio_matrix_transform_create_identity() -> *mut c_void;
+    pub fn ocio_matrix_transform_create_sat(sat: f64, luma: *const f64) -> *mut c_void;
+    pub fn ocio_matrix_transform_create_scale(scale: *const f64) -> *mut c_void;
+    pub fn ocio_matrix_transform_create_view(channels: *mut i32, gamma: *const i8) -> *mut c_void;
+
+    // --- RangeTransform: has/unset value & bit depth ---
+    pub fn ocio_range_transform_has_min_in_value(transform: *mut c_void) -> bool;
+    pub fn ocio_range_transform_unset_min_in_value(transform: *mut c_void);
+    pub fn ocio_range_transform_has_max_in_value(transform: *mut c_void) -> bool;
+    pub fn ocio_range_transform_unset_max_in_value(transform: *mut c_void);
+    pub fn ocio_range_transform_has_min_out_value(transform: *mut c_void) -> bool;
+    pub fn ocio_range_transform_unset_min_out_value(transform: *mut c_void);
+    pub fn ocio_range_transform_has_max_out_value(transform: *mut c_void) -> bool;
+    pub fn ocio_range_transform_unset_max_out_value(transform: *mut c_void);
+    pub fn ocio_range_transform_get_file_input_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_range_transform_set_file_input_bit_depth(transform: *mut c_void, bit_depth: i32);
+    pub fn ocio_range_transform_get_file_output_bit_depth(transform: *mut c_void) -> i32;
+    pub fn ocio_range_transform_set_file_output_bit_depth(transform: *mut c_void, bit_depth: i32);
+
+    // --- CDLTransform: SOP & description ---
+    pub fn ocio_cdl_transform_get_sop(transform: *mut c_void, vec9: *mut f64);
+    pub fn ocio_cdl_transform_set_sop(transform: *mut c_void, vec9: *const f64);
+    pub fn ocio_cdl_transform_get_first_sop_description(transform: *mut c_void) -> *const i8;
+    pub fn ocio_cdl_transform_set_first_sop_description(transform: *mut c_void, description: *const i8);
 }

@@ -77,12 +77,40 @@ impl ExposureContrastTransform {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_make_contrast_dynamic(self.handle.as_ptr()) };
     }
 
+    pub fn make_exposure_non_dynamic(&self) {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_exposure_non_dynamic(self.handle.as_ptr()) };
+    }
+
+    pub fn make_contrast_non_dynamic(&self) {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_contrast_non_dynamic(self.handle.as_ptr()) };
+    }
+
     pub fn is_gamma_dynamic(&self) -> bool {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_is_gamma_dynamic(self.handle.as_ptr()) }
     }
 
     pub fn make_gamma_dynamic(&self) {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_make_gamma_dynamic(self.handle.as_ptr()) };
+    }
+
+    pub fn make_gamma_non_dynamic(&self) {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_gamma_non_dynamic(self.handle.as_ptr()) };
+    }
+
+    pub fn log_exposure_step(&self) -> f64 {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_get_log_exposure_step(self.handle.as_ptr()) }
+    }
+
+    pub fn set_log_exposure_step(&self, step: f64) {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_log_exposure_step(self.handle.as_ptr(), step) };
+    }
+
+    pub fn log_mid_gray(&self) -> f64 {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_get_log_mid_gray(self.handle.as_ptr()) }
+    }
+
+    pub fn set_log_mid_gray(&self, mid_gray: f64) {
+        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_log_mid_gray(self.handle.as_ptr(), mid_gray) };
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -99,6 +127,11 @@ impl ExposureContrastTransform {
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 }
 
@@ -147,6 +180,13 @@ mod tests {
         t.make_exposure_dynamic();
         t.make_contrast_dynamic();
         t.make_gamma_dynamic();
+        t.make_exposure_non_dynamic();
+        t.make_contrast_non_dynamic();
+        t.make_gamma_non_dynamic();
+        let _ = t.log_exposure_step();
+        t.set_log_exposure_step(0.088);
+        let _ = t.log_mid_gray();
+        t.set_log_mid_gray(0.18);
     }
 
     #[test]
@@ -160,5 +200,11 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = ExposureContrastTransform::create().unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = ExposureContrastTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

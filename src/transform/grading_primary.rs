@@ -59,6 +59,11 @@ impl GradingPrimaryTransform {
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe { ocio_sys::ocio_grading_primary_transform_set_direction(self.handle.as_ptr(), direction as i32); }
     }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for GradingPrimaryTransform {
@@ -117,5 +122,11 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
+        let _ = t.format_metadata();
     }
 }

@@ -14,17 +14,31 @@ impl ExponentWithLinearTransform {
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn value(&self) -> [f64; 4] {
+    pub fn gamma(&self) -> [f64; 4] {
         let mut vec4 = [1.0f64; 4];
         unsafe {
-            ocio_sys::ocio_exponent_with_linear_transform_get_value(self.handle.as_ptr(), vec4.as_mut_ptr());
+            ocio_sys::ocio_exponent_with_linear_transform_get_gamma(self.handle.as_ptr(), vec4.as_mut_ptr());
         }
         vec4
     }
 
-    pub fn set_value(&self, vec4: &[f64; 4]) {
+    pub fn set_gamma(&self, vec4: &[f64; 4]) {
         unsafe {
-            ocio_sys::ocio_exponent_with_linear_transform_set_value(self.handle.as_ptr(), vec4.as_ptr());
+            ocio_sys::ocio_exponent_with_linear_transform_set_gamma(self.handle.as_ptr(), vec4.as_ptr());
+        }
+    }
+
+    pub fn offset(&self) -> [f64; 4] {
+        let mut vec4 = [0.0f64; 4];
+        unsafe {
+            ocio_sys::ocio_exponent_with_linear_transform_get_offset(self.handle.as_ptr(), vec4.as_mut_ptr());
+        }
+        vec4
+    }
+
+    pub fn set_offset(&self, vec4: &[f64; 4]) {
+        unsafe {
+            ocio_sys::ocio_exponent_with_linear_transform_set_offset(self.handle.as_ptr(), vec4.as_ptr());
         }
     }
 
@@ -59,6 +73,11 @@ impl ExponentWithLinearTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for ExponentWithLinearTransform {
@@ -78,10 +97,17 @@ mod tests {
     }
 
     #[test]
-    fn value_no_crash() {
+    fn gamma_no_crash() {
         let t = ExponentWithLinearTransform::create().unwrap();
-        let _ = t.value();
-        t.set_value(&[1.0, 1.0, 1.0, 1.0]);
+        let _ = t.gamma();
+        t.set_gamma(&[1.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn offset_no_crash() {
+        let t = ExponentWithLinearTransform::create().unwrap();
+        let _ = t.offset();
+        t.set_offset(&[0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
@@ -102,5 +128,11 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = ExponentWithLinearTransform::create().unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = ExponentWithLinearTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

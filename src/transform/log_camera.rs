@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{OcioError, Result};
+use crate::{OcioError, Result, TransformDirection};
 
 pub struct LogCameraTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -90,6 +90,22 @@ impl LogCameraTransform {
     pub fn unset_linear_slope_value(&self) {
         unsafe { ocio_sys::ocio_log_camera_transform_unset_linear_slope_value(self.handle.as_ptr()); }
     }
+
+    pub fn direction(&self) -> TransformDirection {
+        let dir = unsafe { ocio_sys::ocio_log_camera_transform_get_direction(self.handle.as_ptr()) };
+        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+    }
+
+    pub fn set_direction(&self, direction: TransformDirection) {
+        unsafe {
+            ocio_sys::ocio_log_camera_transform_set_direction(self.handle.as_ptr(), direction as i32);
+        }
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for LogCameraTransform {
@@ -137,5 +153,18 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn direction_no_crash() {
+        let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
+        let _ = t.direction();
+        t.set_direction(TransformDirection::Inverse);
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
+        let _ = t.format_metadata();
     }
 }

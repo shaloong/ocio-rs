@@ -63,9 +63,22 @@ impl DisplayViewTransform {
         }
     }
 
+    pub fn data_bypass(&self) -> bool {
+        unsafe { ocio_sys::ocio_display_view_transform_get_data_bypass(self.handle.as_ptr()) }
+    }
+
+    pub fn set_data_bypass(&self, bypass: bool) {
+        unsafe { ocio_sys::ocio_display_view_transform_set_data_bypass(self.handle.as_ptr(), bypass) };
+    }
+
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 }
 
@@ -111,8 +124,21 @@ mod tests {
     }
 
     #[test]
+    fn data_bypass_no_crash() {
+        let t = DisplayViewTransform::create().unwrap();
+        let _ = t.data_bypass();
+        t.set_data_bypass(true);
+    }
+
+    #[test]
     fn create_editable_copy_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = DisplayViewTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

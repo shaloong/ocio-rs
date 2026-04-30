@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, RangeStyle};
+use crate::{OcioError, Result, TransformDirection, RangeStyle, BitDepth};
 
 pub struct RangeTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -70,6 +70,69 @@ impl RangeTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn has_min_in_value(&self) -> bool {
+        unsafe { ocio_sys::ocio_range_transform_has_min_in_value(self.handle.as_ptr()) }
+    }
+
+    pub fn unset_min_in_value(&self) {
+        unsafe { ocio_sys::ocio_range_transform_unset_min_in_value(self.handle.as_ptr()) };
+    }
+
+    pub fn has_max_in_value(&self) -> bool {
+        unsafe { ocio_sys::ocio_range_transform_has_max_in_value(self.handle.as_ptr()) }
+    }
+
+    pub fn unset_max_in_value(&self) {
+        unsafe { ocio_sys::ocio_range_transform_unset_max_in_value(self.handle.as_ptr()) };
+    }
+
+    pub fn has_min_out_value(&self) -> bool {
+        unsafe { ocio_sys::ocio_range_transform_has_min_out_value(self.handle.as_ptr()) }
+    }
+
+    pub fn unset_min_out_value(&self) {
+        unsafe { ocio_sys::ocio_range_transform_unset_min_out_value(self.handle.as_ptr()) };
+    }
+
+    pub fn has_max_out_value(&self) -> bool {
+        unsafe { ocio_sys::ocio_range_transform_has_max_out_value(self.handle.as_ptr()) }
+    }
+
+    pub fn unset_max_out_value(&self) {
+        unsafe { ocio_sys::ocio_range_transform_unset_max_out_value(self.handle.as_ptr()) };
+    }
+
+    pub fn file_input_bit_depth(&self) -> BitDepth {
+        let b = unsafe { ocio_sys::ocio_range_transform_get_file_input_bit_depth(self.handle.as_ptr()) };
+        match b {
+            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
+            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+        }
+    }
+
+    pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
+        unsafe { ocio_sys::ocio_range_transform_set_file_input_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+    }
+
+    pub fn file_output_bit_depth(&self) -> BitDepth {
+        let b = unsafe { ocio_sys::ocio_range_transform_get_file_output_bit_depth(self.handle.as_ptr()) };
+        match b {
+            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
+            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+        }
+    }
+
+    pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        unsafe { ocio_sys::ocio_range_transform_set_file_output_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+    }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for RangeTransform {
@@ -102,8 +165,36 @@ mod tests {
     }
 
     #[test]
+    fn has_unset_no_crash() {
+        let rt = RangeTransform::create().unwrap();
+        let _ = rt.has_min_in_value();
+        let _ = rt.has_max_in_value();
+        let _ = rt.has_min_out_value();
+        let _ = rt.has_max_out_value();
+        rt.unset_min_in_value();
+        rt.unset_max_in_value();
+        rt.unset_min_out_value();
+        rt.unset_max_out_value();
+    }
+
+    #[test]
+    fn bit_depth_no_crash() {
+        let rt = RangeTransform::create().unwrap();
+        let _ = rt.file_input_bit_depth();
+        rt.set_file_input_bit_depth(BitDepth::F32);
+        let _ = rt.file_output_bit_depth();
+        rt.set_file_output_bit_depth(BitDepth::F32);
+    }
+
+    #[test]
     fn create_editable_copy_no_crash() {
         let rt = RangeTransform::create().unwrap();
         let _ = rt.create_editable_copy();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let rt = RangeTransform::create().unwrap();
+        let _ = rt.format_metadata();
     }
 }

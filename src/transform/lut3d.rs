@@ -91,6 +91,11 @@ impl Lut3DTransform {
     pub fn set_values(&self, data: &[f64]) {
         unsafe { ocio_sys::ocio_lut3d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
     }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for Lut3DTransform {
@@ -143,5 +148,11 @@ mod tests {
         t.set_grid_size(10);
         let v = t.values();
         t.set_values(&v);
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let t = Lut3DTransform::create().unwrap();
+        let _ = t.format_metadata();
     }
 }

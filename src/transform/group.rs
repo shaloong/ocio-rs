@@ -61,6 +61,11 @@ impl GroupTransform {
     pub fn clear_transforms(&self) {
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
     }
+
+    pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
 }
 
 impl Drop for GroupTransform {
@@ -143,5 +148,11 @@ mod tests {
         g.append_transform(&cdl);
         g.remove_transform(0);
         g.clear_transforms();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let g = GroupTransform::create().unwrap();
+        let _ = g.format_metadata();
     }
 }
