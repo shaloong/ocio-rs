@@ -64,6 +64,20 @@ impl Look {
         }
     }
 
+    pub fn inverse_transform(&self) -> Option<Transform> {
+        let handle = unsafe { ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr()) };
+        transform_from_raw_handle(handle)
+    }
+
+    pub fn set_inverse_transform(&self, transform: &impl TransformHandle) {
+        unsafe {
+            ocio_sys::ocio_look_set_inverse_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *const c_void,
+            );
+        }
+    }
+
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_look_get_direction(self.handle.as_ptr()) };
         match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
@@ -173,5 +187,18 @@ mod tests {
         let look = Look::create().unwrap();
         let _ = look.is_inactive();
         look.set_inactive(true);
+    }
+
+    #[test]
+    fn inverse_transform_no_crash() {
+        let look = Look::create().unwrap();
+        let _ = look.inverse_transform();
+    }
+
+    #[test]
+    fn set_inverse_transform_no_crash() {
+        let look = Look::create().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        look.set_inverse_transform(&ft);
     }
 }

@@ -62,6 +62,10 @@ impl NamedTransform {
         Ok(())
     }
 
+    pub fn cache_id(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_cache_id(self.handle.as_ptr())) }
+    }
+
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) }
     }
@@ -213,5 +217,11 @@ mod tests {
         let nt = NamedTransform::create().unwrap();
         let _ = nt.category();
         assert!(nt.set_category("test_category").is_ok());
+    }
+
+    #[test]
+    fn cache_id_no_crash() {
+        let nt = NamedTransform::create().unwrap();
+        let _ = nt.cache_id();
     }
 }

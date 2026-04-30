@@ -17,6 +17,16 @@ impl ViewTransform {
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
+    pub fn name(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_name(self.handle.as_ptr())) }
+    }
+
+    pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe { ocio_sys::ocio_view_transform_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn src(&self) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_src(self.handle.as_ptr())) }
     }
@@ -24,6 +34,26 @@ impl ViewTransform {
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
         unsafe { ocio_sys::ocio_view_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn family(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_family(self.handle.as_ptr())) }
+    }
+
+    pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
+        let f = cstring(family)?;
+        unsafe { ocio_sys::ocio_view_transform_set_family(self.handle.as_ptr(), f.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn encoding(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_encoding(self.handle.as_ptr())) }
+    }
+
+    pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
+        let e = cstring(encoding)?;
+        unsafe { ocio_sys::ocio_view_transform_set_encoding(self.handle.as_ptr(), e.as_ptr().cast()) };
         Ok(())
     }
 
@@ -76,6 +106,36 @@ impl ViewTransform {
         unsafe {
             ocio_sys::ocio_view_transform_set_transform(
                 self.handle.as_ptr(), transform.as_ptr() as *const c_void,
+            );
+        }
+    }
+
+    pub fn inverse_transform(&self) -> Option<Transform> {
+        let handle = unsafe {
+            ocio_sys::ocio_view_transform_get_inverse_transform(self.handle.as_ptr())
+        };
+        transform_from_raw_handle(handle)
+    }
+
+    pub fn set_inverse_transform(&self, transform: &impl TransformHandle) {
+        unsafe {
+            ocio_sys::ocio_view_transform_set_inverse_transform(
+                self.handle.as_ptr(), transform.as_ptr() as *const c_void,
+            );
+        }
+    }
+
+    pub fn reference_space_type(&self) -> ReferenceSpaceType {
+        let r = unsafe {
+            ocio_sys::ocio_view_transform_get_reference_space_type(self.handle.as_ptr())
+        };
+        match r { 1 => ReferenceSpaceType::Display, _ => ReferenceSpaceType::Scene }
+    }
+
+    pub fn set_reference_space_type(&self, ref_type: ReferenceSpaceType) {
+        unsafe {
+            ocio_sys::ocio_view_transform_set_reference_space_type(
+                self.handle.as_ptr(), ref_type as i32,
             );
         }
     }
@@ -255,5 +315,36 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
         let _ = vt.create_editable_copy();
+    }
+
+    #[test]
+    fn name_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.name();
+        assert!(vt.set_name("MyViewTransform").is_ok());
+    }
+
+    #[test]
+    fn family_encoding_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.family();
+        assert!(vt.set_family("TestFamily").is_ok());
+        let _ = vt.encoding();
+        assert!(vt.set_encoding("scene-linear").is_ok());
+    }
+
+    #[test]
+    fn inverse_transform_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.inverse_transform();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        vt.set_inverse_transform(&ft);
+    }
+
+    #[test]
+    fn reference_space_type_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.reference_space_type();
+        vt.set_reference_space_type(ReferenceSpaceType::Display);
     }
 }

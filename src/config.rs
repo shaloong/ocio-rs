@@ -47,6 +47,15 @@ impl Config {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_cache_id(self.handle.as_ptr())) }
     }
 
+    pub fn cache_id_with_context(&self, context_key: impl AsRef<str>) -> Option<String> {
+        let ck = cstring(context_key).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_cache_id_n(
+                self.handle.as_ptr(), ck.as_ptr().cast(),
+            ))
+        }
+    }
+
     // --- Version ---
 
     pub fn major_version(&self) -> u32 {
@@ -265,6 +274,23 @@ impl Config {
                 self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
             ))
         }
+    }
+
+    pub fn display_view_looks(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Option<String> {
+        let d = cstring(display).ok()?;
+        let v = cstring(view).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_looks(
+                self.handle.as_ptr(), d.as_ptr().cast(), v.as_ptr().cast(),
+            ))
+        }
+    }
+
+    pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_default_scene_to_display_view_transform(self.handle.as_ptr())
+        };
+        NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
     }
 
     // --- Processors ---
@@ -588,6 +614,16 @@ impl Config {
 
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_search_path_by_index(self.handle.as_ptr(), index)) }
+    }
+
+    pub fn clear_search_paths(&self) {
+        unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr()) };
+    }
+
+    pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
+        let p = cstring(path)?;
+        unsafe { ocio_sys::ocio_config_add_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
+        Ok(())
     }
 
     // --- Strict parsing ---
@@ -1132,5 +1168,30 @@ mod tests {
             let proc = config.processor_with_context("raw", "raw", &ctx);
             let _ = proc;
         }
+    }
+
+    #[test]
+    fn cache_id_with_context_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.cache_id_with_context("context_key");
+    }
+
+    #[test]
+    fn search_paths_no_crash() {
+        let config = Config::raw().unwrap();
+        config.clear_search_paths();
+        assert!(config.add_search_path("/some/path").is_ok());
+    }
+
+    #[test]
+    fn display_view_looks_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.display_view_looks("sRGB", "Film");
+    }
+
+    #[test]
+    fn default_scene_to_display_view_transform_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.default_scene_to_display_view_transform();
     }
 }

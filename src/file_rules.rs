@@ -219,6 +219,15 @@ impl FileRules {
     pub fn is_default(&self) -> bool {
         unsafe { ocio_sys::ocio_file_rules_is_default(self.handle.as_ptr()) }
     }
+
+    pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
+        let fp = cstring(file_path).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_file_rules_get_color_space_from_filepath(
+                self.handle.as_ptr(), fp.as_ptr().cast(),
+            ))
+        }
+    }
 }
 
 impl Drop for FileRules {
@@ -293,5 +302,11 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let rules = FileRules::create().unwrap();
         let _ = rules.create_editable_copy();
+    }
+
+    #[test]
+    fn color_space_from_filepath_no_crash() {
+        let rules = FileRules::create().unwrap();
+        let _ = rules.color_space_from_filepath("test.exr");
     }
 }

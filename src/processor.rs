@@ -113,6 +113,15 @@ impl Processor {
             _ => None,
         }
     }
+
+    pub fn write(&self, format_name: impl AsRef<str>, file_name: impl AsRef<str>) -> Result<()> {
+        let fmt = cstring(format_name)?;
+        let fname = cstring(file_name)?;
+        unsafe {
+            ocio_sys::ocio_processor_write(self.handle.as_ptr(), fmt.as_ptr().cast(), fname.as_ptr().cast());
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Processor {
@@ -720,6 +729,13 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         // Stub mode returns None
         let _ = proc.create_group_transform();
+    }
+
+    #[test]
+    fn processor_write_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        let _ = proc.write("ocio", "/tmp/test.ocio");
     }
 
     #[test]

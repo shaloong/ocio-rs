@@ -45,6 +45,16 @@ impl Context {
         }
     }
 
+    pub fn clear_search_paths(&self) {
+        unsafe { ocio_sys::ocio_context_clear_search_paths(self.handle.as_ptr()) };
+    }
+
+    pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
+        let p = cstring(path)?;
+        unsafe { ocio_sys::ocio_context_add_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn working_dir(&self) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) }
     }
@@ -166,5 +176,12 @@ mod tests {
         assert!(ctx.set_string_var("SHOT", "abc123").is_ok());
         let _ = ctx.string_var("SHOT");
         let _ = ctx.resolve_string_var("${SHOT}/file.exr");
+    }
+
+    #[test]
+    fn search_paths_no_crash() {
+        let ctx = Context::create().unwrap();
+        ctx.clear_search_paths();
+        assert!(ctx.add_search_path("/some/path").is_ok());
     }
 }

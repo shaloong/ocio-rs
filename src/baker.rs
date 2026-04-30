@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, Config, FormatMetadata, OcioError, Result};
+use crate::{cstr_to_opt_string, cstring, Config, FormatMetadata, OcioError, Result, BitDepth};
 
 pub struct Baker {
     handle: NonNull<c_void>,
@@ -115,6 +115,19 @@ impl Baker {
         unsafe { ocio_sys::ocio_baker_set_cube_size(self.handle.as_ptr(), size) };
     }
 
+    pub fn target_bit_depth(&self) -> BitDepth {
+        let b = unsafe { ocio_sys::ocio_baker_get_target_bit_depth(self.handle.as_ptr()) };
+        match b {
+            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
+            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+        }
+    }
+
+    pub fn set_target_bit_depth(&self, bit_depth: BitDepth) {
+        unsafe { ocio_sys::ocio_baker_set_target_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+    }
+
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {
         let path = cstring(output_path)?;
         unsafe { ocio_sys::ocio_baker_bake(self.handle.as_ptr(), path.as_ptr().cast()) };
@@ -184,5 +197,12 @@ mod tests {
             assert!(name.is_some());
             assert!(ext.is_some());
         }
+    }
+
+    #[test]
+    fn target_bit_depth_no_crash() {
+        let baker = Baker::create().unwrap();
+        let _ = baker.target_bit_depth();
+        baker.set_target_bit_depth(BitDepth::F32);
     }
 }

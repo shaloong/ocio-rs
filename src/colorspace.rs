@@ -218,6 +218,14 @@ impl ColorSpace {
             ocio_sys::ocio_color_space_set_reference_space_type(self.handle.as_ptr(), reference_space as i32);
         }
     }
+
+    pub fn cache_id(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_cache_id(self.handle.as_ptr())) }
+    }
+
+    pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
+        unsafe { ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32) }
+    }
 }
 
 impl Drop for ColorSpace {
@@ -304,5 +312,18 @@ mod tests {
     fn set_reference_space_type_no_crash() {
         let cs = ColorSpace::create().unwrap();
         cs.set_reference_space_type(ReferenceSpaceType::Display);
+    }
+
+    #[test]
+    fn cache_id_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let _ = cs.cache_id();
+    }
+
+    #[test]
+    fn is_transform_defined_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let _ = cs.is_transform_defined(ColorSpaceDirection::ToReference);
+        let _ = cs.is_transform_defined(ColorSpaceDirection::FromReference);
     }
 }

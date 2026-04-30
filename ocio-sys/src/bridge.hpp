@@ -56,6 +56,7 @@ void ocio_config_set_name(void* config, const char* name);
 const char* ocio_config_get_description(void* config);
 void ocio_config_set_description(void* config, const char* desc);
 const char* ocio_config_get_cache_id(void* config);
+const char* ocio_config_get_cache_id_n(void* config, const char* contextKey);
 
 // Config: version
 unsigned int ocio_config_get_major_version(void* config);
@@ -106,6 +107,8 @@ const char* ocio_config_get_search_path(void* config);
 void ocio_config_set_search_path(void* config, const char* path);
 int ocio_config_get_num_search_paths(void* config);
 const char* ocio_config_get_search_path_by_index(void* config, int index);
+void ocio_config_clear_search_paths(void* config);
+void ocio_config_add_search_path(void* config, const char* path);
 bool ocio_config_is_strict_parsing_enabled(void* config);
 void ocio_config_set_strict_parsing_enabled(void* config, bool enabled);
 
@@ -145,6 +148,7 @@ const char* ocio_processor_get_cache_id(void* processor);
 void ocio_processor_apply_rgba(void* processor, float* rgba, size_t len);
 int ocio_processor_get_num_transforms(void* processor);
 void* ocio_processor_create_group_transform(void* processor);
+void ocio_processor_write(void* processor, const char* formatName, const char* fileName);
 void ocio_processor_destroy(void* handle);
 
 // --- Processor: bit-depth CPU/GPU processor access ---
@@ -376,6 +380,8 @@ int ocio_baker_get_shaper_size(void* baker);
 void ocio_baker_set_shaper_size(void* baker, int size);
 int ocio_baker_get_cube_size(void* baker);
 void ocio_baker_set_cube_size(void* baker, int size);
+int ocio_baker_get_target_bit_depth(void* baker);
+void ocio_baker_set_target_bit_depth(void* baker, int bitDepth);
 void ocio_baker_bake(void* baker, const char* outputPath);
 int ocio_baker_get_num_formats(void);
 const char* ocio_baker_get_format_name_by_index(int index);
@@ -390,6 +396,8 @@ const char* ocio_context_get_search_path(void* context);
 void ocio_context_set_search_path(void* context, const char* path);
 int ocio_context_get_num_search_paths(void* context);
 const char* ocio_context_get_search_path_by_index(void* context, int index);
+void ocio_context_clear_search_paths(void* context);
+void ocio_context_add_search_path(void* context, const char* path);
 const char* ocio_context_get_working_dir(void* context);
 void ocio_context_set_working_dir(void* context, const char* dirname);
 const char* ocio_context_get_string_var(void* context, const char* name);
@@ -430,6 +438,8 @@ void* ocio_color_space_get_transform(void* colorSpace, int direction);
 void ocio_color_space_set_transform(void* colorSpace, const void* transform, int direction);
 const char* ocio_color_space_get_encoding(void* colorSpace);
 void ocio_color_space_set_encoding(void* colorSpace, const char* encoding);
+const char* ocio_color_space_get_cache_id(void* colorSpace);
+bool ocio_color_space_is_transform_defined(void* colorSpace, int direction);
 void ocio_color_space_destroy(void* handle);
 
 // --- ColorSpace: category ---
@@ -461,26 +471,38 @@ const char* ocio_look_get_description(void* look);
 void ocio_look_set_description(void* look, const char* description);
 void* ocio_look_get_transform(void* look);
 void ocio_look_set_transform(void* look, const void* transform);
+void* ocio_look_get_inverse_transform(void* look);
+void ocio_look_set_inverse_transform(void* look, const void* transform);
 int ocio_look_get_direction(void* look);
 void ocio_look_set_direction(void* look, int direction);
 void ocio_look_destroy(void* handle);
 
 // --- ViewTransform ---
 void* ocio_view_transform_create(int referenceSpace);
+const char* ocio_view_transform_get_name(void* viewTransform);
+void ocio_view_transform_set_name(void* viewTransform, const char* name);
 const char* ocio_view_transform_get_src(void* viewTransform);
 void ocio_view_transform_set_src(void* viewTransform, const char* src);
 const char* ocio_view_transform_get_display(void* viewTransform);
 void ocio_view_transform_set_display(void* viewTransform, const char* display);
 const char* ocio_view_transform_get_view(void* viewTransform);
 void ocio_view_transform_set_view(void* viewTransform, const char* view);
+const char* ocio_view_transform_get_family(void* viewTransform);
+void ocio_view_transform_set_family(void* viewTransform, const char* family);
+const char* ocio_view_transform_get_encoding(void* viewTransform);
+void ocio_view_transform_set_encoding(void* viewTransform, const char* encoding);
 bool ocio_view_transform_get_looks_bypass(void* viewTransform);
 void ocio_view_transform_set_looks_bypass(void* viewTransform, bool bypass);
 const char* ocio_view_transform_get_rule(void* viewTransform);
 void ocio_view_transform_set_rule(void* viewTransform, const char* rule);
 void* ocio_view_transform_get_transform(void* viewTransform);
 void ocio_view_transform_set_transform(void* viewTransform, const void* transform);
+void* ocio_view_transform_get_inverse_transform(void* viewTransform);
+void ocio_view_transform_set_inverse_transform(void* viewTransform, const void* transform);
 int ocio_view_transform_get_direction(void* viewTransform);
 void ocio_view_transform_set_direction(void* viewTransform, int direction);
+int ocio_view_transform_get_reference_space_type(void* viewTransform);
+void ocio_view_transform_set_reference_space_type(void* viewTransform, int refType);
 void ocio_view_transform_destroy(void* handle);
 
 // --- NamedTransform ---
@@ -494,6 +516,7 @@ const char* ocio_named_transform_get_description(void* namedTransform);
 void ocio_named_transform_set_description(void* namedTransform, const char* description);
 const char* ocio_named_transform_get_encoding(void* namedTransform);
 void ocio_named_transform_set_encoding(void* namedTransform, const char* encoding);
+const char* ocio_named_transform_get_cache_id(void* namedTransform);
 void* ocio_named_transform_get_transform(void* namedTransform, int direction);
 void ocio_named_transform_set_transform(void* namedTransform, const void* transform, int direction);
 void ocio_named_transform_destroy(void* handle);
@@ -700,6 +723,8 @@ void ocio_config_set_active_views(void* config, const char* views);
 // --- Config: display/view transform name queries ---
 const char* ocio_config_get_display_view_transform_name(void* config, const char* display, const char* view);
 const char* ocio_config_get_display_view_color_space_name(void* config, const char* display, const char* view);
+const char* ocio_config_get_display_view_looks(void* config, const char* display, const char* view);
+void* ocio_config_get_default_scene_to_display_view_transform(void* config);
 
 // --- Config: clear collections ---
 void ocio_config_clear_color_spaces(void* config);
@@ -807,6 +832,7 @@ void ocio_file_rules_remove_rule(void* rules, unsigned long long ruleIndex);
 void ocio_file_rules_increase_rule_priority(void* rules, unsigned long long ruleIndex);
 void ocio_file_rules_decrease_rule_priority(void* rules, unsigned long long ruleIndex);
 bool ocio_file_rules_is_default(void* rules);
+const char* ocio_file_rules_get_color_space_from_filepath(void* rules, const char* filePath);
 void ocio_file_rules_destroy(void* handle);
 
 // --- Config: FileRules ---
@@ -894,6 +920,7 @@ const char* ocio_format_metadata_get_attribute_name(void* metadata, int i);
 const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, int i);
 const char* ocio_format_metadata_get_attribute_value(void* metadata, const char* name);
 void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value);
+void ocio_format_metadata_remove_attribute(void* metadata, const char* name);
 int ocio_format_metadata_get_num_children_elements(void* metadata);
 void* ocio_format_metadata_get_child_element(void* metadata, int i);
 void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value);

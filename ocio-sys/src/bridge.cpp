@@ -932,6 +932,17 @@ const char* ocio_config_get_cache_id(void* config) {
 #endif
 }
 
+const char* ocio_config_get_cache_id_n(void* config, const char* contextKey) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)contextKey;
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->getCacheID(contextKey);
+  } catch (...) { return nullptr; }
+#endif
+}
+
 // --- Config: version ---
 
 unsigned int ocio_config_get_major_version(void* config) {
@@ -1332,6 +1343,26 @@ const char* ocio_config_get_search_path_by_index(void* config, int index) {
 #endif
 }
 
+void ocio_config_clear_search_paths(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->clearSearchPaths();
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_add_search_path(void* config, const char* path) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)path;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->addSearchPath(path);
+  } catch (...) {}
+#endif
+}
+
 // --- Config: roles (mutable) ---
 
 void ocio_config_set_role(void* config, const char* role, const char* colorSpace) {
@@ -1468,6 +1499,151 @@ const char* ocio_config_get_display_view_color_space_name(void* config, const ch
 #else
   try {
     return ocio_rs_bridge::get_real_config(config)->getDisplayViewColorSpaceName(display, view);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_config_get_display_view_looks(void* config, const char* display, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)display; (void)view; return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(config)->getDisplayViewLooks(display, view);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_get_default_scene_to_display_view_transform(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  return nullptr;
+#else
+  try {
+    auto t = ocio_rs_bridge::get_real_config(config)->getDefaultSceneToDisplayViewTransform();
+    if (!t) return nullptr;
+    switch (t->getTransformType()) {
+      case ocio::TRANSFORM_TYPE_BUILTIN: {
+        auto builtin = ocio::DynamicPtrCast<ocio::BuiltinTransform>(t);
+        auto handle = new ocio_rs_bridge::BuiltinTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>(ocio_rs_bridge::RealBuiltinTransform{builtin});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_CDL: {
+        auto cdl = ocio::DynamicPtrCast<ocio::CDLTransform>(t);
+        auto handle = new ocio_rs_bridge::CDLTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(ocio_rs_bridge::RealCDLTransform{cdl});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_COLOR_SPACE: {
+        auto cs = ocio::DynamicPtrCast<ocio::ColorSpaceTransform>(t);
+        auto handle = new ocio_rs_bridge::ColorSpaceTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>(ocio_rs_bridge::RealColorSpaceTransform{cs});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_EXPONENT: {
+        auto exp = ocio::DynamicPtrCast<ocio::ExponentTransform>(t);
+        auto handle = new ocio_rs_bridge::ExponentTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealExponentTransform>(ocio_rs_bridge::RealExponentTransform{exp});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_EXPOSURE_CONTRAST: {
+        auto ec = ocio::DynamicPtrCast<ocio::ExposureContrastTransform>(t);
+        auto handle = new ocio_rs_bridge::ExposureContrastTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>(ocio_rs_bridge::RealExposureContrastTransform{ec});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_FILE: {
+        auto file = ocio::DynamicPtrCast<ocio::FileTransform>(t);
+        auto handle = new ocio_rs_bridge::FileTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(ocio_rs_bridge::RealFileTransform{file});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_FIXED_FUNCTION: {
+        auto ff = ocio::DynamicPtrCast<ocio::FixedFunctionTransform>(t);
+        auto handle = new ocio_rs_bridge::FixedFunctionHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{ff});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_GRADING_HUE_CURVE: {
+        auto ghc = ocio::DynamicPtrCast<ocio::GradingHueCurveTransform>(t);
+        auto handle = new ocio_rs_bridge::GradingHueCurveTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealGradingHueCurveTransform>(ocio_rs_bridge::RealGradingHueCurveTransform{ghc});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_GRADING_PRIMARY: {
+        auto gp = ocio::DynamicPtrCast<ocio::GradingPrimaryTransform>(t);
+        auto handle = new ocio_rs_bridge::GradingPrimaryTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>(ocio_rs_bridge::RealGradingPrimaryTransform{gp});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_GRADING_RGB_CURVE: {
+        auto gc = ocio::DynamicPtrCast<ocio::GradingRGBCurveTransform>(t);
+        auto handle = new ocio_rs_bridge::GradingRGBCurveTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>(ocio_rs_bridge::RealGradingRGBCurveTransform{gc});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_GRADING_TONE: {
+        auto gt = ocio::DynamicPtrCast<ocio::GradingToneTransform>(t);
+        auto handle = new ocio_rs_bridge::GradingToneTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>(ocio_rs_bridge::RealGradingToneTransform{gt});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_GROUP: {
+        auto grp = ocio::DynamicPtrCast<ocio::GroupTransform>(t);
+        auto handle = new ocio_rs_bridge::GroupTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{grp});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LOG: {
+        auto log = ocio::DynamicPtrCast<ocio::LogTransform>(t);
+        auto handle = new ocio_rs_bridge::LogTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLogTransform>(ocio_rs_bridge::RealLogTransform{log});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LOG_AFFINE: {
+        auto la = ocio::DynamicPtrCast<ocio::LogAffineTransform>(t);
+        auto handle = new ocio_rs_bridge::LogAffineTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLogAffineTransform>(ocio_rs_bridge::RealLogAffineTransform{la});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LOG_CAMERA: {
+        auto lc = ocio::DynamicPtrCast<ocio::LogCameraTransform>(t);
+        auto handle = new ocio_rs_bridge::LogCameraTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>(ocio_rs_bridge::RealLogCameraTransform{lc});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LOOK: {
+        auto lk = ocio::DynamicPtrCast<ocio::LookTransform>(t);
+        auto handle = new ocio_rs_bridge::LookTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLookTransform>(ocio_rs_bridge::RealLookTransform{lk});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LUT1D: {
+        auto lut1d = ocio::DynamicPtrCast<ocio::Lut1DTransform>(t);
+        auto handle = new ocio_rs_bridge::Lut1DHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{lut1d});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_LUT3D: {
+        auto lut3d = ocio::DynamicPtrCast<ocio::Lut3DTransform>(t);
+        auto handle = new ocio_rs_bridge::Lut3DHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{lut3d});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_MATRIX: {
+        auto mat = ocio::DynamicPtrCast<ocio::MatrixTransform>(t);
+        auto handle = new ocio_rs_bridge::MatrixTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{mat});
+        return handle;
+      }
+      case ocio::TRANSFORM_TYPE_RANGE: {
+        auto range = ocio::DynamicPtrCast<ocio::RangeTransform>(t);
+        auto handle = new ocio_rs_bridge::RangeTransformHandle{};
+        handle->inner = std::make_shared<ocio_rs_bridge::RealRangeTransform>(ocio_rs_bridge::RealRangeTransform{range});
+        return handle;
+      }
+      default: return nullptr;
+    }
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2609,6 +2785,17 @@ void* ocio_processor_create_group_transform(void* processor) {
 }
 
 // --- Processor destruction ---
+
+void ocio_processor_write(void* processor, const char* formatName, const char* fileName) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)formatName; (void)fileName;
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    proc->write(formatName, fileName);
+  } catch (...) {}
+#endif
+}
 
 void ocio_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ProcessorHandle*>(handle);
@@ -4433,6 +4620,28 @@ void ocio_baker_set_cube_size(void* baker, int size) {
 #endif
 }
 
+int ocio_baker_get_target_bit_depth(void* baker) {
+#ifdef OCIO_RS_STUB
+  (void)baker; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BakerHandle*>(baker);
+    return std::static_pointer_cast<ocio_rs_bridge::RealBaker>(h->inner)->baker->getTargetBitDepth();
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_baker_set_target_bit_depth(void* baker, int bitDepth) {
+#ifdef OCIO_RS_STUB
+  (void)baker; (void)bitDepth;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::BakerHandle*>(baker);
+    std::static_pointer_cast<ocio_rs_bridge::RealBaker>(h->inner)->baker->setTargetBitDepth(bitDepth);
+  } catch (...) {}
+#endif
+}
+
 void ocio_baker_bake(void* baker, const char* outputPath) {
 #ifdef OCIO_RS_STUB
   (void)baker; (void)outputPath;
@@ -4572,6 +4781,28 @@ const char* ocio_context_get_search_path_by_index(void* context, int index) {
     auto* h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     return std::static_pointer_cast<ocio_rs_bridge::RealContext>(h->inner)->context->getSearchPath(index);
   } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_context_clear_search_paths(void* context) {
+#ifdef OCIO_RS_STUB
+  (void)context;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
+    std::static_pointer_cast<ocio_rs_bridge::RealContext>(h->inner)->context->clearSearchPaths();
+  } catch (...) {}
+#endif
+}
+
+void ocio_context_add_search_path(void* context, const char* path) {
+#ifdef OCIO_RS_STUB
+  (void)context; (void)path;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
+    std::static_pointer_cast<ocio_rs_bridge::RealContext>(h->inner)->context->addSearchPath(path);
+  } catch (...) {}
 #endif
 }
 
@@ -5217,6 +5448,31 @@ void ocio_color_space_set_encoding(void* colorSpace, const char* encoding) {
 #endif
 }
 
+const char* ocio_color_space_get_cache_id(void* colorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)colorSpace;
+  return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace);
+    return std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(h->inner)->colorSpace->getCacheID();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_color_space_is_transform_defined(void* colorSpace, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)colorSpace; (void)direction;
+  return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace);
+    return std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(h->inner)->colorSpace->isTransformDefined(
+        static_cast<ocio::ColorSpaceDirection>(direction));
+  } catch (...) { return false; }
+#endif
+}
+
 void ocio_color_space_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ColorSpaceHandle*>(handle);
 }
@@ -5681,6 +5937,165 @@ void ocio_look_set_transform(void* look, const void* transform) {
 #endif
 }
 
+void* ocio_look_get_inverse_transform(void* look) {
+#ifdef OCIO_RS_STUB
+  (void)look; return nullptr;
+#else
+  BEGIN_TRY
+  auto lk = static_cast<ocio_rs_bridge::LookHandle*>(look);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLook>(lk->inner);
+  ocio::ConstTransformRcPtr t = real->look->getInverseTransform();
+  if (!t) return nullptr;
+  switch (t->getTransformType()) {
+    case ocio::TRANSFORM_TYPE_ALLOCATION: {
+      auto alloc = ocio::DynamicPtrCast<ocio::AllocationTransform>(t);
+      auto handle = new ocio_rs_bridge::AllocationTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealAllocationTransform>(ocio_rs_bridge::RealAllocationTransform{alloc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_BUILTIN: {
+      auto builtin = ocio::DynamicPtrCast<ocio::BuiltinTransform>(t);
+      auto handle = new ocio_rs_bridge::BuiltinTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>(ocio_rs_bridge::RealBuiltinTransform{builtin});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_CDL: {
+      auto cdl = ocio::DynamicPtrCast<ocio::CDLTransform>(t);
+      auto handle = new ocio_rs_bridge::CDLTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(ocio_rs_bridge::RealCDLTransform{cdl});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_COLOR_SPACE: {
+      auto cs = ocio::DynamicPtrCast<ocio::ColorSpaceTransform>(t);
+      auto handle = new ocio_rs_bridge::ColorSpaceTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>(ocio_rs_bridge::RealColorSpaceTransform{cs});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPONENT: {
+      auto exp = ocio::DynamicPtrCast<ocio::ExponentTransform>(t);
+      auto handle = new ocio_rs_bridge::ExponentTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExponentTransform>(ocio_rs_bridge::RealExponentTransform{exp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPOSURE_CONTRAST: {
+      auto ec = ocio::DynamicPtrCast<ocio::ExposureContrastTransform>(t);
+      auto handle = new ocio_rs_bridge::ExposureContrastTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>(ocio_rs_bridge::RealExposureContrastTransform{ec});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FILE: {
+      auto file = ocio::DynamicPtrCast<ocio::FileTransform>(t);
+      auto handle = new ocio_rs_bridge::FileTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(ocio_rs_bridge::RealFileTransform{file});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FIXED_FUNCTION: {
+      auto ff = ocio::DynamicPtrCast<ocio::FixedFunctionTransform>(t);
+      auto handle = new ocio_rs_bridge::FixedFunctionHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{ff});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_HUE_CURVE: {
+      auto ghc = ocio::DynamicPtrCast<ocio::GradingHueCurveTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingHueCurveTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingHueCurveTransform>(ocio_rs_bridge::RealGradingHueCurveTransform{ghc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_PRIMARY: {
+      auto gp = ocio::DynamicPtrCast<ocio::GradingPrimaryTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingPrimaryTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>(ocio_rs_bridge::RealGradingPrimaryTransform{gp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_RGB_CURVE: {
+      auto gc = ocio::DynamicPtrCast<ocio::GradingRGBCurveTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingRGBCurveTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>(ocio_rs_bridge::RealGradingRGBCurveTransform{gc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_TONE: {
+      auto gt = ocio::DynamicPtrCast<ocio::GradingToneTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingToneTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>(ocio_rs_bridge::RealGradingToneTransform{gt});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GROUP: {
+      auto grp = ocio::DynamicPtrCast<ocio::GroupTransform>(t);
+      auto handle = new ocio_rs_bridge::GroupTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{grp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG: {
+      auto log = ocio::DynamicPtrCast<ocio::LogTransform>(t);
+      auto handle = new ocio_rs_bridge::LogTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogTransform>(ocio_rs_bridge::RealLogTransform{log});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG_AFFINE: {
+      auto la = ocio::DynamicPtrCast<ocio::LogAffineTransform>(t);
+      auto handle = new ocio_rs_bridge::LogAffineTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogAffineTransform>(ocio_rs_bridge::RealLogAffineTransform{la});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG_CAMERA: {
+      auto lc = ocio::DynamicPtrCast<ocio::LogCameraTransform>(t);
+      auto handle = new ocio_rs_bridge::LogCameraTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>(ocio_rs_bridge::RealLogCameraTransform{lc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOOK: {
+      auto lk2 = ocio::DynamicPtrCast<ocio::LookTransform>(t);
+      auto handle = new ocio_rs_bridge::LookTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLookTransform>(ocio_rs_bridge::RealLookTransform{lk2});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT1D: {
+      auto lut1d = ocio::DynamicPtrCast<ocio::Lut1DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut1DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{lut1d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT3D: {
+      auto lut3d = ocio::DynamicPtrCast<ocio::Lut3DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut3DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{lut3d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_MATRIX: {
+      auto mat = ocio::DynamicPtrCast<ocio::MatrixTransform>(t);
+      auto handle = new ocio_rs_bridge::MatrixTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{mat});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_RANGE: {
+      auto range = ocio::DynamicPtrCast<ocio::RangeTransform>(t);
+      auto handle = new ocio_rs_bridge::RangeTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealRangeTransform>(ocio_rs_bridge::RealRangeTransform{range});
+      return handle;
+    }
+    default: return nullptr;
+  }
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_look_set_inverse_transform(void* look, const void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)look; (void)transform;
+#else
+  BEGIN_TRY
+  auto lk = static_cast<ocio_rs_bridge::LookHandle*>(look);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealLook>(lk->inner);
+  if (transform) {
+    auto th = static_cast<const ocio_rs_bridge::TransformHandleBase*>(transform);
+    real->look->setInverseTransform(th->get_ocio_transform());
+  } else {
+    real->look->setInverseTransform(nullptr);
+  }
+  END_TRY_VOID
+#endif
+}
+
 void ocio_look_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LookHandle*>(handle);
 }
@@ -5779,6 +6194,34 @@ void* ocio_view_transform_create(int /*referenceSpace*/) {
 #endif
 }
 
+const char* ocio_view_transform_get_name(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getName();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_name(void* viewTransform, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)name;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setName(name);
+  END_TRY_VOID
+#endif
+}
+
 const char* ocio_view_transform_get_src(void* viewTransform) {
 #ifdef OCIO_RS_STUB
   (void)viewTransform;
@@ -5859,6 +6302,62 @@ void ocio_view_transform_set_view(void* viewTransform, const char* view) {
   auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
   auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
   real->transform->setView(view);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_view_transform_get_family(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getFamily();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_family(void* viewTransform, const char* family) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)family;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setFamily(family);
+  END_TRY_VOID
+#endif
+}
+
+const char* ocio_view_transform_get_encoding(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  const char* result = real->transform->getEncoding();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_encoding(void* viewTransform, const char* encoding) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)encoding;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setEncoding(encoding);
   END_TRY_VOID
 #endif
 }
@@ -6078,6 +6577,166 @@ void ocio_view_transform_set_transform(void* viewTransform, const void* transfor
 #endif
 }
 
+void* ocio_view_transform_get_inverse_transform(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  ocio::ConstTransformRcPtr t = real->transform->getInverseTransform();
+  if (!t) return nullptr;
+  switch (t->getTransformType()) {
+    case ocio::TRANSFORM_TYPE_BUILTIN: {
+      auto builtin = ocio::DynamicPtrCast<ocio::BuiltinTransform>(t);
+      auto handle = new ocio_rs_bridge::BuiltinTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransform>(ocio_rs_bridge::RealBuiltinTransform{builtin});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_CDL: {
+      auto cdl = ocio::DynamicPtrCast<ocio::CDLTransform>(t);
+      auto handle = new ocio_rs_bridge::CDLTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(ocio_rs_bridge::RealCDLTransform{cdl});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPONENT: {
+      auto exp = ocio::DynamicPtrCast<ocio::ExponentTransform>(t);
+      auto handle = new ocio_rs_bridge::ExponentTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExponentTransform>(ocio_rs_bridge::RealExponentTransform{exp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FILE: {
+      auto file = ocio::DynamicPtrCast<ocio::FileTransform>(t);
+      auto handle = new ocio_rs_bridge::FileTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(ocio_rs_bridge::RealFileTransform{file});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_FIXED_FUNCTION: {
+      auto ff = ocio::DynamicPtrCast<ocio::FixedFunctionTransform>(t);
+      auto handle = new ocio_rs_bridge::FixedFunctionHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{ff});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GROUP: {
+      auto grp = ocio::DynamicPtrCast<ocio::GroupTransform>(t);
+      auto handle = new ocio_rs_bridge::GroupTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{grp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG: {
+      auto log = ocio::DynamicPtrCast<ocio::LogTransform>(t);
+      auto handle = new ocio_rs_bridge::LogTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogTransform>(ocio_rs_bridge::RealLogTransform{log});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT1D: {
+      auto lut1d = ocio::DynamicPtrCast<ocio::Lut1DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut1DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{lut1d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LUT3D: {
+      auto lut3d = ocio::DynamicPtrCast<ocio::Lut3DTransform>(t);
+      auto handle = new ocio_rs_bridge::Lut3DHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{lut3d});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_MATRIX: {
+      auto mat = ocio::DynamicPtrCast<ocio::MatrixTransform>(t);
+      auto handle = new ocio_rs_bridge::MatrixTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealMatrixTransform>(ocio_rs_bridge::RealMatrixTransform{mat});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_RANGE: {
+      auto range = ocio::DynamicPtrCast<ocio::RangeTransform>(t);
+      auto handle = new ocio_rs_bridge::RangeTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealRangeTransform>(ocio_rs_bridge::RealRangeTransform{range});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_ALLOCATION: {
+      auto alloc = ocio::DynamicPtrCast<ocio::AllocationTransform>(t);
+      auto handle = new ocio_rs_bridge::AllocationTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealAllocationTransform>(ocio_rs_bridge::RealAllocationTransform{alloc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_COLOR_SPACE: {
+      auto cs = ocio::DynamicPtrCast<ocio::ColorSpaceTransform>(t);
+      auto handle = new ocio_rs_bridge::ColorSpaceTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>(ocio_rs_bridge::RealColorSpaceTransform{cs});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_EXPOSURE_CONTRAST: {
+      auto ec = ocio::DynamicPtrCast<ocio::ExposureContrastTransform>(t);
+      auto handle = new ocio_rs_bridge::ExposureContrastTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealExposureContrastTransform>(ocio_rs_bridge::RealExposureContrastTransform{ec});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_HUE_CURVE: {
+      auto ghc = ocio::DynamicPtrCast<ocio::GradingHueCurveTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingHueCurveTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingHueCurveTransform>(ocio_rs_bridge::RealGradingHueCurveTransform{ghc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_PRIMARY: {
+      auto gp = ocio::DynamicPtrCast<ocio::GradingPrimaryTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingPrimaryTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>(ocio_rs_bridge::RealGradingPrimaryTransform{gp});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_RGB_CURVE: {
+      auto gc = ocio::DynamicPtrCast<ocio::GradingRGBCurveTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingRGBCurveTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>(ocio_rs_bridge::RealGradingRGBCurveTransform{gc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_GRADING_TONE: {
+      auto gt = ocio::DynamicPtrCast<ocio::GradingToneTransform>(t);
+      auto handle = new ocio_rs_bridge::GradingToneTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>(ocio_rs_bridge::RealGradingToneTransform{gt});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG_AFFINE: {
+      auto la = ocio::DynamicPtrCast<ocio::LogAffineTransform>(t);
+      auto handle = new ocio_rs_bridge::LogAffineTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogAffineTransform>(ocio_rs_bridge::RealLogAffineTransform{la});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOG_CAMERA: {
+      auto lc = ocio::DynamicPtrCast<ocio::LogCameraTransform>(t);
+      auto handle = new ocio_rs_bridge::LogCameraTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>(ocio_rs_bridge::RealLogCameraTransform{lc});
+      return handle;
+    }
+    case ocio::TRANSFORM_TYPE_LOOK: {
+      auto lk = ocio::DynamicPtrCast<ocio::LookTransform>(t);
+      auto handle = new ocio_rs_bridge::LookTransformHandle{};
+      handle->inner = std::make_shared<ocio_rs_bridge::RealLookTransform>(ocio_rs_bridge::RealLookTransform{lk});
+      return handle;
+    }
+    default: return nullptr;
+  }
+  END_TRY(nullptr)
+#endif
+}
+
+void ocio_view_transform_set_inverse_transform(void* viewTransform, const void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)transform;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  if (transform) {
+    auto th = static_cast<const ocio_rs_bridge::TransformHandleBase*>(transform);
+    real->transform->setInverseTransform(th->get_ocio_transform());
+  } else {
+    real->transform->setInverseTransform(nullptr);
+  }
+  END_TRY_VOID
+#endif
+}
+
 int ocio_view_transform_get_direction(void* viewTransform) {
 #ifdef OCIO_RS_STUB
   (void)viewTransform;
@@ -6099,6 +6758,31 @@ void ocio_view_transform_set_direction(void* viewTransform, int direction) {
   auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
   auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
   real->transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  END_TRY_VOID
+#endif
+}
+
+int ocio_view_transform_get_reference_space_type(void* viewTransform) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform;
+  return 0;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  return static_cast<int>(real->transform->getReferenceSpaceType());
+  END_TRY(0)
+#endif
+}
+
+void ocio_view_transform_set_reference_space_type(void* viewTransform, int refType) {
+#ifdef OCIO_RS_STUB
+  (void)viewTransform; (void)refType;
+#else
+  BEGIN_TRY
+  auto vt = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(vt->inner);
+  real->transform->setReferenceSpaceType(static_cast<ocio::ReferenceSpaceType>(refType));
   END_TRY_VOID
 #endif
 }
@@ -6384,6 +7068,22 @@ void ocio_named_transform_set_encoding(void* namedTransform, const char* encodin
   auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
   real->transform->setEncoding(encoding);
   END_TRY_VOID
+#endif
+}
+
+const char* ocio_named_transform_get_cache_id(void* namedTransform) {
+#ifdef OCIO_RS_STUB
+  (void)namedTransform;
+  return nullptr;
+#else
+  BEGIN_TRY
+  auto nt = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(nt->inner);
+  const char* result = real->transform->getCacheID();
+  static thread_local std::string cached;
+  cached = result ? result : "";
+  return result ? cached.c_str() : nullptr;
+  END_TRY(nullptr)
 #endif
 }
 
@@ -9238,6 +9938,18 @@ bool ocio_file_rules_is_default(void* rules) {
 #endif
 }
 
+const char* ocio_file_rules_get_color_space_from_filepath(void* rules, const char* filePath) {
+#ifdef OCIO_RS_STUB
+  (void)rules; (void)filePath; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(rules);
+    auto r = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+    return r->getColorSpaceFromFilepath(filePath);
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void ocio_file_rules_destroy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -9940,6 +10652,18 @@ void ocio_format_metadata_add_attribute(void* metadata, const char* name, const 
     auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
     auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
     real->metadata->addAttribute(name, value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_format_metadata_remove_attribute(void* metadata, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->removeAttribute(name);
   } catch (...) {}
 #endif
 }

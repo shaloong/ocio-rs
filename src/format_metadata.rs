@@ -94,6 +94,17 @@ impl FormatMetadata {
         Ok(())
     }
 
+    pub fn remove_attribute(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_format_metadata_remove_attribute(
+                self.handle.as_ptr(),
+                n.as_ptr().cast(),
+            )
+        };
+        Ok(())
+    }
+
     pub fn num_children(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_format_metadata_get_num_children_elements(self.handle.as_ptr())
@@ -232,6 +243,16 @@ mod tests {
             let _ = md.id();
             let _ = md.set_name("MyName");
             let _ = md.set_id("MyID");
+        }
+    }
+
+    #[test]
+    fn remove_attribute_no_crash() {
+        let baker = Baker::create().unwrap();
+        let md = baker.format_metadata();
+        if let Some(md) = md {
+            let _ = md.add_attribute("test_key", "test_value");
+            let _ = md.remove_attribute("test_key");
         }
     }
 }
