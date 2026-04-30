@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType};
 use crate::transform::{Transform, GroupTransform, transform_from_raw_handle};
 
 pub struct Processor {
@@ -488,6 +488,124 @@ impl DynamicProperty {
             );
         }
     }
+
+    pub fn grading_rgb_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_num_control_points(
+                self.handle.as_ptr(), curve_type as i32,
+            )
+        }
+    }
+
+    pub fn grading_rgb_curve_set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_num_control_points(
+                self.handle.as_ptr(), curve_type as i32, num,
+            );
+        }
+    }
+
+    pub fn grading_rgb_curve_control_point(&self, curve_type: RGBCurveType, index: i32) -> (f32, f32) {
+        let mut x = 0.0f32;
+        let mut y = 0.0f32;
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_control_point(
+                self.handle.as_ptr(), curve_type as i32, index, &mut x, &mut y,
+            );
+        }
+        (x, y)
+    }
+
+    pub fn grading_rgb_curve_set_control_point(&self, curve_type: RGBCurveType, index: i32, x: f32, y: f32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_control_point(
+                self.handle.as_ptr(), curve_type as i32, index, x, y,
+            );
+        }
+    }
+
+    pub fn grading_rgb_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_slope(
+                self.handle.as_ptr(), curve_type as i32, index,
+            )
+        }
+    }
+
+    pub fn grading_rgb_curve_set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_slope(
+                self.handle.as_ptr(), curve_type as i32, index, slope,
+            );
+        }
+    }
+
+    pub fn grading_rgb_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_slopes_are_default(
+                self.handle.as_ptr(), curve_type as i32,
+            )
+        }
+    }
+
+    pub fn grading_hue_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_get_num_control_points(
+                self.handle.as_ptr(), curve_type as i32,
+            )
+        }
+    }
+
+    pub fn grading_hue_curve_set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_set_num_control_points(
+                self.handle.as_ptr(), curve_type as i32, num,
+            );
+        }
+    }
+
+    pub fn grading_hue_curve_control_point(&self, curve_type: RGBCurveType, index: i32) -> (f32, f32) {
+        let mut x = 0.0f32;
+        let mut y = 0.0f32;
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_get_control_point(
+                self.handle.as_ptr(), curve_type as i32, index, &mut x, &mut y,
+            );
+        }
+        (x, y)
+    }
+
+    pub fn grading_hue_curve_set_control_point(&self, curve_type: RGBCurveType, index: i32, x: f32, y: f32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_set_control_point(
+                self.handle.as_ptr(), curve_type as i32, index, x, y,
+            );
+        }
+    }
+
+    pub fn grading_hue_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_get_slope(
+                self.handle.as_ptr(), curve_type as i32, index,
+            )
+        }
+    }
+
+    pub fn grading_hue_curve_set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_set_slope(
+                self.handle.as_ptr(), curve_type as i32, index, slope,
+            );
+        }
+    }
+
+    pub fn grading_hue_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_slopes_are_default(
+                self.handle.as_ptr(), curve_type as i32,
+            )
+        }
+    }
 }
 
 impl Drop for DynamicProperty {
@@ -635,6 +753,40 @@ mod tests {
             let _ = dp.grading_tone_value();
             let v = crate::grading::GradingTone::new(crate::GradingStyle::Log);
             dp.set_grading_tone_value(&v);
+        }
+    }
+
+    #[test]
+    fn dynamic_property_grading_rgb_curve_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingRgbCurve) {
+            for ct in [RGBCurveType::Red, RGBCurveType::Green, RGBCurveType::Blue, RGBCurveType::Master] {
+                let _ = dp.grading_rgb_curve_num_control_points(ct);
+                let _ = dp.grading_rgb_curve_control_point(ct, 0);
+                let _ = dp.grading_rgb_curve_slope(ct, 0);
+                let _ = dp.grading_rgb_curve_slopes_are_default(ct);
+            }
+            dp.grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 2);
+            dp.grading_rgb_curve_set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
+            dp.grading_rgb_curve_set_slope(RGBCurveType::Red, 0, 1.0);
+        }
+    }
+
+    #[test]
+    fn dynamic_property_grading_hue_curve_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingHueCurve) {
+            for ct in [RGBCurveType::Red, RGBCurveType::Green, RGBCurveType::Blue, RGBCurveType::Master] {
+                let _ = dp.grading_hue_curve_num_control_points(ct);
+                let _ = dp.grading_hue_curve_control_point(ct, 0);
+                let _ = dp.grading_hue_curve_slope(ct, 0);
+                let _ = dp.grading_hue_curve_slopes_are_default(ct);
+            }
+            dp.grading_hue_curve_set_num_control_points(RGBCurveType::Red, 2);
+            dp.grading_hue_curve_set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
+            dp.grading_hue_curve_set_slope(RGBCurveType::Red, 0, 1.0);
         }
     }
 

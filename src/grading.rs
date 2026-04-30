@@ -120,7 +120,7 @@ impl GradingPrimary {
         let pivot_black = values[off]; off += 1;
         let pivot_white = values[off]; off += 1;
         let clamp_black = values[off]; off += 1;
-        let clamp_white = values[off]; off += 1;
+        let clamp_white = values[off];
         Self {
             brightness, contrast, gamma,
             offset: offset_rgbm,
@@ -200,7 +200,7 @@ impl GradingTone {
         let midtones = read_rgbmsw();
         let highlights = read_rgbmsw();
         let whites = read_rgbmsw();
-        let scontrast = values[off]; off += 1;
+        let scontrast = values[off];
         Self { blacks, shadows, midtones, highlights, whites, scontrast }
     }
 

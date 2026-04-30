@@ -6843,6 +6843,208 @@ void ocio_dynamic_property_grading_tone_set_value(void* prop, const double* valu
 #endif
 }
 
+int ocio_dynamic_property_grading_rgb_curve_get_num_control_points(void* prop, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType;
+  return 0;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (!typed) return 0;
+  return typed->getNumControlPoints(static_cast<ocio::RGBCurveType>(curveType));
+  END_TRY(0)
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_num_control_points(void* prop, int curveType, int num) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)num;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (typed) typed->setNumControlPoints(static_cast<ocio::RGBCurveType>(curveType), num);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_get_control_point(void* prop, int curveType, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index;
+  if (x) *x = 0.0f;
+  if (y) *y = 0.0f;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (typed) {
+    typed->getControlPoint(static_cast<ocio::RGBCurveType>(curveType), index, *x, *y);
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_control_point(void* prop, int curveType, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (typed) typed->setControlPoint(static_cast<ocio::RGBCurveType>(curveType), index, x, y);
+  END_TRY_VOID
+#endif
+}
+
+float ocio_dynamic_property_grading_rgb_curve_get_slope(void* prop, int curveType, int index) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index;
+  return 0.0f;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (!typed) return 0.0f;
+  return typed->getSlope(static_cast<ocio::RGBCurveType>(curveType), index);
+  END_TRY(0.0f)
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_slope(void* prop, int curveType, int index, float slope) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index; (void)slope;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (typed) typed->setSlope(static_cast<ocio::RGBCurveType>(curveType), index, slope);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* prop, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType;
+  return true;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingRGBCurve>(real->prop);
+  if (!typed) return true;
+  return typed->slopesAreDefault(static_cast<ocio::RGBCurveType>(curveType));
+  END_TRY(true)
+#endif
+}
+
+int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* prop, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType;
+  return 0;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (!typed) return 0;
+  return typed->getNumControlPoints(static_cast<ocio::RGBCurveType>(curveType));
+  END_TRY(0)
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* prop, int curveType, int num) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)num;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (typed) typed->setNumControlPoints(static_cast<ocio::RGBCurveType>(curveType), num);
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_get_control_point(void* prop, int curveType, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index;
+  if (x) *x = 0.0f;
+  if (y) *y = 0.0f;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (typed) {
+    typed->getControlPoint(static_cast<ocio::RGBCurveType>(curveType), index, *x, *y);
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_control_point(void* prop, int curveType, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (typed) typed->setControlPoint(static_cast<ocio::RGBCurveType>(curveType), index, x, y);
+  END_TRY_VOID
+#endif
+}
+
+float ocio_dynamic_property_grading_hue_curve_get_slope(void* prop, int curveType, int index) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index;
+  return 0.0f;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (!typed) return 0.0f;
+  return typed->getSlope(static_cast<ocio::RGBCurveType>(curveType), index);
+  END_TRY(0.0f)
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_slope(void* prop, int curveType, int index, float slope) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType; (void)index; (void)slope;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (typed) typed->setSlope(static_cast<ocio::RGBCurveType>(curveType), index, slope);
+  END_TRY_VOID
+#endif
+}
+
+bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* prop, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)curveType;
+  return true;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingHueCurve>(real->prop);
+  if (!typed) return true;
+  return typed->slopesAreDefault(static_cast<ocio::RGBCurveType>(curveType));
+  END_TRY(true)
+#endif
+}
+
 void ocio_dynamic_property_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
 }

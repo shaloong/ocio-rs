@@ -530,6 +530,20 @@ unsafe extern "C" {
     pub fn ocio_dynamic_property_grading_primary_set_value(prop: *mut c_void, values: *const f64);
     pub fn ocio_dynamic_property_grading_tone_get_value(prop: *mut c_void, values: *mut f64);
     pub fn ocio_dynamic_property_grading_tone_set_value(prop: *mut c_void, values: *const f64);
+    pub fn ocio_dynamic_property_grading_rgb_curve_get_num_control_points(prop: *mut c_void, curveType: i32) -> i32;
+    pub fn ocio_dynamic_property_grading_rgb_curve_set_num_control_points(prop: *mut c_void, curveType: i32, num: i32);
+    pub fn ocio_dynamic_property_grading_rgb_curve_get_control_point(prop: *mut c_void, curveType: i32, index: i32, x: *mut f32, y: *mut f32);
+    pub fn ocio_dynamic_property_grading_rgb_curve_set_control_point(prop: *mut c_void, curveType: i32, index: i32, x: f32, y: f32);
+    pub fn ocio_dynamic_property_grading_rgb_curve_get_slope(prop: *mut c_void, curveType: i32, index: i32) -> f32;
+    pub fn ocio_dynamic_property_grading_rgb_curve_set_slope(prop: *mut c_void, curveType: i32, index: i32, slope: f32);
+    pub fn ocio_dynamic_property_grading_rgb_curve_slopes_are_default(prop: *mut c_void, curveType: i32) -> bool;
+    pub fn ocio_dynamic_property_grading_hue_curve_get_num_control_points(prop: *mut c_void, curveType: i32) -> i32;
+    pub fn ocio_dynamic_property_grading_hue_curve_set_num_control_points(prop: *mut c_void, curveType: i32, num: i32);
+    pub fn ocio_dynamic_property_grading_hue_curve_get_control_point(prop: *mut c_void, curveType: i32, index: i32, x: *mut f32, y: *mut f32);
+    pub fn ocio_dynamic_property_grading_hue_curve_set_control_point(prop: *mut c_void, curveType: i32, index: i32, x: f32, y: f32);
+    pub fn ocio_dynamic_property_grading_hue_curve_get_slope(prop: *mut c_void, curveType: i32, index: i32) -> f32;
+    pub fn ocio_dynamic_property_grading_hue_curve_set_slope(prop: *mut c_void, curveType: i32, index: i32, slope: f32);
+    pub fn ocio_dynamic_property_grading_hue_curve_slopes_are_default(prop: *mut c_void, curveType: i32) -> bool;
     pub fn ocio_dynamic_property_destroy(handle: *mut c_void);
 
     // --- ExposureContrastTransform ---

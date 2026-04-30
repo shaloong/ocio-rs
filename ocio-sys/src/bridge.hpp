@@ -510,6 +510,20 @@ void ocio_dynamic_property_grading_primary_get_value(void* prop, double* values)
 void ocio_dynamic_property_grading_primary_set_value(void* prop, const double* values);
 void ocio_dynamic_property_grading_tone_get_value(void* prop, double* values);
 void ocio_dynamic_property_grading_tone_set_value(void* prop, const double* values);
+int ocio_dynamic_property_grading_rgb_curve_get_num_control_points(void* prop, int curveType);
+void ocio_dynamic_property_grading_rgb_curve_set_num_control_points(void* prop, int curveType, int num);
+void ocio_dynamic_property_grading_rgb_curve_get_control_point(void* prop, int curveType, int index, float* x, float* y);
+void ocio_dynamic_property_grading_rgb_curve_set_control_point(void* prop, int curveType, int index, float x, float y);
+float ocio_dynamic_property_grading_rgb_curve_get_slope(void* prop, int curveType, int index);
+void ocio_dynamic_property_grading_rgb_curve_set_slope(void* prop, int curveType, int index, float slope);
+bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* prop, int curveType);
+int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* prop, int curveType);
+void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* prop, int curveType, int num);
+void ocio_dynamic_property_grading_hue_curve_get_control_point(void* prop, int curveType, int index, float* x, float* y);
+void ocio_dynamic_property_grading_hue_curve_set_control_point(void* prop, int curveType, int index, float x, float y);
+float ocio_dynamic_property_grading_hue_curve_get_slope(void* prop, int curveType, int index);
+void ocio_dynamic_property_grading_hue_curve_set_slope(void* prop, int curveType, int index, float slope);
+bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* prop, int curveType);
 void ocio_dynamic_property_destroy(void* handle);
 
 // --- ExposureContrastTransform ---
