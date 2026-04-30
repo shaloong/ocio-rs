@@ -1,4 +1,5 @@
 mod baker;
+mod builtin_config_registry;
 mod colorspace;
 mod config;
 mod context;
@@ -11,6 +12,7 @@ mod types;
 mod view_transform;
 
 pub use baker::Baker;
+pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use colorspace::ColorSpace;
 pub use config::Config;
 pub use context::Context;
@@ -41,6 +43,51 @@ pub type Result<T> = std::result::Result<T, OcioError>;
 
 pub fn is_stub_build() -> bool {
     unsafe { ocio_sys::ocio_runtime_is_stub() }
+}
+
+pub fn get_current_config() -> Option<Config> {
+    let handle = unsafe { ocio_sys::ocio_get_current_config() };
+    if handle.is_null() {
+        None
+    } else {
+        Some(Config { handle: std::ptr::NonNull::new(handle).unwrap() })
+    }
+}
+
+pub fn set_current_config(config: &Config) {
+    unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
+}
+
+pub fn clear_all_caches() {
+    unsafe { ocio_sys::ocio_clear_all_caches() };
+}
+
+pub fn version() -> Option<String> {
+    unsafe { cstr_to_opt_string(ocio_sys::ocio_get_version()) }
+}
+
+pub fn version_hex() -> i32 {
+    unsafe { ocio_sys::ocio_get_version_hex() }
+}
+
+pub fn logging_level() -> crate::LoggingLevel {
+    let l = unsafe { ocio_sys::ocio_get_logging_level() };
+    match l {
+        0 => crate::LoggingLevel::None,
+        1 => crate::LoggingLevel::Warning,
+        2 => crate::LoggingLevel::Info,
+        3 => crate::LoggingLevel::Debug,
+        4 => crate::LoggingLevel::Trace,
+        _ => crate::LoggingLevel::None,
+    }
+}
+
+pub fn set_logging_level(level: crate::LoggingLevel) {
+    unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
+}
+
+pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
+    unsafe { ocio_sys::ocio_set_logging_level_to_override(level as i32) };
 }
 
 pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {

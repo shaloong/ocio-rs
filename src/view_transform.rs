@@ -90,6 +90,65 @@ impl ViewTransform {
             ocio_sys::ocio_view_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
+
+    pub fn num_aliases(&self) -> i32 {
+        unsafe { ocio_sys::ocio_view_transform_get_num_aliases(self.handle.as_ptr()) }
+    }
+
+    pub fn alias(&self, index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_alias(self.handle.as_ptr(), index)) }
+    }
+
+    pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_view_transform_add_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_view_transform_remove_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn clear_aliases(&self) {
+        unsafe { ocio_sys::ocio_view_transform_clear_aliases(self.handle.as_ptr()) };
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        unsafe { ocio_sys::ocio_view_transform_is_inactive(self.handle.as_ptr()) }
+    }
+
+    pub fn set_inactive(&self, inactive: bool) {
+        unsafe { ocio_sys::ocio_view_transform_set_inactive(self.handle.as_ptr(), inactive) };
+    }
+
+    pub fn category(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_category(self.handle.as_ptr())) }
+    }
+
+    pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe { ocio_sys::ocio_view_transform_set_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn description(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_view_transform_get_description(self.handle.as_ptr())) }
+    }
+
+    pub fn set_description(&self, desc: impl AsRef<str>) -> Result<()> {
+        let d = cstring(desc)?;
+        unsafe { ocio_sys::ocio_view_transform_set_description(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        let handle = unsafe {
+            ocio_sys::ocio_view_transform_create_editable_copy(self.handle.as_ptr())
+        };
+        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
 }
 
 impl Drop for ViewTransform {
@@ -158,5 +217,43 @@ mod tests {
         let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
         let ft = FileTransform::create().unwrap();
         vt.set_transform(&ft);
+    }
+
+    #[test]
+    fn aliases_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.num_aliases();
+        let _ = vt.alias(0);
+        assert!(vt.add_alias("test_alias").is_ok());
+        assert!(vt.remove_alias("test_alias").is_ok());
+        vt.clear_aliases();
+    }
+
+    #[test]
+    fn inactive_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.is_inactive();
+        vt.set_inactive(true);
+        vt.set_inactive(false);
+    }
+
+    #[test]
+    fn category_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.category();
+        assert!(vt.set_category("test_category").is_ok());
+    }
+
+    #[test]
+    fn description_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.description();
+        assert!(vt.set_description("test description").is_ok());
+    }
+
+    #[test]
+    fn create_editable_copy_no_crash() {
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        let _ = vt.create_editable_copy();
     }
 }

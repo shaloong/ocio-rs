@@ -8,6 +8,22 @@ extern "C" {
 // --- Runtime ---
 bool ocio_runtime_is_stub(void);
 
+// --- BuiltinConfigRegistry ---
+void* ocio_builtin_config_registry_get(void);
+int ocio_builtin_config_registry_get_num_builtin_configs(void* registry);
+const char* ocio_builtin_config_registry_get_config_name(void* registry, int index);
+const char* ocio_builtin_config_registry_get_config_ui_name(void* registry, int index);
+bool ocio_builtin_config_registry_is_config_recommended(void* registry, int index);
+void* ocio_builtin_config_registry_get_config_by_index(void* registry, int index);
+void* ocio_builtin_config_registry_get_config_by_name(void* registry, const char* name);
+
+// --- Global utility functions ---
+const char* ocio_get_version(void);
+int ocio_get_version_hex(void);
+int ocio_get_logging_level(void);
+void ocio_set_logging_level(int level);
+void ocio_set_logging_level_to_override(int level);
+
 // --- Config ---
 void* ocio_config_create_raw(void);
 void* ocio_config_create_from_file(const char* path);
@@ -504,6 +520,26 @@ int ocio_grading_rgb_curve_transform_get_direction(void* transform);
 void ocio_grading_rgb_curve_transform_set_direction(void* transform, int direction);
 void ocio_grading_rgb_curve_transform_destroy(void* handle);
 
+// --- GradingHueCurveTransform ---
+void* ocio_grading_hue_curve_transform_create(int style);
+int ocio_grading_hue_curve_transform_get_style(void* transform);
+void ocio_grading_hue_curve_transform_set_style(void* transform, int style);
+int ocio_grading_hue_curve_transform_get_num_control_points(void* transform, int curveType);
+void ocio_grading_hue_curve_transform_get_control_point(void* transform, int curveType, int index, float* x, float* y);
+void ocio_grading_hue_curve_transform_set_num_control_points(void* transform, int curveType, int num);
+void ocio_grading_hue_curve_transform_set_control_point(void* transform, int curveType, int index, float x, float y);
+float ocio_grading_hue_curve_transform_get_slope(void* transform, int curveType, int index);
+void ocio_grading_hue_curve_transform_set_slope(void* transform, int curveType, int index, float slope);
+bool ocio_grading_hue_curve_transform_slopes_are_default(void* transform, int curveType);
+bool ocio_grading_hue_curve_transform_get_bypass_lin_to_log(void* transform);
+void ocio_grading_hue_curve_transform_set_bypass_lin_to_log(void* transform, bool bypass);
+bool ocio_grading_hue_curve_transform_is_dynamic(void* transform);
+void ocio_grading_hue_curve_transform_make_dynamic(void* transform);
+void ocio_grading_hue_curve_transform_make_non_dynamic(void* transform);
+int ocio_grading_hue_curve_transform_get_direction(void* transform);
+void ocio_grading_hue_curve_transform_set_direction(void* transform, int direction);
+void ocio_grading_hue_curve_transform_destroy(void* handle);
+
 // --- AllocationTransform ---
 void* ocio_allocation_transform_create(void);
 int ocio_allocation_transform_get_allocation(void* transform);
@@ -547,5 +583,93 @@ bool ocio_log_camera_transform_get_linear_slope_value(void* transform, double* v
 void ocio_log_camera_transform_set_linear_slope_value(void* transform, const double* values);
 void ocio_log_camera_transform_unset_linear_slope_value(void* transform);
 void ocio_log_camera_transform_destroy(void* handle);
+
+// --- Config: active display/view setters ---
+void ocio_config_set_active_displays(void* config, const char* displays);
+void ocio_config_set_active_views(void* config, const char* views);
+
+// --- Config: display/view transform name queries ---
+const char* ocio_config_get_display_view_transform_name(void* config, const char* display, const char* view);
+const char* ocio_config_get_display_view_color_space_name(void* config, const char* display, const char* view);
+
+// --- Config: clear collections ---
+void ocio_config_clear_color_spaces(void* config);
+void ocio_config_clear_looks(void* config);
+
+// --- Config: default luma setter ---
+void ocio_config_set_default_luma_coefs(void* config, const double* rgb);
+
+// --- Config: display/view management ---
+void ocio_config_add_display(void* config, const char* display, const char* view, const char* transformName, const char* rule);
+void ocio_config_add_shared_view(void* config, const char* display, const char* view, const char* transformName, const char* rule);
+void ocio_config_remove_display(void* config, const char* display);
+void ocio_config_remove_view(void* config, const char* display, const char* view);
+
+// --- Config: named transforms ---
+int ocio_config_get_num_named_transforms(void* config);
+const char* ocio_config_get_named_transform_name_by_index(void* config, int index);
+void* ocio_config_get_named_transform(void* config, const char* name);
+void ocio_config_add_named_transform(void* config, void* namedTransform);
+void ocio_config_remove_named_transform(void* config, const char* name);
+
+// --- Config: view transforms ---
+int ocio_config_get_num_view_transforms(void* config);
+const char* ocio_config_get_view_transform_name_by_index(void* config, int index);
+void* ocio_config_get_view_transform(void* config, const char* name);
+void ocio_config_add_view_transform(void* config, void* viewTransform);
+void ocio_config_remove_view_transform(void* config, const char* name);
+
+// --- ColorSpace: aliases ---
+int ocio_color_space_get_num_aliases(void* colorSpace);
+const char* ocio_color_space_get_alias(void* colorSpace, int index);
+void ocio_color_space_add_alias(void* colorSpace, const char* alias);
+void ocio_color_space_remove_alias(void* colorSpace, const char* alias);
+void ocio_color_space_clear_aliases(void* colorSpace);
+
+// --- ColorSpace: inactive ---
+bool ocio_color_space_is_inactive(void* colorSpace);
+void ocio_color_space_set_inactive(void* colorSpace, bool inactive);
+
+// --- Look: aliases ---
+int ocio_look_get_num_aliases(void* look);
+const char* ocio_look_get_alias(void* look, int index);
+void ocio_look_add_alias(void* look, const char* alias);
+void ocio_look_remove_alias(void* look, const char* alias);
+void ocio_look_clear_aliases(void* look);
+
+// --- Look: inactive ---
+bool ocio_look_is_inactive(void* look);
+void ocio_look_set_inactive(void* look, bool inactive);
+
+// --- NamedTransform: aliases ---
+int ocio_named_transform_get_num_aliases(void* namedTransform);
+const char* ocio_named_transform_get_alias(void* namedTransform, int index);
+void ocio_named_transform_add_alias(void* namedTransform, const char* alias);
+void ocio_named_transform_remove_alias(void* namedTransform, const char* alias);
+void ocio_named_transform_clear_aliases(void* namedTransform);
+
+// --- NamedTransform: inactive & category ---
+bool ocio_named_transform_is_inactive(void* namedTransform);
+void ocio_named_transform_set_inactive(void* namedTransform, bool inactive);
+const char* ocio_named_transform_get_category(void* namedTransform);
+void ocio_named_transform_set_category(void* namedTransform, const char* category);
+
+// --- ViewTransform: aliases ---
+int ocio_view_transform_get_num_aliases(void* viewTransform);
+const char* ocio_view_transform_get_alias(void* viewTransform, int index);
+void ocio_view_transform_add_alias(void* viewTransform, const char* alias);
+void ocio_view_transform_remove_alias(void* viewTransform, const char* alias);
+void ocio_view_transform_clear_aliases(void* viewTransform);
+
+// --- ViewTransform: inactive, category, description ---
+bool ocio_view_transform_is_inactive(void* viewTransform);
+void ocio_view_transform_set_inactive(void* viewTransform, bool inactive);
+const char* ocio_view_transform_get_category(void* viewTransform);
+void ocio_view_transform_set_category(void* viewTransform, const char* category);
+const char* ocio_view_transform_get_description(void* viewTransform);
+void ocio_view_transform_set_description(void* viewTransform, const char* description);
+
+// --- ViewTransform: editable copy ---
+void* ocio_view_transform_create_editable_copy(void* viewTransform);
 
 }

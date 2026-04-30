@@ -227,6 +227,16 @@ impl std::ops::BitOr for OptimizationFlags {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum LoggingLevel {
+    None = 0,
+    Warning = 1,
+    Info = 2,
+    Debug = 3,
+    Trace = 4,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ProcessorCacheFlags {
     Off = 0x00000000,
@@ -272,4 +282,5 @@ pub enum DynamicPropertyType {
     GradingPrimary = 3,
     GradingRgbCurve = 4,
     GradingTone = 5,
+    GradingHueCurve = 6,
 }

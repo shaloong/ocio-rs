@@ -40,6 +40,16 @@ impl Look {
         Ok(())
     }
 
+    pub fn description(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_look_get_description(self.handle.as_ptr())) }
+    }
+
+    pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
+        let d = cstring(description)?;
+        unsafe { ocio_sys::ocio_look_set_description(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn transform(&self) -> Option<Transform> {
         let handle = unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr()) };
         transform_from_raw_handle(handle)
@@ -63,6 +73,38 @@ impl Look {
         unsafe {
             ocio_sys::ocio_look_set_direction(self.handle.as_ptr(), direction as i32);
         }
+    }
+
+    pub fn num_aliases(&self) -> i32 {
+        unsafe { ocio_sys::ocio_look_get_num_aliases(self.handle.as_ptr()) }
+    }
+
+    pub fn alias(&self, index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_look_get_alias(self.handle.as_ptr(), index)) }
+    }
+
+    pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_look_add_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_look_remove_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn clear_aliases(&self) {
+        unsafe { ocio_sys::ocio_look_clear_aliases(self.handle.as_ptr()) };
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        unsafe { ocio_sys::ocio_look_is_inactive(self.handle.as_ptr()) }
+    }
+
+    pub fn set_inactive(&self, inactive: bool) {
+        unsafe { ocio_sys::ocio_look_set_inactive(self.handle.as_ptr(), inactive) };
     }
 }
 
@@ -114,5 +156,22 @@ mod tests {
         let look = Look::create().unwrap();
         let ft = crate::transform::FileTransform::create().unwrap();
         look.set_transform(&ft);
+    }
+
+    #[test]
+    fn aliases_no_crash() {
+        let look = Look::create().unwrap();
+        let _ = look.num_aliases();
+        let _ = look.alias(0);
+        assert!(look.add_alias("test_alias").is_ok());
+        assert!(look.remove_alias("test_alias").is_ok());
+        look.clear_aliases();
+    }
+
+    #[test]
+    fn inactive_no_crash() {
+        let look = Look::create().unwrap();
+        let _ = look.is_inactive();
+        look.set_inactive(true);
     }
 }

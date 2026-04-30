@@ -4,6 +4,27 @@ unsafe extern "C" {
     // --- Runtime ---
     pub fn ocio_runtime_is_stub() -> bool;
 
+    // --- BuiltinConfigRegistry ---
+    pub fn ocio_builtin_config_registry_get() -> *mut c_void;
+    pub fn ocio_builtin_config_registry_get_num_builtin_configs(registry: *mut c_void) -> i32;
+    pub fn ocio_builtin_config_registry_get_config_name(registry: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_builtin_config_registry_get_config_ui_name(registry: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_builtin_config_registry_is_config_recommended(registry: *mut c_void, index: i32) -> bool;
+    pub fn ocio_builtin_config_registry_get_config_by_index(registry: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_builtin_config_registry_get_config_by_name(registry: *mut c_void, name: *const i8) -> *mut c_void;
+
+    // --- Global utility functions ---
+    pub fn ocio_get_version() -> *const i8;
+    pub fn ocio_get_version_hex() -> i32;
+    pub fn ocio_get_logging_level() -> i32;
+    pub fn ocio_set_logging_level(level: i32);
+    pub fn ocio_set_logging_level_to_override(level: i32);
+
+    // --- Global config ---
+    pub fn ocio_get_current_config() -> *mut c_void;
+    pub fn ocio_set_current_config(config: *mut c_void);
+    pub fn ocio_clear_all_caches();
+
     // --- Config: construction ---
     pub fn ocio_config_create_raw() -> *mut c_void;
     pub fn ocio_config_create_from_file(path: *const i8) -> *mut c_void;
@@ -84,6 +105,10 @@ unsafe extern "C" {
 
     // --- Config: editable copy ---
     pub fn ocio_config_create_editable_copy(config: *mut c_void) -> *mut c_void;
+
+    // --- Config: context ---
+    pub fn ocio_config_get_current_context(config: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_set_current_context(config: *mut c_void, context: *mut c_void);
 
     // --- Config: processors ---
     pub fn ocio_config_get_processor(
@@ -377,6 +402,8 @@ unsafe extern "C" {
     pub fn ocio_color_space_get_reference_space_type(colorSpace: *mut c_void) -> i32;
     pub fn ocio_color_space_is_data(colorSpace: *mut c_void) -> bool;
     pub fn ocio_color_space_set_is_data(colorSpace: *mut c_void, isData: bool);
+    pub fn ocio_color_space_get_category(colorSpace: *mut c_void) -> *const i8;
+    pub fn ocio_color_space_set_category(colorSpace: *mut c_void, category: *const i8);
     pub fn ocio_color_space_get_allocation(colorSpace: *mut c_void) -> i32;
     pub fn ocio_color_space_set_allocation(colorSpace: *mut c_void, allocation: i32);
     pub fn ocio_color_space_get_allocation_num_vars(colorSpace: *mut c_void) -> i32;
@@ -401,6 +428,8 @@ unsafe extern "C" {
     pub fn ocio_look_set_name(look: *mut c_void, name: *const i8);
     pub fn ocio_look_get_process_space(look: *mut c_void) -> *const i8;
     pub fn ocio_look_set_process_space(look: *mut c_void, processSpace: *const i8);
+    pub fn ocio_look_get_description(look: *mut c_void) -> *const i8;
+    pub fn ocio_look_set_description(look: *mut c_void, description: *const i8);
     pub fn ocio_look_get_transform(look: *mut c_void) -> *mut c_void;
     pub fn ocio_look_set_transform(look: *mut c_void, transform: *const c_void);
     pub fn ocio_look_get_direction(look: *mut c_void) -> i32;
@@ -539,6 +568,26 @@ unsafe extern "C" {
     pub fn ocio_grading_rgb_curve_transform_set_direction(transform: *mut c_void, direction: i32);
     pub fn ocio_grading_rgb_curve_transform_destroy(handle: *mut c_void);
 
+    // --- GradingHueCurveTransform ---
+    pub fn ocio_grading_hue_curve_transform_create(style: i32) -> *mut c_void;
+    pub fn ocio_grading_hue_curve_transform_get_style(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_hue_curve_transform_set_style(transform: *mut c_void, style: i32);
+    pub fn ocio_grading_hue_curve_transform_get_num_control_points(transform: *mut c_void, curveType: i32) -> i32;
+    pub fn ocio_grading_hue_curve_transform_get_control_point(transform: *mut c_void, curveType: i32, index: i32, x: *mut f32, y: *mut f32);
+    pub fn ocio_grading_hue_curve_transform_set_num_control_points(transform: *mut c_void, curveType: i32, num: i32);
+    pub fn ocio_grading_hue_curve_transform_set_control_point(transform: *mut c_void, curveType: i32, index: i32, x: f32, y: f32);
+    pub fn ocio_grading_hue_curve_transform_get_slope(transform: *mut c_void, curveType: i32, index: i32) -> f32;
+    pub fn ocio_grading_hue_curve_transform_set_slope(transform: *mut c_void, curveType: i32, index: i32, slope: f32);
+    pub fn ocio_grading_hue_curve_transform_slopes_are_default(transform: *mut c_void, curveType: i32) -> bool;
+    pub fn ocio_grading_hue_curve_transform_get_bypass_lin_to_log(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_hue_curve_transform_set_bypass_lin_to_log(transform: *mut c_void, bypass: bool);
+    pub fn ocio_grading_hue_curve_transform_is_dynamic(transform: *mut c_void) -> bool;
+    pub fn ocio_grading_hue_curve_transform_make_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_hue_curve_transform_make_non_dynamic(transform: *mut c_void);
+    pub fn ocio_grading_hue_curve_transform_get_direction(transform: *mut c_void) -> i32;
+    pub fn ocio_grading_hue_curve_transform_set_direction(transform: *mut c_void, direction: i32);
+    pub fn ocio_grading_hue_curve_transform_destroy(handle: *mut c_void);
+
     // --- AllocationTransform ---
     pub fn ocio_allocation_transform_create() -> *mut c_void;
     pub fn ocio_allocation_transform_get_allocation(transform: *mut c_void) -> i32;
@@ -582,4 +631,92 @@ unsafe extern "C" {
     pub fn ocio_log_camera_transform_set_linear_slope_value(transform: *mut c_void, values: *const f64);
     pub fn ocio_log_camera_transform_unset_linear_slope_value(transform: *mut c_void);
     pub fn ocio_log_camera_transform_destroy(handle: *mut c_void);
+
+    // --- Config: active display/view setters ---
+    pub fn ocio_config_set_active_displays(config: *mut c_void, displays: *const i8);
+    pub fn ocio_config_set_active_views(config: *mut c_void, views: *const i8);
+
+    // --- Config: display/view transform name queries ---
+    pub fn ocio_config_get_display_view_transform_name(config: *mut c_void, display: *const i8, view: *const i8) -> *const i8;
+    pub fn ocio_config_get_display_view_color_space_name(config: *mut c_void, display: *const i8, view: *const i8) -> *const i8;
+
+    // --- Config: clear collections ---
+    pub fn ocio_config_clear_color_spaces(config: *mut c_void);
+    pub fn ocio_config_clear_looks(config: *mut c_void);
+
+    // --- Config: default luma setter ---
+    pub fn ocio_config_set_default_luma_coefs(config: *mut c_void, rgb: *const f64);
+
+    // --- Config: display/view management ---
+    pub fn ocio_config_add_display(config: *mut c_void, display: *const i8, view: *const i8, transformName: *const i8, rule: *const i8);
+    pub fn ocio_config_add_shared_view(config: *mut c_void, display: *const i8, view: *const i8, transformName: *const i8, rule: *const i8);
+    pub fn ocio_config_remove_display(config: *mut c_void, display: *const i8);
+    pub fn ocio_config_remove_view(config: *mut c_void, display: *const i8, view: *const i8);
+
+    // --- Config: named transforms ---
+    pub fn ocio_config_get_num_named_transforms(config: *mut c_void) -> i32;
+    pub fn ocio_config_get_named_transform_name_by_index(config: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_config_get_named_transform(config: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_config_add_named_transform(config: *mut c_void, namedTransform: *mut c_void);
+    pub fn ocio_config_remove_named_transform(config: *mut c_void, name: *const i8);
+
+    // --- Config: view transforms ---
+    pub fn ocio_config_get_num_view_transforms(config: *mut c_void) -> i32;
+    pub fn ocio_config_get_view_transform_name_by_index(config: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_config_get_view_transform(config: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_config_add_view_transform(config: *mut c_void, viewTransform: *mut c_void);
+    pub fn ocio_config_remove_view_transform(config: *mut c_void, name: *const i8);
+
+    // --- ColorSpace: aliases ---
+    pub fn ocio_color_space_get_num_aliases(colorSpace: *mut c_void) -> i32;
+    pub fn ocio_color_space_get_alias(colorSpace: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_color_space_add_alias(colorSpace: *mut c_void, alias: *const i8);
+    pub fn ocio_color_space_remove_alias(colorSpace: *mut c_void, alias: *const i8);
+    pub fn ocio_color_space_clear_aliases(colorSpace: *mut c_void);
+
+    // --- ColorSpace: inactive ---
+    pub fn ocio_color_space_is_inactive(colorSpace: *mut c_void) -> bool;
+    pub fn ocio_color_space_set_inactive(colorSpace: *mut c_void, inactive: bool);
+
+    // --- Look: aliases ---
+    pub fn ocio_look_get_num_aliases(look: *mut c_void) -> i32;
+    pub fn ocio_look_get_alias(look: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_look_add_alias(look: *mut c_void, alias: *const i8);
+    pub fn ocio_look_remove_alias(look: *mut c_void, alias: *const i8);
+    pub fn ocio_look_clear_aliases(look: *mut c_void);
+
+    // --- Look: inactive ---
+    pub fn ocio_look_is_inactive(look: *mut c_void) -> bool;
+    pub fn ocio_look_set_inactive(look: *mut c_void, inactive: bool);
+
+    // --- NamedTransform: aliases ---
+    pub fn ocio_named_transform_get_num_aliases(namedTransform: *mut c_void) -> i32;
+    pub fn ocio_named_transform_get_alias(namedTransform: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_named_transform_add_alias(namedTransform: *mut c_void, alias: *const i8);
+    pub fn ocio_named_transform_remove_alias(namedTransform: *mut c_void, alias: *const i8);
+    pub fn ocio_named_transform_clear_aliases(namedTransform: *mut c_void);
+
+    // --- NamedTransform: inactive & category ---
+    pub fn ocio_named_transform_is_inactive(namedTransform: *mut c_void) -> bool;
+    pub fn ocio_named_transform_set_inactive(namedTransform: *mut c_void, inactive: bool);
+    pub fn ocio_named_transform_get_category(namedTransform: *mut c_void) -> *const i8;
+    pub fn ocio_named_transform_set_category(namedTransform: *mut c_void, category: *const i8);
+
+    // --- ViewTransform: aliases ---
+    pub fn ocio_view_transform_get_num_aliases(viewTransform: *mut c_void) -> i32;
+    pub fn ocio_view_transform_get_alias(viewTransform: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_view_transform_add_alias(viewTransform: *mut c_void, alias: *const i8);
+    pub fn ocio_view_transform_remove_alias(viewTransform: *mut c_void, alias: *const i8);
+    pub fn ocio_view_transform_clear_aliases(viewTransform: *mut c_void);
+
+    // --- ViewTransform: inactive, category, description ---
+    pub fn ocio_view_transform_is_inactive(viewTransform: *mut c_void) -> bool;
+    pub fn ocio_view_transform_set_inactive(viewTransform: *mut c_void, inactive: bool);
+    pub fn ocio_view_transform_get_category(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_category(viewTransform: *mut c_void, category: *const i8);
+    pub fn ocio_view_transform_get_description(viewTransform: *mut c_void) -> *const i8;
+    pub fn ocio_view_transform_set_description(viewTransform: *mut c_void, description: *const i8);
+
+    // --- ViewTransform: editable copy ---
+    pub fn ocio_view_transform_create_editable_copy(viewTransform: *mut c_void) -> *mut c_void;
 }

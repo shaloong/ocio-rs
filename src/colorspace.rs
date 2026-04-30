@@ -92,6 +92,16 @@ impl ColorSpace {
         unsafe { ocio_sys::ocio_color_space_set_is_data(self.handle.as_ptr(), is_data) };
     }
 
+    pub fn category(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_category(self.handle.as_ptr())) }
+    }
+
+    pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe { ocio_sys::ocio_color_space_set_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        Ok(())
+    }
+
     pub fn allocation(&self) -> Allocation {
         let a = unsafe { ocio_sys::ocio_color_space_get_allocation(self.handle.as_ptr()) };
         match a {
@@ -157,6 +167,38 @@ impl ColorSpace {
             );
         }
     }
+
+    pub fn num_aliases(&self) -> i32 {
+        unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) }
+    }
+
+    pub fn alias(&self, index: i32) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_alias(self.handle.as_ptr(), index)) }
+    }
+
+    pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_color_space_add_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
+        let a = cstring(alias)?;
+        unsafe { ocio_sys::ocio_color_space_remove_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn clear_aliases(&self) {
+        unsafe { ocio_sys::ocio_color_space_clear_aliases(self.handle.as_ptr()) };
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        unsafe { ocio_sys::ocio_color_space_is_inactive(self.handle.as_ptr()) }
+    }
+
+    pub fn set_inactive(&self, inactive: bool) {
+        unsafe { ocio_sys::ocio_color_space_set_inactive(self.handle.as_ptr(), inactive) };
+    }
 }
 
 impl Drop for ColorSpace {
@@ -213,5 +255,22 @@ mod tests {
         let cs = ColorSpace::create().unwrap();
         let ft = crate::transform::FileTransform::create().unwrap();
         cs.set_transform(&ft, ColorSpaceDirection::ToReference);
+    }
+
+    #[test]
+    fn aliases_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let _ = cs.num_aliases();
+        let _ = cs.alias(0);
+        assert!(cs.add_alias("test_alias").is_ok());
+        assert!(cs.remove_alias("test_alias").is_ok());
+        cs.clear_aliases();
+    }
+
+    #[test]
+    fn inactive_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let _ = cs.is_inactive();
+        cs.set_inactive(true);
     }
 }

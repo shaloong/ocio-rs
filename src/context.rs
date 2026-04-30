@@ -5,7 +5,7 @@ use ocio_sys;
 use crate::{cstr_to_opt_string, cstring, OcioError, Result, EnvironmentMode};
 
 pub struct Context {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 
 impl Context {

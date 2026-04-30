@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Processor, ColorSpace, Look, Result, TransformDirection, ReferenceSpaceType};
+use crate::{cstr_to_opt_string, cstring, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -161,6 +161,10 @@ impl Config {
         coefs
     }
 
+    pub fn set_default_luma_coefs(&self, coefs: &[f64; 3]) {
+        unsafe { ocio_sys::ocio_config_set_default_luma_coefs(self.handle.as_ptr(), coefs.as_ptr()) };
+    }
+
     // --- Roles ---
 
     pub fn num_roles(&self) -> i32 {
@@ -203,6 +207,40 @@ impl Config {
 
     pub fn active_views(&self) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_active_views(self.handle.as_ptr())) }
+    }
+
+    pub fn set_active_displays(&self, displays: impl AsRef<str>) -> Result<()> {
+        let d = cstring(displays)?;
+        unsafe { ocio_sys::ocio_config_set_active_displays(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn set_active_views(&self, views: impl AsRef<str>) -> Result<()> {
+        let v = cstring(views)?;
+        unsafe { ocio_sys::ocio_config_set_active_views(self.handle.as_ptr(), v.as_ptr().cast()) };
+        Ok(())
+    }
+
+    // --- Display/view transform name queries ---
+
+    pub fn display_view_transform_name(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Option<String> {
+        let display = cstring(display).ok()?;
+        let view = cstring(view).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_transform_name(
+                self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
+            ))
+        }
+    }
+
+    pub fn display_view_color_space_name(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Option<String> {
+        let display = cstring(display).ok()?;
+        let view = cstring(view).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_color_space_name(
+                self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
+            ))
+        }
     }
 
     // --- Processors ---
@@ -313,6 +351,141 @@ impl Config {
         }
     }
 
+    // --- Clear collections ---
+
+    pub fn clear_color_spaces(&self) {
+        unsafe { ocio_sys::ocio_config_clear_color_spaces(self.handle.as_ptr()) };
+    }
+
+    pub fn clear_looks(&self) {
+        unsafe { ocio_sys::ocio_config_clear_looks(self.handle.as_ptr()) };
+    }
+
+    // --- Display/view management ---
+
+    pub fn add_display(&self, display: impl AsRef<str>, view: impl AsRef<str>, transform_name: impl AsRef<str>, rule: impl AsRef<str>) -> Result<()> {
+        let display = cstring(display)?;
+        let view = cstring(view)?;
+        let transform_name = cstring(transform_name)?;
+        let rule = cstring(rule)?;
+        unsafe {
+            ocio_sys::ocio_config_add_display(
+                self.handle.as_ptr(),
+                display.as_ptr().cast(),
+                view.as_ptr().cast(),
+                transform_name.as_ptr().cast(),
+                rule.as_ptr().cast(),
+            );
+        }
+        Ok(())
+    }
+
+    pub fn add_shared_view(&self, display: impl AsRef<str>, view: impl AsRef<str>, transform_name: impl AsRef<str>, rule: impl AsRef<str>) -> Result<()> {
+        let display = cstring(display)?;
+        let view = cstring(view)?;
+        let transform_name = cstring(transform_name)?;
+        let rule = cstring(rule)?;
+        unsafe {
+            ocio_sys::ocio_config_add_shared_view(
+                self.handle.as_ptr(),
+                display.as_ptr().cast(),
+                view.as_ptr().cast(),
+                transform_name.as_ptr().cast(),
+                rule.as_ptr().cast(),
+            );
+        }
+        Ok(())
+    }
+
+    pub fn remove_display(&self, display: impl AsRef<str>) -> Result<()> {
+        let d = cstring(display)?;
+        unsafe { ocio_sys::ocio_config_remove_display(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn remove_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Result<()> {
+        let display = cstring(display)?;
+        let view = cstring(view)?;
+        unsafe {
+            ocio_sys::ocio_config_remove_view(
+                self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
+            );
+        }
+        Ok(())
+    }
+
+    // --- Named transforms ---
+
+    pub fn num_named_transforms(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_named_transforms(self.handle.as_ptr()) }
+    }
+
+    pub fn named_transform_name_by_index(&self, index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_named_transform_name_by_index(
+                self.handle.as_ptr(), index,
+            ))
+        }
+    }
+
+    pub fn get_named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
+        let n = cstring(name).ok()?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_named_transform(self.handle.as_ptr(), n.as_ptr().cast())
+        };
+        NonNull::new(handle).map(|h| NamedTransform { handle: h })
+    }
+
+    pub fn add_named_transform(&self, named_transform: &NamedTransform) {
+        unsafe {
+            ocio_sys::ocio_config_add_named_transform(self.handle.as_ptr(), named_transform.handle.as_ptr());
+        }
+    }
+
+    pub fn remove_named_transform(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_config_remove_named_transform(self.handle.as_ptr(), n.as_ptr().cast());
+        }
+        Ok(())
+    }
+
+    // --- View transforms ---
+
+    pub fn num_view_transforms(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_view_transforms(self.handle.as_ptr()) }
+    }
+
+    pub fn view_transform_name_by_index(&self, index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_config_get_view_transform_name_by_index(
+                self.handle.as_ptr(), index,
+            ))
+        }
+    }
+
+    pub fn get_view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
+        let n = cstring(name).ok()?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_view_transform(self.handle.as_ptr(), n.as_ptr().cast())
+        };
+        NonNull::new(handle).map(|h| ViewTransform { handle: h })
+    }
+
+    pub fn add_view_transform(&self, view_transform: &ViewTransform) {
+        unsafe {
+            ocio_sys::ocio_config_add_view_transform(self.handle.as_ptr(), view_transform.handle.as_ptr());
+        }
+    }
+
+    pub fn remove_view_transform(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_config_remove_view_transform(self.handle.as_ptr(), n.as_ptr().cast());
+        }
+        Ok(())
+    }
+
     // --- Search paths ---
 
     pub fn search_path(&self) -> Option<String> {
@@ -376,6 +549,19 @@ impl Config {
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
+    // --- Context ---
+
+    pub fn current_context(&self) -> Option<Context> {
+        let handle = unsafe { ocio_sys::ocio_config_get_current_context(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| Context { handle: h })
+    }
+
+    pub fn set_current_context(&self, context: &Context) {
+        unsafe {
+            ocio_sys::ocio_config_set_current_context(self.handle.as_ptr(), context.handle.as_ptr());
+        }
     }
 }
 
@@ -561,5 +747,73 @@ mod tests {
             let cfg = Config::from_file("tests/missing_config.ocio");
             assert!(cfg.is_err());
         }
+    }
+
+    #[test]
+    fn set_active_displays_views_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.set_active_displays("sRGB").is_ok());
+        assert!(config.set_active_views("Film,Log").is_ok());
+    }
+
+    #[test]
+    fn display_view_transform_name_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.display_view_transform_name("sRGB", "Film");
+        let _ = config.display_view_color_space_name("sRGB", "Film");
+    }
+
+    #[test]
+    fn set_default_luma_coefs_no_crash() {
+        let config = Config::raw().unwrap();
+        config.set_default_luma_coefs(&[0.2126, 0.7152, 0.0722]);
+    }
+
+    #[test]
+    fn clear_color_spaces_looks_no_crash() {
+        let config = Config::raw().unwrap();
+        config.clear_color_spaces();
+        config.clear_looks();
+    }
+
+    #[test]
+    fn display_management_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.add_display("sRGB", "Film", "DisplayTransform", "srgb").is_ok());
+        assert!(config.add_shared_view("sRGB", "SharedView", "TransformName", "srgb").is_ok());
+        assert!(config.remove_view("sRGB", "Film").is_ok());
+        assert!(config.remove_display("sRGB").is_ok());
+    }
+
+    #[test]
+    fn named_transforms_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.num_named_transforms();
+        let _ = config.named_transform_name_by_index(0);
+        let _ = config.get_named_transform("Default");
+    }
+
+    #[test]
+    fn add_remove_named_transform_no_crash() {
+        let config = Config::raw().unwrap();
+        let nt = NamedTransform::create().unwrap();
+        config.add_named_transform(&nt);
+        assert!(config.remove_named_transform("MyNamedTransform").is_ok());
+    }
+
+    #[test]
+    fn view_transforms_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.num_view_transforms();
+        let _ = config.view_transform_name_by_index(0);
+        let _ = config.get_view_transform("Default");
+    }
+
+    #[test]
+    fn add_remove_view_transform_no_crash() {
+        let config = Config::raw().unwrap();
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        config.add_view_transform(&vt);
+        assert!(config.remove_view_transform("MyViewTransform").is_ok());
     }
 }

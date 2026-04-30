@@ -224,6 +224,11 @@ impl GpuShaderDesc {
             1 => GpuLanguage::Glsl1_2,
             2 => GpuLanguage::Glsl1_3,
             3 => GpuLanguage::Glsl4_0,
+            4 => GpuLanguage::GlslVk4_6,
+            5 => GpuLanguage::HlslSm5_0,
+            6 => GpuLanguage::Osl1,
+            7 => GpuLanguage::GlslEs1_0,
+            8 => GpuLanguage::GlslEs3_0,
             9 => GpuLanguage::Msl2_0,
             _ => GpuLanguage::Glsl1_2,
         }
@@ -277,6 +282,27 @@ impl GpuShaderDesc {
         Ok(())
     }
 
+    pub fn texture_values(&self, index: u32) -> &[f32] {
+        let info = self.texture_info(index);
+        let len = info.map_or(0, |ti| {
+            let dim = ti.width.max(ti.height);
+            let pixel_count = match ti.dimensions {
+                1 => dim as usize,
+                2 => (dim as usize) * (dim as usize),
+                3 | _ => (dim as usize) * (dim as usize) * (dim as usize),
+            };
+            pixel_count * (ti.channel as usize).max(1)
+        });
+        unsafe {
+            let ptr = ocio_sys::ocio_gpu_shader_desc_get_texture_values(self.handle.as_ptr(), index);
+            if ptr.is_null() || len == 0 {
+                &[]
+            } else {
+                std::slice::from_raw_parts(ptr, len)
+            }
+        }
+    }
+
     pub fn finalize(&self) {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr());
@@ -316,6 +342,7 @@ impl DynamicProperty {
             3 => DynamicPropertyType::GradingPrimary,
             4 => DynamicPropertyType::GradingRgbCurve,
             5 => DynamicPropertyType::GradingTone,
+            6 => DynamicPropertyType::GradingHueCurve,
             _ => DynamicPropertyType::Exposure,
         }
     }
