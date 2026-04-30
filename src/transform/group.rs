@@ -53,6 +53,14 @@ impl GroupTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn remove_transform(&self, index: usize) {
+        unsafe { ocio_sys::ocio_group_transform_remove_transform(self.handle.as_ptr(), index as u64) };
+    }
+
+    pub fn clear_transforms(&self) {
+        unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
+    }
 }
 
 impl Drop for GroupTransform {
@@ -126,5 +134,14 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let gt = GroupTransform::create().unwrap();
         let _ = gt.create_editable_copy();
+    }
+
+    #[test]
+    fn remove_clear_no_crash() {
+        let g = GroupTransform::create().unwrap();
+        let cdl = CDLTransform::create().unwrap();
+        g.append_transform(&cdl);
+        g.remove_transform(0);
+        g.clear_transforms();
     }
 }

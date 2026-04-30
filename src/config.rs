@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform};
+use crate::{cstr_to_opt_string, cstring, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -576,6 +576,55 @@ impl Config {
         }
     }
 
+    // --- Clear all ---
+
+    pub fn clear_all(&self) {
+        unsafe { ocio_sys::ocio_config_clear_all(self.handle.as_ptr()) };
+    }
+
+    // --- Version setters ---
+
+    pub fn set_major_version(&self, version: u32) {
+        unsafe { ocio_sys::ocio_config_set_major_version(self.handle.as_ptr(), version) };
+    }
+
+    pub fn set_minor_version(&self, version: u32) {
+        unsafe { ocio_sys::ocio_config_set_minor_version(self.handle.as_ptr(), version) };
+    }
+
+    // --- Default interpolation ---
+
+    pub fn default_interpolation(&self) -> Interpolation {
+        let i = unsafe { ocio_sys::ocio_config_get_default_interpolation(self.handle.as_ptr()) };
+        match i {
+            1 => Interpolation::Nearest,
+            2 => Interpolation::Linear,
+            3 => Interpolation::Tetrahedral,
+            4 => Interpolation::Cubic,
+            5 => Interpolation::Default,
+            6 => Interpolation::Best,
+            _ => Interpolation::Unknown,
+        }
+    }
+
+    pub fn set_default_interpolation(&self, interpolation: Interpolation) {
+        unsafe {
+            ocio_sys::ocio_config_set_default_interpolation(self.handle.as_ptr(), interpolation as i32);
+        }
+    }
+
+    // --- Working directory ---
+
+    pub fn working_dir(&self) -> Option<String> {
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_working_dir(self.handle.as_ptr())) }
+    }
+
+    pub fn set_working_dir(&self, dir_name: impl AsRef<str>) -> Result<()> {
+        let d = cstring(dir_name)?;
+        unsafe { ocio_sys::ocio_config_set_working_dir(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
     // --- FileRules ---
 
     pub fn file_rules(&self) -> Result<FileRules> {
@@ -834,5 +883,32 @@ mod tests {
         let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
         config.add_view_transform(&vt);
         assert!(config.remove_view_transform("MyViewTransform").is_ok());
+    }
+
+    #[test]
+    fn clear_all_no_crash() {
+        let config = Config::raw().unwrap();
+        config.clear_all();
+    }
+
+    #[test]
+    fn version_setters_no_crash() {
+        let config = Config::raw().unwrap();
+        config.set_major_version(2);
+        config.set_minor_version(1);
+    }
+
+    #[test]
+    fn default_interpolation_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.default_interpolation();
+        config.set_default_interpolation(Interpolation::Linear);
+    }
+
+    #[test]
+    fn working_dir_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.working_dir();
+        assert!(config.set_working_dir("/path/to/working").is_ok());
     }
 }

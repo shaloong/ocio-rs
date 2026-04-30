@@ -71,6 +71,26 @@ impl Lut3DTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn grid_size(&self) -> u64 {
+        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size(self.handle.as_ptr()) }
+    }
+
+    pub fn set_grid_size(&self, size: u64) {
+        unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size(self.handle.as_ptr(), size) };
+    }
+
+    pub fn values(&self) -> Vec<f64> {
+        let gs = self.grid_size() as usize;
+        let len = gs.max(1);
+        let mut data = vec![0.0f64; len * len * len * 3];
+        unsafe { ocio_sys::ocio_lut3d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr()) };
+        data
+    }
+
+    pub fn set_values(&self, data: &[f64]) {
+        unsafe { ocio_sys::ocio_lut3d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+    }
 }
 
 impl Drop for Lut3DTransform {
@@ -114,5 +134,14 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let lt = Lut3DTransform::create().unwrap();
         let _ = lt.create_editable_copy();
+    }
+
+    #[test]
+    fn values_no_crash() {
+        let t = Lut3DTransform::create().unwrap();
+        let _ = t.grid_size();
+        t.set_grid_size(10);
+        let v = t.values();
+        t.set_values(&v);
     }
 }

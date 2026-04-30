@@ -730,4 +730,52 @@ void ocio_file_rules_destroy(void* handle);
 // --- Config: FileRules ---
 void* ocio_config_get_file_rules(void* config);
 
+// --- Lut1DTransform: data ---
+unsigned long long ocio_lut1d_transform_get_length(void* transform);
+void ocio_lut1d_transform_get_values(void* transform, double* data);
+void ocio_lut1d_transform_set_length(void* transform, unsigned long long len);
+void ocio_lut1d_transform_set_values(void* transform, const double* data);
+
+// --- Lut3DTransform: data ---
+unsigned long long ocio_lut3d_transform_get_grid_size(void* transform);
+void ocio_lut3d_transform_get_values(void* transform, double* data);
+void ocio_lut3d_transform_set_grid_size(void* transform, unsigned long long size);
+void ocio_lut3d_transform_set_values(void* transform, const double* data);
+
+// --- GroupTransform: remove/clear ---
+void ocio_group_transform_remove_transform(void* transform, unsigned long long index);
+void ocio_group_transform_clear_transforms(void* transform);
+
+// --- Config: clear all, version setters, interpolation, working dir ---
+void ocio_config_clear_all(void* config);
+void ocio_config_set_major_version(void* config, unsigned int version);
+void ocio_config_set_minor_version(void* config, unsigned int version);
+int ocio_config_get_default_interpolation(void* config);
+void ocio_config_set_default_interpolation(void* config, int interpolation);
+const char* ocio_config_get_working_dir(void* config);
+void ocio_config_set_working_dir(void* config, const char* dirName);
+
+// --- ColorSpace: visibility + set_reference_space_type ---
+int ocio_color_space_get_visibility(void* colorSpace);
+void ocio_color_space_set_visibility(void* colorSpace, int visibility);
+void ocio_color_space_set_reference_space_type(void* colorSpace, int referenceSpace);
+
+// --- LookTransform: skip color space conversion ---
+bool ocio_look_transform_get_skip_color_space_conversion(void* transform);
+void ocio_look_transform_set_skip_color_space_conversion(void* transform, bool skip);
+
+// --- Global: processor cache flags ---
+int ocio_get_processor_cache_flags(void);
+void ocio_set_processor_cache_flags(int flags);
+
+// --- CPUProcessor: batch pixel processing ---
+void ocio_cpu_processor_apply_rgba_pixels(void* cpu_processor, float* rgba, long numPixels, long stride);
+void ocio_cpu_processor_apply_rgb_pixels(void* cpu_processor, float* rgb, long numPixels, long stride);
+
+// --- Processor: batch pixel processing ---
+void ocio_processor_apply_rgba_pixels(void* processor, float* rgba, long numPixels, long stride);
+
+// --- Baker: format metadata ---
+void* ocio_baker_get_format_metadata(void* baker);
+
 }

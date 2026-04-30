@@ -8584,4 +8584,345 @@ void* ocio_config_get_file_rules(void* config) {
 #endif
 }
 
+// --- Lut1DTransform: data ---
+
+unsigned long long ocio_lut1d_transform_get_length(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    return static_cast<unsigned long long>(t->getLength());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_get_values(void* transform, double* data) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)data;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->getValues(data);
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut1d_transform_set_length(void* transform, unsigned long long len) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)len;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setLength(static_cast<unsigned long>(len));
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut1d_transform_set_values(void* transform, const double* data) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)data;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut1DTransform>(h->inner)->transform;
+    t->setValues(data);
+  } catch (...) {}
+#endif
+}
+
+// --- Lut3DTransform: data ---
+
+unsigned long long ocio_lut3d_transform_get_grid_size(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    return static_cast<unsigned long long>(t->getGridSize());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut3d_transform_get_values(void* transform, double* data) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)data;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->getValues(data);
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut3d_transform_set_grid_size(void* transform, unsigned long long size) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)size;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->setGridSize(static_cast<unsigned long>(size));
+  } catch (...) {}
+#endif
+}
+
+void ocio_lut3d_transform_set_values(void* transform, const double* data) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)data;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(transform);
+    auto t = std::static_pointer_cast<ocio_rs_bridge::RealLut3DTransform>(h->inner)->transform;
+    t->setValues(data);
+  } catch (...) {}
+#endif
+}
+
+// --- GroupTransform: remove/clear ---
+
+void ocio_group_transform_remove_transform(void* transform, unsigned long long index) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)index;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto group = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner);
+    group->transform->removeTransform(static_cast<size_t>(index));
+  } catch (...) {}
+#endif
+}
+
+void ocio_group_transform_clear_transforms(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto group = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(h->inner);
+    group->transform->clearTransforms();
+  } catch (...) {}
+#endif
+}
+
+// --- Config: clear all, version setters, interpolation, working dir ---
+
+void ocio_config_clear_all(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->clearAll();
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_set_major_version(void* config, unsigned int version) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)version;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setMajorVersion(version);
+  } catch (...) {}
+#endif
+}
+
+void ocio_config_set_minor_version(void* config, unsigned int version) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)version;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setMinorVersion(version);
+  } catch (...) {}
+#endif
+}
+
+int ocio_config_get_default_interpolation(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return 0;
+#else
+  try {
+    return static_cast<int>(ocio_rs_bridge::get_real_config(config)->getDefaultInterpolation());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_config_set_default_interpolation(void* config, int interpolation) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)interpolation;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setDefaultInterpolation(
+        static_cast<ocio::Interpolation>(interpolation));
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_config_get_working_dir(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return nullptr;
+#else
+  try {
+    thread_local std::string cached;
+    cached = ocio_rs_bridge::get_real_config(config)->getWorkingDir();
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_config_set_working_dir(void* config, const char* dirName) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)dirName;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(config)->setWorkingDir(dirName);
+  } catch (...) {}
+#endif
+}
+
+// --- ColorSpace: visibility + set_reference_space_type ---
+
+int ocio_color_space_get_visibility(void* colorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)colorSpace; return 0;
+#else
+  try {
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(
+        static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace)->inner);
+    return static_cast<int>(real->colorSpace->getVisibility());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_color_space_set_visibility(void* colorSpace, int visibility) {
+#ifdef OCIO_RS_STUB
+  (void)colorSpace; (void)visibility;
+#else
+  try {
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(
+        static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace)->inner);
+    real->colorSpace->setVisibility(static_cast<ocio::ColorSpaceVisibility>(visibility));
+  } catch (...) {}
+#endif
+}
+
+void ocio_color_space_set_reference_space_type(void* colorSpace, int referenceSpace) {
+#ifdef OCIO_RS_STUB
+  (void)colorSpace; (void)referenceSpace;
+#else
+  try {
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(
+        static_cast<ocio_rs_bridge::ColorSpaceHandle*>(colorSpace)->inner);
+    real->colorSpace->setReferenceSpaceType(static_cast<ocio::ReferenceSpaceType>(referenceSpace));
+  } catch (...) {}
+#endif
+}
+
+// --- LookTransform: skip color space conversion ---
+
+bool ocio_look_transform_get_skip_color_space_conversion(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(h->inner);
+    return real->transform->getSkipColorSpaceConversion();
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_look_transform_set_skip_color_space_conversion(void* transform, bool skip) {
+#ifdef OCIO_RS_STUB
+  (void)transform; (void)skip;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::LookTransformHandle*>(transform);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealLookTransform>(h->inner);
+    real->transform->setSkipColorSpaceConversion(skip);
+  } catch (...) {}
+#endif
+}
+
+// --- Global: processor cache flags ---
+
+int ocio_get_processor_cache_flags(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    return static_cast<int>(ocio::GetProcessorCacheFlags());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_set_processor_cache_flags(int flags) {
+#ifdef OCIO_RS_STUB
+  (void)flags;
+#else
+  try {
+    ocio::SetProcessorCacheFlags(static_cast<unsigned int>(flags));
+  } catch (...) {}
+#endif
+}
+
+// --- CPUProcessor: batch pixel processing ---
+
+void ocio_cpu_processor_apply_rgba_pixels(void* cpu_processor, float* rgba, long numPixels, long stride) {
+#ifdef OCIO_RS_STUB
+  (void)cpu_processor; (void)rgba; (void)numPixels; (void)stride;
+#else
+  try {
+    ocio_rs_bridge::get_real_cpu_processor(cpu_processor)->applyRGBA(rgba, numPixels, stride);
+  } catch (...) {}
+#endif
+}
+
+void ocio_cpu_processor_apply_rgb_pixels(void* cpu_processor, float* rgb, long numPixels, long stride) {
+#ifdef OCIO_RS_STUB
+  (void)cpu_processor; (void)rgb; (void)numPixels; (void)stride;
+#else
+  try {
+    ocio_rs_bridge::get_real_cpu_processor(cpu_processor)->applyRGB(rgb, numPixels, stride);
+  } catch (...) {}
+#endif
+}
+
+// --- Processor: batch pixel processing ---
+
+void ocio_processor_apply_rgba_pixels(void* processor, float* rgba, long numPixels, long stride) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)rgba; (void)numPixels; (void)stride;
+#else
+  try {
+    auto proc = ocio_rs_bridge::get_real_processor(processor);
+    auto cpu = proc->getDefaultCPUProcessor();
+    cpu->applyRGBA(rgba, numPixels, stride);
+  } catch (...) {}
+#endif
+}
+
+// --- Baker: format metadata ---
+
+void* ocio_baker_get_format_metadata(void* baker) {
+#ifdef OCIO_RS_STUB
+  (void)baker; return nullptr;
+#else
+  try {
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealBaker>(
+        static_cast<ocio_rs_bridge::BakerHandle*>(baker)->inner);
+    auto metadata = real->baker->getFormatMetadata();
+    if (!metadata) return nullptr;
+    // Return raw pointer - caller should not manage lifetime
+    // This is a ConstFormatMetadataRcPtr, we just cast it
+    return const_cast<void*>(static_cast<const void*>(metadata.get()));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 }  // extern "C"

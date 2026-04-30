@@ -59,6 +59,16 @@ impl LookTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn skip_color_space_conversion(&self) -> bool {
+        unsafe { ocio_sys::ocio_look_transform_get_skip_color_space_conversion(self.handle.as_ptr()) }
+    }
+
+    pub fn set_skip_color_space_conversion(&self, skip: bool) {
+        unsafe {
+            ocio_sys::ocio_look_transform_set_skip_color_space_conversion(self.handle.as_ptr(), skip);
+        }
+    }
 }
 
 impl Drop for LookTransform {
@@ -105,5 +115,13 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = LookTransform::create().unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn skip_cs_conversion_no_crash() {
+        let t = LookTransform::create().unwrap();
+        let _ = t.skip_color_space_conversion();
+        t.set_skip_color_space_conversion(true);
+        t.set_skip_color_space_conversion(false);
     }
 }

@@ -17,6 +17,12 @@ impl Processor {
         Ok(())
     }
 
+    pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
+        unsafe {
+            ocio_sys::ocio_processor_apply_rgba_pixels(self.handle.as_ptr(), rgba.as_mut_ptr(), num_pixels, stride);
+        }
+    }
+
     pub fn is_no_op(&self) -> bool {
         unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr()) }
     }
@@ -95,6 +101,18 @@ impl CPUProcessor {
     pub fn apply_rgb(&self, rgb: &mut [f32; 3]) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb(self.handle.as_ptr(), rgb.as_mut_ptr());
+        }
+    }
+
+    pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_rgba_pixels(self.handle.as_ptr(), rgba.as_mut_ptr(), num_pixels, stride);
+        }
+    }
+
+    pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_rgb_pixels(self.handle.as_ptr(), rgb.as_mut_ptr(), num_pixels, stride);
         }
     }
 
@@ -453,6 +471,26 @@ mod tests {
             let _ = dp.property_type();
             let _ = dp.double_value();
             dp.set_double_value(1.5);
+        }
+    }
+
+    #[test]
+    fn processor_apply_rgba_pixels_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        let mut pixels = vec![0.0f32; 16]; // 4 pixels RGBA
+        proc.apply_rgba_pixels(&mut pixels, 4, 4);
+    }
+
+    #[test]
+    fn cpu_processor_apply_pixels_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(cpu) = proc.default_cpu_processor() {
+            let mut rgba = vec![0.0f32; 16]; // 4 pixels RGBA
+            cpu.apply_rgba_pixels(&mut rgba, 4, 4);
+            let mut rgb = vec![0.0f32; 12]; // 4 pixels RGB
+            cpu.apply_rgb_pixels(&mut rgb, 4, 3);
         }
     }
 }

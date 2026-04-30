@@ -120,6 +120,10 @@ impl Baker {
         unsafe { ocio_sys::ocio_baker_bake(self.handle.as_ptr(), path.as_ptr().cast()) };
         Ok(())
     }
+
+    pub fn format_metadata(&self) -> *mut c_void {
+        unsafe { ocio_sys::ocio_baker_get_format_metadata(self.handle.as_ptr()) }
+    }
 }
 
 impl Drop for Baker {
@@ -146,5 +150,11 @@ mod tests {
         let _ = baker.target_space();
         let _ = baker.shaper_size();
         let _ = baker.cube_size();
+    }
+
+    #[test]
+    fn format_metadata_no_crash() {
+        let baker = Baker::create().unwrap();
+        let _ = baker.format_metadata();
     }
 }

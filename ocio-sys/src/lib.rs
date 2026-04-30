@@ -777,4 +777,52 @@ unsafe extern "C" {
 
     // --- Config: FileRules ---
     pub fn ocio_config_get_file_rules(config: *mut c_void) -> *mut c_void;
+
+    // --- Lut1DTransform: data ---
+    pub fn ocio_lut1d_transform_get_length(transform: *mut c_void) -> u64;
+    pub fn ocio_lut1d_transform_get_values(transform: *mut c_void, data: *mut f64);
+    pub fn ocio_lut1d_transform_set_length(transform: *mut c_void, len: u64);
+    pub fn ocio_lut1d_transform_set_values(transform: *mut c_void, data: *const f64);
+
+    // --- Lut3DTransform: data ---
+    pub fn ocio_lut3d_transform_get_grid_size(transform: *mut c_void) -> u64;
+    pub fn ocio_lut3d_transform_get_values(transform: *mut c_void, data: *mut f64);
+    pub fn ocio_lut3d_transform_set_grid_size(transform: *mut c_void, size: u64);
+    pub fn ocio_lut3d_transform_set_values(transform: *mut c_void, data: *const f64);
+
+    // --- GroupTransform: remove/clear ---
+    pub fn ocio_group_transform_remove_transform(transform: *mut c_void, index: u64);
+    pub fn ocio_group_transform_clear_transforms(transform: *mut c_void);
+
+    // --- Config: clear all, version setters, interpolation, working dir ---
+    pub fn ocio_config_clear_all(config: *mut c_void);
+    pub fn ocio_config_set_major_version(config: *mut c_void, version: u32);
+    pub fn ocio_config_set_minor_version(config: *mut c_void, version: u32);
+    pub fn ocio_config_get_default_interpolation(config: *mut c_void) -> i32;
+    pub fn ocio_config_set_default_interpolation(config: *mut c_void, interpolation: i32);
+    pub fn ocio_config_get_working_dir(config: *mut c_void) -> *const i8;
+    pub fn ocio_config_set_working_dir(config: *mut c_void, dirName: *const i8);
+
+    // --- ColorSpace: visibility + set_reference_space_type ---
+    pub fn ocio_color_space_get_visibility(colorSpace: *mut c_void) -> i32;
+    pub fn ocio_color_space_set_visibility(colorSpace: *mut c_void, visibility: i32);
+    pub fn ocio_color_space_set_reference_space_type(colorSpace: *mut c_void, referenceSpace: i32);
+
+    // --- LookTransform: skip color space conversion ---
+    pub fn ocio_look_transform_get_skip_color_space_conversion(transform: *mut c_void) -> bool;
+    pub fn ocio_look_transform_set_skip_color_space_conversion(transform: *mut c_void, skip: bool);
+
+    // --- Global: processor cache flags ---
+    pub fn ocio_get_processor_cache_flags() -> i32;
+    pub fn ocio_set_processor_cache_flags(flags: i32);
+
+    // --- CPUProcessor: batch pixel processing ---
+    pub fn ocio_cpu_processor_apply_rgba_pixels(cpu_processor: *mut c_void, rgba: *mut f32, numPixels: i64, stride: i64);
+    pub fn ocio_cpu_processor_apply_rgb_pixels(cpu_processor: *mut c_void, rgb: *mut f32, numPixels: i64, stride: i64);
+
+    // --- Processor: batch pixel processing ---
+    pub fn ocio_processor_apply_rgba_pixels(processor: *mut c_void, rgba: *mut f32, numPixels: i64, stride: i64);
+
+    // --- Baker: format metadata ---
+    pub fn ocio_baker_get_format_metadata(baker: *mut c_void) -> *mut c_void;
 }

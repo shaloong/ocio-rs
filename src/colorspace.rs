@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection};
+use crate::{cstr_to_opt_string, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection, ColorSpaceVisibility};
 use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct ColorSpace {
@@ -199,6 +199,25 @@ impl ColorSpace {
     pub fn set_inactive(&self, inactive: bool) {
         unsafe { ocio_sys::ocio_color_space_set_inactive(self.handle.as_ptr(), inactive) };
     }
+
+    pub fn visibility(&self) -> ColorSpaceVisibility {
+        let v = unsafe { ocio_sys::ocio_color_space_get_visibility(self.handle.as_ptr()) };
+        match v {
+            1 => ColorSpaceVisibility::Inactive,
+            2 => ColorSpaceVisibility::All,
+            _ => ColorSpaceVisibility::Active,
+        }
+    }
+
+    pub fn set_visibility(&self, visibility: ColorSpaceVisibility) {
+        unsafe { ocio_sys::ocio_color_space_set_visibility(self.handle.as_ptr(), visibility as i32) };
+    }
+
+    pub fn set_reference_space_type(&self, reference_space: ReferenceSpaceType) {
+        unsafe {
+            ocio_sys::ocio_color_space_set_reference_space_type(self.handle.as_ptr(), reference_space as i32);
+        }
+    }
 }
 
 impl Drop for ColorSpace {
@@ -272,5 +291,18 @@ mod tests {
         let cs = ColorSpace::create().unwrap();
         let _ = cs.is_inactive();
         cs.set_inactive(true);
+    }
+
+    #[test]
+    fn visibility_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        let _ = cs.visibility();
+        cs.set_visibility(ColorSpaceVisibility::Inactive);
+    }
+
+    #[test]
+    fn set_reference_space_type_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        cs.set_reference_space_type(ReferenceSpaceType::Display);
     }
 }

@@ -71,6 +71,25 @@ impl Lut1DTransform {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
+
+    pub fn length(&self) -> u64 {
+        unsafe { ocio_sys::ocio_lut1d_transform_get_length(self.handle.as_ptr()) }
+    }
+
+    pub fn set_length(&self, len: u64) {
+        unsafe { ocio_sys::ocio_lut1d_transform_set_length(self.handle.as_ptr(), len) };
+    }
+
+    pub fn values(&self) -> Vec<f64> {
+        let len = self.length() as usize;
+        let mut data = vec![0.0f64; len.max(1) * 3];
+        unsafe { ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr()) };
+        data
+    }
+
+    pub fn set_values(&self, data: &[f64]) {
+        unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+    }
 }
 
 impl Drop for Lut1DTransform {
@@ -114,5 +133,14 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let lt = Lut1DTransform::create().unwrap();
         let _ = lt.create_editable_copy();
+    }
+
+    #[test]
+    fn values_no_crash() {
+        let t = Lut1DTransform::create().unwrap();
+        let _ = t.length();
+        t.set_length(32);
+        let v = t.values();
+        t.set_values(&v);
     }
 }

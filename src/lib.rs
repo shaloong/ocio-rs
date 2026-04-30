@@ -92,6 +92,20 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
     unsafe { ocio_sys::ocio_set_logging_level_to_override(level as i32) };
 }
 
+pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
+    let flags = unsafe { ocio_sys::ocio_get_processor_cache_flags() };
+    match flags {
+        0 => crate::ProcessorCacheFlags::Off,
+        1 => crate::ProcessorCacheFlags::Enabled,
+        2 => crate::ProcessorCacheFlags::ShareDynProperties,
+        _ => crate::ProcessorCacheFlags::Off,
+    }
+}
+
+pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
+    unsafe { ocio_sys::ocio_set_processor_cache_flags(flags as i32) };
+}
+
 pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {
     CString::new(value.as_ref()).map_err(|_| OcioError::InteriorNul)
 }
@@ -101,5 +115,16 @@ pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
         None
     } else {
         Some(std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn processor_cache_flags_no_crash() {
+        let f = processor_cache_flags();
+        set_processor_cache_flags(f);
     }
 }
