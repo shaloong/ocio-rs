@@ -444,6 +444,50 @@ impl DynamicProperty {
     pub fn set_double_value(&self, value: f64) {
         unsafe { ocio_sys::ocio_dynamic_property_double_set_value(self.handle.as_ptr(), value) };
     }
+
+    pub fn grading_primary_value(&self) -> Option<crate::grading::GradingPrimary> {
+        if self.property_type() != DynamicPropertyType::GradingPrimary {
+            return None;
+        }
+        let mut values = [0.0f64; 34];
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_primary_get_value(
+                self.handle.as_ptr(), values.as_mut_ptr(),
+            );
+        }
+        Some(crate::grading::GradingPrimary::from_flat_array(&values))
+    }
+
+    pub fn set_grading_primary_value(&self, value: &crate::grading::GradingPrimary) {
+        let values = value.to_flat_array();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_primary_set_value(
+                self.handle.as_ptr(), values.as_ptr(),
+            );
+        }
+    }
+
+    pub fn grading_tone_value(&self) -> Option<crate::grading::GradingTone> {
+        if self.property_type() != DynamicPropertyType::GradingTone {
+            return None;
+        }
+        let mut values = [0.0f64; 31];
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_tone_get_value(
+                self.handle.as_ptr(), values.as_mut_ptr(),
+            );
+        }
+        Some(crate::grading::GradingTone::from_flat_array(&values))
+    }
+
+    pub fn set_grading_tone_value(&self, value: &crate::grading::GradingTone) {
+        let values = value.to_flat_array();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_tone_set_value(
+                self.handle.as_ptr(), values.as_ptr(),
+            );
+        }
+    }
 }
 
 impl Drop for DynamicProperty {
@@ -569,6 +613,28 @@ mod tests {
             let _ = dp.property_type();
             let _ = dp.double_value();
             dp.set_double_value(1.5);
+        }
+    }
+
+    #[test]
+    fn dynamic_property_grading_primary_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingPrimary) {
+            let _ = dp.grading_primary_value();
+            let v = crate::grading::GradingPrimary::new(crate::GradingStyle::Log);
+            dp.set_grading_primary_value(&v);
+        }
+    }
+
+    #[test]
+    fn dynamic_property_grading_tone_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingTone) {
+            let _ = dp.grading_tone_value();
+            let v = crate::grading::GradingTone::new(crate::GradingStyle::Log);
+            dp.set_grading_tone_value(&v);
         }
     }
 

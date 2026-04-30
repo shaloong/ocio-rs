@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, ColorSpaceSet, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
+use crate::{cstr_to_opt_string, cstring, ColorSpaceSet, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, SearchReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -338,12 +338,53 @@ impl Config {
         NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create a processor from two distinct configs (cross-config conversion).
+    /// This is a static method on Config in OCIO v2.
+    pub fn processor_from_configs(
+        src_config: &Config,
+        src_name: impl AsRef<str>,
+        dst_config: &Config,
+        dst_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        let src_name = cstring(src_name)?;
+        let dst_name = cstring(dst_name)?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_configs(
+                src_config.handle.as_ptr(),
+                src_name.as_ptr().cast(),
+                dst_config.handle.as_ptr(),
+                dst_name.as_ptr().cast(),
+            )
+        };
+        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
     pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
             ocio_sys::ocio_config_get_color_space(self.handle.as_ptr(), n.as_ptr().cast())
         };
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
+    }
+
+    pub fn color_space_by_ref_type(&self, name: impl AsRef<str>, ref_type: SearchReferenceSpaceType) -> Option<ColorSpace> {
+        let n = cstring(name).ok()?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_color_space_by_ref_type(
+                self.handle.as_ptr(), n.as_ptr().cast(), ref_type as i32,
+            )
+        };
+        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+    }
+
+    pub fn color_space_from_filepath_by_ref_type(&self, path: impl AsRef<str>, ref_type: SearchReferenceSpaceType) -> Result<ColorSpace> {
+        let fp = cstring(path)?;
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_color_space_from_filepath_by_ref_type(
+                self.handle.as_ptr(), fp.as_ptr().cast(), ref_type as i32,
+            )
+        };
+        NonNull::new(handle).map(|h| ColorSpace { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
@@ -667,12 +708,18 @@ impl Config {
     // --- ColorSpaceSet ---
 
     pub fn color_space_set<S: AsRef<str>>(&self, search: Option<S>) -> Result<ColorSpaceSet> {
-        let s = match search {
-            Some(ref s) => cstring(s.as_ref())?,
-            None => cstring("")?,
-        };
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_color_space_set(self.handle.as_ptr(), s.as_ptr().cast())
+        let handle = match search {
+            Some(ref s) => {
+                let s = cstring(s.as_ref())?;
+                unsafe {
+                    ocio_sys::ocio_config_get_color_space_set(self.handle.as_ptr(), s.as_ptr().cast())
+                }
+            }
+            None => {
+                unsafe {
+                    ocio_sys::ocio_config_get_color_space_set(self.handle.as_ptr(), std::ptr::null())
+                }
+            }
         };
         NonNull::new(handle).map(|h| ColorSpaceSet { handle: h }).ok_or(OcioError::AllocationFailed)
     }
@@ -1053,6 +1100,29 @@ mod tests {
     fn get_inactive_color_spaces_no_crash() {
         let config = Config::raw().unwrap();
         let _ = config.inactive_color_spaces();
+    }
+
+    #[test]
+    fn color_space_by_ref_type_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.color_space_by_ref_type("raw", SearchReferenceSpaceType::Scene);
+        let _ = config.color_space_by_ref_type("raw", SearchReferenceSpaceType::Display);
+        let _ = config.color_space_by_ref_type("raw", SearchReferenceSpaceType::All);
+    }
+
+    #[test]
+    fn color_space_from_filepath_by_ref_type_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.color_space_from_filepath_by_ref_type("test.jpg", SearchReferenceSpaceType::Scene);
+    }
+
+    #[test]
+    fn processor_from_configs_no_crash() {
+        let src_config = Config::raw().unwrap();
+        let dst_config = Config::raw().unwrap();
+        // In stub mode, this returns a stub processor (processed through get_processor_from_configs stub)
+        let proc = Config::processor_from_configs(&src_config, "raw", &dst_config, "raw");
+        let _ = proc;
     }
 
     #[test]

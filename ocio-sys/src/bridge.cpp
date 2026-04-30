@@ -1026,6 +1026,42 @@ const char* ocio_config_get_color_space_from_filepath(void* config, const char* 
 #endif
 }
 
+void* ocio_config_get_color_space_by_ref_type(void* config, const char* name, int refType) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)name; (void)refType;
+  return nullptr;
+#else
+  try {
+    auto cs = ocio_rs_bridge::get_real_config(config)->getColorSpace(
+        name, static_cast<ocio::SearchReferenceSpaceType>(refType));
+    if (!cs) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    auto wrapper = std::make_shared<ocio_rs_bridge::RealColorSpace>();
+    wrapper->colorSpace = cs->createEditableCopy();
+    handle->inner = wrapper;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_get_color_space_from_filepath_by_ref_type(void* config, const char* filePath, int refType) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)filePath; (void)refType;
+  return nullptr;
+#else
+  try {
+    auto cs = ocio_rs_bridge::get_real_config(config)->getColorSpaceFromFilepath(
+        filePath, static_cast<ocio::SearchReferenceSpaceType>(refType));
+    if (!cs) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    auto wrapper = std::make_shared<ocio_rs_bridge::RealColorSpace>();
+    wrapper->colorSpace = cs->createEditableCopy();
+    handle->inner = wrapper;
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 // --- Config: displays ---
 
 const char* ocio_config_get_default_display(void* config) {
@@ -1688,6 +1724,24 @@ void* ocio_config_get_processor_with_context(
     auto* ctx_handle = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto ocio_ctx = std::static_pointer_cast<ocio_rs_bridge::RealContext>(ctx_handle->inner)->context;
     auto processor = cfg->getProcessor(src, dst, ocio_ctx);
+    auto hdl = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    hdl->inner = std::make_shared<ocio_rs_bridge::RealProcessor>();
+    std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(hdl->inner)->processor = processor;
+    return hdl.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_get_processor_from_configs(
+    void* srcConfig, const char* srcName, void* dstConfig, const char* dstName) {
+#ifdef OCIO_RS_STUB
+  (void)srcConfig; (void)srcName; (void)dstConfig; (void)dstName;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto src = ocio_rs_bridge::get_real_config(srcConfig);
+    auto dst = ocio_rs_bridge::get_real_config(dstConfig);
+    auto processor = ocio::Config::GetProcessorFromConfigs(src, srcName, dst, dstName);
     auto hdl = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     hdl->inner = std::make_shared<ocio_rs_bridge::RealProcessor>();
     std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(hdl->inner)->processor = processor;
@@ -6677,6 +6731,118 @@ void ocio_dynamic_property_double_set_value(void* prop, double value) {
 #endif
 }
 
+void ocio_dynamic_property_grading_primary_get_value(void* prop, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)values;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingPrimary>(real->prop);
+  if (typed && values) {
+    auto& g = typed->getValue();
+    int off = 0;
+    auto write_rgbm = [&](const ocio::GradingRGBM& c) {
+      values[off++] = c.m_red; values[off++] = c.m_green;
+      values[off++] = c.m_blue; values[off++] = c.m_master;
+    };
+    write_rgbm(g.m_brightness); write_rgbm(g.m_contrast);
+    write_rgbm(g.m_gamma); write_rgbm(g.m_offset);
+    write_rgbm(g.m_exposure); write_rgbm(g.m_lift);
+    write_rgbm(g.m_gain);
+    values[off++] = g.m_saturation;
+    values[off++] = g.m_pivot;
+    values[off++] = g.m_pivotBlack;
+    values[off++] = g.m_pivotWhite;
+    values[off++] = g.m_clampBlack;
+    values[off++] = g.m_clampWhite;
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_primary_set_value(void* prop, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)values;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingPrimary>(real->prop);
+  if (typed && values) {
+    auto g = typed->getValue();
+    int off = 0;
+    auto read_rgbm = [&](ocio::GradingRGBM& c) {
+      c.m_red = values[off++]; c.m_green = values[off++];
+      c.m_blue = values[off++]; c.m_master = values[off++];
+    };
+    read_rgbm(g.m_brightness); read_rgbm(g.m_contrast);
+    read_rgbm(g.m_gamma); read_rgbm(g.m_offset);
+    read_rgbm(g.m_exposure); read_rgbm(g.m_lift);
+    read_rgbm(g.m_gain);
+    g.m_saturation = values[off++];
+    g.m_pivot = values[off++];
+    g.m_pivotBlack = values[off++];
+    g.m_pivotWhite = values[off++];
+    g.m_clampBlack = values[off++];
+    g.m_clampWhite = values[off++];
+    typed->setValue(g);
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_tone_get_value(void* prop, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)values;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingTone>(real->prop);
+  if (typed && values) {
+    auto& g = typed->getValue();
+    int off = 0;
+    auto write_rgbmsw = [&](const ocio::GradingRGBMSW& c) {
+      values[off++] = c.m_red; values[off++] = c.m_green;
+      values[off++] = c.m_blue; values[off++] = c.m_master;
+      values[off++] = c.m_start; values[off++] = c.m_width;
+    };
+    write_rgbmsw(g.m_blacks); write_rgbmsw(g.m_shadows);
+    write_rgbmsw(g.m_midtones); write_rgbmsw(g.m_highlights);
+    write_rgbmsw(g.m_whites);
+    values[off++] = g.m_scontrast;
+  }
+  END_TRY_VOID
+#endif
+}
+
+void ocio_dynamic_property_grading_tone_set_value(void* prop, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)prop; (void)values;
+#else
+  BEGIN_TRY
+  auto dp = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(prop);
+  auto real = std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(dp->inner);
+  auto typed = ocio::DynamicPtrCast<ocio::DynamicPropertyGradingTone>(real->prop);
+  if (typed && values) {
+    auto g = typed->getValue();
+    int off = 0;
+    auto read_rgbmsw = [&](ocio::GradingRGBMSW& c) {
+      c.m_red = values[off++]; c.m_green = values[off++];
+      c.m_blue = values[off++]; c.m_master = values[off++];
+      c.m_start = values[off++]; c.m_width = values[off++];
+    };
+    read_rgbmsw(g.m_blacks); read_rgbmsw(g.m_shadows);
+    read_rgbmsw(g.m_midtones); read_rgbmsw(g.m_highlights);
+    read_rgbmsw(g.m_whites);
+    g.m_scontrast = values[off++];
+    typed->setValue(g);
+  }
+  END_TRY_VOID
+#endif
+}
+
 void ocio_dynamic_property_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
 }
@@ -9465,7 +9631,7 @@ void* ocio_config_get_color_space_set(void* config, const char* search) {
 #else
   try {
     auto cfg = ocio_rs_bridge::get_real_config(config);
-    auto set = cfg->getColorSpaceSet(search ? search : "");
+    auto set = cfg->getColorSpaceSet(search);
     if (!set) return nullptr;
     auto* handle = new ocio_rs_bridge::ColorSpaceSetHandle;
     handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(

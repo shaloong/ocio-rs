@@ -52,6 +52,12 @@ unsafe extern "C" {
     pub fn ocio_config_get_color_space_from_filepath(
         config: *mut c_void, filePath: *const i8,
     ) -> *const i8;
+    pub fn ocio_config_get_color_space_by_ref_type(
+        config: *mut c_void, name: *const i8, refType: i32,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_color_space_from_filepath_by_ref_type(
+        config: *mut c_void, filePath: *const i8, refType: i32,
+    ) -> *mut c_void;
 
     // --- Config: displays ---
     pub fn ocio_config_get_default_display(config: *mut c_void) -> *const i8;
@@ -128,6 +134,9 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub fn ocio_config_get_processor_with_context(
         config: *mut c_void, src: *const i8, dst: *const i8, context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_processor_from_configs(
+        srcConfig: *mut c_void, srcName: *const i8, dstConfig: *mut c_void, dstName: *const i8,
     ) -> *mut c_void;
 
     // --- Config: ColorSpace object ---
@@ -517,6 +526,10 @@ unsafe extern "C" {
     pub fn ocio_dynamic_property_get_type(prop: *mut c_void) -> i32;
     pub fn ocio_dynamic_property_double_get_value(prop: *mut c_void) -> f64;
     pub fn ocio_dynamic_property_double_set_value(prop: *mut c_void, value: f64);
+    pub fn ocio_dynamic_property_grading_primary_get_value(prop: *mut c_void, values: *mut f64);
+    pub fn ocio_dynamic_property_grading_primary_set_value(prop: *mut c_void, values: *const f64);
+    pub fn ocio_dynamic_property_grading_tone_get_value(prop: *mut c_void, values: *mut f64);
+    pub fn ocio_dynamic_property_grading_tone_set_value(prop: *mut c_void, values: *const f64);
     pub fn ocio_dynamic_property_destroy(handle: *mut c_void);
 
     // --- ExposureContrastTransform ---

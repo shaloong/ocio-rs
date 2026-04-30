@@ -68,6 +68,8 @@ const char* ocio_config_get_color_space_name_by_index(void* config, int index);
 const char* ocio_config_get_canonical_name(void* config, const char* name);
 bool ocio_config_is_color_space_linear(void* config, const char* colorSpace, int referenceSpaceType);
 const char* ocio_config_get_color_space_from_filepath(void* config, const char* filePath);
+void* ocio_config_get_color_space_by_ref_type(void* config, const char* name, int refType);
+void* ocio_config_get_color_space_from_filepath_by_ref_type(void* config, const char* filePath, int refType);
 
 // Config: displays
 const char* ocio_config_get_default_display(void* config);
@@ -131,6 +133,8 @@ void* ocio_config_get_processor_display(
     void* config, const char* src, const char* display, const char* view, int direction);
 void* ocio_config_get_processor_with_context(
     void* config, const char* src, const char* dst, void* context);
+void* ocio_config_get_processor_from_configs(
+    void* srcConfig, const char* srcName, void* dstConfig, const char* dstName);
 
 // --- Processor ---
 void* ocio_processor_get_default_cpu_processor(void* processor);
@@ -502,6 +506,10 @@ void* ocio_processor_get_dynamic_property(void* processor, int propertyType);
 int ocio_dynamic_property_get_type(void* prop);
 double ocio_dynamic_property_double_get_value(void* prop);
 void ocio_dynamic_property_double_set_value(void* prop, double value);
+void ocio_dynamic_property_grading_primary_get_value(void* prop, double* values);
+void ocio_dynamic_property_grading_primary_set_value(void* prop, const double* values);
+void ocio_dynamic_property_grading_tone_get_value(void* prop, double* values);
+void ocio_dynamic_property_grading_tone_set_value(void* prop, const double* values);
 void ocio_dynamic_property_destroy(void* handle);
 
 // --- ExposureContrastTransform ---
