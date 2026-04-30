@@ -778,4 +778,41 @@ void ocio_processor_apply_rgba_pixels(void* processor, float* rgba, long numPixe
 // --- Baker: format metadata ---
 void* ocio_baker_get_format_metadata(void* baker);
 
+// --- ColorSpaceSet ---
+void* ocio_color_space_set_create(void);
+void* ocio_color_space_set_create_editable_copy(void* set);
+int ocio_color_space_set_get_num_color_spaces(void* set);
+const char* ocio_color_space_set_get_color_space_name_by_index(void* set, int index);
+void* ocio_color_space_set_get_color_space_by_index(void* set, int index);
+void* ocio_color_space_set_get_color_space(void* set, const char* name);
+int ocio_color_space_set_get_color_space_index(void* set, const char* name);
+bool ocio_color_space_set_has_color_space(void* set, const char* name);
+void ocio_color_space_set_destroy(void* handle);
+
+// --- Config: ColorSpaceSet ---
+void* ocio_config_get_color_space_set(void* config, const char* search);
+
+// --- Transform: format metadata ---
+void* ocio_transform_get_format_metadata(void* transform);
+
+// --- FormatMetadata ---
+const char* ocio_format_metadata_get_element_name(void* metadata);
+void ocio_format_metadata_set_element_name(void* metadata, const char* name);
+const char* ocio_format_metadata_get_element_value(void* metadata);
+void ocio_format_metadata_set_element_value(void* metadata, const char* value);
+int ocio_format_metadata_get_num_attributes(void* metadata);
+const char* ocio_format_metadata_get_attribute_name(void* metadata, int i);
+const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, int i);
+const char* ocio_format_metadata_get_attribute_value(void* metadata, const char* name);
+void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value);
+int ocio_format_metadata_get_num_children_elements(void* metadata);
+void* ocio_format_metadata_get_child_element(void* metadata, int i);
+void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value);
+void ocio_format_metadata_clear(void* metadata);
+const char* ocio_format_metadata_get_name(void* metadata);
+void ocio_format_metadata_set_name(void* metadata, const char* name);
+const char* ocio_format_metadata_get_id(void* metadata);
+void ocio_format_metadata_set_id(void* metadata, const char* id);
+void ocio_format_metadata_destroy(void* handle);
+
 }

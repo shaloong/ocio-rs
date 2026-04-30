@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, Config, OcioError, Result};
+use crate::{cstr_to_opt_string, cstring, Config, FormatMetadata, OcioError, Result};
 
 pub struct Baker {
     handle: NonNull<c_void>,
@@ -121,8 +121,9 @@ impl Baker {
         Ok(())
     }
 
-    pub fn format_metadata(&self) -> *mut c_void {
-        unsafe { ocio_sys::ocio_baker_get_format_metadata(self.handle.as_ptr()) }
+    pub fn format_metadata(&self) -> Option<FormatMetadata> {
+        let handle = unsafe { ocio_sys::ocio_baker_get_format_metadata(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| FormatMetadata { handle: h })
     }
 }
 
@@ -155,6 +156,7 @@ mod tests {
     #[test]
     fn format_metadata_no_crash() {
         let baker = Baker::create().unwrap();
-        let _ = baker.format_metadata();
+        let md = baker.format_metadata();
+        assert!(md.is_some());
     }
 }

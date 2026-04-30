@@ -825,4 +825,41 @@ unsafe extern "C" {
 
     // --- Baker: format metadata ---
     pub fn ocio_baker_get_format_metadata(baker: *mut c_void) -> *mut c_void;
+
+    // --- ColorSpaceSet ---
+    pub fn ocio_color_space_set_create() -> *mut c_void;
+    pub fn ocio_color_space_set_create_editable_copy(set: *mut c_void) -> *mut c_void;
+    pub fn ocio_color_space_set_get_num_color_spaces(set: *mut c_void) -> i32;
+    pub fn ocio_color_space_set_get_color_space_name_by_index(set: *mut c_void, index: i32) -> *const i8;
+    pub fn ocio_color_space_set_get_color_space_by_index(set: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_color_space_set_get_color_space(set: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_color_space_set_get_color_space_index(set: *mut c_void, name: *const i8) -> i32;
+    pub fn ocio_color_space_set_has_color_space(set: *mut c_void, name: *const i8) -> bool;
+    pub fn ocio_color_space_set_destroy(handle: *mut c_void);
+
+    // --- Config: ColorSpaceSet ---
+    pub fn ocio_config_get_color_space_set(config: *mut c_void, search: *const i8) -> *mut c_void;
+
+    // --- Transform: format metadata ---
+    pub fn ocio_transform_get_format_metadata(transform: *mut c_void) -> *mut c_void;
+
+    // --- FormatMetadata ---
+    pub fn ocio_format_metadata_get_element_name(metadata: *mut c_void) -> *const i8;
+    pub fn ocio_format_metadata_set_element_name(metadata: *mut c_void, name: *const i8);
+    pub fn ocio_format_metadata_get_element_value(metadata: *mut c_void) -> *const i8;
+    pub fn ocio_format_metadata_set_element_value(metadata: *mut c_void, value: *const i8);
+    pub fn ocio_format_metadata_get_num_attributes(metadata: *mut c_void) -> i32;
+    pub fn ocio_format_metadata_get_attribute_name(metadata: *mut c_void, i: i32) -> *const i8;
+    pub fn ocio_format_metadata_get_attribute_value_by_index(metadata: *mut c_void, i: i32) -> *const i8;
+    pub fn ocio_format_metadata_get_attribute_value(metadata: *mut c_void, name: *const i8) -> *const i8;
+    pub fn ocio_format_metadata_add_attribute(metadata: *mut c_void, name: *const i8, value: *const i8);
+    pub fn ocio_format_metadata_get_num_children_elements(metadata: *mut c_void) -> i32;
+    pub fn ocio_format_metadata_get_child_element(metadata: *mut c_void, i: i32) -> *mut c_void;
+    pub fn ocio_format_metadata_add_child_element(metadata: *mut c_void, name: *const i8, value: *const i8);
+    pub fn ocio_format_metadata_clear(metadata: *mut c_void);
+    pub fn ocio_format_metadata_get_name(metadata: *mut c_void) -> *const i8;
+    pub fn ocio_format_metadata_set_name(metadata: *mut c_void, name: *const i8);
+    pub fn ocio_format_metadata_get_id(metadata: *mut c_void) -> *const i8;
+    pub fn ocio_format_metadata_set_id(metadata: *mut c_void, id: *const i8);
+    pub fn ocio_format_metadata_destroy(handle: *mut c_void);
 }

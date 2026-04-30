@@ -1,9 +1,11 @@
 mod baker;
 mod builtin_config_registry;
+mod color_space_set;
 mod colorspace;
 mod config;
 mod context;
 mod file_rules;
+mod format_metadata;
 pub mod grading;
 mod look;
 mod named_transform;
@@ -14,10 +16,12 @@ mod view_transform;
 
 pub use baker::Baker;
 pub use builtin_config_registry::BuiltinConfigRegistry;
+pub use color_space_set::ColorSpaceSet;
 pub use colorspace::ColorSpace;
 pub use config::Config;
 pub use context::Context;
 pub use file_rules::FileRules;
+pub use format_metadata::FormatMetadata;
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, DynamicProperty, Processor, TextureInfo};

@@ -132,6 +132,8 @@ struct NamedTransformHandle { std::shared_ptr<void> inner; };
 struct DynamicPropertyHandle { std::shared_ptr<void> inner; };
 struct BuiltinConfigRegistryHandle { std::shared_ptr<void> inner; };
 struct FileRulesHandle { std::shared_ptr<void> inner; };
+struct ColorSpaceSetHandle { std::shared_ptr<void> inner; };
+struct FormatMetadataHandle { std::shared_ptr<void> inner; };
 struct ExposureContrastTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 7; }
 #ifndef OCIO_RS_STUB
@@ -219,6 +221,8 @@ struct StubBaker {};
 struct StubContext {};
 struct StubColorSpace {};
 struct StubFileRules {};
+struct StubColorSpaceSet {};
+struct StubFormatMetadata {};
 
 // Stub factories
 static std::unique_ptr<ConfigHandle> make_stub_config() {
@@ -254,6 +258,18 @@ static std::unique_ptr<GpuShaderDescHandle> make_stub_gpu_shader_desc() {
 static std::unique_ptr<FileRulesHandle> make_stub_file_rules() {
   auto handle = std::make_unique<FileRulesHandle>();
   handle->inner = std::make_shared<StubFileRules>();
+  return handle;
+}
+
+static std::unique_ptr<ColorSpaceSetHandle> make_stub_color_space_set() {
+  auto handle = std::make_unique<ColorSpaceSetHandle>();
+  handle->inner = std::make_shared<StubColorSpaceSet>();
+  return handle;
+}
+
+static std::unique_ptr<FormatMetadataHandle> make_stub_format_metadata() {
+  auto handle = std::make_unique<FormatMetadataHandle>();
+  handle->inner = std::make_shared<StubFormatMetadata>();
   return handle;
 }
 
@@ -388,6 +404,15 @@ struct RealDisplayViewTransform {
 };
 struct RealFileRules {
   ocio::FileRulesRcPtr rules;
+};
+
+struct RealColorSpaceSet {
+  ocio::ColorSpaceSetRcPtr set;
+};
+
+struct RealFormatMetadata {
+  ocio::FormatMetadata* metadata;
+  bool owned; // always false - FormatMetadata is never owned by the handle
 };
 
 // --- TransformHandleBase out-of-line implementations ---
@@ -8911,17 +8936,420 @@ void ocio_processor_apply_rgba_pixels(void* processor, float* rgba, long numPixe
 
 void* ocio_baker_get_format_metadata(void* baker) {
 #ifdef OCIO_RS_STUB
-  (void)baker; return nullptr;
+  (void)baker; return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
   try {
     auto real = std::static_pointer_cast<ocio_rs_bridge::RealBaker>(
         static_cast<ocio_rs_bridge::BakerHandle*>(baker)->inner);
-    auto metadata = real->baker->getFormatMetadata();
+    auto metadata = &real->baker->getFormatMetadata();
     if (!metadata) return nullptr;
-    // Return raw pointer - caller should not manage lifetime
-    // This is a ConstFormatMetadataRcPtr, we just cast it
-    return const_cast<void*>(static_cast<const void*>(metadata.get()));
+    auto* handle = new ocio_rs_bridge::FormatMetadataHandle;
+    handle->inner = std::make_shared<ocio_rs_bridge::RealFormatMetadata>(
+        ocio_rs_bridge::RealFormatMetadata{const_cast<ocio::FormatMetadata*>(metadata), false});
+    return static_cast<void*>(handle);
   } catch (...) { return nullptr; }
+#endif
+}
+
+// --- Transform: format metadata ---
+
+void* ocio_transform_get_format_metadata(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform; return ocio_rs_bridge::make_stub_format_metadata().release();
+#else
+  try {
+    auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    if (!base) return nullptr;
+    auto ocio_transform = base->get_ocio_transform();
+    if (!ocio_transform) return nullptr;
+    auto metadata = &ocio_transform->getFormatMetadata();
+    if (!metadata) return nullptr;
+    auto* handle = new ocio_rs_bridge::FormatMetadataHandle;
+    handle->inner = std::make_shared<ocio_rs_bridge::RealFormatMetadata>(
+        ocio_rs_bridge::RealFormatMetadata{const_cast<ocio::FormatMetadata*>(metadata), false});
+    return static_cast<void*>(handle);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+// --- ColorSpaceSet ---
+
+void* ocio_color_space_set_create(void) {
+#ifdef OCIO_RS_STUB
+  return ocio_rs_bridge::make_stub_color_space_set().release();
+#else
+  try {
+    auto set = ocio::ColorSpaceSet::Create();
+    if (!set) return nullptr;
+    auto* handle = new ocio_rs_bridge::ColorSpaceSetHandle;
+    handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(
+        ocio_rs_bridge::RealColorSpaceSet{set});
+    return static_cast<void*>(handle);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_color_space_set_create_editable_copy(void* set) {
+#ifdef OCIO_RS_STUB
+  (void)set; return ocio_rs_bridge::make_stub_color_space_set().release();
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    auto copy = real->set->createEditableCopy();
+    if (!copy) return nullptr;
+    auto* new_h = new ocio_rs_bridge::ColorSpaceSetHandle;
+    new_h->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(
+        ocio_rs_bridge::RealColorSpaceSet{copy});
+    return static_cast<void*>(new_h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_color_space_set_get_num_color_spaces(void* set) {
+#ifdef OCIO_RS_STUB
+  (void)set; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    return real->set->getNumColorSpaces();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_color_space_set_get_color_space_name_by_index(void* set, int index) {
+#ifdef OCIO_RS_STUB
+  (void)set; (void)index; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    thread_local std::string cached;
+    cached = real->set->getColorSpaceNameByIndex(index);
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_color_space_set_get_color_space_by_index(void* set, int index) {
+#ifdef OCIO_RS_STUB
+  (void)set; (void)index; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    auto cs = real->set->getColorSpaceByIndex(index);
+    if (!cs) return nullptr;
+    auto* cs_h = new ocio_rs_bridge::ColorSpaceHandle;
+    cs_h->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(
+        ocio_rs_bridge::RealColorSpace{cs});
+    return static_cast<void*>(cs_h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_color_space_set_get_color_space(void* set, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)set; (void)name; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    auto cs = real->set->getColorSpace(name);
+    if (!cs) return nullptr;
+    auto* cs_h = new ocio_rs_bridge::ColorSpaceHandle;
+    cs_h->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(
+        ocio_rs_bridge::RealColorSpace{cs});
+    return static_cast<void*>(cs_h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_color_space_set_get_color_space_index(void* set, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)set; (void)name; return -1;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    return real->set->getColorSpaceIndex(name);
+  } catch (...) { return -1; }
+#endif
+}
+
+bool ocio_color_space_set_has_color_space(void* set, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)set; (void)name; return false;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(set);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(h->inner);
+    return real->set->hasColorSpace(name);
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_color_space_set_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  try { delete static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(handle); } catch (...) {}
+#endif
+}
+
+// --- Config: ColorSpaceSet ---
+
+void* ocio_config_get_color_space_set(void* config, const char* search) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)search;
+  return ocio_rs_bridge::make_stub_color_space_set().release();
+#else
+  try {
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    auto set = cfg->getColorSpaceSet(search ? search : "");
+    if (!set) return nullptr;
+    auto* handle = new ocio_rs_bridge::ColorSpaceSetHandle;
+    handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(
+        ocio_rs_bridge::RealColorSpaceSet{set});
+    return static_cast<void*>(handle);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+// --- FormatMetadata ---
+
+const char* ocio_format_metadata_get_element_name(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getElementName();
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_element_name(void* metadata, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->setElementName(name);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_format_metadata_get_element_value(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getElementValue();
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_element_value(void* metadata, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)value;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->setElementValue(value);
+  } catch (...) {}
+#endif
+}
+
+int ocio_format_metadata_get_num_attributes(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    return real->metadata->getNumAttributes();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_name(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getAttributeName(i);
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getAttributeValue(i);
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_value(void* metadata, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getAttributeValue(name);
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name; (void)value;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->addAttribute(name, value);
+  } catch (...) {}
+#endif
+}
+
+int ocio_format_metadata_get_num_children_elements(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return 0;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    return real->metadata->getNumChildrenElements();
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_format_metadata_get_child_element(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i; return ocio_rs_bridge::make_stub_format_metadata().release();
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    auto child = &real->metadata->getChildElement(i);
+    if (!child) return nullptr;
+    auto* child_h = new ocio_rs_bridge::FormatMetadataHandle;
+    child_h->inner = std::make_shared<ocio_rs_bridge::RealFormatMetadata>(
+        ocio_rs_bridge::RealFormatMetadata{const_cast<ocio::FormatMetadata*>(child), false});
+    return static_cast<void*>(child_h);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name; (void)value;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->addChildElement(name, value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_format_metadata_clear(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->clear();
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_format_metadata_get_name(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getName();
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_name(void* metadata, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->setName(name);
+  } catch (...) {}
+#endif
+}
+
+const char* ocio_format_metadata_get_id(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    thread_local std::string cached;
+    cached = real->metadata->getID();
+    return cached.empty() ? nullptr : cached.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_id(void* metadata, const char* id) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)id;
+#else
+  try {
+    auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    auto real = std::static_pointer_cast<ocio_rs_bridge::RealFormatMetadata>(h->inner);
+    real->metadata->setID(id);
+  } catch (...) {}
+#endif
+}
+
+void ocio_format_metadata_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  try {
+    // Note: FormatMetadata is never owned by our handle, so we only delete the handle struct
+    delete static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
+  } catch (...) {}
 #endif
 }
 

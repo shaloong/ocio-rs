@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
+use crate::{cstr_to_opt_string, cstring, ColorSpaceSet, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -625,6 +625,19 @@ impl Config {
         Ok(())
     }
 
+    // --- ColorSpaceSet ---
+
+    pub fn color_space_set<S: AsRef<str>>(&self, search: Option<S>) -> Result<ColorSpaceSet> {
+        let s = match search {
+            Some(ref s) => cstring(s.as_ref())?,
+            None => cstring("")?,
+        };
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_color_space_set(self.handle.as_ptr(), s.as_ptr().cast())
+        };
+        NonNull::new(handle).map(|h| ColorSpaceSet { handle: h }).ok_or(OcioError::AllocationFailed)
+    }
+
     // --- FileRules ---
 
     pub fn file_rules(&self) -> Result<FileRules> {
@@ -903,6 +916,17 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.default_interpolation();
         config.set_default_interpolation(Interpolation::Linear);
+    }
+
+    #[test]
+    fn color_space_set_no_crash() {
+        let config = Config::raw().unwrap();
+        let set = config.color_space_set(Some(""));
+        assert!(set.is_ok());
+        if let Ok(set) = set {
+            let _ = set.num_color_spaces();
+            let _ = set.has_color_space("raw");
+        }
     }
 
     #[test]
