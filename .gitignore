@@ -1,3 +1,8 @@
 /target
 third_party/
 .vscode/
+
+# Backup and temp files
+*.bak*
+*.orig
+*.patch
