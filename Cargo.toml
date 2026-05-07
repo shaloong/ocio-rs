@@ -7,6 +7,10 @@ edition = "2021"
 ocio-sys = { path = "ocio-sys" }
 thiserror = "1.0"
 
+[features]
+default = []
+bundled = ["ocio-sys/bundled"]
+
 [dev-dependencies]
 criterion = "0.5"
 

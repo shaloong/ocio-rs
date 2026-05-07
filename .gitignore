@@ -7,3 +7,6 @@ third_party/*
 *.bak*
 *.orig
 *.patch
+# Generated v2.6 bridge files (reference for future upgrade)
+ocio-sys/src/bridge.v26.*
+ocio-sys/src/lib.v26.rs

@@ -12,5 +12,5 @@ cc = "1.0"
 cmake = "0.1"
 
 [features]
-default = ["bundled"]
+default = []
 bundled = []

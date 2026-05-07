@@ -5,10 +5,16 @@ fn main() {
     let mut include_paths = Vec::<PathBuf>::new();
     let mut link_paths = Vec::<PathBuf>::new();
     let mut has_real_ocio = false;
-    let enable_real_ocio = env_flag("OCIO_RS_ENABLE_REAL");
+
+    // Real OCIO is enabled when:
+    // 1. OCIO_RS_ENABLE_REAL=1 is explicitly set (manual override), OR
+    // 2. The "bundled" feature is active and OCIO source is available
+    let is_bundled = env::var_os("CARGO_FEATURE_BUNDLED").is_some();
+    let enable_real_ocio = env_flag("OCIO_RS_ENABLE_REAL") || is_bundled;
 
     if !enable_real_ocio {
         println!("cargo:warning=OCIO_RS_ENABLE_REAL is not set; building ocio-sys in stub mode.");
+        println!("cargo:warning=Enable the 'bundled' feature or set OCIO_RS_ENABLE_REAL=1 for real OCIO.");
     } else if let Some(dir) = env::var_os("OCIO_INSTALL_DIR") {
         let dir = PathBuf::from(dir);
         include_paths.push(dir.join("include"));
@@ -29,7 +35,7 @@ fn main() {
             }
         }
         has_real_ocio = true;
-    } else if env::var_os("CARGO_FEATURE_BUNDLED").is_some() {
+    } else if is_bundled {
         if let Some(ocio_source) = resolve_ocio_source_dir() {
             let dst = std::panic::catch_unwind(|| {
                 cmake::Config::new(&ocio_source)

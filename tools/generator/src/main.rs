@@ -74,12 +74,45 @@ fn method_to_snake(name: &str) -> String {
     }
 }
 
+/// Global cache of old bridge function names, loaded once.
+static mut OLD_NAMES: Option<HashSet<String>> = None;
+static mut OLD_NAME_LIST: Option<Vec<String>> = None;
+
+fn load_old_names() {
+    unsafe {
+        if OLD_NAMES.is_some() { return; }
+        let mut set = HashSet::new();
+        let mut list = Vec::new();
+        // Try to load from old_names.txt next to the executable
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                let path = dir.join("old_names.txt");
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    for line in content.lines() {
+                        let name = line.trim().to_string();
+                        if !name.is_empty() {
+                            set.insert(name.clone());
+                            list.push(name);
+                        }
+                    }
+                }
+            }
+        }
+        OLD_NAMES = Some(set);
+        OLD_NAME_LIST = Some(list);
+    }
+}
+
 /// Pre-compute unique C names for all methods, handling overloads.
-/// Returns Vec<(MethodDef, c_function_name)> where c_function_name is unique.
+/// Uses old bridge naming where available for backward compatibility.
 fn compute_c_names(cls: &ClassDef) -> Vec<(&MethodDef, String)> {
     use std::collections::HashMap;
     let mut name_counts: HashMap<String, usize> = HashMap::new();
-    let mut name_ordinals: HashMap<String, usize> = HashMap::new();
+    let prefix = format!("ocio_{}_", cls.c_prefix);
+
+    // Load old names
+    load_old_names();
+    let old_set: &HashSet<String> = unsafe { OLD_NAMES.as_ref().unwrap() };
 
     // First pass: count occurrences of each snake_case name
     for m in &cls.methods {
@@ -87,17 +120,78 @@ fn compute_c_names(cls: &ClassDef) -> Vec<(&MethodDef, String)> {
         *name_counts.entry(sn).or_insert(0) += 1;
     }
 
-    // Second pass: assign unique names
+    // Collect old names for this class (matching prefix), ordered by occurrence in old bridge
+    let old_list: Vec<String> = unsafe {
+        OLD_NAME_LIST.as_ref().unwrap().iter()
+            .filter(|n| n.starts_with(&prefix))
+            .cloned()
+            .collect()
+    };
+
+    // Second pass: assign names trying to match old names where possible
+    let mut used_old_names: HashSet<String> = HashSet::new();
+    let mut ordinals: HashMap<String, usize> = HashMap::new();
+
     cls.methods.iter().map(|m| {
         let base_name = method_to_snake(&m.name);
         let is_overloaded = *name_counts.get(&base_name).unwrap_or(&0) > 1;
+        let canonical = format!("{}{}", prefix, base_name);
 
-        let c_name = if is_overloaded {
-            let ord = name_ordinals.entry(base_name.clone()).or_insert(0);
-            *ord += 1;
-            format!("ocio_{}_{}_v{}", cls.c_prefix, base_name, *ord)
+        // Try to find this method in old names
+        // For non-overloaded: look for exact match canonical
+        // For overloaded: look for old names starting with canonical
+        let mut found_old: Option<String> = None;
+
+        if !is_overloaded {
+            // Simple case: if canonical exists in old names, use it
+            if old_set.contains(&canonical) {
+                found_old = Some(canonical.clone());
+            }
         } else {
-            format!("ocio_{}_{}", cls.c_prefix, base_name)
+            // Overloaded: find old names starting with canonical.
+            // Only match if method part after canonical starts with _ followed by non-method chars.
+            // This prevents matching get_view_transform to getView method.
+            let candidates: Vec<&String> = old_list.iter()
+                .filter(|n| {
+                    if !n.starts_with(&canonical) { return false; }
+                    if used_old_names.contains(*n) { return false; }
+                    let suffix = &n[canonical.len()..];
+                    // Allow: empty (exact match), or _vN, or _by_*, or _n
+                    // Disallow: _<other_method_part> (like _transform which belongs to getViewTransform)
+                    suffix.is_empty() ||
+                    suffix.starts_with("_v") && suffix[2..].chars().all(|c| c.is_numeric()) ||
+                    suffix == "_n" || suffix.starts_with("_by_")
+                })
+                .collect();
+
+            if !candidates.is_empty() {
+                // Prefer exact canonical match (no suffix) for first overload
+                for c in &candidates {
+                    if c[canonical.len()..].is_empty() {
+                        found_old = Some((*c).clone());
+                        break;
+                    }
+                }
+                if found_old.is_none() {
+                    found_old = Some(candidates[0].clone());
+                }
+            }
+        }
+
+        let c_name = if let Some(ref old_name) = found_old {
+            used_old_names.insert(old_name.clone());
+            old_name.clone()
+        } else {
+            // Fall back to generated name
+            let ord = ordinals.entry(base_name.clone()).or_insert(0);
+            *ord += 1;
+            if is_overloaded {
+                format!("{}{}_v{}", prefix, base_name, *ord)
+            } else if *ord > 1 {
+                format!("{}{}_v{}", prefix, base_name, *ord)
+            } else {
+                canonical
+            }
         };
 
         (m, c_name)
@@ -315,6 +409,15 @@ fn real_member_for_class(class_name: &str, is_transform: bool) -> &str {
         "FormatMetadata" => "metadata",
         "GpuShaderDesc" => "gpuShaderDesc",
         "BuiltinConfigRegistry" => "registry",
+        // Referenced-only classes
+        "Transform" => "transform",
+        "ConfigIOProxy" => "proxy",
+        "ViewingRules" => "rules",
+        "ProcessorMetadata" => "metadata",
+        "GpuShaderCreator" => "shader",
+        "GradingRGBCurve" => "curve",
+        "GradingHueCurve" => "curve",
+        "MixingSlider" => "slider",
         _ => "inner",
     }
 }
@@ -340,6 +443,8 @@ fn rcptr_for_class(class_name: &str, is_transform: bool) -> String {
             "DynamicProperty" => "DynamicPropertyRcPtr".into(),
             "BuiltinConfigRegistry" => "BuiltinConfigRegistry".into(),
             "GpuShaderDesc" => "GpuShaderDescRcPtr".into(),
+            // Non-RcPtr classes (value types, abstract bases, etc.)
+            "MixingSlider" => "MixingSlider".into(),
             _ => format!("{}RcPtr", class_name),
         }
     }
@@ -389,6 +494,12 @@ lazy_static::lazy_static! {
             "ConstGpuShaderDescRcPtr", "GpuShaderDescRcPtr",
             "ConstGradingHueCurveTransformRcPtr", "GradingHueCurveTransformRcPtr",
             "ConstGradingHueCurveRcPtr", "GradingHueCurveRcPtr",
+            "ConstConfigIOProxyRcPtr", "ConfigIOProxyRcPtr",
+            "ConstViewingRulesRcPtr", "ViewingRulesRcPtr",
+            "ConstProcessorMetadataRcPtr", "ProcessorMetadataRcPtr",
+            "ConstGradingRGBCurveRcPtr", "GradingRGBCurveRcPtr",
+            "ConstGpuShaderCreatorRcPtr", "GpuShaderCreatorRcPtr",
+            "ConstMixingSliderRcPtr", "MixingSliderRcPtr",
         ] {
             s.insert(*t);
         }
@@ -405,6 +516,25 @@ lazy_static::lazy_static! {
             "ExposureContrastStyle", "CDLStyle",
             "GradingStyle", "GradingBSplineCurveStyle",
             "Lut1DHueAdjust", "NegativeStyle",
+            "RGBCurveType", "HueCurveType", "DynamicPropertyType",
+            "HSYTransformStyle", "UniformDataType", "TextureType",
+            "ViewType", "ViewTransformDirection", "EnvironmentMode",
+            "RangeStyle", "ProcessorCacheFlags",
+            "SearchReferenceSpaceType", "ColorSpaceVisibility",
+            "NamedTransformVisibility",
+        ] {
+            s.insert(*t);
+        }
+        s
+    };
+
+    // OCIO composite type names (e.g., structs like GradingTone, GradingPrimary)
+    // that appear as return types or parameters in the API
+    static ref COMPOSITE_TYPES: HashSet<&'static str> = {
+        let mut s = HashSet::new();
+        for t in &[
+            "GradingTone", "GradingPrimary", "GradingRGBCurve",
+            "GradingHueCurve",
         ] {
             s.insert(*t);
         }
@@ -420,14 +550,16 @@ const SKIP_CLASSES: &[&str] = &[
     "Exception", "ExceptionMissingFile", "ImageDesc",
     "PackedImageDesc", "PlanarImageDesc", "GpuShaderCreator",
     "ProcessorMetadata", "ViewingRules", "Transform",
-    "GradingBSplineCurve", "DynamicProperty", "DynamicPropertyDouble",
-    "DynamicPropertyGradingPrimary", "DynamicPropertyGradingRGBCurve",
-    "DynamicPropertyGradingHueCurve", "DynamicPropertyGradingTone",
+    "GradingBSplineCurve",
+    "DynamicPropertyDouble", "DynamicPropertyGradingPrimary",
+    "DynamicPropertyGradingRGBCurve", "DynamicPropertyGradingHueCurve",
+    "DynamicPropertyGradingTone",
     "SystemMonitors", "BuiltinTransformRegistry", "ConfigIOProxy",
-    "GradingRGBCurve", "GradingHueCurve",
+    "GradingRGBCurve", "GradingHueCurve", "FormatMetadata", "MixingSlider",
     // v2.6+ classes that aren't bridged yet
     "ConfigMerger", "ConfigMergingParameters",
     "MixingColorSpaceManager", "LegacyViewingPipeline",
+    "ColorSpaceMenuHelper", "ColorSpaceMenuParameters",
 ];
 
 // Classes that are transforms (use TransformHandleBase)
@@ -497,7 +629,7 @@ fn parse_ocio_headers(include_dir: &Path) -> HashMap<String, ClassDef> {
 
             // Parse methods
             let method_re = regex::Regex::new(
-                r"(?:(static|virtual)\s+)?((?:const\s+)?\w+(?:\s*\*)?(?:\s*&)?)\s+(\w+)\s*\(([^)]*)\)\s*(?:const)?\s*(?:=\s*0\s*)?;"
+                r"(?:(static|virtual)\s+)?((?:const\s+)?\w+(?:::\w+)?(?:\s*\*)?(?:\s*&)?)\s+(\w+)\s*\(([^)]*)\)\s*(?:const)?\s*(?:noexcept)?\s*(?:override)?\s*(?:=\s*0\s*)?;"
             ).unwrap();
 
             let mut methods = Vec::new();
@@ -704,18 +836,29 @@ fn build_c_params(params: &[Param], _func_name: &str) -> String {
 }
 
 fn map_param_type(cpp_type: &str) -> &str {
-    match cpp_type.trim() {
-        "const char*" => "const char*",
+    // Normalize: collapse spaces around * for "const char *" etc.
+    let norm = cpp_type.trim().replace(" *", "*").replace("* ", "*");
+    let t = norm.as_str();
+    match t {
+        "const char*" | "const char*&" => "const char*",
         t if t.ends_with("RcPtr") || t.ends_with("RcPtr&") => "void*",
         t if t.contains("RcPtr") => "void*",
-        "int" => "int",
-        "unsigned int" => "unsigned int",
+        "int" | "int&" => "int",
+        "unsigned int" | "unsigned int&" => "unsigned int",
         "size_t" => "size_t",
-        "bool" => "bool",
+        "size_t&" => "size_t*",
+        "bool" | "bool&" => "bool",
         "float" => "float",
+        "float&" => "float*",
         "double" => "double",
+        "double&" => "double*",
         "char" => "char",
+        "const float*" | "const float*&" => "const float*",
+        "const double*" | "const double*&" => "const double*",
         t if ENUM_TYPES.contains(t) => "int",
+        t if ENUM_TYPES.contains(t.trim_end_matches('&')) => "int",
+        // Reference types for output params: pass as pointer
+        t if t.ends_with('&') => "void*",
         _ => "void*",
     }
 }
@@ -907,7 +1050,23 @@ fn gen_handle_structs(l: &mut String, _classes: &HashMap<String, ClassDef>) {
     l.push_str("struct BuiltinConfigRegistryHandle { std::shared_ptr<void> inner; };\n");
     l.push_str("struct FileRulesHandle { std::shared_ptr<void> inner; };\n");
     l.push_str("struct ColorSpaceSetHandle { std::shared_ptr<void> inner; };\n");
-    l.push_str("struct FormatMetadataHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct FormatMetadataHandle { std::shared_ptr<void> inner; };\n\n");
+
+    // Handle types for classes referenced by other classes but not fully bridged
+    // (skipped classes whose RcPtr types appear in method signatures of bridged classes)
+    l.push_str("// Handle types for referenced-only classes\n");
+    l.push_str("struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;\n");
+    l.push_str("  int get_transform_type_tag() const override { return -1; }\n");
+    l.push_str("#ifndef OCIO_RS_STUB\n");
+    l.push_str("  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;\n");
+    l.push_str("#endif\n};\n");
+    l.push_str("struct ConfigIOProxyHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct ViewingRulesHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct ProcessorMetadataHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct GpuShaderCreatorHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct GradingRGBCurveHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct GradingHueCurveHandle { std::shared_ptr<void> inner; };\n");
+    l.push_str("struct MixingSliderHandle { std::shared_ptr<void> inner; };\n");
 }
 
 fn gen_stub_structs(l: &mut String, classes: &HashMap<String, ClassDef>) {
@@ -956,10 +1115,25 @@ fn gen_real_structs(l: &mut String, classes: &HashMap<String, ClassDef>) {
             l.push_str(&format!("struct Real{} {{\n  ocio::{} {};\n}};\n", cls.name, rcptr, member));
         }
     }
+
+    // Add Real structs for classes referenced by bridged classes but themselves skipped
+    l.push_str("// Real types for referenced-only classes\n");
+    l.push_str("struct RealTransform {\n  ocio::TransformRcPtr transform;\n};\n");
+    l.push_str("struct RealConfigIOProxy {\n  ocio::ConfigIOProxyRcPtr proxy;\n};\n");
+    l.push_str("struct RealViewingRules {\n  ocio::ViewingRulesRcPtr rules;\n};\n");
+    l.push_str("struct RealProcessorMetadata {\n  ocio::ProcessorMetadataRcPtr metadata;\n};\n");
+    l.push_str("struct RealGpuShaderCreator {\n  ocio::GpuShaderCreatorRcPtr shader;\n};\n");
+    // GradingRGBCurve and GradingHueCurve are value types (not RcPtr), stored raw
+    l.push_str("struct RealGradingRGBCurve {\n  ocio::GradingRGBCurveRcPtr curve;\n};\n");
+    l.push_str("struct RealGradingHueCurve {\n  ocio::GradingHueCurveRcPtr curve;\n};\n");
+    l.push_str("struct RealMixingSlider {\n  ocio::MixingSlider* slider;\n};\n");
 }
 
 fn gen_transform_get_ocio(l: &mut String, classes: &HashMap<String, ClassDef>) {
     l.push_str("\n// --- TransformHandleBase out-of-line ---\n");
+    // Base Transform handle
+    l.push_str("ocio::TransformRcPtr TransformHandle::get_ocio_transform() {\n");
+    l.push_str("  return std::static_pointer_cast<RealTransform>(inner)->transform;\n}\n");
     for name in TRANSFORM_CLASSES {
         if classes.contains_key(*name) {
             l.push_str(&format!("ocio::TransformRcPtr {}Handle::get_ocio_transform() {{\n", name));
@@ -1023,6 +1197,14 @@ fn gen_real_accessors(l: &mut String, classes: &HashMap<String, ClassDef>) {
 fn gen_real_make_functions(l: &mut String, classes: &HashMap<String, ClassDef>) {
     l.push_str("\n// --- Real make functions ---\n");
 
+    // Transforms that can't use plain Create(): need style, reference space, etc.
+    let SKIP_MAKE_REAL: &[&str] = &[
+        "FixedFunctionTransform", "GradingPrimaryTransform", "GradingToneTransform",
+        "GradingRGBCurveTransform", "GradingHueCurveTransform",
+        "LogCameraTransform",
+        "ViewTransform",
+    ];
+
     for cls in classes.values() {
         let prefix = &cls.c_prefix;
         let handle = format!("{}Handle", cls.name);
@@ -1030,12 +1212,10 @@ fn gen_real_make_functions(l: &mut String, classes: &HashMap<String, ClassDef>) 
         let member = real_member_for_class(&cls.name, cls.is_transform);
 
         if cls.name == "BuiltinConfigRegistry" { continue; }
-        if cls.name == "Config" || cls.name == "Processor" || cls.name == "CPUProcessor"
-            || cls.name == "GPUProcessor" || cls.name == "FormatMetadata"
-            || cls.name == "GpuShaderDesc" || cls.name == "DynamicProperty"
-        {
-            continue;
-        }
+        if cls.name == "Config" { continue; }
+
+        // Skip transforms/classes that need special construction params
+        if SKIP_MAKE_REAL.contains(&cls.name.as_str()) { continue; }
 
         let create_call = if cls.is_transform {
             format!("ocio::{}::Create()", cls.name)
@@ -1046,6 +1226,10 @@ fn gen_real_make_functions(l: &mut String, classes: &HashMap<String, ClassDef>) 
                 "FileRules" => "ocio::FileRules::Create()".into(),
                 "ColorSpace" => "ocio::ColorSpace::Create()".into(),
                 "ColorSpaceSet" => "ocio::ColorSpaceSet::Create()".into(),
+                "Look" => "ocio::Look::Create()".into(),
+                "NamedTransform" => "ocio::NamedTransform::Create()".into(),
+                "Processor" | "CPUProcessor" | "GPUProcessor" => continue,
+                "GpuShaderDesc" | "DynamicProperty" | "FormatMetadata" => continue,
                 _ => continue,
             }
         };
@@ -1075,6 +1259,23 @@ fn gen_real_make_functions(l: &mut String, classes: &HashMap<String, ClassDef>) 
     l.push_str("  } catch (...) { return nullptr; }\n}\n");
 }
 
+fn has_make_real(class_name: &str, is_transform: bool) -> bool {
+    if class_name == "BuiltinConfigRegistry" || class_name == "Config" { return false; }
+    // Classes that can't use plain Create() — same list as gen_real_make_functions
+    let SKIP: &[&str] = &[
+        "FixedFunctionTransform", "GradingPrimaryTransform", "GradingToneTransform",
+        "GradingRGBCurveTransform", "GradingHueCurveTransform",
+        "LogCameraTransform", "ViewTransform",
+    ];
+    if SKIP.contains(&class_name) { return false; }
+    if is_transform { return true; }
+    match class_name {
+        "Baker" | "Context" | "FileRules" | "ColorSpace" | "ColorSpaceSet"
+        | "Look" | "NamedTransform" => true,
+        _ => false,
+    }
+}
+
 fn gen_simple_class_cpp(l: &mut String, cls: &ClassDef) {
     let prefix = &cls.c_prefix;
     let handle = format!("{}Handle", cls.name);
@@ -1086,8 +1287,13 @@ fn gen_simple_class_cpp(l: &mut String, cls: &ClassDef) {
     l.push_str("#ifdef OCIO_RS_STUB\n");
     l.push_str(&format!("  return ocio_rs_bridge::make_stub_{}().release();\n", prefix));
     l.push_str("#else\n");
-    l.push_str(&format!("  auto handle = ocio_rs_bridge::make_real_{}();\n", prefix));
-    l.push_str("  if (!handle) return nullptr;\n  return handle.release();\n#endif\n}\n\n");
+    if has_make_real(&cls.name, cls.is_transform) {
+        l.push_str(&format!("  auto handle = ocio_rs_bridge::make_real_{}();\n", prefix));
+        l.push_str("  if (!handle) return nullptr;\n  return handle.release();\n");
+    } else {
+        l.push_str("  return nullptr; // @TODO: implement make_real\n");
+    }
+    l.push_str("#endif\n}\n\n");
 
     // Destroy
     l.push_str(&format!("void ocio_{}_destroy(void* handle) {{\n", prefix));
@@ -1161,8 +1367,53 @@ fn gen_cpp_methods(l: &mut String, cls: &ClassDef) {
                     p = pname, real = real_name, mem = member
                 ));
                 call_args.push(format!("{}_ptr", pname));
+            } else if p.cpp_type.ends_with('&') && !p.cpp_type.contains("RcPtr") {
+                // Reference parameter — dereference from C pointer type
+                let clean_type = p.cpp_type.trim_end_matches('&').trim().to_string();
+                let norm_type = clean_type.replace(" *", "*").replace("* ", "*");
+                if norm_type == "float" || norm_type == "double" || norm_type == "int"
+                    || norm_type == "unsigned int" || norm_type == "size_t" || norm_type == "bool" {
+                    // Non-const basic type ref — C param is pointer, dereference for C++ ref
+                    call_args.push(format!("*static_cast<{}*>({})", norm_type, pname));
+                } else if norm_type == "const float" || norm_type == "const double" || norm_type == "const int" {
+                    // Const basic type ref — just pass by value
+                    call_args.push(pname.to_string());
+                } else if clean_type.contains('*') && clean_type.contains("const") {
+                    // const T*& — reference to pointer, just pass directly as void*
+                    call_args.push(pname.to_string());
+                } else if clean_type.starts_with("const ") {
+                    // const SomeClass& — dereference void* pointer
+                    let inner = clean_type.strip_prefix("const ").unwrap_or(&clean_type);
+                    let prefix = if inner.contains("::") || inner.starts_with("std::") { "" } else { "ocio::" };
+                    call_args.push(format!("*static_cast<const {}{}*>({})", prefix, inner, pname));
+                } else if clean_type.starts_with("std::") {
+                    // std::ostream& — non-const reference, dereference pointer
+                    call_args.push(format!("*static_cast<{}*>({})", clean_type, pname));
+                } else if clean_type.contains("::") {
+                    // Fully qualified type like GpuShaderDesc::UniformData
+                    call_args.push(format!("*static_cast<{}*>({})", clean_type, pname));
+                } else {
+                    // Non-const SomeClass& — dereference pointer
+                    // Some OCIO types are nested inside classes and need scope qualification
+                    let full_type = match clean_type.as_str() {
+                        "UniformData" => "ocio::GpuShaderDesc::UniformData",
+                        "TextureType" => "ocio::GpuShaderCreator::TextureType",
+                        "TextureDimensions" => "ocio::GpuShaderDesc::TextureDimensions",
+                        t if t == "unsigned" || t == "float" || t == "double" ||
+                             t == "int" || t == "size_t" || t == "bool" ||
+                             t == "char" || t == "long" => t,
+                        t => &format!("ocio::{}", t),
+                    };
+                    call_args.push(format!("*static_cast<{}*>({})", full_type, pname));
+                }
             } else {
-                call_args.push(pname.to_string());
+                // Enum types: cast from int back to the ocio enum
+                let norm_type = p.cpp_type.trim().replace(" *", "*").replace("* ", "*");
+                if ENUM_TYPES.contains(norm_type.as_str()) {
+                    call_args.push(format!("static_cast<ocio::{}>({})", norm_type, pname));
+                } else {
+                    call_args.push(pname.to_string());
+                }
             }
         }
 
@@ -1218,7 +1469,16 @@ fn gen_cpp_methods(l: &mut String, cls: &ClassDef) {
                 let wrap_handle = format!("{}Handle", class_hint);
                 let wrap_real = format!("Real{}", class_hint);
                 l.push_str(&format!("    auto out_handle = std::make_unique<ocio_rs_bridge::{}>();\n", wrap_handle));
-                l.push_str(&format!("    out_handle->inner = std::make_shared<ocio_rs_bridge::{}>(ocio_rs_bridge::{}{{result}});\n", wrap_real, wrap_real));
+                // Use const_pointer_cast when return type contains Const*RcPtr
+                // (handles both "ConstFooRcPtr" and "const ConstFooRcPtr")
+                let is_const_rcptr = m.return_type.contains("Const") && m.return_type.contains("RcPtr");
+                if is_const_rcptr {
+                    let non_const = class_hint.clone();
+                    l.push_str(&format!("    auto result_unconst = std::const_pointer_cast<ocio::{}>(result);\n", non_const));
+                    l.push_str(&format!("    out_handle->inner = std::make_shared<ocio_rs_bridge::{}>(ocio_rs_bridge::{}{{result_unconst}});\n", wrap_real, wrap_real));
+                } else {
+                    l.push_str(&format!("    out_handle->inner = std::make_shared<ocio_rs_bridge::{}>(ocio_rs_bridge::{}{{result}});\n", wrap_real, wrap_real));
+                }
             } else {
                 l.push_str("    auto out_handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();\n");
                 l.push_str("    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{result});\n");
@@ -1227,7 +1487,16 @@ fn gen_cpp_methods(l: &mut String, cls: &ClassDef) {
         } else if ret_c == "void" {
             l.push_str(&format!("    {};\n", call));
         } else {
-            l.push_str(&format!("    return {};\n", call));
+            // Handle return type conversion
+            let ret_is_ref = m.return_type.ends_with('&');
+            let ret_is_ptr = m.return_type.ends_with('*');
+            if ret_is_ref {
+                l.push_str(&format!("    return &{};\n", call));
+            } else if ret_is_ptr && !m.return_type.starts_with("const char") {
+                l.push_str(&format!("    return static_cast<void*>({});\n", call));
+            } else {
+                l.push_str(&format!("    return {};\n", call));
+            }
         }
 
         l.push_str(&format!("  }} catch (...) {{ return {}; }}\n#endif\n", if ret_c == "void" { "" } else { stub_ret }));
