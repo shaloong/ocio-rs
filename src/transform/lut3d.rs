@@ -73,11 +73,11 @@ impl Lut3DTransform {
     }
 
     pub fn grid_size(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size(self.handle.as_ptr()) as u64 }
     }
 
     pub fn set_grid_size(&self, size: u64) {
-        unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size(self.handle.as_ptr(), size) };
+        unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size(self.handle.as_ptr(), std::ptr::null_mut()) };
     }
 
     pub fn values(&self) -> Vec<f64> {

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result};
 
 pub struct FileRules {
     pub(crate) handle: NonNull<c_void>,
@@ -15,12 +15,12 @@ impl FileRules {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_file_rules_create_editable_copy(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_file_rules_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn num_entries(&self) -> u64 {
-        unsafe { ocio_sys::ocio_file_rules_get_num_entries(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_file_rules_get_num_entries(self.handle.as_ptr()) as u64 }
     }
 
     pub fn index_for_rule(&self, rule_name: impl AsRef<str>) -> u64 {
@@ -32,16 +32,16 @@ impl FileRules {
             ocio_sys::ocio_file_rules_get_index_for_rule(
                 self.handle.as_ptr(),
                 rule_name.as_ptr().cast(),
-            )
+            ) as u64
         }
     }
 
     pub fn name(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_rules_get_name(self.handle.as_ptr(), rule_index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_name(self.handle.as_ptr(), rule_index as usize)) }
     }
 
     pub fn pattern(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_rules_get_pattern(self.handle.as_ptr(), rule_index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(self.handle.as_ptr(), rule_index as usize)) }
     }
 
     pub fn set_pattern(&self, rule_index: u64, pattern: impl AsRef<str>) -> Result<()> {
@@ -49,7 +49,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_pattern(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 pattern.as_ptr().cast(),
             )
         };
@@ -57,7 +57,7 @@ impl FileRules {
     }
 
     pub fn extension(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_rules_get_extension(self.handle.as_ptr(), rule_index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(self.handle.as_ptr(), rule_index as usize)) }
     }
 
     pub fn set_extension(&self, rule_index: u64, extension: impl AsRef<str>) -> Result<()> {
@@ -65,7 +65,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_extension(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 extension.as_ptr().cast(),
             )
         };
@@ -73,7 +73,7 @@ impl FileRules {
     }
 
     pub fn regex(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_rules_get_regex(self.handle.as_ptr(), rule_index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(self.handle.as_ptr(), rule_index as usize)) }
     }
 
     pub fn set_regex(&self, rule_index: u64, regex: impl AsRef<str>) -> Result<()> {
@@ -81,7 +81,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_regex(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 regex.as_ptr().cast(),
             )
         };
@@ -89,7 +89,7 @@ impl FileRules {
     }
 
     pub fn color_space(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_rules_get_color_space(self.handle.as_ptr(), rule_index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(self.handle.as_ptr(), rule_index as usize)) }
     }
 
     pub fn set_color_space(&self, rule_index: u64, color_space: impl AsRef<str>) -> Result<()> {
@@ -97,7 +97,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_color_space(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 color_space.as_ptr().cast(),
             )
         };
@@ -105,25 +105,25 @@ impl FileRules {
     }
 
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
-        unsafe { ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index) }
+        unsafe { ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize) as u64 }
     }
 
     pub fn custom_key_name(&self, rule_index: u64, key: u64) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_file_rules_get_custom_key_name(
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_name(
                 self.handle.as_ptr(),
-                rule_index,
-                key,
+                rule_index as usize,
+                key as usize,
             ))
         }
     }
 
     pub fn custom_key_value(&self, rule_index: u64, key: u64) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_file_rules_get_custom_key_value(
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_value(
                 self.handle.as_ptr(),
-                rule_index,
-                key,
+                rule_index as usize,
+                key as usize,
             ))
         }
     }
@@ -134,7 +134,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_custom_key(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 key.as_ptr().cast(),
                 value.as_ptr().cast(),
             )
@@ -157,7 +157,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_insert_rule(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 name.as_ptr().cast(),
                 color_space.as_ptr().cast(),
                 pattern.as_ptr().cast(),
@@ -190,7 +190,7 @@ impl FileRules {
     }
 
     pub fn insert_path_search_rule(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_insert_path_search_rule(self.handle.as_ptr(), rule_index) };
+        unsafe { ocio_sys::ocio_file_rules_insert_path_search_rule(self.handle.as_ptr(), rule_index as usize) };
     }
 
     pub fn set_default_rule_color_space(&self, color_space: impl AsRef<str>) -> Result<()> {
@@ -205,19 +205,19 @@ impl FileRules {
     }
 
     pub fn remove_rule(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_remove_rule(self.handle.as_ptr(), rule_index) };
+        unsafe { ocio_sys::ocio_file_rules_remove_rule(self.handle.as_ptr(), rule_index as usize) };
     }
 
     pub fn increase_rule_priority(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_increase_rule_priority(self.handle.as_ptr(), rule_index) };
+        unsafe { ocio_sys::ocio_file_rules_increase_rule_priority(self.handle.as_ptr(), rule_index as usize) };
     }
 
     pub fn decrease_rule_priority(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_decrease_rule_priority(self.handle.as_ptr(), rule_index) };
+        unsafe { ocio_sys::ocio_file_rules_decrease_rule_priority(self.handle.as_ptr(), rule_index as usize) };
     }
 
     pub fn is_default(&self) -> bool {
-        unsafe { ocio_sys::ocio_file_rules_is_default(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_file_rules_is_default(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
@@ -232,7 +232,7 @@ impl FileRules {
 
 impl Drop for FileRules {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_file_rules_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_file_rules_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

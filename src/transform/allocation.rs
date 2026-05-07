@@ -31,14 +31,14 @@ impl AllocationTransform {
         let n = self.num_vars() as usize;
         if n == 0 { return vec![]; }
         let mut v = vec![0.0f32; n];
-        unsafe { ocio_sys::ocio_allocation_transform_get_vars(self.handle.as_ptr(), v.as_mut_ptr()); }
+        unsafe { ocio_sys::ocio_allocation_transform_get_vars(self.handle.as_ptr(), v.as_mut_ptr() as *mut c_void); }
         v
     }
 
     pub fn set_vars(&self, vars: &[f32]) {
         unsafe {
             ocio_sys::ocio_allocation_transform_set_vars(
-                self.handle.as_ptr(), vars.len() as i32, vars.as_ptr()
+                self.handle.as_ptr(), vars.len() as i32, vars.as_ptr() as *mut c_void
             );
         }
     }

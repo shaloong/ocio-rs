@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, Config, FormatMetadata, OcioError, Result, BitDepth};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, Config, FormatMetadata, OcioError, Result, BitDepth};
 
 pub struct Baker {
     handle: NonNull<c_void>,
@@ -31,7 +31,7 @@ impl Baker {
     }
 
     pub fn format(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_format(self.handle.as_ptr())) }
     }
 
     pub fn set_format(&self, format_name: impl AsRef<str>) -> Result<()> {
@@ -41,7 +41,7 @@ impl Baker {
     }
 
     pub fn input_space(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_input_space(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_input_space(self.handle.as_ptr())) }
     }
 
     pub fn set_input_space(&self, space: impl AsRef<str>) -> Result<()> {
@@ -51,7 +51,7 @@ impl Baker {
     }
 
     pub fn shaper_space(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_shaper_space(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_shaper_space(self.handle.as_ptr())) }
     }
 
     pub fn set_shaper_space(&self, space: impl AsRef<str>) -> Result<()> {
@@ -61,7 +61,7 @@ impl Baker {
     }
 
     pub fn looks(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_looks(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_looks(self.handle.as_ptr())) }
     }
 
     pub fn set_looks(&self, looks: impl AsRef<str>) -> Result<()> {
@@ -71,7 +71,7 @@ impl Baker {
     }
 
     pub fn target_space(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_target_space(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_target_space(self.handle.as_ptr())) }
     }
 
     pub fn set_target_space(&self, space: impl AsRef<str>) -> Result<()> {
@@ -81,11 +81,11 @@ impl Baker {
     }
 
     pub fn display(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_display(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_display(self.handle.as_ptr())) }
     }
 
     pub fn view(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_view(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_get_view(self.handle.as_ptr())) }
     }
 
     pub fn set_display_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Result<()> {
@@ -130,7 +130,7 @@ impl Baker {
 
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {
         let path = cstring(output_path)?;
-        unsafe { ocio_sys::ocio_baker_bake(self.handle.as_ptr(), path.as_ptr().cast()) };
+        unsafe { ocio_sys::ocio_baker_bake(self.handle.as_ptr(), path.as_ptr() as *mut c_void) };
         Ok(())
     }
 

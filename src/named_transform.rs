@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct NamedTransform {
@@ -17,13 +17,13 @@ impl NamedTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe {
-            ocio_sys::ocio_named_transform_create_editable_copy(self.handle.as_ptr())
+            ocio_sys::ocio_named_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void)
         };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn name(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_name(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_name(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
@@ -33,7 +33,7 @@ impl NamedTransform {
     }
 
     pub fn family(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_family(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_family(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
@@ -43,7 +43,7 @@ impl NamedTransform {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_description(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_description(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
@@ -53,7 +53,7 @@ impl NamedTransform {
     }
 
     pub fn encoding(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_encoding(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_encoding(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
@@ -63,15 +63,15 @@ impl NamedTransform {
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn num_aliases(&self) -> i32 {
-        unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) as i32 }
     }
 
     pub fn alias(&self, index: i32) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_alias(self.handle.as_ptr(), index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_alias(self.handle.as_ptr(), index as usize)) }
     }
 
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
@@ -87,11 +87,11 @@ impl NamedTransform {
     }
 
     pub fn clear_aliases(&self) {
-        unsafe { ocio_sys::ocio_named_transform_clear_aliases(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_named_transform_clear_aliases(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn is_inactive(&self) -> bool {
-        unsafe { ocio_sys::ocio_named_transform_is_inactive(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_named_transform_is_inactive(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn set_inactive(&self, inactive: bool) {
@@ -99,7 +99,7 @@ impl NamedTransform {
     }
 
     pub fn category(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_named_transform_get_category(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_named_transform_get_category(self.handle.as_ptr(), 0)) }
     }
 
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
@@ -118,7 +118,7 @@ impl NamedTransform {
     pub fn set_transform(&self, transform: &impl TransformHandle, direction: TransformDirection) {
         unsafe {
             ocio_sys::ocio_named_transform_set_transform(
-                self.handle.as_ptr(), transform.as_ptr() as *const c_void, direction as i32,
+                self.handle.as_ptr(), transform.as_ptr() as *mut c_void, direction as i32,
             );
         }
     }
@@ -126,7 +126,7 @@ impl NamedTransform {
 
 impl Drop for NamedTransform {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_named_transform_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_named_transform_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

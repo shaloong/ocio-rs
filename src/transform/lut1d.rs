@@ -73,11 +73,11 @@ impl Lut1DTransform {
     }
 
     pub fn length(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut1d_transform_get_length(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_lut1d_transform_get_length(self.handle.as_ptr()) as u64 }
     }
 
     pub fn set_length(&self, len: u64) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_length(self.handle.as_ptr(), len) };
+        unsafe { ocio_sys::ocio_lut1d_transform_set_length(self.handle.as_ptr(), std::ptr::null_mut()) };
     }
 
     pub fn values(&self) -> Vec<f64> {

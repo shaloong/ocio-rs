@@ -10,7 +10,7 @@ pub struct GradingRGBCurveTransform {
 
 impl GradingRGBCurveTransform {
     pub fn create(style: GradingStyle) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_grading_rgb_curve_transform_create(style as i32) };
+        let handle = unsafe { ocio_sys::ocio_grading_rgb_curve_transform_create() };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
@@ -56,11 +56,11 @@ impl GradingRGBCurveTransform {
     }
 
     pub fn slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
-        unsafe { ocio_sys::ocio_grading_rgb_curve_transform_get_slope(self.handle.as_ptr(), curve_type as i32, index) }
+        unsafe { ocio_sys::ocio_grading_rgb_curve_transform_get_slope(self.handle.as_ptr(), curve_type as i32, index as usize) }
     }
 
     pub fn set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
-        unsafe { ocio_sys::ocio_grading_rgb_curve_transform_set_slope(self.handle.as_ptr(), curve_type as i32, index, slope); }
+        unsafe { ocio_sys::ocio_grading_rgb_curve_transform_set_slope(self.handle.as_ptr(), curve_type as i32, index as usize, slope); }
     }
 
     pub fn slopes_are_default(&self, curve_type: RGBCurveType) -> bool {

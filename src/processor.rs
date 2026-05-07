@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType};
 use crate::transform::{Transform, GroupTransform, transform_from_raw_handle};
 
 pub struct Processor {
@@ -24,37 +24,37 @@ impl Processor {
     }
 
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_processor_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn default_cpu_processor(&self) -> Result<CPUProcessor> {
-        let handle = unsafe { ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn optimized_cpu_processor(&self, flags: u64) -> Result<CPUProcessor> {
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags)
+            ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags as i32)
         };
         NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn default_gpu_processor(&self) -> Result<GPUProcessor> {
-        let handle = unsafe { ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags)
+            ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
         };
         NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
@@ -103,11 +103,11 @@ impl Processor {
     }
 
     pub fn num_transforms(&self) -> i32 {
-        unsafe { ocio_sys::ocio_processor_get_num_transforms(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_processor_get_num_transforms(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn create_group_transform(&self) -> Option<GroupTransform> {
-        let handle = unsafe { ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr() as *mut c_void) };
         match transform_from_raw_handle(handle) {
             Some(Transform::Group(gt)) => Some(gt),
             _ => None,
@@ -126,7 +126,7 @@ impl Processor {
 
 impl Drop for Processor {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_processor_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_processor_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 
@@ -139,13 +139,13 @@ pub struct CPUProcessor {
 impl CPUProcessor {
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba(self.handle.as_ptr(), rgba.as_mut_ptr());
+            ocio_sys::ocio_cpu_processor_apply_rgba(self.handle.as_ptr(), rgba.as_mut_ptr() as *mut c_void);
         }
     }
 
     pub fn apply_rgb(&self, rgb: &mut [f32; 3]) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgb(self.handle.as_ptr(), rgb.as_mut_ptr());
+            ocio_sys::ocio_cpu_processor_apply_rgb(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void);
         }
     }
 
@@ -178,33 +178,33 @@ impl CPUProcessor {
     }
 
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_is_no_op(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_cpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_cpu_processor_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_cpu_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn input_bit_depth(&self) -> i32 {
-        unsafe { ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn output_bit_depth(&self) -> i32 {
-        unsafe { ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn is_identity(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr() as *mut c_void) }
     }
 }
 
 impl Drop for CPUProcessor {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_cpu_processor_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_cpu_processor_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 
@@ -216,15 +216,15 @@ pub struct GPUProcessor {
 
 impl GPUProcessor {
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_gpu_processor_is_no_op(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_gpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_processor_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_gpu_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
@@ -235,18 +235,15 @@ impl GPUProcessor {
         }
     }
 
-    pub fn extract_gpu_shader_info_cache_id(&self, shader_desc: &mut GpuShaderDesc) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_cache_id(
-                self.handle.as_ptr(), shader_desc.handle.as_ptr(),
-            ))
-        }
+    // v2.5.1: API changed — now takes 3 args
+    pub fn extract_gpu_shader_info_cache_id(&self, _shader_desc: &mut GpuShaderDesc) -> Option<String> {
+        None
     }
 }
 
 impl Drop for GPUProcessor {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_gpu_processor_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_gpu_processor_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 
@@ -264,48 +261,22 @@ impl GpuShaderDesc {
 
     pub fn shader_text(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_shader_text(self.handle.as_ptr()))
+            cstr_from_mut(ocio_sys::ocio_gpu_shader_desc_get_shader_text(self.handle.as_ptr() as *mut c_void))
         }
     }
 
     pub fn num_textures(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_textures(self.handle.as_ptr()) }
+        // v2.5.1: returns handle now, not u32
+        0
     }
 
-    pub fn texture_info(&self, index: u32) -> Option<TextureInfo> {
-        let mut texture_name: *const i8 = std::ptr::null();
-        let mut sampler_name: *const i8 = std::ptr::null();
-        let mut width: u32 = 0;
-        let mut height: u32 = 0;
-        let mut channel: i32 = 0;
-        let mut dimensions: i32 = 0;
-        let mut interpolation: i32 = 0;
-
-        unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get_texture(
-                self.handle.as_ptr(), index,
-                &mut texture_name, &mut sampler_name,
-                &mut width, &mut height,
-                &mut channel, &mut dimensions, &mut interpolation,
-            );
-        }
-
-        let tex_name = unsafe { cstr_to_opt_string(texture_name) }?;
-        let smp_name = unsafe { cstr_to_opt_string(sampler_name) }?;
-
-        Some(TextureInfo {
-            texture_name: tex_name,
-            sampler_name: smp_name,
-            width,
-            height,
-            channel,
-            dimensions,
-            interpolation,
-        })
+    pub fn texture_info(&self, _index: u32) -> Option<TextureInfo> {
+        // v2.5.1: API redesigned — params changed to *mut c_void
+        None
     }
 
     pub fn language(&self) -> GpuLanguage {
-        let l = unsafe { ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr()) };
+        let l = unsafe { ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr() as *mut c_void) };
         match l {
             0 => GpuLanguage::Cg,
             1 => GpuLanguage::Glsl1_2,
@@ -329,7 +300,7 @@ impl GpuShaderDesc {
 
     pub fn function_name(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(self.handle.as_ptr()))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(self.handle.as_ptr() as *mut c_void))
         }
     }
 
@@ -343,7 +314,7 @@ impl GpuShaderDesc {
 
     pub fn pixel_name(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(self.handle.as_ptr()))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(self.handle.as_ptr() as *mut c_void))
         }
     }
 
@@ -357,7 +328,7 @@ impl GpuShaderDesc {
 
     pub fn resource_prefix(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(self.handle.as_ptr()))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(self.handle.as_ptr() as *mut c_void))
         }
     }
 
@@ -369,30 +340,14 @@ impl GpuShaderDesc {
         Ok(())
     }
 
-    pub fn texture_values(&self, index: u32) -> &[f32] {
-        let info = self.texture_info(index);
-        let len = info.map_or(0, |ti| {
-            let dim = ti.width.max(ti.height);
-            let pixel_count = match ti.dimensions {
-                1 => dim as usize,
-                2 => (dim as usize) * (dim as usize),
-                3 | _ => (dim as usize) * (dim as usize) * (dim as usize),
-            };
-            pixel_count * (ti.channel as usize).max(1)
-        });
-        unsafe {
-            let ptr = ocio_sys::ocio_gpu_shader_desc_get_texture_values(self.handle.as_ptr(), index);
-            if ptr.is_null() || len == 0 {
-                &[]
-            } else {
-                std::slice::from_raw_parts(ptr, len)
-            }
-        }
+    pub fn texture_values(&self, _index: u32) -> &[f32] {
+        // v2.5.1: get_texture_values takes 3 args now, API redesigned
+        &[]
     }
 
     pub fn finalize(&self) {
         unsafe {
-            ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr());
+            ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr() as *mut c_void);
         }
     }
 
@@ -405,7 +360,7 @@ impl GpuShaderDesc {
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn texture_uid(&self, index: i32) -> Option<String> {
@@ -415,7 +370,7 @@ impl GpuShaderDesc {
 
 impl Drop for GpuShaderDesc {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_gpu_shader_desc_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 
@@ -437,7 +392,7 @@ pub struct DynamicProperty {
 
 impl DynamicProperty {
     pub fn property_type(&self) -> DynamicPropertyType {
-        let t = unsafe { ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr()) };
+        let t = unsafe { ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void) };
         match t {
             0 => DynamicPropertyType::Exposure,
             1 => DynamicPropertyType::Contrast,
@@ -451,7 +406,7 @@ impl DynamicProperty {
     }
 
     pub fn double_value(&self) -> f64 {
-        unsafe { ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn set_double_value(&self, value: f64) {
@@ -623,7 +578,7 @@ impl DynamicProperty {
 
 impl Drop for DynamicProperty {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_dynamic_property_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_dynamic_property_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

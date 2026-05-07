@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct DisplayViewTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -15,7 +15,7 @@ impl DisplayViewTransform {
     }
 
     pub fn src(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_display_view_transform_get_src(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_display_view_transform_get_src(self.handle.as_ptr())) }
     }
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
@@ -25,7 +25,7 @@ impl DisplayViewTransform {
     }
 
     pub fn display(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_display_view_transform_get_display(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_display_view_transform_get_display(self.handle.as_ptr())) }
     }
 
     pub fn set_display(&self, display: impl AsRef<str>) -> Result<()> {
@@ -35,7 +35,7 @@ impl DisplayViewTransform {
     }
 
     pub fn view(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_display_view_transform_get_view(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_display_view_transform_get_view(self.handle.as_ptr())) }
     }
 
     pub fn set_view(&self, view: impl AsRef<str>) -> Result<()> {

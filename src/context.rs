@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, EnvironmentMode};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, EnvironmentMode};
 
 pub struct Context {
     pub(crate) handle: NonNull<c_void>,
@@ -20,11 +20,11 @@ impl Context {
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_context_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_cache_id(self.handle.as_ptr())) }
     }
 
     pub fn search_path(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_context_get_search_path(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_search_path(self.handle.as_ptr())) }
     }
 
     pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
@@ -39,7 +39,7 @@ impl Context {
 
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_get_search_path_by_index(
+            cstr_from_mut(ocio_sys::ocio_context_get_search_path_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -56,7 +56,7 @@ impl Context {
     }
 
     pub fn working_dir(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) }
     }
 
     pub fn set_working_dir(&self, dirname: impl AsRef<str>) -> Result<()> {
@@ -68,7 +68,7 @@ impl Context {
     pub fn string_var(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_get_string_var(
+            cstr_from_mut(ocio_sys::ocio_context_get_string_var(
                 self.handle.as_ptr(), name.as_ptr().cast(),
             ))
         }
@@ -91,7 +91,7 @@ impl Context {
 
     pub fn string_var_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_get_string_var_name_by_index(
+            cstr_from_mut(ocio_sys::ocio_context_get_string_var_name_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -99,7 +99,7 @@ impl Context {
 
     pub fn string_var_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_get_string_var_by_index(
+            cstr_from_mut(ocio_sys::ocio_context_get_string_var_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -108,7 +108,7 @@ impl Context {
     pub fn resolve_string_var(&self, string: impl AsRef<str>) -> Option<String> {
         let s = cstring(string).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_resolve_string_var(
+            cstr_from_mut(ocio_sys::ocio_context_resolve_string_var(
                 self.handle.as_ptr(), s.as_ptr().cast(),
             ))
         }
@@ -117,7 +117,7 @@ impl Context {
     pub fn resolve_file_location(&self, filename: impl AsRef<str>) -> Option<String> {
         let f = cstring(filename).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_context_resolve_file_location(
+            cstr_from_mut(ocio_sys::ocio_context_resolve_file_location(
                 self.handle.as_ptr(), f.as_ptr().cast(),
             ))
         }

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection, ColorSpaceVisibility};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection, ColorSpaceVisibility};
 use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct ColorSpace {
@@ -21,7 +21,7 @@ impl ColorSpace {
     }
 
     pub fn name(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_name(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_name(self.handle.as_ptr())) }
     }
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
@@ -31,7 +31,7 @@ impl ColorSpace {
     }
 
     pub fn family(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_family(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_family(self.handle.as_ptr())) }
     }
 
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
@@ -41,7 +41,7 @@ impl ColorSpace {
     }
 
     pub fn equality_group(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_equality_group(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_equality_group(self.handle.as_ptr())) }
     }
 
     pub fn set_equality_group(&self, group: impl AsRef<str>) -> Result<()> {
@@ -51,7 +51,7 @@ impl ColorSpace {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_description(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_description(self.handle.as_ptr())) }
     }
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
@@ -93,12 +93,12 @@ impl ColorSpace {
     }
 
     pub fn category(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_category(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_category(self.handle.as_ptr(), 0)) }
     }
 
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
-        unsafe { ocio_sys::ocio_color_space_set_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        unsafe { ocio_sys::ocio_color_space_add_category(self.handle.as_ptr(), c.as_ptr().cast()) };
         Ok(())
     }
 
@@ -127,7 +127,7 @@ impl ColorSpace {
         let mut vars = vec![0.0f32; n as usize];
         unsafe {
             ocio_sys::ocio_color_space_get_allocation_vars(
-                self.handle.as_ptr(), vars.as_mut_ptr(),
+                self.handle.as_ptr(), vars.as_mut_ptr() as *mut c_void,
             );
         }
         vars
@@ -136,13 +136,13 @@ impl ColorSpace {
     pub fn set_allocation_vars(&self, vars: &[f32]) {
         unsafe {
             ocio_sys::ocio_color_space_set_allocation_vars(
-                self.handle.as_ptr(), vars.len() as i32, vars.as_ptr(),
+                self.handle.as_ptr(), vars.len() as i32, vars.as_ptr() as *mut c_void,
             );
         }
     }
 
     pub fn encoding(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_encoding(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_encoding(self.handle.as_ptr())) }
     }
 
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
@@ -162,18 +162,18 @@ impl ColorSpace {
         unsafe {
             ocio_sys::ocio_color_space_set_transform(
                 self.handle.as_ptr(),
-                transform.as_ptr() as *const c_void,
+                transform.as_ptr() as *mut c_void,
                 direction as i32,
             );
         }
     }
 
     pub fn num_aliases(&self) -> i32 {
-        unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }
     }
 
     pub fn alias(&self, index: i32) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_alias(self.handle.as_ptr(), index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_alias(self.handle.as_ptr(), index as usize)) }
     }
 
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {

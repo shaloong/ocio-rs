@@ -17,26 +17,26 @@ impl MatrixTransform {
     pub fn matrix(&self) -> [f64; 16] {
         let mut m = [0.0f64; 16];
         for i in 0..4 { m[i * 5] = 1.0; }
-        unsafe { ocio_sys::ocio_matrix_transform_get_matrix(self.handle.as_ptr(), m.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_matrix_transform_get_matrix(self.handle.as_ptr(), m.as_mut_ptr() as *mut c_void) };
         m
     }
 
     pub fn set_matrix(&self, m44: &[f64; 16]) {
-        unsafe { ocio_sys::ocio_matrix_transform_set_matrix(self.handle.as_ptr(), m44.as_ptr()) };
+        unsafe { ocio_sys::ocio_matrix_transform_set_matrix(self.handle.as_ptr(), m44.as_ptr() as *mut c_void) };
     }
 
     pub fn offset(&self) -> [f64; 4] {
         let mut o = [0.0f64; 4];
-        unsafe { ocio_sys::ocio_matrix_transform_get_offset(self.handle.as_ptr(), o.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_matrix_transform_get_offset(self.handle.as_ptr(), o.as_mut_ptr() as *mut c_void) };
         o
     }
 
     pub fn set_offset(&self, offset4: &[f64; 4]) {
-        unsafe { ocio_sys::ocio_matrix_transform_set_offset(self.handle.as_ptr(), offset4.as_ptr()) };
+        unsafe { ocio_sys::ocio_matrix_transform_set_offset(self.handle.as_ptr(), offset4.as_ptr() as *mut c_void) };
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir = unsafe { ocio_sys::ocio_matrix_transform_get_direction(self.handle.as_ptr()) };
+        let dir = unsafe { ocio_sys::ocio_matrix_transform_get_direction(self.handle.as_ptr() as *mut c_void) };
         match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
     }
 
@@ -47,12 +47,12 @@ impl MatrixTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn file_input_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_matrix_transform_get_file_input_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe { ocio_sys::ocio_matrix_transform_get_file_input_bit_depth(self.handle.as_ptr() as *mut c_void) };
         match b {
             1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
             4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
@@ -65,7 +65,7 @@ impl MatrixTransform {
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_matrix_transform_get_file_output_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe { ocio_sys::ocio_matrix_transform_get_file_output_bit_depth(self.handle.as_ptr() as *mut c_void) };
         match b {
             1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
             4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
@@ -78,7 +78,7 @@ impl MatrixTransform {
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
-        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 }
@@ -119,7 +119,7 @@ impl MatrixTransform {
 
 impl Drop for MatrixTransform {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_matrix_transform_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_matrix_transform_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

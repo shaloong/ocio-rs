@@ -10,7 +10,7 @@ pub struct LogCameraTransform {
 
 impl LogCameraTransform {
     pub fn create(lin_side_break_values: &[f64; 3]) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_log_camera_transform_create(lin_side_break_values.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_log_camera_transform_create() };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 

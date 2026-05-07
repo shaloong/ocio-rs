@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection, Interpolation, CDLStyle};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection, Interpolation, CDLStyle};
 
 pub struct FileTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -15,7 +15,7 @@ impl FileTransform {
     }
 
     pub fn src(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_transform_get_src(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_transform_get_src(self.handle.as_ptr())) }
     }
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
@@ -25,7 +25,7 @@ impl FileTransform {
     }
 
     pub fn ccc_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_file_transform_get_ccc_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_file_transform_get_ccc_id(self.handle.as_ptr())) }
     }
 
     pub fn set_ccc_id(&self, id: impl AsRef<str>) -> Result<()> {

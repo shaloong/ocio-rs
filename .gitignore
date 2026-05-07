@@ -10,3 +10,11 @@ third_party/*
 # Generated v2.6 bridge files (reference for future upgrade)
 ocio-sys/src/bridge.v26.*
 ocio-sys/src/lib.v26.rs
+third_party/ocio-v2.5.1/
+ocio-sys/src/bridge.v251.*
+ocio-sys/src/lib.v251.rs
+ocio-sys/src/bridge.v251_new.*
+ocio-sys/src/lib.v251_new.rs
+migrate.exe
+migrate.pdb
+old_lib_for_migration.txt

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection, CDLStyle};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection, CDLStyle};
 
 pub struct CDLTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -25,32 +25,32 @@ impl CDLTransform {
 
     pub fn slope(&self) -> [f64; 3] {
         let mut rgb = [1.0f64; 3];
-        unsafe { ocio_sys::ocio_cdl_transform_get_slope(self.handle.as_ptr(), rgb.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_get_slope(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void) };
         rgb
     }
 
     pub fn set_slope(&self, rgb: &[f64; 3]) {
-        unsafe { ocio_sys::ocio_cdl_transform_set_slope(self.handle.as_ptr(), rgb.as_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_set_slope(self.handle.as_ptr(), rgb.as_ptr() as *mut c_void) };
     }
 
     pub fn offset(&self) -> [f64; 3] {
         let mut rgb = [0.0f64; 3];
-        unsafe { ocio_sys::ocio_cdl_transform_get_offset(self.handle.as_ptr(), rgb.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_get_offset(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void) };
         rgb
     }
 
     pub fn set_offset(&self, rgb: &[f64; 3]) {
-        unsafe { ocio_sys::ocio_cdl_transform_set_offset(self.handle.as_ptr(), rgb.as_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_set_offset(self.handle.as_ptr(), rgb.as_ptr() as *mut c_void) };
     }
 
     pub fn power_(&self) -> [f64; 3] {
         let mut rgb = [1.0f64; 3];
-        unsafe { ocio_sys::ocio_cdl_transform_get_power(self.handle.as_ptr(), rgb.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_get_power(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void) };
         rgb
     }
 
     pub fn set_power(&self, rgb: &[f64; 3]) {
-        unsafe { ocio_sys::ocio_cdl_transform_set_power(self.handle.as_ptr(), rgb.as_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_set_power(self.handle.as_ptr(), rgb.as_ptr() as *mut c_void) };
     }
 
     pub fn sat(&self) -> f64 {
@@ -64,7 +64,7 @@ impl CDLTransform {
     pub fn sat_luma_coefs(&self) -> [f64; 3] {
         let mut rgb = [0.0f64; 3];
         unsafe {
-            ocio_sys::ocio_cdl_transform_get_sat_luma_coefs(self.handle.as_ptr(), rgb.as_mut_ptr());
+            ocio_sys::ocio_cdl_transform_get_sat_luma_coefs(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void);
         }
         rgb
     }
@@ -85,7 +85,7 @@ impl CDLTransform {
     }
 
     pub fn id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_cdl_transform_get_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_cdl_transform_get_id(self.handle.as_ptr())) }
     }
 
     pub fn set_id(&self, id: impl AsRef<str>) -> Result<()> {
@@ -107,16 +107,16 @@ impl CDLTransform {
 
     pub fn sop(&self) -> [f64; 9] {
         let mut vec9 = [0.0f64; 9];
-        unsafe { ocio_sys::ocio_cdl_transform_get_sop(self.handle.as_ptr(), vec9.as_mut_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_get_sop(self.handle.as_ptr(), vec9.as_mut_ptr() as *mut c_void) };
         vec9
     }
 
     pub fn set_sop(&self, vec9: &[f64; 9]) {
-        unsafe { ocio_sys::ocio_cdl_transform_set_sop(self.handle.as_ptr(), vec9.as_ptr()) };
+        unsafe { ocio_sys::ocio_cdl_transform_set_sop(self.handle.as_ptr(), vec9.as_ptr() as *mut c_void) };
     }
 
     pub fn first_sop_description(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_cdl_transform_get_first_sop_description(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_cdl_transform_get_first_sop_description(self.handle.as_ptr())) }
     }
 
     pub fn set_first_sop_description(&self, desc: impl AsRef<str>) -> Result<()> {

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, Result};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, Result};
 
 pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
@@ -48,7 +48,7 @@ impl FormatMetadata {
     }
 
     pub fn num_attributes(&self) -> i32 {
-        unsafe { ocio_sys::ocio_format_metadata_get_num_attributes(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_format_metadata_get_num_attributes(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn attribute_name(&self, i: i32) -> Option<String> {
@@ -107,7 +107,7 @@ impl FormatMetadata {
 
     pub fn num_children(&self) -> i32 {
         unsafe {
-            ocio_sys::ocio_format_metadata_get_num_children_elements(self.handle.as_ptr())
+            ocio_sys::ocio_format_metadata_get_num_children_elements(self.handle.as_ptr() as *mut c_void)
         }
     }
 
@@ -132,7 +132,7 @@ impl FormatMetadata {
     }
 
     pub fn clear(&self) {
-        unsafe { ocio_sys::ocio_format_metadata_clear(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_format_metadata_clear(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn name(&self) -> Option<String> {
@@ -170,7 +170,7 @@ impl FormatMetadata {
 
 impl Drop for FormatMetadata {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_format_metadata_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_format_metadata_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

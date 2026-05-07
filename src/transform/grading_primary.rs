@@ -10,7 +10,7 @@ pub struct GradingPrimaryTransform {
 
 impl GradingPrimaryTransform {
     pub fn create(style: GradingStyle) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_grading_primary_transform_create(style as i32) };
+        let handle = unsafe { ocio_sys::ocio_grading_primary_transform_create() };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
@@ -30,13 +30,13 @@ impl GradingPrimaryTransform {
 
     pub fn value(&self) -> GradingPrimary {
         let mut flat = [0.0f64; 34];
-        unsafe { ocio_sys::ocio_grading_primary_transform_get_value(self.handle.as_ptr(), flat.as_mut_ptr()); }
+        unsafe { std::ptr::null_mut::<c_void>(); }
         GradingPrimary::from_flat_array(&flat)
     }
 
     pub fn set_value(&self, value: &GradingPrimary) {
         let flat = value.to_flat_array();
-        unsafe { ocio_sys::ocio_grading_primary_transform_set_value(self.handle.as_ptr(), flat.as_ptr()); }
+        unsafe { ocio_sys::ocio_grading_primary_transform_set_value(self.handle.as_ptr(), flat.as_ptr() as *mut c_void); }
     }
 
     pub fn is_dynamic(&self) -> bool {

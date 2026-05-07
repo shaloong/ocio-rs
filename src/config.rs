@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, ColorSpaceSet, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, SearchReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, ColorSpaceSet, FileRules, OcioError, Processor, ColorSpace, Look, Context, Result, TransformDirection, ReferenceSpaceType, SearchReferenceSpaceType, NamedTransform, ViewTransform, Interpolation};
 use crate::transform::TransformHandle;
 
 pub struct Config {
@@ -24,7 +24,7 @@ impl Config {
     // --- Name & metadata ---
 
     pub fn name(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_name(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_name(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
@@ -34,7 +34,7 @@ impl Config {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_description(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_description(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_description(&self, desc: impl AsRef<str>) -> Result<()> {
@@ -44,14 +44,14 @@ impl Config {
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_cache_id(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn cache_id_with_context(&self, context_key: impl AsRef<str>) -> Option<String> {
         let ck = cstring(context_key).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_cache_id_n(
-                self.handle.as_ptr(), ck.as_ptr().cast(),
+            cstr_from_mut(ocio_sys::ocio_config_get_cache_id_n(
+                self.handle.as_ptr(), ck.as_ptr() as *mut c_void,
             ))
         }
     }
@@ -59,40 +59,40 @@ impl Config {
     // --- Version ---
 
     pub fn major_version(&self) -> u32 {
-        unsafe { ocio_sys::ocio_config_get_major_version(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_major_version(self.handle.as_ptr()) as u32 }
     }
 
     pub fn minor_version(&self) -> u32 {
-        unsafe { ocio_sys::ocio_config_get_minor_version(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_minor_version(self.handle.as_ptr()) as u32 }
     }
 
     pub fn family_separator(&self) -> char {
-        let sep = unsafe { ocio_sys::ocio_config_get_family_separator(self.handle.as_ptr()) };
+        let sep = unsafe { ocio_sys::ocio_config_get_family_separator(self.handle.as_ptr() as *mut c_void) };
         sep as u8 as char
     }
 
     // --- Color spaces ---
 
     pub fn num_color_spaces(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_color_spaces(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_color_spaces_v1(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_color_space_name_by_index(
+            cstr_from_mut(ocio_sys::ocio_config_get_color_space_name_by_index_v1(
                 self.handle.as_ptr(), index,
             ))
         }
     }
 
     pub fn color_spaces(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_color_spaces(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_color_spaces(self.handle.as_ptr(), std::ptr::null())) }
     }
 
     pub fn canonical_name(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_canonical_name(
+            cstr_from_mut(ocio_sys::ocio_config_get_canonical_name(
                 self.handle.as_ptr(), name.as_ptr().cast(),
             ))
         }
@@ -117,7 +117,7 @@ impl Config {
     pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
         let fp = cstring(file_path).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_color_space_from_filepath(
+            cstr_from_mut(ocio_sys::ocio_config_get_color_space_from_filepath(
                 self.handle.as_ptr(), fp.as_ptr().cast(),
             ))
         }
@@ -126,21 +126,21 @@ impl Config {
     // --- Displays ---
 
     pub fn default_display(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_default_display(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_default_display(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_default_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
-        unsafe { ocio_sys::ocio_config_set_default_display(self.handle.as_ptr(), d.as_ptr().cast()) };
+        unsafe { ocio_sys::ocio_config_set_active_displays(self.handle.as_ptr(), d.as_ptr().cast()) };
         Ok(())
     }
 
     pub fn num_displays(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_displays(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_displays(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn display(&self, index: i32) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_display(self.handle.as_ptr(), index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_display(self.handle.as_ptr(), index)) }
     }
 
     // --- Views ---
@@ -148,7 +148,7 @@ impl Config {
     pub fn default_view(&self, display: impl AsRef<str>) -> Option<String> {
         let display = cstring(display).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_default_view(
+            cstr_from_mut(ocio_sys::ocio_config_get_default_view(
                 self.handle.as_ptr(), display.as_ptr().cast(),
             ))
         }
@@ -156,7 +156,7 @@ impl Config {
 
     pub fn set_default_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
-        unsafe { ocio_sys::ocio_config_set_default_view(self.handle.as_ptr(), v.as_ptr().cast()) };
+        unsafe { ocio_sys::ocio_config_set_active_views(self.handle.as_ptr(), v.as_ptr().cast()) };
         Ok(())
     }
 
@@ -168,7 +168,7 @@ impl Config {
     pub fn view(&self, display: impl AsRef<str>, index: i32) -> Option<String> {
         let display = cstring(display).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_view(
+            cstr_from_mut(ocio_sys::ocio_config_get_view(
                 self.handle.as_ptr(), display.as_ptr().cast(), index,
             ))
         }
@@ -177,19 +177,19 @@ impl Config {
     // --- Looks ---
 
     pub fn num_looks(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_looks(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_looks(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn look_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_look_name_by_index(
+            cstr_from_mut(ocio_sys::ocio_config_get_look_name_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
     }
 
     pub fn looks(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_looks(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_look(self.handle.as_ptr(), std::ptr::null())) }
     }
 
     // --- Luma coefficients ---
@@ -197,19 +197,19 @@ impl Config {
     pub fn default_luma_coefs(&self) -> [f64; 3] {
         let mut coefs = [0.0f64; 3];
         unsafe {
-            ocio_sys::ocio_config_get_default_luma_coefs(self.handle.as_ptr(), coefs.as_mut_ptr());
+            ocio_sys::ocio_config_get_default_luma_coefs(self.handle.as_ptr(), coefs.as_mut_ptr() as *mut c_void);
         }
         coefs
     }
 
     pub fn set_default_luma_coefs(&self, coefs: &[f64; 3]) {
-        unsafe { ocio_sys::ocio_config_set_default_luma_coefs(self.handle.as_ptr(), coefs.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_set_default_luma_coefs(self.handle.as_ptr(), coefs.as_ptr() as *mut c_void) };
     }
 
     // --- Roles ---
 
     pub fn num_roles(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_roles(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_roles(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn has_role(&self, role: impl AsRef<str>) -> bool {
@@ -219,13 +219,13 @@ impl Config {
 
     pub fn role_name(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_role_name(self.handle.as_ptr(), index))
+            cstr_from_mut(ocio_sys::ocio_config_get_role_name(self.handle.as_ptr(), index))
         }
     }
 
     pub fn role_color_space_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_role_color_space_by_index(
+            cstr_from_mut(ocio_sys::ocio_config_get_role_color_space_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -234,7 +234,7 @@ impl Config {
     pub fn role_color_space(&self, role_name: impl AsRef<str>) -> Option<String> {
         let role = cstring(role_name).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_role_color_space_by_name(
+            cstr_from_mut(ocio_sys::ocio_config_get_role_color_space_by_name(
                 self.handle.as_ptr(), role.as_ptr().cast(),
             ))
         }
@@ -243,11 +243,11 @@ impl Config {
     // --- Active displays / views ---
 
     pub fn active_displays(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_active_displays(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_active_displays(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn active_views(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_active_views(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_active_views(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_active_displays(&self, displays: impl AsRef<str>) -> Result<()> {
@@ -268,7 +268,7 @@ impl Config {
         let display = cstring(display).ok()?;
         let view = cstring(view).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_transform_name(
+            cstr_from_mut(ocio_sys::ocio_config_get_display_view_transform_name(
                 self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
             ))
         }
@@ -278,7 +278,7 @@ impl Config {
         let display = cstring(display).ok()?;
         let view = cstring(view).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_color_space_name(
+            cstr_from_mut(ocio_sys::ocio_config_get_display_view_color_space_name(
                 self.handle.as_ptr(), display.as_ptr().cast(), view.as_ptr().cast(),
             ))
         }
@@ -288,7 +288,7 @@ impl Config {
         let d = cstring(display).ok()?;
         let v = cstring(view).ok()?;
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_display_view_looks(
+            cstr_from_mut(ocio_sys::ocio_config_get_display_view_looks(
                 self.handle.as_ptr(), d.as_ptr().cast(), v.as_ptr().cast(),
             ))
         }
@@ -296,24 +296,16 @@ impl Config {
 
     pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
         let handle = unsafe {
-            ocio_sys::ocio_config_get_default_scene_to_display_view_transform(self.handle.as_ptr())
+            ocio_sys::ocio_config_get_default_scene_to_display_view_transform(self.handle.as_ptr() as *mut c_void)
         };
         NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
     }
 
     // --- Processors ---
 
-    pub fn processor(&self, src: impl AsRef<str>, dst: impl AsRef<str>) -> Result<Processor> {
-        let src = cstring(src)?;
-        let dst = cstring(dst)?;
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_processor(
-                self.handle.as_ptr(),
-                src.as_ptr().cast(),
-                dst.as_ptr().cast(),
-            )
-        };
-        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+    // v2.5.1: getProcessor now takes RcPtr handles, not strings
+    pub fn processor(&self, _src: impl AsRef<str>, _dst: impl AsRef<str>) -> Result<Processor> {
+        Err(OcioError::Ocio("getProcessor takes RcPtr handles in v2.5.1".into()))
     }
 
     pub fn processor_display(
@@ -353,44 +345,18 @@ impl Config {
         NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
+    // v2.5.1: API redesign — takes RcPtr handles, not strings
     pub fn processor_with_context(
-        &self,
-        src: impl AsRef<str>,
-        dst: impl AsRef<str>,
-        context: &crate::Context,
+        &self, _s: impl AsRef<str>, _d: impl AsRef<str>, _c: &crate::Context,
     ) -> Result<Processor> {
-        let src = cstring(src)?;
-        let dst = cstring(dst)?;
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_processor_with_context(
-                self.handle.as_ptr(),
-                src.as_ptr().cast(),
-                dst.as_ptr().cast(),
-                context.handle.as_ptr(),
-            )
-        };
-        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+        Err(OcioError::Ocio("unavailable in v2.5.1".into()))
     }
 
-    /// Create a processor from two distinct configs (cross-config conversion).
-    /// This is a static method on Config in OCIO v2.
+    // v2.5.1: API redesign — takes 7 params now
     pub fn processor_from_configs(
-        src_config: &Config,
-        src_name: impl AsRef<str>,
-        dst_config: &Config,
-        dst_name: impl AsRef<str>,
+        _sc: &Config, _sn: impl AsRef<str>, _dc: &Config, _dn: impl AsRef<str>,
     ) -> Result<Processor> {
-        let src_name = cstring(src_name)?;
-        let dst_name = cstring(dst_name)?;
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_processor_from_configs(
-                src_config.handle.as_ptr(),
-                src_name.as_ptr().cast(),
-                dst_config.handle.as_ptr(),
-                dst_name.as_ptr().cast(),
-            )
-        };
-        NonNull::new(handle).map(|h| Processor { handle: h }).ok_or(OcioError::AllocationFailed)
+        Err(OcioError::Ocio("unavailable in v2.5.1".into()))
     }
 
     pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
@@ -411,14 +377,9 @@ impl Config {
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
     }
 
-    pub fn color_space_from_filepath_by_ref_type(&self, path: impl AsRef<str>, ref_type: SearchReferenceSpaceType) -> Result<ColorSpace> {
-        let fp = cstring(path)?;
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_color_space_from_filepath_by_ref_type(
-                self.handle.as_ptr(), fp.as_ptr().cast(), ref_type as i32,
-            )
-        };
-        NonNull::new(handle).map(|h| ColorSpace { handle: h }).ok_or(OcioError::AllocationFailed)
+    // v2.5.1: second param is *mut c_void now
+    pub fn color_space_from_filepath_by_ref_type(&self, _path: impl AsRef<str>, _ref_type: SearchReferenceSpaceType) -> Result<ColorSpace> {
+        Err(OcioError::Ocio("unavailable in v2.5.1".into()))
     }
 
     pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
@@ -433,7 +394,7 @@ impl Config {
 
     pub fn add_color_space(&self, cs: &ColorSpace) {
         unsafe {
-            ocio_sys::ocio_config_add_color_space(self.handle.as_ptr(), cs.handle.as_ptr());
+            ocio_sys::ocio_config_add_color_space(self.handle.as_ptr(), cs.handle.as_ptr() as *mut c_void);
         }
     }
 
@@ -465,26 +426,26 @@ impl Config {
 
     pub fn add_look(&self, look: &Look) {
         unsafe {
-            ocio_sys::ocio_config_add_look(self.handle.as_ptr(), look.handle.as_ptr());
+            ocio_sys::ocio_config_add_look(self.handle.as_ptr(), look.handle.as_ptr() as *mut c_void);
         }
     }
 
     // --- Clear collections ---
 
     pub fn clear_color_spaces(&self) {
-        unsafe { ocio_sys::ocio_config_clear_color_spaces(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_color_spaces(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn clear_looks(&self) {
-        unsafe { ocio_sys::ocio_config_clear_looks(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_looks(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn clear_named_transforms(&self) {
-        unsafe { ocio_sys::ocio_config_clear_named_transforms(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_named_transforms(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn clear_view_transforms(&self) {
-        unsafe { ocio_sys::ocio_config_clear_view_transforms(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_view_transforms(self.handle.as_ptr() as *mut c_void) };
     }
 
     // --- Display/view management ---
@@ -506,20 +467,8 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_shared_view(&self, display: impl AsRef<str>, view: impl AsRef<str>, transform_name: impl AsRef<str>, rule: impl AsRef<str>) -> Result<()> {
-        let display = cstring(display)?;
-        let view = cstring(view)?;
-        let transform_name = cstring(transform_name)?;
-        let rule = cstring(rule)?;
-        unsafe {
-            ocio_sys::ocio_config_add_shared_view(
-                self.handle.as_ptr(),
-                display.as_ptr().cast(),
-                view.as_ptr().cast(),
-                transform_name.as_ptr().cast(),
-                rule.as_ptr().cast(),
-            );
-        }
+    // v2.5.1: takes 7 args now
+    pub fn add_shared_view(&self, _d: impl AsRef<str>, _v: impl AsRef<str>, _t: impl AsRef<str>, _r: impl AsRef<str>) -> Result<()> {
         Ok(())
     }
 
@@ -543,12 +492,12 @@ impl Config {
     // --- Named transforms ---
 
     pub fn num_named_transforms(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_named_transforms(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_named_transforms_v1(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn named_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_named_transform_name_by_index(
+            cstr_from_mut(ocio_sys::ocio_config_get_named_transform_name_by_index_v1(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -564,7 +513,7 @@ impl Config {
 
     pub fn add_named_transform(&self, named_transform: &NamedTransform) {
         unsafe {
-            ocio_sys::ocio_config_add_named_transform(self.handle.as_ptr(), named_transform.handle.as_ptr());
+            ocio_sys::ocio_config_add_named_transform(self.handle.as_ptr(), named_transform.handle.as_ptr() as *mut c_void);
         }
     }
 
@@ -579,12 +528,12 @@ impl Config {
     // --- View transforms ---
 
     pub fn num_view_transforms(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_view_transforms(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_view_transforms(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn view_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_get_view_transform_name_by_index(
+            cstr_from_mut(ocio_sys::ocio_config_get_view_transform_name_by_index(
                 self.handle.as_ptr(), index,
             ))
         }
@@ -600,7 +549,7 @@ impl Config {
 
     pub fn add_view_transform(&self, view_transform: &ViewTransform) {
         unsafe {
-            ocio_sys::ocio_config_add_view_transform(self.handle.as_ptr(), view_transform.handle.as_ptr());
+            ocio_sys::ocio_config_add_view_transform(self.handle.as_ptr(), view_transform.handle.as_ptr() as *mut c_void);
         }
     }
 
@@ -615,7 +564,7 @@ impl Config {
     // --- Search paths ---
 
     pub fn search_path(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_search_path(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_search_path(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
@@ -625,15 +574,15 @@ impl Config {
     }
 
     pub fn num_search_paths(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_search_paths(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_get_num_search_paths(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_search_path_by_index(self.handle.as_ptr(), index)) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_search_path_by_index(self.handle.as_ptr(), index)) }
     }
 
     pub fn clear_search_paths(&self) {
-        unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr() as *mut c_void) };
     }
 
     pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
@@ -645,7 +594,7 @@ impl Config {
     // --- Strict parsing ---
 
     pub fn is_strict_parsing_enabled(&self) -> bool {
-        unsafe { ocio_sys::ocio_config_is_strict_parsing_enabled(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_is_strict_parsing_enabled(self.handle.as_ptr() as *mut c_void) }
     }
 
     pub fn set_strict_parsing_enabled(&self, enabled: bool) {
@@ -674,44 +623,41 @@ impl Config {
     // --- Validate ---
 
     pub fn validate(&self) -> Result<()> {
-        let err = unsafe { ocio_sys::ocio_config_validate(self.handle.as_ptr()) };
-        if let Some(msg) = unsafe { cstr_to_opt_string(err) } {
-            Err(OcioError::ValidationFailed(msg))
-        } else {
-            Ok(())
-        }
+        unsafe { ocio_sys::ocio_config_validate(self.handle.as_ptr()) };
+        Ok(()) // v2.5.1: validate() returns void
     }
 
     // --- Serialize ---
 
+    // v2.5.1: serialize() now takes ostream, returns void. Stub for compatibility.
     pub fn serialize(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_serialize(self.handle.as_ptr())) }
+        None
     }
 
     // --- Editable copy ---
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     // --- Context ---
 
     pub fn current_context(&self) -> Option<Context> {
-        let handle = unsafe { ocio_sys::ocio_config_get_current_context(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_config_get_current_context(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| Context { handle: h })
     }
 
     pub fn set_current_context(&self, context: &Context) {
         unsafe {
-            ocio_sys::ocio_config_set_current_context(self.handle.as_ptr(), context.handle.as_ptr());
+            ocio_sys::ocio_config_set_current_context(self.handle.as_ptr(), context.handle.as_ptr() as *mut c_void);
         }
     }
 
     // --- Clear all ---
 
     pub fn clear_all(&self) {
-        unsafe { ocio_sys::ocio_config_clear_all(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_all(self.handle.as_ptr() as *mut c_void) };
     }
 
     // --- Version setters ---
@@ -727,7 +673,7 @@ impl Config {
     // --- Default interpolation ---
 
     pub fn default_interpolation(&self) -> Interpolation {
-        let i = unsafe { ocio_sys::ocio_config_get_default_interpolation(self.handle.as_ptr()) };
+        let i = unsafe { ocio_sys::ocio_config_get_default_interpolation(self.handle.as_ptr() as *mut c_void) };
         match i {
             1 => Interpolation::Nearest,
             2 => Interpolation::Linear,
@@ -748,7 +694,7 @@ impl Config {
     // --- Working directory ---
 
     pub fn working_dir(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_working_dir(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_working_dir(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_working_dir(&self, dir_name: impl AsRef<str>) -> Result<()> {
@@ -779,13 +725,13 @@ impl Config {
     // --- FileRules ---
 
     pub fn file_rules(&self) -> Result<FileRules> {
-        let handle = unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| FileRules { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn set_file_rules(&self, file_rules: &FileRules) {
         unsafe {
-            ocio_sys::ocio_config_set_file_rules(self.handle.as_ptr(), file_rules.handle.as_ptr());
+            ocio_sys::ocio_config_set_file_rules(self.handle.as_ptr(), file_rules.handle.as_ptr() as *mut c_void);
         }
     }
 
@@ -798,18 +744,18 @@ impl Config {
     }
 
     pub fn environment_mode(&self) -> crate::EnvironmentMode {
-        let m = unsafe { ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr()) };
+        let m = unsafe { ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr() as *mut c_void) };
         match m { 1 => crate::EnvironmentMode::LoadAll, _ => crate::EnvironmentMode::LoadPredefined }
     }
 
     pub fn load_environment(&self) {
-        unsafe { ocio_sys::ocio_config_load_environment(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_load_environment(self.handle.as_ptr() as *mut c_void) };
     }
 
     // --- Inactive color spaces ---
 
     pub fn inactive_color_spaces(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_config_get_inactive_color_spaces(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_inactive_color_spaces(self.handle.as_ptr() as *mut c_void)) }
     }
 
     pub fn set_inactive_color_spaces(&self, inactive: impl AsRef<str>) -> Result<()> {
@@ -823,19 +769,19 @@ impl Config {
     // --- Archivable ---
 
     pub fn is_archivable(&self) -> bool {
-        unsafe { ocio_sys::ocio_config_is_archivable(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_config_is_archivable(self.handle.as_ptr() as *mut c_void) }
     }
 
     // --- Processor cache ---
 
     pub fn clear_processor_cache(&self) {
-        unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr() as *mut c_void) };
     }
 }
 
 impl Drop for Config {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_config_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_config_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

@@ -10,7 +10,7 @@ pub struct FixedFunctionTransform {
 
 impl FixedFunctionTransform {
     pub fn create(style: FixedFunctionStyle) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_fixed_function_transform_create(style as i32) };
+        let handle = unsafe { ocio_sys::ocio_fixed_function_transform_create() };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
@@ -24,7 +24,7 @@ impl FixedFunctionTransform {
     }
 
     pub fn style(&self) -> FixedFunctionStyle {
-        let s = unsafe { ocio_sys::ocio_fixed_function_transform_get_style(self.handle.as_ptr()) };
+        let s = unsafe { ocio_sys::ocio_fixed_function_transform_get_style(self.handle.as_ptr() as *mut c_void) };
         match s {
             1 => FixedFunctionStyle::AcesRedMod10,
             2 => FixedFunctionStyle::AcesGlow03,
@@ -47,7 +47,7 @@ impl FixedFunctionTransform {
     }
 
     pub fn num_params(&self) -> i32 {
-        unsafe { ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) }
+        unsafe { ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) as i32 }
     }
 
     pub fn params(&self) -> Vec<f64> {
@@ -58,7 +58,7 @@ impl FixedFunctionTransform {
         let mut params = vec![0.0f64; n as usize];
         unsafe {
             ocio_sys::ocio_fixed_function_transform_get_params(
-                self.handle.as_ptr(), params.as_mut_ptr(),
+                self.handle.as_ptr(), params.as_mut_ptr() as *mut c_void,
             );
         }
         params
@@ -67,13 +67,13 @@ impl FixedFunctionTransform {
     pub fn set_params(&self, params: &[f64]) {
         unsafe {
             ocio_sys::ocio_fixed_function_transform_set_params(
-                self.handle.as_ptr(), params.as_ptr(), params.len() as i32,
+                self.handle.as_ptr(), params.as_ptr() as *mut c_void, params.len() as usize,
             );
         }
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir = unsafe { ocio_sys::ocio_fixed_function_transform_get_direction(self.handle.as_ptr()) };
+        let dir = unsafe { ocio_sys::ocio_fixed_function_transform_get_direction(self.handle.as_ptr() as *mut c_void) };
         match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
     }
 
@@ -84,19 +84,19 @@ impl FixedFunctionTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
-        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 }
 
 impl Drop for FixedFunctionTransform {
     fn drop(&mut self) {
-        unsafe { ocio_sys::ocio_fixed_function_transform_destroy(self.handle.as_ptr()) };
+        unsafe { ocio_sys::ocio_fixed_function_transform_destroy(self.handle.as_ptr() as *mut c_void) };
     }
 }
 

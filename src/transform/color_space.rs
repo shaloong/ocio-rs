@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct ColorSpaceTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -15,7 +15,7 @@ impl ColorSpaceTransform {
     }
 
     pub fn src(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_transform_get_src(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_transform_get_src(self.handle.as_ptr())) }
     }
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
@@ -25,7 +25,7 @@ impl ColorSpaceTransform {
     }
 
     pub fn dst(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_transform_get_dst(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_transform_get_dst(self.handle.as_ptr())) }
     }
 
     pub fn set_dst(&self, dst: impl AsRef<str>) -> Result<()> {

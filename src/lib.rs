@@ -28,7 +28,7 @@ pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, DynamicProperty, 
 pub use types::*;
 pub use view_transform::ViewTransform;
 
-use std::ffi::CString;
+use std::ffi::{c_void, CString};
 use thiserror::Error;
 
 pub use ocio_sys;
@@ -93,7 +93,7 @@ pub fn set_logging_level(level: crate::LoggingLevel) {
 }
 
 pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
-    unsafe { ocio_sys::ocio_set_logging_level_to_override(level as i32) };
+    unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
 }
 
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
@@ -115,6 +115,11 @@ pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
     } else {
         Some(std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned())
     }
+}
+
+// v2.5.1 compat: accept *mut c_void (new return type for many getter functions)
+pub(crate) unsafe fn cstr_from_mut(ptr: *mut c_void) -> Option<String> {
+    cstr_to_opt_string(ptr as *const i8)
 }
 
 #[cfg(test)]

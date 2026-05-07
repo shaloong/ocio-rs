@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct BuiltinTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -15,7 +15,7 @@ impl BuiltinTransform {
     }
 
     pub fn style(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_builtin_transform_get_style(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_builtin_transform_get_style(self.handle.as_ptr())) }
     }
 
     pub fn set_style(&self, style: impl AsRef<str>) -> Result<()> {
@@ -36,7 +36,7 @@ impl BuiltinTransform {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_builtin_transform_get_description(self.handle.as_ptr())) }
+        unsafe { cstr_from_mut(ocio_sys::ocio_builtin_transform_get_description(self.handle.as_ptr())) }
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {

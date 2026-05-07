@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstring, ColorSpace, OcioError, Result};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, ColorSpace, OcioError, Result};
 
 pub struct ColorSpaceSet {
     pub(crate) handle: NonNull<c_void>,
@@ -30,7 +30,7 @@ impl ColorSpaceSet {
 
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(
+            cstr_from_mut(
                 ocio_sys::ocio_color_space_set_get_color_space_name_by_index(
                     self.handle.as_ptr(),
                     index,
