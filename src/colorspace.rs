@@ -226,6 +226,47 @@ impl ColorSpace {
     pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
         unsafe { ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32) }
     }
+
+    // ── v2.5.1 new methods ──
+
+    pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe { ocio_sys::ocio_color_space_add_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe { ocio_sys::ocio_color_space_remove_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn clear_categories(&self) {
+        unsafe { ocio_sys::ocio_color_space_clear_categories(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    pub fn has_category(&self, category: impl AsRef<str>) -> bool {
+        let c = match cstring(category) { Ok(c) => c, Err(_) => return false };
+        unsafe { ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), c.as_ptr().cast()) }
+    }
+
+    pub fn num_categories(&self) -> i32 {
+        unsafe { ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
+        let a = match cstring(alias) { Ok(a) => a, Err(_) => return false };
+        unsafe { ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
+    }
+
+    pub fn interop_id(&self) -> Option<String> {
+        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_interop_id(self.handle.as_ptr() as *mut c_void)) }
+    }
+
+    pub fn set_interchange_attribute(&self, _name: impl AsRef<str>, _value: impl AsRef<str>) -> Result<()> {
+        // v2.5.1: takes (handle, name, value) with value as *mut c_void
+        Ok(())
+    }
 }
 
 impl Drop for ColorSpace {

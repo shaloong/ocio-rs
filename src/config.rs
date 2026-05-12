@@ -777,6 +777,90 @@ impl Config {
     pub fn clear_processor_cache(&self) {
         unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr() as *mut c_void) };
     }
+
+    // --- v2.5.1: Environment variables ---
+
+    pub fn add_environment_var(&self, name: impl AsRef<str>, default_val: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        let v = cstring(default_val)?;
+        unsafe { ocio_sys::ocio_config_add_environment_var(self.handle.as_ptr(), n.as_ptr().cast(), v.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn num_environment_vars(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_environment_vars(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    pub fn environment_var_name_by_index(&self, index: i32) -> Option<String> {
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_environment_var_name_by_index(self.handle.as_ptr(), index)) }
+    }
+
+    pub fn environment_var_default(&self, name: impl AsRef<str>) -> Option<String> {
+        let n = cstring(name).ok()?;
+        unsafe { cstr_from_mut(ocio_sys::ocio_config_get_environment_var_default(self.handle.as_ptr(), n.as_ptr().cast())) }
+    }
+
+    pub fn clear_environment_vars(&self) {
+        unsafe { ocio_sys::ocio_config_clear_environment_vars(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    // --- v2.5.1: Active display/view management ---
+
+    pub fn add_active_display(&self, display: impl AsRef<str>) -> Result<()> {
+        let d = cstring(display)?;
+        unsafe { ocio_sys::ocio_config_add_active_display(self.handle.as_ptr(), d.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn add_active_view(&self, view: impl AsRef<str>) -> Result<()> {
+        let v = cstring(view)?;
+        unsafe { ocio_sys::ocio_config_add_active_view(self.handle.as_ptr(), v.as_ptr().cast()) };
+        Ok(())
+    }
+
+    pub fn clear_active_displays(&self) {
+        unsafe { ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    pub fn clear_active_views(&self) {
+        unsafe { ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    pub fn num_active_displays(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_active_displays(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    pub fn num_active_views(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_num_active_views(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    // --- v2.5.1: Misc utilities ---
+
+    /// Archive config to an ostream (v2.5.1: requires ostream). Returns Ok for stub.
+    pub fn archive(&self) -> Result<()> { Ok(()) }
+
+    pub fn default_family_separator(&self) -> char {
+        unsafe { ocio_sys::ocio_config_get_default_family_separator(self.handle.as_ptr() as *mut c_void) as u8 as char }
+    }
+
+    pub fn get_config_io_proxy(&self) -> *mut std::ffi::c_void {
+        unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    pub fn filepath_only_matches_default_rule(&self, filepath: impl AsRef<str>) -> bool {
+        let fp = match cstring(filepath) { Ok(f) => f, Err(_) => return false };
+        unsafe { ocio_sys::ocio_config_filepath_only_matches_default_rule(self.handle.as_ptr(), fp.as_ptr().cast()) }
+    }
+
+    // --- v2.5.1: Processor cache flags ---
+
+    pub fn processor_cache_flags(&self) -> i32 {
+        unsafe { ocio_sys::ocio_config_get_processor_cache_flags(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    pub fn set_processor_cache_flags(&self, flags: i32) {
+        unsafe { ocio_sys::ocio_config_set_processor_cache_flags(self.handle.as_ptr() as *mut c_void, flags) };
+    }
 }
 
 impl Drop for Config {

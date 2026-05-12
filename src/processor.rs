@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType};
+use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType, FormatMetadata};
 use crate::transform::{Transform, GroupTransform, transform_from_raw_handle};
 
 pub struct Processor {
@@ -122,6 +122,30 @@ impl Processor {
         }
         Ok(())
     }
+
+    // ── v2.5.1 ──
+    pub fn format_metadata(&self) -> Option<FormatMetadata> {
+        let h = unsafe { ocio_sys::ocio_processor_get_format_metadata(self.handle.as_ptr() as *mut c_void) };
+        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+    }
+
+    pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
+        let h = unsafe { ocio_sys::ocio_processor_get_transform_format_metadata(self.handle.as_ptr(), index) };
+        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+    }
+
+    pub fn processor_metadata(&self) -> Option<FormatMetadata> {
+        let h = unsafe { ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void) };
+        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+    }
+
+    pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
+        unsafe { ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        unsafe { ocio_sys::ocio_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
+    }
 }
 
 impl Drop for Processor {
@@ -199,6 +223,20 @@ impl CPUProcessor {
 
     pub fn is_identity(&self) -> bool {
         unsafe { ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    // ── v2.5.1 ──
+    pub fn get_dynamic_property(&self, prop_type: i32) -> Option<DynamicProperty> {
+        let h = unsafe { ocio_sys::ocio_cpu_processor_get_dynamic_property(self.handle.as_ptr(), prop_type) };
+        NonNull::new(h).map(|h| DynamicProperty { handle: h })
+    }
+
+    pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
+        unsafe { ocio_sys::ocio_cpu_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        unsafe { ocio_sys::ocio_cpu_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
     }
 }
 
@@ -366,6 +404,18 @@ impl GpuShaderDesc {
     pub fn texture_uid(&self, index: i32) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(self.handle.as_ptr(), index)) }
     }
+
+    // ── v2.5.1 ──
+    pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
+        let h = unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
+        NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
+    }
+
+    pub fn num_uniforms(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms(self.handle.as_ptr() as *mut c_void) } }
+    pub fn uniform_buffer_size(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size(self.handle.as_ptr() as *mut c_void) } }
+    pub fn num_3d_textures(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures(self.handle.as_ptr() as *mut c_void) } }
+    pub fn texture_shader_binding_index(&self, index: i32) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_shader_binding_index(self.handle.as_ptr(), index as *mut c_void) } }
+    pub fn uniform_name(&self, index: i32) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_uniform(self.handle.as_ptr(), index as *mut c_void, std::ptr::null_mut()) } }
 }
 
 impl Drop for GpuShaderDesc {
