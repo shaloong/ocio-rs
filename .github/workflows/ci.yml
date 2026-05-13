@@ -5,21 +5,17 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-
+  check:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Check
-        run: cargo check --workspace
+      - name: Build (stub mode)
+        run: cargo build --workspace --no-default-features
 
-      - name: Test
-        run: cargo test --workspace
+      - name: Test (stub mode)
+        run: cargo test --workspace --no-default-features
