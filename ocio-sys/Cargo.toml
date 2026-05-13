@@ -2,8 +2,12 @@
 name = "ocio-sys"
 version = "0.1.0"
 edition = "2021"
-build = "build.rs"
+authors = ["shaloong <contact@shaloong.com>"]
+description = "Low-level FFI bindings for OpenColorIO v2.5.1"
+license = "BSD-3-Clause"
+repository = "https://github.com/shaloong/ocio-rs"
 links = "OpenColorIO"
+build = "build.rs"
 
 [dependencies]
 

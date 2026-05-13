@@ -4,7 +4,7 @@
 
 ocio-rs uses a 4-layer architecture:
 
-```
+```text
 Layer 1: Safe Rust wrappers    (src/*.rs)
 Layer 2: Rust FFI declarations (ocio-sys/src/lib.rs)       [AUTO-GENERATED]
 Layer 3: C++ bridge             (ocio-sys/src/bridge.cpp)  [AUTO-GENERATED]
@@ -64,6 +64,7 @@ cargo run -- --ocio-path <path>       # Use custom OCIO headers
 ### Remaining Known Issues
 
 29 type-mapping edge cases in real-OCIO mode:
+
 - `const T&` output parameter dereferencing
 - `std::ostream&` serialization parameter
 - Const-to-non-const `shared_ptr` conversions for skipped classes
@@ -100,6 +101,7 @@ cargo run --release --bin bench_ocio_rs
 The FFI overhead is ~5-8 ns per pixel call. For batch processing, use `apply_rgba_pixels()` which amortizes this cost across thousands of pixels per FFI call.
 
 Benchmark reference (MatrixTransform + applyRGBA, 1M iterations):
+
 - C++ direct: ~7-10 ns/pixel
 - Rust FFI: ~15 ns/pixel
 
