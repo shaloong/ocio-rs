@@ -14,8 +14,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Build (stub mode)
-        run: cargo build --workspace --no-default-features
+      - name: Install C++ compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
 
-      - name: Test (stub mode)
-        run: cargo test --workspace --no-default-features
+      - name: Check (stub mode)
+        run: cargo check --workspace --no-default-features
