@@ -299,7 +299,7 @@ dependencies = [
 
 [[package]]
 name = "ocio-rs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "ocio-sys",
@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "ocio-sys"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cc",
  "cmake",

@@ -5,7 +5,9 @@
 [![docs.rs](https://img.shields.io/docsrs/ocio-rs)](https://docs.rs/ocio-rs)
 [![license](https://img.shields.io/crates/l/ocio-rs)](LICENSE)
 
-Rust bindings for [OpenColorIO](https://opencolorio.org/) v2.5.1.
+Rust bindings for [OpenColorIO](https://opencolorio.org/).
+
+Wraps the full v2.5.2 public API — 38 classes, 22 transform types, 748 functions.
 
 > [中文文档](docs/README_zh-CN.md)
 
@@ -16,29 +18,26 @@ ocio-rs = "0.1"
 
 ## Build
 
-Default **stub mode**: no OCIO required. All APIs return safe defaults.
+**Stub mode** (default): compiles and tests run without an OCIO installation. APIs return safe defaults — sufficient for development and CI.
 
 ```bash
 cargo build
 cargo test
 ```
 
-For production binaries that need real color processing, clone with the OCIO submodule and enable the `bundled` feature:
+**Real OCIO mode** (three options):
 
 ```bash
+# Build OCIO from the bundled submodule and link statically
 git clone --recursive https://github.com/shaloong/ocio-rs
-cd ocio-rs
-cargo build --features bundled   # OCIO is statically linked into your binary
-```
+cargo build --features bundled
 
-Or use a pre-installed OCIO:
-
-```bash
+# Use a pre-installed OCIO
 OCIO_INSTALL_DIR=/path/to/ocio cargo build
-```
 
-> `cargo add ocio-rs` from crates.io gives you **stub mode** — perfect for development and CI.
-> For release binaries, clone the repo and build with `--features bundled` to statically link real OCIO.
+# Build from an OCIO source tree
+OCIO_SOURCE_DIR=/path/to/ocio cargo build
+```
 
 ## Architecture
 
@@ -55,12 +54,13 @@ ocio-rs/
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
-| 0.1.x   | v2.5.1 |
+| 0.1.0   | v2.5.1 |
+| 0.1.1   | v2.5.2 |
 
-Upgrading OCIO versions: update submodule → run code generator → fix diffs → release.
+OCIO upgrade workflow: update submodule → run code generator → fix compile errors → release.
 
 ## License
 
-[BSD-3-Clause](LICENSE), matching upstream OpenColorIO.
+[BSD-3-Clause](LICENSE).
 
 OpenColorIO is a trademark of the Academy Software Foundation. This project is not affiliated with ASWF.

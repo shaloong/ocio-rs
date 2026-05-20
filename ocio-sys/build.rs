@@ -124,6 +124,19 @@ fn main() {
         build.define("OCIO_RS_STUB", None);
     }
 
+    // MSVC standard headers (e.g. <stddef.h>) may not be found when cc-rs
+    // runs outside a Visual Studio Developer Command Prompt (common with
+    // Git Bash / MSYS2).  Add the toolchain include dirs explicitly so the
+    // bridge can compile regardless of the shell that launched Cargo.
+    if cfg!(target_os = "windows") && has_real_ocio {
+        if let Some(msvc_include) = find_msvc_include() {
+            build.include(msvc_include);
+        }
+        for sdk_dir in find_windows_sdk_includes() {
+            build.include(sdk_dir);
+        }
+    }
+
     build.include("src");
     for include in &include_paths {
         if include.exists() {
@@ -223,4 +236,44 @@ fn resolve_ocio_source_dir() -> Option<PathBuf> {
     }
 
     None
+}
+
+fn find_msvc_include() -> Option<PathBuf> {
+    // Probe well-known VS 2022 / 2019 MSVC include directories.
+    let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
+    for year in &["2022", "2019"] {
+        let vc_dir = base.join(year).join("BuildTools").join("VC").join("Tools").join("MSVC");
+        if let Ok(entries) = std::fs::read_dir(&vc_dir) {
+            for entry in entries.flatten() {
+                let candidate = entry.path().join("include");
+                if candidate.join("vcruntime.h").exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn find_windows_sdk_includes() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let kits = std::path::Path::new("C:/Program Files (x86)/Windows Kits/10/Include");
+    if let Ok(versions) = std::fs::read_dir(kits) {
+        // Pick the latest SDK version.
+        let mut versions: Vec<_> = versions.flatten().collect();
+        versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+        for entry in versions {
+            let base = entry.path();
+            for sub in &["ucrt", "shared", "um", "winrt"] {
+                let p = base.join(sub);
+                if p.exists() {
+                    dirs.push(p);
+                }
+            }
+            if !dirs.is_empty() {
+                break;
+            }
+        }
+    }
+    dirs
 }

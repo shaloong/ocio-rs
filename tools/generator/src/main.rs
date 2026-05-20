@@ -318,14 +318,15 @@ fn parse_params(params_str: &str) -> Vec<Param> {
 
 /// Returns (c_type, stub_return, wraps_handle)
 fn map_return_type(cpp_type: &str) -> (&str, &str, bool) {
-    let cpp_type = cpp_type.trim();
+    // Normalize: collapse spaces around * for "const char *" etc.
+    let cpp_type = cpp_type.trim().replace(" *", "*").replace("* ", "*");
 
     // RcPtr types → void* handle
-    if RCPTR_SET.contains(&cpp_type) || cpp_type.ends_with("RcPtr") {
+    if RCPTR_SET.contains(cpp_type.as_str()) || cpp_type.ends_with("RcPtr") {
         return ("void*", "nullptr", true);
     }
 
-    match cpp_type {
+    match cpp_type.as_str() {
         "const char*" => ("const char*", "nullptr", false),
         "void" => ("void", "", false),
         "int" => ("int", "0", false),
@@ -337,7 +338,7 @@ fn map_return_type(cpp_type: &str) -> (&str, &str, bool) {
         "char" => ("char", "'\\0'", false),
         _ => {
             // Check enum types
-            if ENUM_TYPES.contains(&cpp_type) {
+            if ENUM_TYPES.contains(cpp_type.as_str()) {
                 ("int", "0", false)
             } else if cpp_type.contains("RcPtr") && !cpp_type.starts_with("const char") {
                 ("void*", "nullptr", true)
@@ -427,10 +428,10 @@ fn rcptr_for_class(class_name: &str, is_transform: bool) -> String {
         format!("{}RcPtr", class_name)
     } else {
         match class_name {
-            "Config" => "ConstConfigRcPtr".into(),
-            "Processor" => "ConstProcessorRcPtr".into(),
-            "CPUProcessor" => "ConstCPUProcessorRcPtr".into(),
-            "GPUProcessor" => "ConstGPUProcessorRcPtr".into(),
+            "Config" => "ConfigRcPtr".into(),
+            "Processor" => "ProcessorRcPtr".into(),
+            "CPUProcessor" => "CPUProcessorRcPtr".into(),
+            "GPUProcessor" => "GPUProcessorRcPtr".into(),
             "Baker" => "BakerRcPtr".into(),
             "Context" => "ContextRcPtr".into(),
             "ColorSpace" => "ColorSpaceRcPtr".into(),
@@ -841,17 +842,23 @@ fn map_param_type(cpp_type: &str) -> &str {
     let t = norm.as_str();
     match t {
         "const char*" | "const char*&" => "const char*",
+        "const char**" | "const char**&" => "const char**",
         t if t.ends_with("RcPtr") || t.ends_with("RcPtr&") => "void*",
         t if t.contains("RcPtr") => "void*",
         "int" | "int&" => "int",
+        "int*" | "int*&" => "int*",
         "unsigned int" | "unsigned int&" => "unsigned int",
+        "unsigned long" | "unsigned long&" => "unsigned long",
+        "unsigned long*" | "unsigned long*&" => "unsigned long*",
         "size_t" => "size_t",
         "size_t&" => "size_t*",
         "bool" | "bool&" => "bool",
         "float" => "float",
         "float&" => "float*",
+        "float*" | "float*&" => "float*",
         "double" => "double",
         "double&" => "double*",
+        "double*" | "double*&" => "double*",
         "char" => "char",
         "const float*" | "const float*&" => "const float*",
         "const double*" | "const double*&" => "const double*",
@@ -930,7 +937,7 @@ fn generate_bridge_cpp(classes: &HashMap<String, ClassDef>) -> String {
     l.push_str("#ifdef OCIO_RS_STUB\n  return nullptr;\n#else\n  try {\n");
     l.push_str("    auto cfg = ocio::GetCurrentConfig();\n    if (!cfg) return nullptr;\n");
     l.push_str("    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();\n");
-    l.push_str("    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{cfg});\n");
+    l.push_str("    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(cfg)});\n");
     l.push_str("    return handle.release();\n  } catch (...) { return nullptr; }\n#endif\n}\n\n");
     l.push_str("void ocio_set_current_config(void* config) {\n");
     l.push_str("#ifdef OCIO_RS_STUB\n  (void)config;\n#else\n  try {\n");
@@ -1104,7 +1111,7 @@ fn gen_real_structs(l: &mut String, classes: &HashMap<String, ClassDef>) {
     for cls in classes.values() {
         if cls.name == "BuiltinConfigRegistry" {
             l.push_str("struct RealBuiltinConfigRegistry {\n");
-            l.push_str("  ocio::BuiltinConfigRegistry* registry;\n};\n");
+            l.push_str("  const ocio::BuiltinConfigRegistry* registry;\n};\n");
             continue;
         }
         let member = real_member_for_class(&cls.name, cls.is_transform);
@@ -1171,7 +1178,7 @@ fn gen_real_accessors(l: &mut String, classes: &HashMap<String, ClassDef>) {
         }
         let member = real_member_for_class(class_name, is_transform(prefix));
         let ret_type = if *prefix == "builtin_config_registry" {
-            "ocio::BuiltinConfigRegistry*".to_string()
+            "const ocio::BuiltinConfigRegistry*".to_string()
         } else {
             format!("ocio::{}", rcptr_for_class(class_name, is_transform(prefix)))
         };
@@ -1253,7 +1260,7 @@ fn gen_real_make_functions(l: &mut String, classes: &HashMap<String, ClassDef>) 
     l.push_str("static std::unique_ptr<ConfigHandle> make_real_config_from_file(const char* path) {\n");
     l.push_str("  try {\n    auto handle = std::make_unique<ConfigHandle>();\n");
     l.push_str("    auto config = std::make_shared<RealConfig>();\n");
-    l.push_str("    config->config = ocio::Config::CreateFromFile(path);\n");
+    l.push_str("    config->config = std::const_pointer_cast<ocio::Config>(ocio::Config::CreateFromFile(path));\n");
     l.push_str("    if (!config->config) return nullptr;\n");
     l.push_str("    handle->inner = config;\n    return handle;\n");
     l.push_str("  } catch (...) { return nullptr; }\n}\n");

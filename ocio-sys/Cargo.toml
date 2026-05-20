@@ -1,9 +1,9 @@
 [package]
 name = "ocio-sys"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
-description = "Low-level FFI bindings for OpenColorIO v2.5.1"
+description = "Low-level FFI bindings for OpenColorIO v2.5.2"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
 links = "OpenColorIO"

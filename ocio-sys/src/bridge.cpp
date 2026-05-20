@@ -494,7 +494,7 @@ struct RealNamedTransform {
   ocio::NamedTransformRcPtr transform;
 };
 struct RealProcessor {
-  ocio::ConstProcessorRcPtr processor;
+  ocio::ProcessorRcPtr processor;
 };
 struct RealContext {
   ocio::ContextRcPtr context;
@@ -518,7 +518,7 @@ struct RealLogTransform {
   ocio::LogTransformRcPtr transform;
 };
 struct RealBuiltinConfigRegistry {
-  ocio::BuiltinConfigRegistry* registry;
+  const ocio::BuiltinConfigRegistry* registry;
 };
 struct RealExposureContrastTransform {
   ocio::ExposureContrastTransformRcPtr transform;
@@ -527,7 +527,7 @@ struct RealGroupTransform {
   ocio::GroupTransformRcPtr transform;
 };
 struct RealConfig {
-  ocio::ConstConfigRcPtr config;
+  ocio::ConfigRcPtr config;
 };
 struct RealLogAffineTransform {
   ocio::LogAffineTransformRcPtr transform;
@@ -545,7 +545,7 @@ struct RealDynamicProperty {
   ocio::DynamicPropertyRcPtr prop;
 };
 struct RealCPUProcessor {
-  ocio::ConstCPUProcessorRcPtr cpu;
+  ocio::CPUProcessorRcPtr cpu;
 };
 struct RealExponentTransform {
   ocio::ExponentTransformRcPtr transform;
@@ -572,7 +572,7 @@ struct RealGradingToneTransform {
   ocio::GradingToneTransformRcPtr transform;
 };
 struct RealGPUProcessor {
-  ocio::ConstGPUProcessorRcPtr gpu;
+  ocio::GPUProcessorRcPtr gpu;
 };
 struct RealCDLTransform {
   ocio::CDLTransformRcPtr transform;
@@ -693,7 +693,7 @@ ocio::TransformRcPtr RangeTransformHandle::get_ocio_transform() {
 }
 
 // --- Real accessor functions ---
-static ocio::ConstConfigRcPtr get_real_config(void* handle) {
+static ocio::ConfigRcPtr get_real_config(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::ConfigHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealConfig>(h->inner)->config;
 }
@@ -728,17 +728,17 @@ static ocio::ViewTransformRcPtr get_real_view_transform(void* handle) {
   return std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(h->inner)->transform;
 }
 
-static ocio::ConstProcessorRcPtr get_real_processor(void* handle) {
+static ocio::ProcessorRcPtr get_real_processor(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::ProcessorHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealProcessor>(h->inner)->processor;
 }
 
-static ocio::ConstCPUProcessorRcPtr get_real_cpu_processor(void* handle) {
+static ocio::CPUProcessorRcPtr get_real_cpu_processor(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::CPUProcessorHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealCPUProcessor>(h->inner)->cpu;
 }
 
-static ocio::ConstGPUProcessorRcPtr get_real_gpu_processor(void* handle) {
+static ocio::GPUProcessorRcPtr get_real_gpu_processor(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::GPUProcessorHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealGPUProcessor>(h->inner)->gpu;
 }
@@ -763,7 +763,7 @@ static ocio::DynamicPropertyRcPtr get_real_dynamic_property(void* handle) {
   return std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(h->inner)->prop;
 }
 
-static ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void* handle) {
+static const ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::BuiltinConfigRegistryHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealBuiltinConfigRegistry>(h->inner)->registry;
 }
@@ -1129,7 +1129,7 @@ static std::unique_ptr<ConfigHandle> make_real_config_raw() {
   try {
     auto handle = std::make_unique<ConfigHandle>();
     auto config = std::make_shared<RealConfig>();
-    config->config = ocio::Config::CreateRaw();
+    config->config = std::const_pointer_cast<ocio::Config>(ocio::Config::CreateRaw());
     handle->inner = config;
     return handle;
   } catch (...) { return nullptr; }
@@ -1139,7 +1139,7 @@ static std::unique_ptr<ConfigHandle> make_real_config_from_file(const char* path
   try {
     auto handle = std::make_unique<ConfigHandle>();
     auto config = std::make_shared<RealConfig>();
-    config->config = ocio::Config::CreateFromFile(path);
+    config->config = std::const_pointer_cast<ocio::Config>(ocio::Config::CreateFromFile(path));
     if (!config->config) return nullptr;
     handle->inner = config;
     return handle;
@@ -1207,7 +1207,7 @@ void* ocio_get_current_config(void) {
     auto cfg = ocio::GetCurrentConfig();
     if (!cfg) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
-    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{cfg});
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(cfg)});
     return handle.release();
   } catch (...) { return nullptr; }
 #endif
@@ -1262,7 +1262,7 @@ void* ocio_builtin_config_registry_get_builtin_config_name(void* handle, size_t 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigName(configIndex);
+    return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigName(configIndex);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1273,7 +1273,7 @@ void* ocio_builtin_config_registry_get_builtin_config_ui_name(void* handle, size
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigUIName(configIndex);
+    return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigUIName(configIndex);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1284,7 +1284,7 @@ void* ocio_builtin_config_registry_get_builtin_config(void* handle, size_t confi
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfig(configIndex);
+    return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfig(configIndex);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1295,7 +1295,7 @@ void* ocio_builtin_config_registry_get_builtin_config_by_name(void* handle, cons
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigByName(configName);
+    return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigByName(configName);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1420,7 +1420,7 @@ void* ocio_config_get_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getName();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getName();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1475,7 +1475,7 @@ void* ocio_config_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDescription();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDescription();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1508,7 +1508,7 @@ void* ocio_config_get_cache_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getCacheID();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getCacheID();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1521,7 +1521,7 @@ void* ocio_config_get_cache_id_n(void* handle, void* context) {
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
-    return ocio_rs_bridge::get_real_config(handle)->getCacheID(context_ptr);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getCacheID(context_ptr);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1570,7 +1570,7 @@ void* ocio_config_get_environment_var_name_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getEnvironmentVarNameByIndex(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getEnvironmentVarNameByIndex(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1581,7 +1581,7 @@ void* ocio_config_get_environment_var_default(void* handle, const char* name) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getEnvironmentVarDefault(name);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getEnvironmentVarDefault(name);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1636,7 +1636,7 @@ void* ocio_config_get_search_path(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getSearchPath();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getSearchPath();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1669,7 +1669,7 @@ void* ocio_config_get_search_path_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getSearchPath(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getSearchPath(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1702,7 +1702,7 @@ void* ocio_config_get_working_dir(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getWorkingDir();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getWorkingDir();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1750,7 +1750,7 @@ void* ocio_config_get_color_space_name_by_index(void* handle, int searchReferenc
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(static_cast<ocio::SearchReferenceSpaceType>(searchReferenceType), static_cast<ocio::ColorSpaceVisibility>(visibility), index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(static_cast<ocio::SearchReferenceSpaceType>(searchReferenceType), static_cast<ocio::ColorSpaceVisibility>(visibility), index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1772,7 +1772,7 @@ void* ocio_config_get_color_space_name_by_index_v1(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1810,7 +1810,7 @@ void* ocio_config_get_canonical_name(void* handle, const char* name) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getCanonicalName(name);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getCanonicalName(name);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1878,7 +1878,7 @@ void* ocio_config_get_inactive_color_spaces(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getInactiveColorSpaces();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getInactiveColorSpaces();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1974,7 +1974,7 @@ void* ocio_config_get_role_name(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getRoleName(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleName(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1985,7 +1985,7 @@ void* ocio_config_get_role_color_space_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1996,7 +1996,7 @@ void* ocio_config_get_role_color_space_by_name(void* handle, const char* roleNam
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(roleName);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(roleName);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2051,7 +2051,7 @@ void* ocio_config_get_default_display(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDefaultDisplay();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultDisplay();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2073,7 +2073,7 @@ void* ocio_config_get_display(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplay(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplay(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2084,7 +2084,7 @@ void* ocio_config_get_default_view(void* handle, const char* display) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDefaultView(display);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultView(display);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2095,7 +2095,7 @@ void* ocio_config_get_default_view_v1(void* handle, const char* display, const c
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDefaultView(display, colorspaceName);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultView(display, colorspaceName);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2117,7 +2117,7 @@ void* ocio_config_get_view(void* handle, const char* display, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getView(display, index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getView(display, index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2139,7 +2139,7 @@ void* ocio_config_get_view_v1(void* handle, const char* display, const char* col
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getView(display, colorspaceName, index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getView(display, colorspaceName, index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2165,7 +2165,7 @@ void* ocio_config_get_display_view_transform_name(void* handle, const char* disp
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewTransformName(display, view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayViewTransformName(display, view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2176,7 +2176,7 @@ void* ocio_config_get_display_view_color_space_name(void* handle, const char* di
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewColorSpaceName(display, view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayViewColorSpaceName(display, view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2187,7 +2187,7 @@ void* ocio_config_get_display_view_looks(void* handle, const char* display, cons
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewLooks(display, view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayViewLooks(display, view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2198,7 +2198,7 @@ void* ocio_config_get_display_view_rule(void* handle, const char* display, const
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewRule(display, view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayViewRule(display, view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2209,7 +2209,7 @@ void* ocio_config_get_display_view_description(void* handle, const char* display
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewDescription(display, view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayViewDescription(display, view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2367,7 +2367,7 @@ void* ocio_config_get_virtual_display_view_transform_name(void* handle, const ch
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewTransformName(view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewTransformName(view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2378,7 +2378,7 @@ void* ocio_config_get_virtual_display_view_color_space_name(void* handle, const 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewColorSpaceName(view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewColorSpaceName(view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2389,7 +2389,7 @@ void* ocio_config_get_virtual_display_view_looks(void* handle, const char* view)
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewLooks(view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewLooks(view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2400,7 +2400,7 @@ void* ocio_config_get_virtual_display_view_rule(void* handle, const char* view) 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewRule(view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewRule(view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2411,7 +2411,7 @@ void* ocio_config_get_virtual_display_view_description(void* handle, const char*
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewDescription(view);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewDescription(view);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2499,7 +2499,7 @@ void* ocio_config_get_active_display(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getActiveDisplay(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveDisplay(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2554,7 +2554,7 @@ void* ocio_config_get_active_views(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getActiveViews();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveViews();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2576,7 +2576,7 @@ void* ocio_config_get_active_view(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getActiveView(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveView(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2631,7 +2631,7 @@ void* ocio_config_get_display_all(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayAll(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayAll(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2642,7 +2642,7 @@ int ocio_config_get_display_all_by_name(void* handle, void* arg) {
   return 0;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDisplayAllByName(arg);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayAllByName(static_cast<const char*>(arg));
   } catch (...) { return 0; }
 #endif
 }
@@ -2775,7 +2775,7 @@ void* ocio_config_get_look_name_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getLookNameByIndex(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getLookNameByIndex(index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2877,7 +2877,7 @@ void* ocio_config_get_default_view_transform_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getDefaultViewTransformName();
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultViewTransformName();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2921,7 +2921,7 @@ void* ocio_config_get_named_transform_name_by_index(void* handle, int visibility
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getNamedTransformNameByIndex(static_cast<ocio::NamedTransformVisibility>(visibility), index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getNamedTransformNameByIndex(static_cast<ocio::NamedTransformVisibility>(visibility), index);
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2943,7 +2943,7 @@ void* ocio_config_get_named_transform_name_by_index_v1(void* handle, int index) 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getNamedTransformNameByIndex(index);
+    return (void*)ocio_rs_bridge::get_real_config(handle)->getNamedTransformNameByIndex(index);
   } catch (...) { return nullptr; }
 #endif
 }

@@ -1,9 +1,9 @@
 [package]
 name = "ocio-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
-description = "Safe Rust bindings for OpenColorIO v2.5.1"
+description = "Safe Rust bindings for OpenColorIO v2.5.2"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
 keywords = ["opencolorio", "color", "ocio", "vfx", "imaging"]
@@ -12,7 +12,7 @@ readme = "README.md"
 exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*"]
 
 [dependencies]
-ocio-sys = { version = "0.1.0", path = "ocio-sys" }
+ocio-sys = { version = "0.1.1", path = "ocio-sys" }
 thiserror = "1.0"
 
 [features]
