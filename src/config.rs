@@ -326,11 +326,7 @@ impl Config {
         }
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat overload; prefer default_view(display) unless you explicitly need the OCIO color-space-qualified variant"
-    )]
-    pub fn get_default_view_v1(
+    pub fn default_view_with_color_space(
         &self,
         display: impl AsRef<str>,
         color_space_name: impl AsRef<str>,
@@ -344,6 +340,18 @@ impl Config {
                 color_space_name.as_ptr().cast(),
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer default_view_with_color_space()"
+    )]
+    pub fn get_default_view_v1(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+    ) -> Option<String> {
+        self.default_view_with_color_space(display, color_space_name)
     }
 
     pub fn set_default_view(&self, view: impl AsRef<str>) -> Result<()> {
@@ -362,11 +370,7 @@ impl Config {
         }
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat overload; prefer num_views(display) unless you explicitly need the OCIO color-space-qualified variant"
-    )]
-    pub fn get_num_views_v1(
+    pub fn num_views_with_color_space(
         &self,
         display: impl AsRef<str>,
         color_space_name: impl AsRef<str>,
@@ -388,6 +392,18 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer num_views_with_color_space()"
+    )]
+    pub fn get_num_views_v1(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+    ) -> i32 {
+        self.num_views_with_color_space(display, color_space_name)
+    }
+
     pub fn view(&self, display: impl AsRef<str>, index: i32) -> Option<String> {
         let display = cstring(display).ok()?;
         unsafe {
@@ -399,11 +415,7 @@ impl Config {
         }
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat overload; prefer view(display, index) unless you explicitly need the OCIO color-space-qualified variant"
-    )]
-    pub fn get_view_v1(
+    pub fn view_with_color_space(
         &self,
         display: impl AsRef<str>,
         color_space_name: impl AsRef<str>,
@@ -419,6 +431,19 @@ impl Config {
                 index,
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer view_with_color_space()"
+    )]
+    pub fn get_view_v1(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+        index: i32,
+    ) -> Option<String> {
+        self.view_with_color_space(display, color_space_name, index)
     }
 
     pub fn is_view_shared(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
@@ -2806,11 +2831,7 @@ impl Config {
         };
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat overload; prefer virtual_display_num_views()"
-    )]
-    pub fn get_num_views_v2(
+    pub fn num_views_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
         display: impl AsRef<str>,
@@ -2830,9 +2851,17 @@ impl Config {
 
     #[deprecated(
         since = "0.2.0",
-        note = "compat overload; prefer virtual_display_view()"
+        note = "compat overload; prefer num_views_by_reference_space()"
     )]
-    pub fn get_view_v2(
+    pub fn get_num_views_v2(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+    ) -> i32 {
+        self.num_views_by_reference_space(reference_space, display)
+    }
+
+    pub fn view_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
         display: impl AsRef<str>,
@@ -2847,6 +2876,19 @@ impl Config {
                 index,
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer view_by_reference_space()"
+    )]
+    pub fn get_view_v2(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+        index: i32,
+    ) -> Option<String> {
+        self.view_by_reference_space(reference_space, display, index)
     }
 
     /// # Safety
@@ -3049,6 +3091,11 @@ mod tests {
         let _ = config.default_view("sRGB");
         let _ = config.num_views("sRGB");
         let _ = config.view("sRGB", 0);
+        let _ = config.default_view_with_color_space("sRGB", "raw");
+        let _ = config.num_views_with_color_space("sRGB", "raw");
+        let _ = config.view_with_color_space("sRGB", "raw", 0);
+        let _ = config.num_views_by_reference_space(SearchReferenceSpaceType::Scene, "sRGB");
+        let _ = config.view_by_reference_space(SearchReferenceSpaceType::Scene, "sRGB", 0);
         let _ = config.virtual_display_num_views(SearchReferenceSpaceType::Scene);
         let _ = config.virtual_display_view(SearchReferenceSpaceType::Scene, 0);
     }

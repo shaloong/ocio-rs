@@ -43,6 +43,9 @@
 - Deprecate `get_color_space_from_filepath_by_ref_type()` as a compatibility
   alias for the file-rule-based `color_space_from_filepath_with_rule_index()`
   flow, matching the Rust API's preferred file-resolution model.
+- Add descriptive names for the remaining Config view overloads, covering the
+  color-space-qualified and reference-space-qualified `default_view` / `view`
+  queries while keeping the `*_v1` / `*_v2` compatibility entry points.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

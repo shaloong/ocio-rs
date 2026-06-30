@@ -119,6 +119,8 @@ Dynamic-property discovery is being normalized toward typed enums as well. Prefe
 
 Display/view metadata helpers are following the same path. Prefer `display_view_rule()`, `display_view_description()`, `default_view_transform_name()`, `virtual_display_view_transform_name()`, `virtual_display_view_color_space_name()`, `virtual_display_view_looks()`, `virtual_display_view_rule()`, and `virtual_display_view_description()` over the corresponding `get_*` forms.
 
+The remaining view overloads now have descriptive Rust names as well. Prefer `default_view_with_color_space()`, `num_views_with_color_space()`, `view_with_color_space()`, `num_views_by_reference_space()`, and `view_by_reference_space()` over `get_default_view_v1`, `get_num_views_v1`, `get_view_v1`, `get_num_views_v2`, and `get_view_v2`.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds
