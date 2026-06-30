@@ -30,6 +30,8 @@ Display/view/looks/rule helpers were removed from `ViewTransform`. Use `DisplayV
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
+`Config::serialize()` and `Config::archive()` now return the real OCIO text output when the crate is linked against a real OCIO build. In stub mode they return `None`.
+
 `color_space_from_filepath_by_ref_type` has been replaced by:
 
 ```rust
@@ -65,3 +67,7 @@ Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
+
+### Legacy GPU optimization
+
+`Processor::optimized_legacy_gpu_processor()` remains available for OCIO's older LUT-baking GPU path, but it is now deprecated in the Rust API. Prefer `optimized_gpu_processor()` or `default_gpu_processor()` for OCIO 2.5 workflows.

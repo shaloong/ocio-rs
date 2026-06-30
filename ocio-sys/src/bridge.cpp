@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <fstream>
+#include <sstream>
 
 #ifndef OCIO_RS_STUB
 #include <OpenColorIO/OpenColorIO.h>
@@ -14,6 +15,8 @@ namespace ocio = OCIO_NAMESPACE;
 #endif
 
 namespace ocio_rs_bridge {
+
+thread_local std::string g_serialized_text;
 
 // --- Handle types ---
 
@@ -3731,6 +3734,20 @@ bool ocio_config_is_archivable(void* handle) {
 #endif
 }
 
+void* ocio_config_serialize_to_string(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    std::ostringstream stream;
+    ocio_rs_bridge::get_real_config(handle)->serialize(stream);
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_config_create_editable_copy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -3754,6 +3771,20 @@ void ocio_config_archive(void* handle, void* ostream) {
   try {
     ocio_rs_bridge::get_real_config(handle)->archive(*static_cast<std::ostream*>(ostream));
   } catch (...) { return ; }
+#endif
+}
+
+void* ocio_config_archive_to_string(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    std::ostringstream stream;
+    ocio_rs_bridge::get_real_config(handle)->archive(stream);
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
 #endif
 }
 

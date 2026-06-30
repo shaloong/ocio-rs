@@ -95,6 +95,7 @@ unsafe extern "C" {
     pub fn ocio_config_get_description(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_set_description(handle: *mut c_void, description: *const i8) -> ();
     pub fn ocio_config_serialize(handle: *mut c_void, os: *mut c_void) -> ();
+    pub fn ocio_config_serialize_to_string(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_cache_id(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_cache_id_n(handle: *mut c_void, context: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_current_context(handle: *mut c_void) -> *mut c_void;
@@ -623,6 +624,7 @@ unsafe extern "C" {
     pub fn ocio_config_get_config_io_proxy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_is_archivable(handle: *mut c_void) -> bool;
     pub fn ocio_config_archive(handle: *mut c_void, ostream: *mut c_void) -> ();
+    pub fn ocio_config_archive_to_string(handle: *mut c_void) -> *mut c_void;
 
     // --- FileRules ---
     pub fn ocio_file_rules_create() -> *mut c_void;

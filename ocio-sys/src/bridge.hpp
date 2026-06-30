@@ -92,6 +92,7 @@ void ocio_config_set_family_separator(void* handle, char separator);
 void* ocio_config_get_description(void* handle);
 void ocio_config_set_description(void* handle, const char* description);
 void ocio_config_serialize(void* handle, void* os);
+void* ocio_config_serialize_to_string(void* handle);
 void* ocio_config_get_cache_id(void* handle);
 void* ocio_config_get_cache_id_n(void* handle, void* context);
 void* ocio_config_get_current_context(void* handle);
@@ -262,6 +263,7 @@ void ocio_config_set_config_io_proxy(void* handle, void* ciop);
 void* ocio_config_get_config_io_proxy(void* handle);
 bool ocio_config_is_archivable(void* handle);
 void ocio_config_archive(void* handle, void* ostream);
+void* ocio_config_archive_to_string(void* handle);
 
 // --- FileRules ---
 void* ocio_file_rules_create(void);

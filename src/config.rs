@@ -1921,9 +1921,22 @@ impl Config {
 
     // --- Serialize ---
 
-    // v2.5.1: serialize() now takes ostream, returns void. Stub for compatibility.
+    /// Serialize the config to OCIO YAML text.
+    ///
+    /// Returns `None` in stub builds where no real OCIO serializer is linked.
     pub fn serialize(&self) -> Option<String> {
-        None
+        self.serialize_to_string()
+    }
+
+    /// Serialize the config to OCIO YAML text.
+    ///
+    /// Returns `None` in stub builds where no real OCIO serializer is linked.
+    pub fn serialize_to_string(&self) -> Option<String> {
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_config_serialize_to_string(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     // --- Editable copy ---
@@ -2300,9 +2313,22 @@ impl Config {
 
     // --- v2.5.1: Misc utilities ---
 
-    /// Archive config to an ostream (v2.5.1: requires ostream). Returns Ok for stub.
-    pub fn archive(&self) -> Result<()> {
-        Ok(())
+    /// Archive the config to OCIO's textual archive representation.
+    ///
+    /// Returns `None` in stub builds where no real OCIO archiver is linked.
+    pub fn archive(&self) -> Option<String> {
+        self.archive_to_string()
+    }
+
+    /// Archive the config to OCIO's textual archive representation.
+    ///
+    /// Returns `None` in stub builds where no real OCIO archiver is linked.
+    pub fn archive_to_string(&self) -> Option<String> {
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_config_archive_to_string(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn default_family_separator(&self) -> char {
@@ -2520,7 +2546,35 @@ mod tests {
     #[test]
     fn serialize_no_crash() {
         let config = Config::raw().unwrap();
-        let _ = config.serialize();
+        let serialized = config.serialize();
+        if crate::is_stub_build() {
+            assert!(serialized.is_none());
+        } else {
+            let serialized = serialized.expect("real OCIO config should serialize");
+            assert!(
+                !serialized.trim().is_empty(),
+                "real OCIO config serialization should not be empty"
+            );
+            assert!(
+                serialized.contains("ocio_profile_version"),
+                "serialized config should look like OCIO YAML"
+            );
+        }
+    }
+
+    #[test]
+    fn archive_no_crash() {
+        let config = Config::raw().unwrap();
+        let archived = config.archive();
+        if crate::is_stub_build() {
+            assert!(archived.is_none());
+        } else if config.is_archivable() {
+            let archived = archived.expect("real archivable config should archive");
+            assert!(
+                !archived.trim().is_empty(),
+                "real OCIO config archive should not be empty"
+            );
+        }
     }
 
     #[test]

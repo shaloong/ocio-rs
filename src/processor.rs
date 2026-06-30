@@ -125,6 +125,10 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "legacy OCIO GPU optimization path; prefer optimized_gpu_processor or default_gpu_processor"
+    )]
     pub fn optimized_legacy_gpu_processor(
         &self,
         flags: u64,
@@ -1358,6 +1362,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn legacy_gpu_processor() {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();

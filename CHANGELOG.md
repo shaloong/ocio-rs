@@ -17,6 +17,9 @@
   audit, bundled tests, and offline packaging checks from a recursive checkout.
 - Promote the parity checker into both CI and the release-audit flow so wrapper
   and bridge drift show up as first-class release failures.
+- Make `Config::serialize()` and `Config::archive()` return real OCIO text in
+  non-stub builds, and deprecate `Processor::optimized_legacy_gpu_processor()`
+  so OCIO 2.5 callers prefer the main GPU processor path.
 
 ## 0.2.0
 
