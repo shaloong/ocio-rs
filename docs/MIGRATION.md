@@ -101,6 +101,8 @@ The same cleanup now applies to the long-lived transform metadata aliases. `form
 
 Processor and config enumeration wrappers are also converging on clearer Rust names. Prefer `Processor::optimized_processor_bitdepth()`, `Processor::optimized_cpu_processor_bitdepth()`, `GPUProcessor::extract_shader_info()`, `Config::num_color_spaces()`, `Config::color_space_name_by_index()`, `Config::num_named_transforms()`, and `Config::named_transform_name_by_index()` over the legacy `*_v1` compatibility aliases.
 
+Display/view configuration is following the same pattern. Prefer `Config::default_view()`, `num_views()`, `view()`, `add_display()`, `add_display_view_detailed()`, `virtual_display_num_views()`, and `virtual_display_view()` over the older `get_*_v1`, `get_*_v2`, and `add_display_view_v1/v2` compatibility names unless you explicitly need those OCIO-shaped overloads.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

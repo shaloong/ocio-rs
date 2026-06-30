@@ -48,6 +48,9 @@
 - Add clearer processor/config wrapper names around optimization, shader
   extraction, and enumeration helpers, and deprecate the corresponding
   `*_v1` compatibility aliases.
+- Continue the Config cleanup by deprecating display/view overload aliases and
+  adding clearer names such as `add_display_view_detailed()`,
+  `virtual_display_num_views()`, and `virtual_display_view()`.
 
 ## 0.2.0
 

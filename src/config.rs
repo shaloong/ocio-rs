@@ -330,6 +330,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer default_view(display) unless you explicitly need the OCIO color-space-qualified variant"
+    )]
     pub fn get_default_view_v1(
         &self,
         display: impl AsRef<str>,
@@ -362,6 +366,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer num_views(display) unless you explicitly need the OCIO color-space-qualified variant"
+    )]
     pub fn get_num_views_v1(
         &self,
         display: impl AsRef<str>,
@@ -395,6 +403,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer view(display, index) unless you explicitly need the OCIO color-space-qualified variant"
+    )]
     pub fn get_view_v1(
         &self,
         display: impl AsRef<str>,
@@ -1516,6 +1528,10 @@ impl Config {
         Ok(())
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer add_display() for basic display/view wiring"
+    )]
     pub fn add_display_view_v1(
         &self,
         display: impl AsRef<str>,
@@ -1540,7 +1556,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn add_display_view_v2(
+    pub fn add_display_view_detailed(
         &self,
         display: impl AsRef<str>,
         view: impl AsRef<str>,
@@ -1570,6 +1586,32 @@ impl Config {
             );
         }
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer add_display_view_detailed()"
+    )]
+    pub fn add_display_view_v2(
+        &self,
+        display: impl AsRef<str>,
+        view: impl AsRef<str>,
+        view_transform_name: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+        looks: impl AsRef<str>,
+        rule_name: impl AsRef<str>,
+        description: impl AsRef<str>,
+    ) -> Result<()> {
+        self.add_display_view_detailed(
+            display,
+            view,
+            view_transform_name,
+            color_space_name,
+            looks,
+            rule_name,
+            description,
+        )
     }
 
     pub fn add_shared_view(
@@ -1718,7 +1760,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_virtual_display_num_views(&self, reference_space: SearchReferenceSpaceType) -> i32 {
+    pub fn virtual_display_num_views(&self, reference_space: SearchReferenceSpaceType) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_virtual_display_num_views(
                 self.handle.as_ptr(),
@@ -1727,7 +1769,15 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_num_views()"
+    )]
+    pub fn get_virtual_display_num_views(&self, reference_space: SearchReferenceSpaceType) -> i32 {
+        self.virtual_display_num_views(reference_space)
+    }
+
+    pub fn virtual_display_view(
         &self,
         reference_space: SearchReferenceSpaceType,
         index: i32,
@@ -1739,6 +1789,15 @@ impl Config {
                 index,
             ))
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer virtual_display_view()")]
+    pub fn get_virtual_display_view(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        index: i32,
+    ) -> Option<String> {
+        self.virtual_display_view(reference_space, index)
     }
 
     /// # Safety
@@ -2396,6 +2455,10 @@ impl Config {
         };
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer virtual_display_num_views()"
+    )]
     pub fn get_num_views_v2(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -2414,6 +2477,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat overload; prefer virtual_display_view()"
+    )]
     pub fn get_view_v2(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -2618,6 +2685,16 @@ mod tests {
         let proc = config.processor_display("raw", "sRGB", "Film", TransformDirection::Forward);
         // Just check it doesn't crash
         let _ = proc;
+    }
+
+    #[test]
+    fn config_view_named_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.default_view("sRGB");
+        let _ = config.num_views("sRGB");
+        let _ = config.view("sRGB", 0);
+        let _ = config.virtual_display_num_views(SearchReferenceSpaceType::Scene);
+        let _ = config.virtual_display_view(SearchReferenceSpaceType::Scene, 0);
     }
 
     #[test]
@@ -3112,6 +3189,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn display_view_v2_and_view_transform_aliases_no_crash() {
         let config = Config::raw().unwrap();
         let vt = crate::ViewTransform::create(crate::ReferenceSpaceType::Scene).unwrap();
@@ -3130,6 +3208,21 @@ mod tests {
     }
 
     #[test]
+    fn view_transforms_named_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let vt = crate::ViewTransform::create(crate::ReferenceSpaceType::Scene).unwrap();
+        assert!(vt.set_name("MyViewTransform").is_ok());
+        config.add_view_transform(&vt);
+
+        assert!(config
+            .add_display_view_detailed("sRGB", "Film", "MyViewTransform", "raw", "", "", "")
+            .is_ok());
+        let _ = config.virtual_display_num_views(crate::SearchReferenceSpaceType::Scene);
+        let _ = config.virtual_display_view(crate::SearchReferenceSpaceType::Scene, 0);
+    }
+
+    #[test]
+    #[allow(deprecated)]
     fn virtual_display_management_no_crash() {
         let config = Config::raw().unwrap();
         assert!(config
