@@ -30,6 +30,10 @@
 - Continue the same cleanup for crate-level and utility entry points, including
   `current_config()`, `config_io_proxy()`, and `Baker` format enumeration
   helpers, while retaining deprecated `get_*` aliases for compatibility.
+- Continue the `GpuShaderDesc` naming cleanup by adding Rust-style value
+  accessors such as `uniform_value_count()`, `texture_value_count()`,
+  `texture_3d_value_count()`, `texture_3d_values()`, and
+  `texture_3d_shader_binding_index()`.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

@@ -111,6 +111,8 @@ The same naming cleanup now applies to common lookup helpers. Prefer `color_spac
 
 Crate-level and utility entry points are following the same pattern. Prefer `current_config()`, `Config::config_io_proxy()`, `Context::config_io_proxy()`, `Baker::num_formats()`, `Baker::format_name_by_index()`, and `Baker::format_extension_by_index()` over the corresponding `get_*` compatibility names.
 
+`GpuShaderDesc` is receiving the same treatment around lightweight value accessors. Prefer `uniform_value_count()`, `texture_value_count()`, `texture_3d_value_count()`, `texture_3d_values()`, and `texture_3d_shader_binding_index()` over the remaining `get_*` / `copy*` compatibility helpers when migrating `0.2` call sites.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

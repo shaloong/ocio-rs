@@ -1007,14 +1007,15 @@ impl GpuShaderDesc {
         self.uniform(index)
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer uniform(index).map(|u| u.value_count)"
-    )]
-    pub fn get_uniform_value_count(&self, index: u32) -> usize {
+    pub fn uniform_value_count(&self, index: u32) -> usize {
         self.uniform(index)
             .map(|uniform| uniform.value_count)
             .unwrap_or(0)
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_value_count()")]
+    pub fn get_uniform_value_count(&self, index: u32) -> usize {
+        self.uniform_value_count(index)
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform() or uniforms()")]
@@ -1048,12 +1049,13 @@ impl GpuShaderDesc {
         self.num_textures()
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer texture_2d() or textures_2d()"
-    )]
-    pub fn get_texture_value_count(&self, index: u32) -> usize {
+    pub fn texture_value_count(&self, index: u32) -> usize {
         self.texture_values(index).len()
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_value_count()")]
+    pub fn get_texture_value_count(&self, index: u32) -> usize {
+        self.texture_value_count(index)
     }
 
     #[deprecated(
@@ -1117,11 +1119,7 @@ impl GpuShaderDesc {
         self.texture_3d(index)
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer texture_3d() or textures_3d()"
-    )]
-    pub fn get3d_texture_value_count(&self, index: u32) -> usize {
+    pub fn texture_3d_value_count(&self, index: u32) -> usize {
         self.texture_3d(index)
             .map(|texture| texture.values.len())
             .unwrap_or(0)
@@ -1129,12 +1127,21 @@ impl GpuShaderDesc {
 
     #[deprecated(
         since = "0.2.0",
-        note = "compat alias; prefer texture_3d() or textures_3d()"
+        note = "compat alias; prefer texture_3d_value_count()"
     )]
-    pub fn copy3d_texture_values(&self, index: u32) -> Vec<f32> {
+    pub fn get3d_texture_value_count(&self, index: u32) -> usize {
+        self.texture_3d_value_count(index)
+    }
+
+    pub fn texture_3d_values(&self, index: u32) -> Vec<f32> {
         self.texture_3d(index)
             .map(|texture| texture.values)
             .unwrap_or_default()
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d_values()")]
+    pub fn copy3d_texture_values(&self, index: u32) -> Vec<f32> {
+        self.texture_3d_values(index)
     }
 
     pub fn textures_3d(&self) -> Vec<GpuTexture3D> {
@@ -1153,22 +1160,21 @@ impl GpuShaderDesc {
         self.texture_3d(index)
     }
 
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer texture_3d() or textures_3d()"
-    )]
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d_values()")]
     pub fn get3d_texture_values(&self, index: u32) -> Vec<f32> {
-        self.texture_3d(index)
-            .map(|texture| texture.values)
-            .unwrap_or_default()
+        self.texture_3d_values(index)
+    }
+
+    pub fn texture_3d_shader_binding_index(&self, index: u32) -> Option<u32> {
+        self.texture_3d(index).map(|texture| texture.binding_index)
     }
 
     #[deprecated(
         since = "0.2.0",
-        note = "compat alias; prefer texture_3d(index).map(|t| t.binding_index)"
+        note = "compat alias; prefer texture_3d_shader_binding_index()"
     )]
     pub fn get3d_texture_shader_binding_index(&self, index: u32) -> Option<u32> {
-        self.texture_3d(index).map(|texture| texture.binding_index)
+        self.texture_3d_shader_binding_index(index)
     }
 
     pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
@@ -1728,11 +1734,28 @@ mod tests {
             let _ = desc.num_uniforms();
             let _ = desc.uniform_buffer_size();
             let _ = desc.uniform(0);
+            let _ = desc.uniform_value_count(0);
             let _ = desc.uniforms();
             let _ = desc.texture_2d(0);
+            let _ = desc.texture_value_count(0);
             let _ = desc.textures_2d();
             let _ = desc.texture_3d(0);
+            let _ = desc.texture_3d_value_count(0);
+            let _ = desc.texture_3d_values(0);
+            let _ = desc.texture_3d_shader_binding_index(0);
             let _ = desc.textures_3d();
+        }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn gpu_shader_desc_compat_value_accessors_no_crash() {
+        if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.get_uniform_value_count(0);
+            let _ = desc.get_texture_value_count(0);
+            let _ = desc.get3d_texture_value_count(0);
+            let _ = desc.get3d_texture_values(0);
+            let _ = desc.get3d_texture_shader_binding_index(0);
         }
     }
 
