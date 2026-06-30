@@ -93,6 +93,8 @@ This includes viewing-rules handles, config-IO proxy handles, legacy context-var
 
 Additional compatibility aliases such as `GradingPrimaryTransform::copy_value`, `GradingPrimaryTransform::set_value_from_f64`, `GradingToneTransform::copy_value`, and `GradingToneTransform::set_value_from_f64` are also deprecated in favor of the clearer `value()` / `set_value(...)` methods.
 
+The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

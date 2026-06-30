@@ -188,6 +188,10 @@ impl Config {
 
     /// # Safety
     /// `src_config` and `builtin_config` must be valid OCIO config pointers for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO config-pointer entry point; prefer built-in config and color-space APIs unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn identify_builtin_color_space(
         &self,
         src_config: *mut c_void,
@@ -208,6 +212,10 @@ impl Config {
     /// # Safety
     /// `src_interchange_name`, `builtin_interchange_name`, `src_config`, and `builtin_config`
     /// must be valid pointers accepted by the OCIO ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO interchange/config pointer entry point; prefer higher-level config APIs unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn identify_interchange_space(
         &self,
         src_interchange_name: *mut c_void,
@@ -420,6 +428,10 @@ impl Config {
 
     /// # Safety
     /// `first` and `second` must be valid pointers to OCIO view descriptors for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO view-descriptor entry point; prefer higher-level display/view APIs unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn are_views_equal(
         &self,
         first: *mut c_void,
@@ -1620,6 +1632,10 @@ impl Config {
 
     /// # Safety
     /// `first` and `second` must be valid pointers to OCIO virtual-view descriptors.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO virtual-view entry point; prefer higher-level virtual display APIs unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn are_virtual_views_equal(
         &self,
         first: *mut c_void,

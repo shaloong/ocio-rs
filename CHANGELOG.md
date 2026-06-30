@@ -34,6 +34,8 @@
   normal Rust-native APIs.
 - Deprecate `GroupTransform::write` and grading primary/tone compatibility
   aliases that now have clearer Rust-native replacements.
+- Mark `Config` helpers that require raw OCIO config/interchange/view pointers
+  as deprecated escape hatches instead of ordinary wrapper APIs.
 
 ## 0.2.0
 
