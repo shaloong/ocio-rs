@@ -68,7 +68,9 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 
 ## OCIO Version Strategy
 
-`third_party/OpenColorIO` is a git submodule pinned to a specific OCIO release. ocio-rs uses its own semver tracking the OCIO series it targets: `0.1.x` maps to OCIO `v2.5.x`.
+`third_party/OpenColorIO` is a git submodule pinned to a specific OCIO release.
+`ocio-rs` uses its own semver while tracking an OCIO release line. The current
+`0.2.x` line targets OCIO `v2.5.2`.
 
 Upgrade workflow: update submodule → run generator → fix compile errors → release.
 
@@ -101,16 +103,31 @@ Reference (MatrixTransform + applyRGBA, 1M iterations):
 
 ## Continuous Integration
 
-Current CI (`ci.yml`): `cargo check --workspace --no-default-features` (stub mode, no OCIO required).
+Current CI (`ci.yml`) runs:
+
+- `cargo fmt --all -- --check`
+- `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
+- `cargo test --workspace --no-default-features`
+- `cargo test --examples --no-default-features`
+- `cargo doc --workspace --no-deps --no-default-features`
+- `cargo package -p ocio-sys --allow-dirty`
+
+Bundled real-OCIO validation is kept as a manual GitHub Actions job and runs:
+
+- `cargo test --workspace --features bundled`
 
 Recommended full CI pipeline:
 
 ```yaml
 steps:
-  - cargo test --workspace
-  - cargo run --bin check_parity
-  - cargo clippy -- -D warnings
-  - cargo fmt --check
+  - cargo fmt --all -- --check
+  - cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+  - cargo test --workspace --no-default-features
+  - cargo test --examples --no-default-features
+  - cargo doc --workspace --no-deps --no-default-features
+  - cargo package -p ocio-sys --allow-dirty
 ```
 
-Real-OCIO tests require a built OCIO library, which adds significant build time. Stub-mode tests provide sufficient coverage for most PRs.
+Real-OCIO tests require a built OCIO library, which adds significant build
+time. Stub-mode tests cover most wrapper and API-shape regressions, while the
+manual bundled job is the release-facing check for bridge correctness.
