@@ -42,6 +42,8 @@ let (color_space, rule_index) = config
 
 This matches OCIO's file-rule model and returns the matching rule index alongside the resolved color-space name.
 
+The old `get_color_space_from_filepath_by_ref_type()` entry point remains only as a deprecated compatibility alias. Prefer `color_space_from_filepath_with_rule_index()` when you need file-rule resolution details, or `color_space_from_filepath()` when you only need the resolved color-space name.
+
 ### Grading and LUT transforms
 
 `GradingPrimaryTransform::create(style)` and `GradingToneTransform::create(style)` now construct real OCIO transforms with the requested style. `value()` and `set_value()` copy real OCIO grading fields instead of returning default zero data.

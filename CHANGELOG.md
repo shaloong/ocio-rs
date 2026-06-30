@@ -40,6 +40,9 @@
 - Continue the Config naming cleanup for display/view metadata helpers,
   including virtual-display queries and `default_view_transform_name()`, while
   keeping deprecated `get_*` compatibility aliases.
+- Deprecate `get_color_space_from_filepath_by_ref_type()` as a compatibility
+  alias for the file-rule-based `color_space_from_filepath_with_rule_index()`
+  flow, matching the Rust API's preferred file-resolution model.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

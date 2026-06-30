@@ -261,20 +261,16 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer color_space_from_filepath_with_rule_index() or color_space_from_filepath()"
+    )]
     pub fn get_color_space_from_filepath_by_ref_type(
         &self,
         file_path: impl AsRef<str>,
     ) -> Option<String> {
-        let fp = cstring(file_path).ok()?;
-        unsafe {
-            cstr_from_mut(
-                ocio_sys::ocio_config_get_color_space_from_filepath_by_ref_type(
-                    self.handle.as_ptr(),
-                    fp.as_ptr().cast(),
-                    std::ptr::null_mut(),
-                ),
-            )
-        }
+        self.color_space_from_filepath_with_rule_index(file_path)
+            .map(|(color_space, _rule_index)| color_space)
     }
 
     pub fn parse_color_space_from_string(&self, text: impl AsRef<str>) -> Option<String> {
@@ -3339,6 +3335,13 @@ mod tests {
     fn color_space_from_filepath_with_rule_index_no_crash() {
         let config = Config::raw().unwrap();
         let _ = config.color_space_from_filepath_with_rule_index("test.jpg");
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn color_space_from_filepath_compat_alias_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.get_color_space_from_filepath_by_ref_type("test.jpg");
     }
 
     #[test]
