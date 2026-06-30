@@ -1,3 +1,21 @@
+//! Experimental Rust bindings for OpenColorIO.
+//!
+//! # Project status
+//!
+//! This crate is early-stage. The low-level API surface is generated and being
+//! validated against OpenColorIO 2.5, while the safe wrapper layer is still
+//! being hardened around ownership, error propagation, and real-OCIO behavior.
+//!
+//! # Stub mode
+//!
+//! By default, the crate builds in stub mode for CI and API-shape testing.
+//! Stub mode does not perform real color management.
+//!
+//! # Real OCIO mode
+//!
+//! Use `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`, or build with
+//! `--features bundled` from a recursive Git checkout.
+
 #![allow(
     unused_imports,
     clippy::single_component_path_imports,
@@ -107,12 +125,15 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 }
 
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    let flags = unsafe { ocio_sys::ocio_get_processor_cache_flags() };
-    crate::ProcessorCacheFlags(flags as u32)
+    get_current_config()
+        .map(|config| crate::ProcessorCacheFlags(config.processor_cache_flags() as u32))
+        .unwrap_or(crate::ProcessorCacheFlags(0))
 }
 
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
-    unsafe { ocio_sys::ocio_set_processor_cache_flags(flags.0 as i32) };
+    if let Some(config) = get_current_config() {
+        config.set_processor_cache_flags(flags.0 as i32);
+    }
 }
 
 pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {

@@ -3,9 +3,10 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  check:
+  stub:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,5 +18,36 @@ jobs:
       - name: Install C++ compiler
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
 
-      - name: Check (stub mode)
-        run: cargo check --workspace --no-default-features
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --no-default-features
+
+      - name: Test examples
+        run: cargo test --examples --no-default-features
+
+      - name: Docs
+        run: cargo doc --workspace --no-deps --no-default-features
+
+      - name: Package
+        run: cargo package -p ocio-sys --allow-dirty
+
+  bundled:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install native dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
+
+      - name: Build tests with bundled OCIO
+        run: cargo test --workspace --features bundled --no-run

@@ -4,11 +4,15 @@ use std::ptr::NonNull;
 use crate::transform::TransformHandle;
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, Context, FileRules,
-    Interpolation, Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
+    Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
     SearchReferenceSpaceType, TransformDirection, ViewTransform,
 };
 use ocio_sys;
 
+/// An OpenColorIO configuration.
+///
+/// `Config` is the main entry point for color spaces, displays, views, file
+/// rules, and processor creation.
 pub struct Config {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -437,7 +441,7 @@ impl Config {
         let display = cstring(display)?;
         let view = cstring(view)?;
         let handle = unsafe {
-            ocio_sys::ocio_config_get_processor_display(
+            ocio_sys::ocio_config_get_processor_v4(
                 self.handle.as_ptr(),
                 src.as_ptr().cast(),
                 display.as_ptr().cast(),
@@ -456,7 +460,7 @@ impl Config {
         direction: TransformDirection,
     ) -> Result<Processor> {
         let handle = unsafe {
-            ocio_sys::ocio_config_get_processor_transform(
+            ocio_sys::ocio_config_get_processor_v11(
                 self.handle.as_ptr(),
                 transform.as_ptr(),
                 direction as i32,
@@ -523,15 +527,21 @@ impl Config {
         name: impl AsRef<str>,
         ref_type: SearchReferenceSpaceType,
     ) -> Option<ColorSpace> {
-        let n = cstring(name).ok()?;
-        let handle = unsafe {
-            ocio_sys::ocio_config_get_color_space_by_ref_type(
-                self.handle.as_ptr(),
-                n.as_ptr().cast(),
-                ref_type as i32,
-            )
-        };
-        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+        let color_space = self.get_color_space(name)?;
+        match ref_type {
+            SearchReferenceSpaceType::All => Some(color_space),
+            SearchReferenceSpaceType::Scene
+                if color_space.reference_space_type() == crate::ReferenceSpaceType::Scene =>
+            {
+                Some(color_space)
+            }
+            SearchReferenceSpaceType::Display
+                if color_space.reference_space_type() == crate::ReferenceSpaceType::Display =>
+            {
+                Some(color_space)
+            }
+            _ => None,
+        }
     }
 
     pub fn color_space_from_filepath_with_rule_index(
@@ -642,7 +652,7 @@ impl Config {
         let transform_name = cstring(transform_name)?;
         let rule = cstring(rule)?;
         unsafe {
-            ocio_sys::ocio_config_add_display(
+            ocio_sys::ocio_config_add_display_view_v1(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 view.as_ptr().cast(),
@@ -653,20 +663,32 @@ impl Config {
         Ok(())
     }
 
-    // v2.5.1: takes 7 args now
     pub fn add_shared_view(
         &self,
-        _d: impl AsRef<str>,
-        _v: impl AsRef<str>,
-        _t: impl AsRef<str>,
-        _r: impl AsRef<str>,
+        view: impl AsRef<str>,
+        view_transform_name: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+        looks: impl AsRef<str>,
+        rule_name: impl AsRef<str>,
+        description: impl AsRef<str>,
     ) -> Result<()> {
-        Ok(())
-    }
-
-    pub fn remove_display(&self, display: impl AsRef<str>) -> Result<()> {
-        let d = cstring(display)?;
-        unsafe { ocio_sys::ocio_config_remove_display(self.handle.as_ptr(), d.as_ptr().cast()) };
+        let view = cstring(view)?;
+        let view_transform_name = cstring(view_transform_name)?;
+        let color_space_name = cstring(color_space_name)?;
+        let looks = cstring(looks)?;
+        let rule_name = cstring(rule_name)?;
+        let description = cstring(description)?;
+        unsafe {
+            ocio_sys::ocio_config_add_shared_view(
+                self.handle.as_ptr(),
+                view.as_ptr().cast(),
+                view_transform_name.as_ptr().cast(),
+                color_space_name.as_ptr().cast(),
+                looks.as_ptr().cast(),
+                rule_name.as_ptr().cast(),
+                description.as_ptr().cast(),
+            );
+        }
         Ok(())
     }
 
@@ -674,7 +696,7 @@ impl Config {
         let display = cstring(display)?;
         let view = cstring(view)?;
         unsafe {
-            ocio_sys::ocio_config_remove_view(
+            ocio_sys::ocio_config_remove_display_view(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 view.as_ptr().cast(),
@@ -757,14 +779,6 @@ impl Config {
                 view_transform.handle.as_ptr() as *mut c_void,
             );
         }
-    }
-
-    pub fn remove_view_transform(&self, name: impl AsRef<str>) -> Result<()> {
-        let n = cstring(name)?;
-        unsafe {
-            ocio_sys::ocio_config_remove_view_transform(self.handle.as_ptr(), n.as_ptr().cast());
-        }
-        Ok(())
     }
 
     // --- Search paths ---
@@ -875,19 +889,19 @@ impl Config {
         NonNull::new(handle).map(|h| Context { handle: h })
     }
 
-    pub fn set_current_context(&self, context: &Context) {
-        unsafe {
-            ocio_sys::ocio_config_set_current_context(
-                self.handle.as_ptr(),
-                context.handle.as_ptr() as *mut c_void,
-            );
-        }
-    }
-
     // --- Clear all ---
 
     pub fn clear_all(&self) {
-        unsafe { ocio_sys::ocio_config_clear_all(self.handle.as_ptr() as *mut c_void) };
+        self.clear_color_spaces();
+        self.clear_looks();
+        self.clear_named_transforms();
+        self.clear_view_transforms();
+        unsafe {
+            ocio_sys::ocio_config_clear_shared_views(self.handle.as_ptr());
+            ocio_sys::ocio_config_clear_displays(self.handle.as_ptr());
+            ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr());
+            ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr());
+        }
     }
 
     // --- Version setters ---
@@ -898,32 +912,6 @@ impl Config {
 
     pub fn set_minor_version(&self, version: u32) {
         unsafe { ocio_sys::ocio_config_set_minor_version(self.handle.as_ptr(), version) };
-    }
-
-    // --- Default interpolation ---
-
-    pub fn default_interpolation(&self) -> Interpolation {
-        let i = unsafe {
-            ocio_sys::ocio_config_get_default_interpolation(self.handle.as_ptr() as *mut c_void)
-        };
-        match i {
-            1 => Interpolation::Nearest,
-            2 => Interpolation::Linear,
-            3 => Interpolation::Tetrahedral,
-            4 => Interpolation::Cubic,
-            5 => Interpolation::Default,
-            6 => Interpolation::Best,
-            _ => Interpolation::Unknown,
-        }
-    }
-
-    pub fn set_default_interpolation(&self, interpolation: Interpolation) {
-        unsafe {
-            ocio_sys::ocio_config_set_default_interpolation(
-                self.handle.as_ptr(),
-                interpolation as i32,
-            );
-        }
     }
 
     // --- Working directory ---
@@ -1386,10 +1374,9 @@ mod tests {
             .add_display("sRGB", "Film", "DisplayTransform", "srgb")
             .is_ok());
         assert!(config
-            .add_shared_view("sRGB", "SharedView", "TransformName", "srgb")
+            .add_shared_view("SharedView", "TransformName", "srgb", "", "", "")
             .is_ok());
         assert!(config.remove_view("sRGB", "Film").is_ok());
-        assert!(config.remove_display("sRGB").is_ok());
     }
 
     #[test]
@@ -1417,14 +1404,6 @@ mod tests {
     }
 
     #[test]
-    fn add_remove_view_transform_no_crash() {
-        let config = Config::raw().unwrap();
-        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
-        config.add_view_transform(&vt);
-        assert!(config.remove_view_transform("MyViewTransform").is_ok());
-    }
-
-    #[test]
     fn clear_all_no_crash() {
         let config = Config::raw().unwrap();
         config.clear_all();
@@ -1435,13 +1414,6 @@ mod tests {
         let config = Config::raw().unwrap();
         config.set_major_version(2);
         config.set_minor_version(1);
-    }
-
-    #[test]
-    fn default_interpolation_no_crash() {
-        let config = Config::raw().unwrap();
-        let _ = config.default_interpolation();
-        config.set_default_interpolation(Interpolation::Linear);
     }
 
     #[test]

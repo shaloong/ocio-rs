@@ -1,0 +1,34 @@
+name: Bug report
+description: Report incorrect behavior in ocio-rs
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal code, config, or command that reproduces the issue.
+    validations:
+      required: true
+  - type: dropdown
+    id: build_mode
+    attributes:
+      label: Build mode
+      options:
+        - stub
+        - OCIO_RS_ENABLE_REAL
+        - bundled
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "OS, Rust version, compiler/toolchain"

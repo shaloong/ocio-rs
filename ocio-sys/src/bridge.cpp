@@ -3731,6 +3731,21 @@ bool ocio_config_is_archivable(void* handle) {
 #endif
 }
 
+void* ocio_config_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_config().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_config(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void ocio_config_archive(void* handle, void* ostream) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)ostream;
@@ -4009,6 +4024,21 @@ bool ocio_file_rules_is_default(void* handle) {
   try {
     return ocio_rs_bridge::get_real_file_rules(handle)->isDefault();
   } catch (...) { return false; }
+#endif
+}
+
+void* ocio_file_rules_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_file_rules().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_file_rules(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::FileRulesHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -4460,6 +4490,21 @@ void ocio_color_space_set_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(handle);
 }
 
+void* ocio_color_space_set_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_color_space_set().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_color_space_set(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ColorSpaceSetHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(ocio_rs_bridge::RealColorSpaceSet{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_color_space_set_get_num_color_spaces(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -4764,6 +4809,21 @@ void* ocio_named_transform_create(void) {
 
 void ocio_named_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::NamedTransformHandle*>(handle);
+}
+
+void* ocio_named_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_named_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_named_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::NamedTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_named_transform_get_name(void* handle) {
@@ -5247,6 +5307,17 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir) {
 #endif
 }
 
+bool ocio_color_space_is_transform_defined(void* handle, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)direction;
+  return false;
+#else
+  try {
+    return ocio_rs_bridge::get_real_color_space(handle)->getTransform(static_cast<ocio::ColorSpaceDirection>(direction)) != nullptr;
+  } catch (...) { return false; }
+#endif
+}
+
 void* ocio_transform_create_editable_copy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -5277,14 +5348,6 @@ int ocio_transform_get_transform_type(void* handle) {
 
 
 // --- Processor ---
-
-void* ocio_processor_create(void) {
-#ifdef OCIO_RS_STUB
-  return ocio_rs_bridge::make_stub_processor().release();
-#else
-  return nullptr; // @TODO: implement make_real
-#endif
-}
 
 void ocio_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ProcessorHandle*>(handle);
@@ -5424,6 +5487,37 @@ bool ocio_processor_is_dynamic(void* handle) {
 #endif
 }
 
+void ocio_processor_apply_rgba(void* handle, float* rgba, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgba; (void)len;
+  return;
+#else
+  try {
+    if (!rgba || len < 4) return;
+    auto cpu = ocio_rs_bridge::get_real_processor(handle)->getDefaultCPUProcessor();
+    if (cpu) cpu->applyRGBA(rgba);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgba; (void)numPixels; (void)stride;
+  return;
+#else
+  try {
+    if (!rgba || numPixels <= 0) return;
+    auto cpu = ocio_rs_bridge::get_real_processor(handle)->getDefaultCPUProcessor();
+    if (!cpu) return;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
+    ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
+                              ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
+    cpu->apply(img);
+  } catch (...) { return; }
+#endif
+}
+
 void* ocio_processor_get_optimized_processor_v1(void* handle, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags;
@@ -5554,14 +5648,6 @@ void* ocio_processor_get_optimized_cpu_processor_v1(void* handle, int inBitDepth
 
 
 // --- CPUProcessor ---
-
-void* ocio_cpu_processor_create(void) {
-#ifdef OCIO_RS_STUB
-  return ocio_rs_bridge::make_stub_cpu_processor().release();
-#else
-  return nullptr; // @TODO: implement make_real
-#endif
-}
 
 void ocio_cpu_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::CPUProcessorHandle*>(handle);
@@ -5714,16 +5800,78 @@ void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
 #endif
 }
 
-
-// --- GPUProcessor ---
-
-void* ocio_gpu_processor_create(void) {
+void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
-  return ocio_rs_bridge::make_stub_gpu_processor().release();
+  (void)handle; (void)rgba; (void)numPixels; (void)stride;
+  return;
 #else
-  return nullptr; // @TODO: implement make_real
+  try {
+    if (!rgba || numPixels <= 0) return;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
+    ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
+                              ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
+  } catch (...) { return; }
 #endif
 }
+
+void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgb; (void)numPixels; (void)stride;
+  return;
+#else
+  try {
+    if (!rgb || numPixels <= 0) return;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 3) * static_cast<int64_t>(sizeof(float)));
+    ocio::PackedImageDesc img(rgb, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGB,
+                              ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgba; (void)bitDepth; (void)numPixels; (void)stride;
+  return;
+#else
+  try {
+    if (!rgba || numPixels <= 0) return;
+    const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
+      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16) ? 2u
+      : (bitDepth == ocio::BIT_DEPTH_UINT32) ? 4u : 1u;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(bytesPerChannel);
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(bytesPerChannel));
+    ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
+                              static_cast<ocio::BitDepth>(bitDepth), channelStride, xStride, xStride * numPixels);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgb; (void)bitDepth; (void)numPixels; (void)stride;
+  return;
+#else
+  try {
+    if (!rgb || numPixels <= 0) return;
+    const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
+      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16) ? 2u
+      : (bitDepth == ocio::BIT_DEPTH_UINT32) ? 4u : 1u;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(bytesPerChannel);
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 3) * static_cast<int64_t>(bytesPerChannel));
+    ocio::PackedImageDesc img(rgb, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGB,
+                              static_cast<ocio::BitDepth>(bitDepth), channelStride, xStride, xStride * numPixels);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
+  } catch (...) { return; }
+#endif
+}
+
+
+// --- GPUProcessor ---
 
 void ocio_gpu_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GPUProcessorHandle*>(handle);
@@ -6251,6 +6399,137 @@ void* ocio_gpu_shader_desc_get_shader_text(void* handle) {
 #endif
 }
 
+int ocio_gpu_shader_desc_get_language(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try { return static_cast<int>(ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getLanguage()); }
+  catch (...) { return 0; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_language(void* handle, int language) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)language;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setLanguage(static_cast<ocio::GpuLanguage>(language)); }
+  catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_function_name(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getFunctionName(); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_function_name(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setFunctionName(name); }
+  catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_pixel_name(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getPixelName(); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_pixel_name(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setPixelName(name); }
+  catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_resource_prefix(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getResourcePrefix(); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_resource_prefix(void* handle, const char* prefix) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)prefix;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setResourcePrefix(prefix); }
+  catch (...) {}
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_cache_id(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getCacheID(); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_finalize(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->finalize(); }
+  catch (...) {}
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return 0;
+#else
+  try {
+    (void)index;
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureMaxWidth();
+  } catch (...) { return 0; }
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return 0;
+#else
+  (void)handle; (void)index;
+  return 0;
+#endif
+}
+
+const char* ocio_gpu_shader_desc_get_texture_uid(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    if (index < 0) return nullptr;
+    OcioGpuTexture2DInfo info{};
+    return ocio_gpu_shader_desc_get_texture_info(handle, static_cast<unsigned>(index), &info)
+      ? info.texture_name : nullptr;
+  } catch (...) { return nullptr; }
+#endif
+}
+
 
 // --- Baker ---
 
@@ -6338,6 +6617,49 @@ void* ocio_baker_get_format_metadata_v1(void* handle) {
   try {
     return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_baker_create_editable_copy(void* baker) {
+#ifdef OCIO_RS_STUB
+  (void)baker;
+  return ocio_rs_bridge::make_stub_baker().release();
+#else
+  try {
+    auto copy = ocio_rs_bridge::get_real_baker(baker)->createEditableCopy();
+    if (!copy) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::BakerHandle>();
+    auto obj = std::make_shared<ocio_rs_bridge::RealBaker>();
+    obj->baker = copy;
+    out_handle->inner = obj;
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_baker_get_num_formats(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try { return ocio::Baker::getNumFormats(); } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_baker_get_format_name_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try { return ocio::Baker::getFormatNameByIndex(index); } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_baker_get_format_extension_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try { return ocio::Baker::getFormatExtensionByIndex(index); } catch (...) { return nullptr; }
 #endif
 }
 
@@ -6973,6 +7295,50 @@ void* ocio_builtin_transform_get_description(void* handle) {
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_builtin_transform(handle)->getDescription()));
   } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_builtin_transform_get_num_styles(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    auto registry = ocio::BuiltinTransformRegistry::Get();
+    return registry ? static_cast<int>(registry->getNumBuiltins()) : 0;
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_builtin_transform_get_style_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try {
+    if (index < 0) return nullptr;
+    auto registry = ocio::BuiltinTransformRegistry::Get();
+    if (!registry || static_cast<size_t>(index) >= registry->getNumBuiltins()) return nullptr;
+    return registry->getBuiltinStyle(static_cast<size_t>(index));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_builtin_transform_is_valid_style(const char* style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return false;
+#else
+  try {
+    if (!style) return false;
+    auto registry = ocio::BuiltinTransformRegistry::Get();
+    if (!registry) return false;
+    const size_t count = registry->getNumBuiltins();
+    for (size_t i = 0; i < count; ++i) {
+      const char* candidate = registry->getBuiltinStyle(i);
+      if (candidate && std::strcmp(candidate, style) == 0) return true;
+    }
+    return false;
+  } catch (...) { return false; }
 #endif
 }
 
@@ -10726,15 +11092,493 @@ void ocio_range_transform_unset_max_out_value(void* handle) {
 }
 
 
-// --- DynamicProperty ---
+// --- Consolidated real compatibility ABI ---
 
-void* ocio_dynamic_property_create(void) {
+void* ocio_context_create_editable_copy(void* context) {
 #ifdef OCIO_RS_STUB
-  return ocio_rs_bridge::make_stub_dynamic_property().release();
+  (void)context;
+  return ocio_rs_bridge::make_stub_context().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  try {
+    auto copy = ocio_rs_bridge::get_real_context(context)->createEditableCopy();
+    if (!copy) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ContextHandle>();
+    auto obj = std::make_shared<ocio_rs_bridge::RealContext>();
+    obj->context = copy;
+    out_handle->inner = obj;
+    return out_handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
+
+void* ocio_format_metadata_get_child_element(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i;
+  return nullptr;
+#else
+  try { return &static_cast<ocio::FormatMetadata*>(metadata)->getChildElement(i); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_destroy(void* handle) {
+  (void)handle;
+}
+
+#ifndef OCIO_RS_STUB
+static ocio::FormatMetadata* get_format_metadata_from_transform(void* handle) {
+  auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
+  if (!base) return nullptr;
+  auto transform = base->get_ocio_transform();
+  if (!transform) return nullptr;
+
+  if (auto t = std::dynamic_pointer_cast<ocio::CDLTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::ExponentTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::ExponentWithLinearTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::ExposureContrastTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::FixedFunctionTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::GradingPrimaryTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::GradingRGBCurveTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::GradingHueCurveTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::GradingToneTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::GroupTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::LogAffineTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::LogCameraTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::LogTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::Lut1DTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::Lut3DTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::MatrixTransform>(transform)) return &t->getFormatMetadata();
+  if (auto t = std::dynamic_pointer_cast<ocio::RangeTransform>(transform)) return &t->getFormatMetadata();
+  return nullptr;
+}
+#endif
+
+void* ocio_transform_get_format_metadata(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  return nullptr;
+#else
+  try { return get_format_metadata_from_transform(transform); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_get_element_name(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getElementName(); } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_element_name(void* metadata, const char* name) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->setElementName(name); } catch (...) { return; }
+#else
+  (void)metadata; (void)name;
+#endif
+}
+
+const char* ocio_format_metadata_get_element_value(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getElementValue(); } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_element_value(void* metadata, const char* value) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->setElementValue(value); } catch (...) { return; }
+#else
+  (void)metadata; (void)value;
+#endif
+}
+
+int ocio_format_metadata_get_num_attributes(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return 0;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getNumAttributes(); } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_name(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeName(i); } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, int i) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)i; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeValue(i); } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_get_attribute_value(void* metadata, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; (void)name; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeValue(name); } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->addAttribute(name, value); } catch (...) { return; }
+#else
+  (void)metadata; (void)name; (void)value;
+#endif
+}
+
+int ocio_format_metadata_get_num_children_elements(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return 0;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getNumChildrenElements(); } catch (...) { return 0; }
+#endif
+}
+
+void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->addChildElement(name, value); } catch (...) { return; }
+#else
+  (void)metadata; (void)name; (void)value;
+#endif
+}
+
+void ocio_format_metadata_clear(void* metadata) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->clear(); } catch (...) { return; }
+#else
+  (void)metadata;
+#endif
+}
+
+const char* ocio_format_metadata_get_name(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getName(); } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_name(void* metadata, const char* name) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->setName(name); } catch (...) { return; }
+#else
+  (void)metadata; (void)name;
+#endif
+}
+
+const char* ocio_format_metadata_get_id(void* metadata) {
+#ifdef OCIO_RS_STUB
+  (void)metadata; return nullptr;
+#else
+  try { return static_cast<ocio::FormatMetadata*>(metadata)->getID(); } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_format_metadata_set_id(void* metadata, const char* id) {
+#ifndef OCIO_RS_STUB
+  try { static_cast<ocio::FormatMetadata*>(metadata)->setID(id); } catch (...) { return; }
+#else
+  (void)metadata; (void)id;
+#endif
+}
+
+#ifdef OCIO_RS_STUB
+#define OCIO_RS_DEFINE_DIRECTION_ABI(prefix, getter) \
+int prefix##_get_direction(void* transform) { (void)transform; return 0; } \
+void prefix##_set_direction(void* transform, int direction) { (void)transform; (void)direction; }
+#else
+#define OCIO_RS_DEFINE_DIRECTION_ABI(prefix, getter) \
+int prefix##_get_direction(void* transform) { \
+  try { return static_cast<int>(ocio_rs_bridge::getter(transform)->getDirection()); } catch (...) { return 0; } \
+} \
+void prefix##_set_direction(void* transform, int direction) { \
+  try { ocio_rs_bridge::getter(transform)->setDirection(static_cast<ocio::TransformDirection>(direction)); } catch (...) { return; } \
+}
+#endif
+
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_builtin_transform, get_real_builtin_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_cdl_transform, get_real_cdl_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_exponent_transform, get_real_exponent_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_exponent_with_linear_transform, get_real_exponent_with_linear_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_exposure_contrast_transform, get_real_exposure_contrast_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_grading_primary_transform, get_real_grading_primary_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_grading_tone_transform, get_real_grading_tone_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_group_transform, get_real_group_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_log_affine_transform, get_real_log_affine_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_log_transform, get_real_log_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_lut1d_transform, get_real_lut1d_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_lut3d_transform, get_real_lut3d_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_matrix_transform, get_real_matrix_transform)
+OCIO_RS_DEFINE_DIRECTION_ABI(ocio_range_transform, get_real_range_transform)
+
+#undef OCIO_RS_DEFINE_DIRECTION_ABI
+
+void ocio_exponent_transform_get_value(void* transform, double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; ocio_rs_bridge::get_real_exponent_transform(transform)->getValue(values); std::memcpy(vec4, values, sizeof(values)); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+void ocio_exponent_transform_set_value(void* transform, const double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; std::memcpy(values, vec4, sizeof(values)); ocio_rs_bridge::get_real_exponent_transform(transform)->setValue(values); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+void ocio_exponent_with_linear_transform_get_gamma(void* transform, double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; ocio_rs_bridge::get_real_exponent_with_linear_transform(transform)->getGamma(values); std::memcpy(vec4, values, sizeof(values)); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_gamma(void* transform, const double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; std::memcpy(values, vec4, sizeof(values)); ocio_rs_bridge::get_real_exponent_with_linear_transform(transform)->setGamma(values); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+void ocio_exponent_with_linear_transform_get_offset(void* transform, double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; ocio_rs_bridge::get_real_exponent_with_linear_transform(transform)->getOffset(values); std::memcpy(vec4, values, sizeof(values)); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+void ocio_exponent_with_linear_transform_set_offset(void* transform, const double* vec4) {
+#ifndef OCIO_RS_STUB
+  try { double values[4]{}; std::memcpy(values, vec4, sizeof(values)); ocio_rs_bridge::get_real_exponent_with_linear_transform(transform)->setOffset(values); } catch (...) { return; }
+#else
+  (void)transform; (void)vec4;
+#endif
+}
+
+#ifdef OCIO_RS_STUB
+#define OCIO_RS_LOG_AFFINE_VEC3_ABI(suffix, getter_name, setter_name) \
+void ocio_log_affine_transform_get_##suffix(void* transform, double* values) { (void)transform; (void)values; } \
+void ocio_log_affine_transform_set_##suffix(void* transform, const double* values) { (void)transform; (void)values; }
+#else
+#define OCIO_RS_LOG_AFFINE_VEC3_ABI(suffix, getter_name, setter_name) \
+void ocio_log_affine_transform_get_##suffix(void* transform, double* values) { \
+  try { double local[3]{}; ocio_rs_bridge::get_real_log_affine_transform(transform)->getter_name(local); std::memcpy(values, local, sizeof(local)); } catch (...) { return; } \
+} \
+void ocio_log_affine_transform_set_##suffix(void* transform, const double* values) { \
+  try { double local[3]{}; std::memcpy(local, values, sizeof(local)); ocio_rs_bridge::get_real_log_affine_transform(transform)->setter_name(local); } catch (...) { return; } \
+}
+#endif
+
+OCIO_RS_LOG_AFFINE_VEC3_ABI(log_side_slope_value, getLogSideSlopeValue, setLogSideSlopeValue)
+OCIO_RS_LOG_AFFINE_VEC3_ABI(log_side_offset_value, getLogSideOffsetValue, setLogSideOffsetValue)
+OCIO_RS_LOG_AFFINE_VEC3_ABI(lin_side_slope_value, getLinSideSlopeValue, setLinSideSlopeValue)
+OCIO_RS_LOG_AFFINE_VEC3_ABI(lin_side_offset_value, getLinSideOffsetValue, setLinSideOffsetValue)
+
+#undef OCIO_RS_LOG_AFFINE_VEC3_ABI
+
+void ocio_lut1d_transform_get_values(void* transform, double* data) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto lut = ocio_rs_bridge::get_real_lut1d_transform(transform);
+    const auto length = lut->getLength();
+    for (unsigned long i = 0; i < length; ++i) {
+      float r = 0.f, g = 0.f, b = 0.f;
+      lut->getValue(i, r, g, b);
+      data[i * 3 + 0] = r;
+      data[i * 3 + 1] = g;
+      data[i * 3 + 2] = b;
+    }
+  } catch (...) { return; }
+#else
+  (void)transform; (void)data;
+#endif
+}
+
+void ocio_lut1d_transform_set_values(void* transform, const double* data) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto lut = ocio_rs_bridge::get_real_lut1d_transform(transform);
+    const auto length = lut->getLength();
+    for (unsigned long i = 0; i < length; ++i) {
+      lut->setValue(i, static_cast<float>(data[i * 3 + 0]), static_cast<float>(data[i * 3 + 1]), static_cast<float>(data[i * 3 + 2]));
+    }
+  } catch (...) { return; }
+#else
+  (void)transform; (void)data;
+#endif
+}
+
+void ocio_lut3d_transform_get_values(void* transform, double* data) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto lut = ocio_rs_bridge::get_real_lut3d_transform(transform);
+    const auto size = lut->getGridSize();
+    size_t out = 0;
+    for (unsigned long b = 0; b < size; ++b) {
+      for (unsigned long g = 0; g < size; ++g) {
+        for (unsigned long r = 0; r < size; ++r) {
+          float rv = 0.f, gv = 0.f, bv = 0.f;
+          lut->getValue(r, g, b, rv, gv, bv);
+          data[out++] = rv;
+          data[out++] = gv;
+          data[out++] = bv;
+        }
+      }
+    }
+  } catch (...) { return; }
+#else
+  (void)transform; (void)data;
+#endif
+}
+
+void ocio_lut3d_transform_set_values(void* transform, const double* data) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto lut = ocio_rs_bridge::get_real_lut3d_transform(transform);
+    const auto size = lut->getGridSize();
+    size_t in = 0;
+    for (unsigned long b = 0; b < size; ++b) {
+      for (unsigned long g = 0; g < size; ++g) {
+        for (unsigned long r = 0; r < size; ++r) {
+          lut->setValue(r, g, b, static_cast<float>(data[in + 0]), static_cast<float>(data[in + 1]), static_cast<float>(data[in + 2]));
+          in += 3;
+        }
+      }
+    }
+  } catch (...) { return; }
+#else
+  (void)transform; (void)data;
+#endif
+}
+
+#ifndef OCIO_RS_STUB
+static void* make_matrix_transform_from_values(const double* m44, const double* offset4) {
+  auto out_handle = std::make_unique<ocio_rs_bridge::MatrixTransformHandle>();
+  auto obj = std::make_shared<ocio_rs_bridge::RealMatrixTransform>();
+  obj->transform = ocio::MatrixTransform::Create();
+  obj->transform->setMatrix(m44);
+  obj->transform->setOffset(offset4);
+  out_handle->inner = obj;
+  return out_handle.release();
+}
+#endif
+
+void* ocio_matrix_transform_create_identity(void) {
+#ifdef OCIO_RS_STUB
+  return ocio_rs_bridge::make_stub_matrix_transform().release();
+#else
+  try {
+    double m44[16]{};
+    double offset4[4]{};
+    ocio::MatrixTransform::Identity(m44, offset4);
+    return make_matrix_transform_from_values(m44, offset4);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_sat(double sat, const double* luma) {
+#ifdef OCIO_RS_STUB
+  (void)sat; (void)luma;
+  return ocio_rs_bridge::make_stub_matrix_transform().release();
+#else
+  try {
+    double m44[16]{};
+    double offset4[4]{};
+    ocio::MatrixTransform::Sat(m44, offset4, sat, luma);
+    return make_matrix_transform_from_values(m44, offset4);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_scale(const double* scale) {
+#ifdef OCIO_RS_STUB
+  (void)scale;
+  return ocio_rs_bridge::make_stub_matrix_transform().release();
+#else
+  try {
+    double m44[16]{};
+    double offset4[4]{};
+    ocio::MatrixTransform::Scale(m44, offset4, scale);
+    return make_matrix_transform_from_values(m44, offset4);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_fit(const double* oldMin4, const double* oldMax4, const double* newMin4, const double* newMax4) {
+#ifdef OCIO_RS_STUB
+  (void)oldMin4; (void)oldMax4; (void)newMin4; (void)newMax4;
+  return ocio_rs_bridge::make_stub_matrix_transform().release();
+#else
+  try {
+    double m44[16]{};
+    double offset4[4]{};
+    ocio::MatrixTransform::Fit(m44, offset4, oldMin4, oldMax4, newMin4, newMax4);
+    return make_matrix_transform_from_values(m44, offset4);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_matrix_transform_create_view(int* channels, const double* luma) {
+#ifdef OCIO_RS_STUB
+  (void)channels; (void)luma;
+  return ocio_rs_bridge::make_stub_matrix_transform().release();
+#else
+  try {
+    double m44[16]{};
+    double offset4[4]{};
+    ocio::MatrixTransform::View(m44, offset4, channels, luma);
+    return make_matrix_transform_from_values(m44, offset4);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_group_transform_remove_transform(void* transform, uint64_t index) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto obj = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(handle->inner);
+    auto replacement = ocio::GroupTransform::Create();
+    const int remove_index = static_cast<int>(index);
+    for (int i = 0; i < obj->transform->getNumTransforms(); ++i) {
+      if (i == remove_index) continue;
+      auto child = obj->transform->getTransform(i);
+      if (child) replacement->appendTransform(child);
+    }
+    obj->transform = replacement;
+  } catch (...) { return; }
+#else
+  (void)transform; (void)index;
+#endif
+}
+
+void ocio_group_transform_clear_transforms(void* transform) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto* handle = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
+    auto obj = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(handle->inner);
+    obj->transform = ocio::GroupTransform::Create();
+  } catch (...) { return; }
+#else
+  (void)transform;
+#endif
+}
+
+// --- DynamicProperty ---
 
 void ocio_dynamic_property_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
@@ -10748,6 +11592,381 @@ int ocio_dynamic_property_get_type(void* handle) {
   try {
     return ocio_rs_bridge::get_real_dynamic_property(handle)->getType();
   } catch (...) { return 0; }
+#endif
+}
+
+double ocio_dynamic_property_double_get_value(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0.0;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    return ocio::DynamicPropertyValue::AsDouble(prop)->getValue();
+  } catch (...) { return 0.0; }
+#endif
+}
+
+void ocio_dynamic_property_double_set_value(void* handle, double value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    ocio::DynamicPropertyValue::AsDouble(prop)->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_primary_get_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+#else
+  try {
+    if (!values) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    const auto& v = ocio::DynamicPropertyValue::AsGradingPrimary(prop)->getValue();
+    size_t off = 0;
+    auto write_rgbm = [&](const ocio::GradingRGBM& rgbm) {
+      values[off++] = rgbm.m_red;
+      values[off++] = rgbm.m_green;
+      values[off++] = rgbm.m_blue;
+      values[off++] = rgbm.m_master;
+    };
+    write_rgbm(v.m_brightness);
+    write_rgbm(v.m_contrast);
+    write_rgbm(v.m_gamma);
+    write_rgbm(v.m_offset);
+    write_rgbm(v.m_exposure);
+    write_rgbm(v.m_lift);
+    write_rgbm(v.m_gain);
+    values[off++] = v.m_saturation;
+    values[off++] = v.m_pivot;
+    values[off++] = v.m_pivotBlack;
+    values[off++] = v.m_pivotWhite;
+    values[off++] = v.m_clampBlack;
+    values[off++] = v.m_clampWhite;
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_primary_set_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+#else
+  try {
+    if (!values) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingPrimary(prop);
+    auto v = typed->getValue();
+    size_t off = 0;
+    auto read_rgbm = [&]() {
+      ocio::GradingRGBM rgbm;
+      rgbm.m_red = values[off++];
+      rgbm.m_green = values[off++];
+      rgbm.m_blue = values[off++];
+      rgbm.m_master = values[off++];
+      return rgbm;
+    };
+    v.m_brightness = read_rgbm();
+    v.m_contrast = read_rgbm();
+    v.m_gamma = read_rgbm();
+    v.m_offset = read_rgbm();
+    v.m_exposure = read_rgbm();
+    v.m_lift = read_rgbm();
+    v.m_gain = read_rgbm();
+    v.m_saturation = values[off++];
+    v.m_pivot = values[off++];
+    v.m_pivotBlack = values[off++];
+    v.m_pivotWhite = values[off++];
+    v.m_clampBlack = values[off++];
+    v.m_clampWhite = values[off++];
+    typed->setValue(v);
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_tone_get_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+#else
+  try {
+    if (!values) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    const auto& v = ocio::DynamicPropertyValue::AsGradingTone(prop)->getValue();
+    size_t off = 0;
+    auto write_rgbmsw = [&](const ocio::GradingRGBMSW& rgbmsw) {
+      values[off++] = rgbmsw.m_red;
+      values[off++] = rgbmsw.m_green;
+      values[off++] = rgbmsw.m_blue;
+      values[off++] = rgbmsw.m_master;
+      values[off++] = rgbmsw.m_start;
+      values[off++] = rgbmsw.m_width;
+    };
+    write_rgbmsw(v.m_blacks);
+    write_rgbmsw(v.m_shadows);
+    write_rgbmsw(v.m_midtones);
+    write_rgbmsw(v.m_highlights);
+    write_rgbmsw(v.m_whites);
+    values[off++] = v.m_scontrast;
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_tone_set_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+#else
+  try {
+    if (!values) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingTone(prop);
+    auto v = typed->getValue();
+    size_t off = 0;
+    auto read_rgbmsw = [&]() {
+      ocio::GradingRGBMSW rgbmsw;
+      rgbmsw.m_red = values[off++];
+      rgbmsw.m_green = values[off++];
+      rgbmsw.m_blue = values[off++];
+      rgbmsw.m_master = values[off++];
+      rgbmsw.m_start = values[off++];
+      rgbmsw.m_width = values[off++];
+      return rgbmsw;
+    };
+    v.m_blacks = read_rgbmsw();
+    v.m_shadows = read_rgbmsw();
+    v.m_midtones = read_rgbmsw();
+    v.m_highlights = read_rgbmsw();
+    v.m_whites = read_rgbmsw();
+    v.m_scontrast = values[off++];
+    typed->setValue(v);
+  } catch (...) {}
+#endif
+}
+
+int ocio_dynamic_property_grading_rgb_curve_get_num_control_points(void* handle, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType;
+  return 0;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    return curve ? static_cast<int>(curve->getNumControlPoints()) : 0;
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_num_control_points(void* handle, int curveType, int num) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)num;
+#else
+  try {
+    if (num < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
+    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    if (!curve) return;
+    curve->setNumControlPoints(static_cast<size_t>(num));
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_get_control_point(void* handle, int curveType, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  try {
+    if (!x || !y || index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    const auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    *x = point.m_x;
+    *y = point.m_y;
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_control_point(void* handle, int curveType, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  try {
+    if (index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
+    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    point.m_x = x;
+    point.m_y = y;
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+float ocio_dynamic_property_grading_rgb_curve_get_slope(void* handle, int curveType, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index;
+  return 0.0f;
+#else
+  try {
+    if (index < 0) return 0.0f;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    return curve ? curve->getSlope(static_cast<size_t>(index)) : 0.0f;
+  } catch (...) { return 0.0f; }
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_set_slope(void* handle, int curveType, int index, float slope) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)slope;
+#else
+  try {
+    if (index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
+    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    if (!curve) return;
+    curve->setSlope(static_cast<size_t>(index), slope);
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* handle, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType;
+  return true;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
+    return curve ? curve->slopesAreDefault() : true;
+  } catch (...) { return true; }
+#endif
+}
+
+int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* handle, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType;
+  return 0;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    return curve ? static_cast<int>(curve->getNumControlPoints()) : 0;
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* handle, int curveType, int num) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)num;
+#else
+  try {
+    if (num < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
+    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    if (!curve) return;
+    curve->setNumControlPoints(static_cast<size_t>(num));
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_get_control_point(void* handle, int curveType, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  try {
+    if (!x || !y || index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    const auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    *x = point.m_x;
+    *y = point.m_y;
+  } catch (...) {}
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_control_point(void* handle, int curveType, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)x; (void)y;
+#else
+  try {
+    if (index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
+    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    point.m_x = x;
+    point.m_y = y;
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+float ocio_dynamic_property_grading_hue_curve_get_slope(void* handle, int curveType, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index;
+  return 0.0f;
+#else
+  try {
+    if (index < 0) return 0.0f;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    return curve ? curve->getSlope(static_cast<size_t>(index)) : 0.0f;
+  } catch (...) { return 0.0f; }
+#endif
+}
+
+void ocio_dynamic_property_grading_hue_curve_set_slope(void* handle, int curveType, int index, float slope) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType; (void)index; (void)slope;
+#else
+  try {
+    if (index < 0) return;
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
+    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    if (!curve) return;
+    curve->setSlope(static_cast<size_t>(index), slope);
+    typed->setValue(value);
+  } catch (...) {}
+#endif
+}
+
+bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* handle, int curveType) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curveType;
+  return true;
+#else
+  try {
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
+    return curve ? curve->slopesAreDefault() : true;
+  } catch (...) { return true; }
 #endif
 }
 

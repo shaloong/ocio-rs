@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result};
+use crate::{cstr_from_mut, cstring, OcioError, Result};
 use ocio_sys;
 
 pub struct FileRules {
@@ -217,9 +217,9 @@ impl FileRules {
         let color_space = cstring(color_space)?;
         let regex = cstring(regex)?;
         unsafe {
-            ocio_sys::ocio_file_rules_insert_rule_regex(
+            ocio_sys::ocio_file_rules_insert_rule_v1(
                 self.handle.as_ptr(),
-                rule_index,
+                rule_index as usize,
                 name.as_ptr().cast(),
                 color_space.as_ptr().cast(),
                 regex.as_ptr().cast(),
@@ -272,16 +272,6 @@ impl FileRules {
 
     pub fn is_default(&self) -> bool {
         unsafe { ocio_sys::ocio_file_rules_is_default(self.handle.as_ptr() as *mut c_void) }
-    }
-
-    pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
-        let fp = cstring(file_path).ok()?;
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_file_rules_get_color_space_from_filepath(
-                self.handle.as_ptr(),
-                fp.as_ptr().cast(),
-            ))
-        }
     }
 }
 
@@ -357,11 +347,5 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let rules = FileRules::create().unwrap();
         let _ = rules.create_editable_copy();
-    }
-
-    #[test]
-    fn color_space_from_filepath_no_crash() {
-        let rules = FileRules::create().unwrap();
-        let _ = rules.color_space_from_filepath("test.exr");
     }
 }

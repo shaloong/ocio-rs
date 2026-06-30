@@ -7,6 +7,9 @@ use crate::{
 };
 use ocio_sys;
 
+/// A transform backed by an external LUT or color-correction file.
+///
+/// The source path is resolved by OCIO using the active config/context.
 pub struct FileTransform {
     pub(crate) handle: NonNull<c_void>,
 }

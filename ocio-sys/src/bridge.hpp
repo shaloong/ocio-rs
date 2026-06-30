@@ -420,7 +420,6 @@ void* ocio_transform_create_editable_copy(void* handle);
 int ocio_transform_get_transform_type(void* handle);
 
 // --- Processor ---
-void* ocio_processor_create(void);
 void ocio_processor_destroy(void* handle);
 
 bool ocio_processor_is_no_op(void* handle);
@@ -444,7 +443,6 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags);
 void* ocio_processor_get_optimized_cpu_processor_v1(void* handle, int inBitDepth, int outBitDepth, int oFlags);
 
 // --- CPUProcessor ---
-void* ocio_cpu_processor_create(void);
 void ocio_cpu_processor_destroy(void* handle);
 
 bool ocio_cpu_processor_is_no_op(void* handle);
@@ -462,7 +460,6 @@ void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
 
 // --- GPUProcessor ---
-void* ocio_gpu_processor_create(void);
 void ocio_gpu_processor_destroy(void* handle);
 
 bool ocio_gpu_processor_is_no_op(void* handle);

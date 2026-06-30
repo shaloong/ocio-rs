@@ -5,6 +5,10 @@ use super::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// An ordered list of transforms evaluated as one transform.
+///
+/// Group transforms are useful for composing generated or user-authored
+/// transform chains before asking a `Config` for a processor.
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
 }

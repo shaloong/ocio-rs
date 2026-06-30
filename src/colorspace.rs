@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, Allocation, BitDepth, ColorSpaceDirection,
-    ColorSpaceVisibility, OcioError, ReferenceSpaceType, Result,
+    cstr_from_mut, cstring, Allocation, BitDepth, ColorSpaceDirection, OcioError,
+    ReferenceSpaceType, Result,
 };
 use ocio_sys;
 
@@ -235,46 +235,6 @@ impl ColorSpace {
         unsafe { ocio_sys::ocio_color_space_clear_aliases(self.handle.as_ptr()) };
     }
 
-    pub fn is_inactive(&self) -> bool {
-        unsafe { ocio_sys::ocio_color_space_is_inactive(self.handle.as_ptr()) }
-    }
-
-    pub fn set_inactive(&self, inactive: bool) {
-        unsafe { ocio_sys::ocio_color_space_set_inactive(self.handle.as_ptr(), inactive) };
-    }
-
-    pub fn visibility(&self) -> ColorSpaceVisibility {
-        let v = unsafe { ocio_sys::ocio_color_space_get_visibility(self.handle.as_ptr()) };
-        match v {
-            1 => ColorSpaceVisibility::Inactive,
-            2 => ColorSpaceVisibility::All,
-            _ => ColorSpaceVisibility::Active,
-        }
-    }
-
-    pub fn set_visibility(&self, visibility: ColorSpaceVisibility) {
-        unsafe {
-            ocio_sys::ocio_color_space_set_visibility(self.handle.as_ptr(), visibility as i32)
-        };
-    }
-
-    pub fn set_reference_space_type(&self, reference_space: ReferenceSpaceType) {
-        unsafe {
-            ocio_sys::ocio_color_space_set_reference_space_type(
-                self.handle.as_ptr(),
-                reference_space as i32,
-            );
-        }
-    }
-
-    pub fn cache_id(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_color_space_get_cache_id(
-                self.handle.as_ptr(),
-            ))
-        }
-    }
-
     pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
         unsafe {
             ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32)
@@ -405,32 +365,6 @@ mod tests {
         assert!(cs.add_alias("test_alias").is_ok());
         assert!(cs.remove_alias("test_alias").is_ok());
         cs.clear_aliases();
-    }
-
-    #[test]
-    fn inactive_no_crash() {
-        let cs = ColorSpace::create().unwrap();
-        let _ = cs.is_inactive();
-        cs.set_inactive(true);
-    }
-
-    #[test]
-    fn visibility_no_crash() {
-        let cs = ColorSpace::create().unwrap();
-        let _ = cs.visibility();
-        cs.set_visibility(ColorSpaceVisibility::Inactive);
-    }
-
-    #[test]
-    fn set_reference_space_type_no_crash() {
-        let cs = ColorSpace::create().unwrap();
-        cs.set_reference_space_type(ReferenceSpaceType::Display);
-    }
-
-    #[test]
-    fn cache_id_no_crash() {
-        let cs = ColorSpace::create().unwrap();
-        let _ = cs.cache_id();
     }
 
     #[test]

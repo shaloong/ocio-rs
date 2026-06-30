@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
-use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
+use crate::{cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
 
 pub struct NamedTransform {
@@ -88,14 +88,6 @@ impl NamedTransform {
         Ok(())
     }
 
-    pub fn cache_id(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_named_transform_get_cache_id(
-                self.handle.as_ptr() as *mut c_void,
-            ))
-        }
-    }
-
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) as i32 }
     }
@@ -131,14 +123,6 @@ impl NamedTransform {
         };
     }
 
-    pub fn is_inactive(&self) -> bool {
-        unsafe { ocio_sys::ocio_named_transform_is_inactive(self.handle.as_ptr() as *mut c_void) }
-    }
-
-    pub fn set_inactive(&self, inactive: bool) {
-        unsafe { ocio_sys::ocio_named_transform_set_inactive(self.handle.as_ptr(), inactive) };
-    }
-
     pub fn category(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_category(
@@ -146,14 +130,6 @@ impl NamedTransform {
                 0,
             ))
         }
-    }
-
-    pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
-        let c = cstring(category)?;
-        unsafe {
-            ocio_sys::ocio_named_transform_set_category(self.handle.as_ptr(), c.as_ptr().cast())
-        };
-        Ok(())
     }
 
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
@@ -255,23 +231,8 @@ mod tests {
     }
 
     #[test]
-    fn inactive_no_crash() {
-        let nt = NamedTransform::create().unwrap();
-        let _ = nt.is_inactive();
-        nt.set_inactive(true);
-        nt.set_inactive(false);
-    }
-
-    #[test]
     fn category_no_crash() {
         let nt = NamedTransform::create().unwrap();
         let _ = nt.category();
-        assert!(nt.set_category("test_category").is_ok());
-    }
-
-    #[test]
-    fn cache_id_no_crash() {
-        let nt = NamedTransform::create().unwrap();
-        let _ = nt.cache_id();
     }
 }

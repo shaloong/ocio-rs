@@ -1,0 +1,22 @@
+name: Feature request
+description: Request API coverage or wrapper improvements
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What OCIO workflow should this enable?
+    validations:
+      required: true
+  - type: textarea
+    id: upstream
+    attributes:
+      label: Upstream OCIO API
+      description: Link or name the OpenColorIO C++ API if known.
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed Rust API
+      description: Sketch the Rust API you would like to use.

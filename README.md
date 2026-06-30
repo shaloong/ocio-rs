@@ -7,7 +7,9 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-Wraps the full v2.5.2 public API — 38 classes, 22 transform types, 748 functions.
+This project targets OpenColorIO v2.5.2. It is experimental: the generated FFI
+surface is broad, but real-OCIO validation and safe wrapper design are still in
+progress.
 
 > [中文文档](docs/README_zh-CN.md)
 
@@ -27,7 +29,7 @@ cargo build
 cargo test
 ```
 
-**Real OCIO mode** (three options):
+**Real OCIO mode**:
 
 ```bash
 # Build OCIO from the bundled submodule and link statically
@@ -35,11 +37,11 @@ git clone --recursive https://github.com/shaloong/ocio-rs
 cargo build --features bundled
 
 # Use a pre-installed OCIO
-OCIO_INSTALL_DIR=/path/to/ocio cargo build
-
-# Build from an OCIO source tree
-OCIO_SOURCE_DIR=/path/to/ocio cargo build
+OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 ```
+
+`OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
+it by itself does not enable real OCIO mode.
 
 ## Architecture
 
@@ -61,6 +63,9 @@ ocio-rs/
 | 0.1.0   | v2.5.1 |
 
 OCIO upgrade workflow: update submodule → run code generator → fix compile errors → release.
+
+See [STATUS.md](STATUS.md) for the current implementation status before relying
+on a particular API area in production.
 
 ## License
 

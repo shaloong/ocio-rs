@@ -8,6 +8,10 @@ use crate::{
 };
 use ocio_sys;
 
+/// An immutable color-processing pipeline produced from a `Config`.
+///
+/// Use `default_cpu_processor` or `default_gpu_processor` to execute or extract
+/// the processing implementation.
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -161,19 +165,6 @@ impl Processor {
         }
     }
 
-    pub fn write(&self, format_name: impl AsRef<str>, file_name: impl AsRef<str>) -> Result<()> {
-        let fmt = cstring(format_name)?;
-        let fname = cstring(file_name)?;
-        unsafe {
-            ocio_sys::ocio_processor_write(
-                self.handle.as_ptr(),
-                fmt.as_ptr().cast(),
-                fname.as_ptr().cast(),
-            );
-        }
-        Ok(())
-    }
-
     // ── v2.5.1 ──
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
         let h = unsafe {
@@ -213,6 +204,9 @@ impl Drop for Processor {
 
 // --- CPUProcessor ---
 
+/// CPU implementation of a `Processor`.
+///
+/// Methods on this type apply color transforms to packed RGB/RGBA pixel data.
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
@@ -343,6 +337,9 @@ impl Drop for CPUProcessor {
 
 // --- GPUProcessor ---
 
+/// GPU implementation of a `Processor`.
+///
+/// Use this with `GpuShaderDesc` to extract shader text, textures, and uniforms.
 pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
@@ -373,14 +370,6 @@ impl GPUProcessor {
                 shader_desc.handle.as_ptr(),
             );
         }
-    }
-
-    // v2.5.1: API changed — now takes 3 args
-    pub fn extract_gpu_shader_info_cache_id(
-        &self,
-        _shader_desc: &mut GpuShaderDesc,
-    ) -> Option<String> {
-        None
     }
 }
 
@@ -1192,17 +1181,6 @@ mod tests {
     }
 
     #[test]
-    fn gpu_processor_extract_cache_id() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        if let Ok(gpu) = proc.default_gpu_processor() {
-            if let Ok(mut desc) = GpuShaderDesc::create() {
-                let _ = gpu.extract_gpu_shader_info_cache_id(&mut desc);
-            }
-        }
-    }
-
-    #[test]
     fn gpu_shader_desc() {
         if let Ok(desc) = GpuShaderDesc::create() {
             // Stub mode returns empty shader text
@@ -1256,13 +1234,6 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         // Stub mode returns None
         let _ = proc.create_group_transform();
-    }
-
-    #[test]
-    fn processor_write_no_crash() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        let _ = proc.write("ocio", "/tmp/test.ocio");
     }
 
     #[test]

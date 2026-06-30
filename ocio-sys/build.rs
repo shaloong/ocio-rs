@@ -85,17 +85,16 @@ fn main() {
                         .map(|s| s.as_str())
                         .or_else(|| e.downcast_ref::<&str>().copied())
                         .unwrap_or("unknown error");
-                    println!("cargo:warning=OpenColorIO bundled build failed: {msg}");
-                    println!("cargo:warning=Falling back to stub mode.");
+                    panic!("OpenColorIO bundled build failed: {msg}");
                 }
             }
         } else {
-            println!("cargo:warning=OpenColorIO source not found. Building in stub mode.");
+            panic!(
+                "OpenColorIO source not found. Use a recursive checkout or set OCIO_SOURCE_DIR."
+            );
         }
     } else {
-        println!(
-            "cargo:warning=Real OCIO requested but bundled source is disabled. Building stub mode."
-        );
+        panic!("Real OCIO requested but no OCIO_INSTALL_DIR was provided and bundled source is disabled.");
     }
 
     let mut build = cc::Build::new();

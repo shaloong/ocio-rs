@@ -1,9 +1,13 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use crate::{cstring, BitDepth, OcioError, Result, TransformDirection};
+use crate::{BitDepth, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// A 4x4 matrix transform plus RGBA offset.
+///
+/// Matrix transforms are commonly used for channel scaling, saturation,
+/// luminance views, and fitted range remapping.
 pub struct MatrixTransform {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -150,15 +154,17 @@ impl MatrixTransform {
 
 impl MatrixTransform {
     pub fn fit(
-        input_color_space: impl AsRef<str>,
-        output_color_space: impl AsRef<str>,
+        old_min: &[f64; 4],
+        old_max: &[f64; 4],
+        new_min: &[f64; 4],
+        new_max: &[f64; 4],
     ) -> Result<Self> {
-        let input = cstring(input_color_space)?;
-        let output = cstring(output_color_space)?;
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_fit(
-                input.as_ptr().cast(),
-                output.as_ptr().cast(),
+                old_min.as_ptr(),
+                old_max.as_ptr(),
+                new_min.as_ptr(),
+                new_max.as_ptr(),
             )
         };
         NonNull::new(handle)
@@ -187,10 +193,9 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn view(channels: &mut [i32], gamma: impl AsRef<str>) -> Result<Self> {
-        let g = cstring(gamma)?;
+    pub fn view(channels: &mut [i32; 4], luma: &[f64; 3]) -> Result<Self> {
         let handle = unsafe {
-            ocio_sys::ocio_matrix_transform_create_view(channels.as_mut_ptr(), g.as_ptr().cast())
+            ocio_sys::ocio_matrix_transform_create_view(channels.as_mut_ptr(), luma.as_ptr())
         };
         NonNull::new(handle)
             .map(|h| Self { handle: h })
@@ -246,11 +251,16 @@ mod tests {
     #[test]
     fn static_helpers_no_crash() {
         let _ = MatrixTransform::identity();
-        let _ = MatrixTransform::fit("input", "output");
+        let _ = MatrixTransform::fit(
+            &[0.0, 0.0, 0.0, 0.0],
+            &[1.0, 1.0, 1.0, 1.0],
+            &[0.0, 0.0, 0.0, 0.0],
+            &[1.0, 1.0, 1.0, 1.0],
+        );
         let _ = MatrixTransform::sat(1.5, &[0.2126, 0.7152, 0.0722]);
         let _ = MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]);
         let mut channels = [0i32; 4];
-        let _ = MatrixTransform::view(&mut channels, "gamma");
+        let _ = MatrixTransform::view(&mut channels, &[0.2126, 0.7152, 0.0722]);
     }
 
     #[test]

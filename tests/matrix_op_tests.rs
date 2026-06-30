@@ -46,7 +46,12 @@ fn _apply_matrix(matrix: &MatrixTransform, pixels: &mut [[f32; 4]]) {
 
 #[test]
 fn matrix_fit_no_crash() {
-    let result = MatrixTransform::fit("input", "output");
+    let result = MatrixTransform::fit(
+        &[0.0, 0.0, 0.0, 0.0],
+        &[1.0, 1.0, 1.0, 1.0],
+        &[0.0, 0.0, 0.0, 0.0],
+        &[1.0, 1.0, 1.0, 1.0],
+    );
     if let Ok(t) = result {
         let _dir = t.direction();
         let _matrix = t.matrix();
@@ -89,7 +94,7 @@ fn matrix_scale_no_crash() {
 
 #[test]
 fn matrix_view_no_crash() {
-    let result = MatrixTransform::view(&mut [0, 1, 2, 3], "linear");
+    let result = MatrixTransform::view(&mut [0, 1, 2, 3], &[0.2126, 0.7152, 0.0722]);
     if let Ok(t) = result {
         let _dir = t.direction();
         let _matrix = t.matrix();
