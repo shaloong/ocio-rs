@@ -17,6 +17,7 @@ pub struct Processor {
 }
 
 impl Processor {
+    /// Apply the processor to a single RGBA pixel in place.
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
         unsafe {
             ocio_sys::ocio_processor_apply_rgba(
@@ -28,6 +29,7 @@ impl Processor {
         Ok(())
     }
 
+    /// Apply the processor to packed RGBA pixel data in place.
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
         unsafe {
             ocio_sys::ocio_processor_apply_rgba_pixels(
@@ -57,6 +59,7 @@ impl Processor {
         }
     }
 
+    /// Create the default CPU execution path for this processor.
     pub fn default_cpu_processor(&self) -> Result<CPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void)
@@ -103,6 +106,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create the default GPU execution path for this processor.
     pub fn default_gpu_processor(&self) -> Result<GPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void)

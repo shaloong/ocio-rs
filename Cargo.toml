@@ -19,6 +19,9 @@ thiserror = "1.0"
 default = []
 bundled = ["ocio-sys/bundled"]
 
+[package.metadata.docs.rs]
+no-default-features = true
+
 [dev-dependencies]
 criterion = "0.5"
 

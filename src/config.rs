@@ -18,6 +18,10 @@ pub struct Config {
 }
 
 impl Config {
+    /// Create a config from one of OCIO's built-in configuration presets.
+    ///
+    /// Use `BuiltinConfigRegistry` to enumerate the preset names exposed by the
+    /// linked OCIO build.
     pub fn create_from_builtin_config(config_name: impl AsRef<str>) -> Result<Self> {
         let config_name = cstring(config_name)?;
         let handle = unsafe {
@@ -28,6 +32,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an empty editable config using OCIO defaults.
     pub fn raw() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_config_create_raw() };
         NonNull::new(handle)
@@ -35,6 +40,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Load a config from an `.ocio` file on disk.
     pub fn from_file(path: impl AsRef<str>) -> Result<Self> {
         let path = cstring(path)?;
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
@@ -690,6 +696,7 @@ impl Config {
 
     // --- Processors ---
 
+    /// Create a processor between two named color spaces or named transforms.
     pub fn processor(&self, src: impl AsRef<str>, dst: impl AsRef<str>) -> Result<Processor> {
         let src = cstring(src)?;
         let dst = cstring(dst)?;
@@ -730,6 +737,7 @@ impl Config {
         self.processor(src, dst)
     }
 
+    /// Create a processor that resolves through a display/view pair.
     pub fn processor_display(
         &self,
         src: impl AsRef<str>,
@@ -1931,6 +1939,7 @@ impl Config {
 
     // --- Context ---
 
+    /// Return the current context associated with this config, if available.
     pub fn current_context(&self) -> Option<Context> {
         let handle = unsafe {
             ocio_sys::ocio_config_get_current_context(self.handle.as_ptr() as *mut c_void)
