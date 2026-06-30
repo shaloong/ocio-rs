@@ -29,6 +29,20 @@ From a recursive checkout, also run:
 cargo test --workspace --features bundled
 ```
 
+You can run the same repository-side audit with the helper script:
+
+```powershell
+pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline
+```
+
+The script treats the known top-level `cargo package` failure as a warning when
+the registry does not yet contain `ocio-sys 0.2.0`, so it can distinguish
+repository regressions from the expected publish-order blocker.
+
+The repository also exposes the same flow as a manual GitHub Actions workflow:
+
+- `Release Audit`
+
 ## Publish order
 
 Publish the low-level crate first:

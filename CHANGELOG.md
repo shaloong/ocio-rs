@@ -11,6 +11,10 @@
   built-in configs.
 - Improve docs.rs build metadata and align parity reporting so compatibility
   aliases no longer show up as hard release blockers.
+- Add a release-audit helper script that codifies the pre-publish checks and
+  reports the known top-level package blocker separately from real failures.
+- Add a manual GitHub Actions `Release Audit` workflow that runs the repository
+  audit, bundled tests, and offline packaging checks from a recursive checkout.
 
 ## 0.2.0
 

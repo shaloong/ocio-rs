@@ -1,0 +1,21 @@
+name: Release Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install native dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build powershell
+
+      - name: Run release audit
+        shell: pwsh
+        run: ./tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline
