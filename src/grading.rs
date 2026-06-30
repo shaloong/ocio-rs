@@ -1,5 +1,6 @@
 use crate::GradingStyle;
 
+/// Per-channel-plus-master grading value used by several OCIO grading controls.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GradingRGBM {
     pub red: f64,
@@ -43,6 +44,7 @@ impl Default for GradingRGBM {
     }
 }
 
+/// Per-channel-plus-master grading value with a start/width shaping window.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GradingRGBMSW {
     pub red: f64,
@@ -101,6 +103,7 @@ impl Default for GradingRGBMSW {
     }
 }
 
+/// Full OCIO grading-primary parameter set.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GradingPrimary {
     pub brightness: GradingRGBM,
@@ -241,6 +244,7 @@ impl GradingPrimary {
     }
 }
 
+/// Full OCIO grading-tone parameter set.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GradingTone {
     pub blacks: GradingRGBMSW,
@@ -401,6 +405,7 @@ impl GradingTone {
     }
 }
 
+/// One control point in an OCIO grading curve, including its outgoing slope.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct GradingCurvePoint {
     pub x: f32,
@@ -414,6 +419,7 @@ impl GradingCurvePoint {
     }
 }
 
+/// Rust snapshot of all four RGB grading curves on a transform or dynamic property.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GradingRGBCurveValue {
     pub red: Vec<GradingCurvePoint>,
@@ -422,6 +428,7 @@ pub struct GradingRGBCurveValue {
     pub master: Vec<GradingCurvePoint>,
 }
 
+/// Rust snapshot of all hue-curve families on a transform or dynamic property.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GradingHueCurveValue {
     pub hue_hue: Vec<GradingCurvePoint>,

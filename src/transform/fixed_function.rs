@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{FixedFunctionStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Wraps one of OCIO's fixed-function transform styles.
 pub struct FixedFunctionTransform {
     pub(crate) handle: NonNull<c_void>,
 }

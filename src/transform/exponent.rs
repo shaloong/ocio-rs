@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{NegativeStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Raises RGBA channels to per-channel exponent values.
 pub struct ExponentTransform {
     pub(crate) handle: NonNull<c_void>,
 }

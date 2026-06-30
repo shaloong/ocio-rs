@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{ExposureContrastStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Exposure/contrast/gamma style transform with optional dynamic controls.
 pub struct ExposureContrastTransform {
     pub(crate) handle: NonNull<c_void>,
 }

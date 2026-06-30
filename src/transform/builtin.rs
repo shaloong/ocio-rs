@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Wraps one of OCIO's named built-in transform styles.
 pub struct BuiltinTransform {
     pub(crate) handle: NonNull<c_void>,
 }

@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Applies an OCIO look string between source and destination color spaces.
 pub struct LookTransform {
     pub(crate) handle: NonNull<c_void>,
 }

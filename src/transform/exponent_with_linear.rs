@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{NegativeStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Exponent transform with an additional linear section around zero.
 pub struct ExponentWithLinearTransform {
     pub(crate) handle: NonNull<c_void>,
 }

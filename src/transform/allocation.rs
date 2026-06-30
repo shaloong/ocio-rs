@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{Allocation, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Maps values into or out of an OCIO allocation domain.
 pub struct AllocationTransform {
     pub(crate) handle: NonNull<c_void>,
 }

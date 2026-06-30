@@ -556,6 +556,7 @@ impl GpuUniformType {
 }
 
 #[derive(Debug, Clone)]
+/// Texture payload and metadata for a 1D/2D GPU LUT resource.
 pub struct GpuTexture2D {
     pub texture_name: String,
     pub sampler_name: String,
@@ -575,6 +576,7 @@ impl GpuTexture2D {
 }
 
 #[derive(Debug, Clone)]
+/// Texture payload and metadata for a 3D GPU LUT resource.
 pub struct GpuTexture3D {
     pub texture_name: String,
     pub sampler_name: String,
@@ -592,6 +594,7 @@ impl GpuTexture3D {
 }
 
 #[derive(Debug, Clone)]
+/// Typed value payload for a GPU uniform extracted from OCIO.
 pub enum GpuUniformValue {
     F32(Vec<f32>),
     I32(Vec<i32>),
@@ -599,6 +602,7 @@ pub enum GpuUniformValue {
 }
 
 #[derive(Debug, Clone)]
+/// GPU uniform metadata and current value payload extracted from OCIO.
 pub struct GpuUniform {
     pub name: String,
     pub uniform_type: GpuUniformType,
@@ -1042,6 +1046,7 @@ impl Drop for GpuShaderDesc {
     }
 }
 
+/// Lightweight texture metadata used by legacy GPU descriptor accessors.
 pub struct TextureInfo {
     pub texture_name: String,
     pub sampler_name: String,

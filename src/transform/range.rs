@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{BitDepth, OcioError, RangeStyle, Result, TransformDirection};
 use ocio_sys;
 
+/// Clamps and rescales numeric ranges between input and output domains.
 pub struct RangeTransform {
     pub(crate) handle: NonNull<c_void>,
 }

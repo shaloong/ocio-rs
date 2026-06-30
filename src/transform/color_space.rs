@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Converts between two named color spaces inside a config.
 pub struct ColorSpaceTransform {
     pub(crate) handle: NonNull<c_void>,
 }

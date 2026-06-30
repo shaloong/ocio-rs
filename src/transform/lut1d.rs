@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{BitDepth, Interpolation, Lut1DHueAdjust, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// One-dimensional LUT transform with optional half-domain and hue adjustment.
 pub struct Lut1DTransform {
     pub(crate) handle: NonNull<c_void>,
 }

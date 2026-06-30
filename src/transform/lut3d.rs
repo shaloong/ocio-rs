@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{BitDepth, Interpolation, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Three-dimensional LUT transform with configurable interpolation.
 pub struct Lut3DTransform {
     pub(crate) handle: NonNull<c_void>,
 }

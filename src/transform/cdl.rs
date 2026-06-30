@@ -6,6 +6,7 @@ use crate::{
 };
 use ocio_sys;
 
+/// ASC CDL slope/offset/power and saturation transform.
 pub struct CDLTransform {
     pub(crate) handle: NonNull<c_void>,
 }
