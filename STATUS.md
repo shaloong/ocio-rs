@@ -26,6 +26,8 @@ Current release checklist highlights:
 
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
+- The parity checker currently reports `801` bridge-backed safe-wrapper matches
+  against the exposed OCIO 2.5 surface.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
@@ -40,6 +42,8 @@ Latest release-audit result:
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
   repository-side checks and reports only the known registry sequencing warning
   for top-level `cargo package`.
+- The current test matrix exercises `356` crate tests plus the `matrix_op`
+  integration suite in both stub and bundled validation paths.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
