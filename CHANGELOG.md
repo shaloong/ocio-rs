@@ -34,6 +34,9 @@
   accessors such as `uniform_value_count()`, `texture_value_count()`,
   `texture_3d_value_count()`, `texture_3d_values()`, and
   `texture_3d_shader_binding_index()`.
+- Normalize dynamic-property discovery around typed
+  `has_dynamic_property_kind(DynamicPropertyType)` checks on both `Processor`
+  and `CPUProcessor`, while keeping raw integer compatibility aliases.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

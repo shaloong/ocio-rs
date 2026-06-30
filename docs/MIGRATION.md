@@ -113,6 +113,8 @@ Crate-level and utility entry points are following the same pattern. Prefer `cur
 
 `GpuShaderDesc` is receiving the same treatment around lightweight value accessors. Prefer `uniform_value_count()`, `texture_value_count()`, `texture_3d_value_count()`, `texture_3d_values()`, and `texture_3d_shader_binding_index()` over the remaining `get_*` / `copy*` compatibility helpers when migrating `0.2` call sites.
 
+Dynamic-property discovery is being normalized toward typed enums as well. Prefer `Processor::has_dynamic_property_kind()` and `CPUProcessor::has_dynamic_property_kind()` with `DynamicPropertyType` over raw integer-based checks when updating `0.2` call sites.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

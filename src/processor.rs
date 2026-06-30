@@ -271,6 +271,16 @@ impl Processor {
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
+    pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
+        unsafe {
+            ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type as i32)
+        }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
+    )]
     pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
         unsafe { ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
     }
@@ -1612,12 +1622,21 @@ mod tests {
     fn dynamic_property() {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
+        let _ = proc.has_dynamic_property_kind(DynamicPropertyType::Exposure);
         // In stub mode, creating a dynamic property may or may not succeed
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::Exposure) {
             let _ = dp.property_type();
             let _ = dp.double_value();
             dp.set_double_value(1.5);
         }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn processor_dynamic_property_compat_alias_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        let _ = proc.has_dynamic_property(DynamicPropertyType::Exposure as i32);
     }
 
     #[test]
