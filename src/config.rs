@@ -741,6 +741,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer processor()")]
     pub fn get_processor_v2(
         &self,
         src: impl AsRef<str>,
@@ -774,6 +775,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer processor_display()")]
     pub fn get_processor_v4(
         &self,
         src: impl AsRef<str>,
@@ -801,7 +803,11 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v10(&self, transform: &impl TransformHandle) -> Result<Processor> {
+    /// Create a processor from a transform using OCIO's default transform direction.
+    pub fn processor_from_transform_default_direction(
+        &self,
+        transform: &impl TransformHandle,
+    ) -> Result<Processor> {
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v10(self.handle.as_ptr(), transform.as_ptr())
         };
@@ -810,6 +816,18 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_transform_default_direction()"
+    )]
+    pub fn get_processor_v10(&self, transform: &impl TransformHandle) -> Result<Processor> {
+        self.processor_from_transform_default_direction(transform)
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_transform()"
+    )]
     pub fn get_processor_v11(
         &self,
         transform: &impl TransformHandle,
@@ -839,6 +857,10 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_with_context()"
+    )]
     pub fn get_processor_v3(
         &self,
         src: impl AsRef<str>,
@@ -848,7 +870,8 @@ impl Config {
         self.processor_with_context(src, dst, context)
     }
 
-    pub fn get_processor_v5(
+    /// Create a processor that resolves through a display/view pair with an explicit context.
+    pub fn processor_display_with_context(
         &self,
         src: impl AsRef<str>,
         display: impl AsRef<str>,
@@ -874,7 +897,23 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v12(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_display_with_context()"
+    )]
+    pub fn get_processor_v5(
+        &self,
+        src: impl AsRef<str>,
+        display: impl AsRef<str>,
+        view: impl AsRef<str>,
+        direction: TransformDirection,
+        context: &crate::Context,
+    ) -> Result<Processor> {
+        self.processor_display_with_context(src, display, view, direction, context)
+    }
+
+    /// Create a processor from a transform and an explicit context.
+    pub fn processor_from_transform_with_context(
         &self,
         context: &crate::Context,
         transform: &impl TransformHandle,
@@ -893,7 +932,21 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v6(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_transform_with_context()"
+    )]
+    pub fn get_processor_v12(
+        &self,
+        context: &crate::Context,
+        transform: &impl TransformHandle,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_from_transform_with_context(context, transform, direction)
+    }
+
+    /// Create a processor from a named-transform object.
+    pub fn processor_named_transform(
         &self,
         named_transform: &NamedTransform,
         direction: TransformDirection,
@@ -910,7 +963,20 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v7(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_named_transform()"
+    )]
+    pub fn get_processor_v6(
+        &self,
+        named_transform: &NamedTransform,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_named_transform(named_transform, direction)
+    }
+
+    /// Create a processor from a named-transform object with an explicit context.
+    pub fn processor_named_transform_with_context(
         &self,
         context: &crate::Context,
         named_transform: &NamedTransform,
@@ -929,7 +995,21 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v8(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_named_transform_with_context()"
+    )]
+    pub fn get_processor_v7(
+        &self,
+        context: &crate::Context,
+        named_transform: &NamedTransform,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_named_transform_with_context(context, named_transform, direction)
+    }
+
+    /// Create a processor from a named-transform name.
+    pub fn processor_named_transform_name(
         &self,
         named_transform_name: impl AsRef<str>,
         direction: TransformDirection,
@@ -947,7 +1027,20 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v9(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_named_transform_name()"
+    )]
+    pub fn get_processor_v8(
+        &self,
+        named_transform_name: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_named_transform_name(named_transform_name, direction)
+    }
+
+    /// Create a processor from a named-transform name with an explicit context.
+    pub fn processor_named_transform_name_with_context(
         &self,
         context: &crate::Context,
         named_transform_name: impl AsRef<str>,
@@ -965,6 +1058,19 @@ impl Config {
         NonNull::new(handle)
             .map(|h| Processor { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_named_transform_name_with_context()"
+    )]
+    pub fn get_processor_v9(
+        &self,
+        context: &crate::Context,
+        named_transform_name: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_named_transform_name_with_context(context, named_transform_name, direction)
     }
 
     pub fn get_processor_to_builtin_color_space(
@@ -2866,6 +2972,42 @@ mod tests {
         if let Some(ctx) = config.current_context() {
             let proc = config.processor_with_context("raw", "raw", &ctx);
             let _ = proc;
+        }
+    }
+
+    #[test]
+    fn processor_overload_named_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        let nt = NamedTransform::create().unwrap();
+
+        let _ = config.processor_from_transform_default_direction(&ft);
+        let _ = config.processor_named_transform(&nt, TransformDirection::Forward);
+        let _ = config.processor_named_transform_name("Default", TransformDirection::Forward);
+
+        if let Some(ctx) = config.current_context() {
+            let _ = config.processor_display_with_context(
+                "raw",
+                "sRGB",
+                "Film",
+                TransformDirection::Forward,
+                &ctx,
+            );
+            let _ = config.processor_from_transform_with_context(
+                &ctx,
+                &ft,
+                TransformDirection::Forward,
+            );
+            let _ = config.processor_named_transform_with_context(
+                &ctx,
+                &nt,
+                TransformDirection::Forward,
+            );
+            let _ = config.processor_named_transform_name_with_context(
+                &ctx,
+                "Default",
+                TransformDirection::Forward,
+            );
         }
     }
 

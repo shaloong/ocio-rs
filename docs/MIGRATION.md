@@ -95,6 +95,8 @@ Additional compatibility aliases such as `GradingPrimaryTransform::copy_value`, 
 
 The same cleanup now applies to the remaining C-style compatibility entry points in processor wrappers. Prefer `CPUProcessor::apply_rgb_packed_bit_depth` / `apply_rgba_packed_bit_depth` with the `BitDepth` enum, `CPUProcessor::dynamic_property` / `has_dynamic_property_kind` with `DynamicPropertyType`, and the structured `GpuShaderDesc` accessors such as `uniform()`, `uniforms()`, `texture_2d()`, `textures_2d()`, `texture_3d()`, and `textures_3d()`.
 
+On `Config`, the older `get_processor_v*` overload naming is also being phased out where clearer Rust names now exist. Prefer `processor()`, `processor_with_context()`, `processor_display()`, `processor_display_with_context()`, `processor_from_transform_default_direction()`, `processor_from_transform()`, `processor_from_transform_with_context()`, `processor_named_transform()`, `processor_named_transform_with_context()`, `processor_named_transform_name()`, and `processor_named_transform_name_with_context()`.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

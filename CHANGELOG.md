@@ -39,6 +39,9 @@
 - Deprecate the remaining `GpuShaderDesc::get_*` / `copy_*`,
   `CPUProcessor` integer-only compatibility aliases, and
   `FileRules::insert_rule_v1` in favor of the typed Rust wrapper surface.
+- Add descriptive `Config` processor overload names for display/context/
+  transform/named-transform workflows and deprecate the corresponding
+  `get_processor_v*` compatibility aliases.
 
 ## 0.2.0
 
