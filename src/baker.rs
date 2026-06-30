@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::fs;
 use std::ptr::NonNull;
 
 use crate::{
@@ -126,9 +127,22 @@ impl Baker {
         unsafe { ocio_sys::ocio_baker_set_cube_size(self.handle.as_ptr(), size) };
     }
 
+    /// Bake the configured output to an in-memory string.
+    ///
+    /// Returns `None` in stub builds where no real OCIO baker is linked.
+    pub fn bake_to_string(&self) -> Option<String> {
+        unsafe { cstr_from_mut(ocio_sys::ocio_baker_bake_to_string(self.handle.as_ptr())) }
+    }
+
+    /// Bake the configured output and write it to `output_path`.
+    ///
+    /// In stub builds, no output text is generated and this method returns `Ok(())`
+    /// without writing a file.
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {
-        let path = cstring(output_path)?;
-        unsafe { ocio_sys::ocio_baker_bake(self.handle.as_ptr(), path.as_ptr() as *mut c_void) };
+        let Some(contents) = self.bake_to_string() else {
+            return Ok(());
+        };
+        fs::write(output_path.as_ref(), contents).map_err(|e| OcioError::Ocio(e.to_string()))?;
         Ok(())
     }
 
@@ -187,6 +201,26 @@ mod tests {
         let baker = Baker::create().unwrap();
         let md = baker.format_metadata();
         assert!(md.is_some());
+    }
+
+    #[test]
+    fn bake_to_string_no_crash() {
+        let baker = Baker::create().unwrap();
+        if !crate::is_stub_build() {
+            let config = Config::raw().unwrap();
+            baker.set_config(&config);
+            if Baker::get_num_formats() > 0 {
+                if let Some(format) = Baker::get_format_name_by_index(0) {
+                    let _ = baker.set_format(format);
+                }
+            }
+            let _ = baker.set_input_space("raw");
+            let _ = baker.set_target_space("raw");
+        }
+        let baked = baker.bake_to_string();
+        if crate::is_stub_build() {
+            assert!(baked.is_none());
+        }
     }
 
     #[test]

@@ -528,6 +528,7 @@ void ocio_baker_set_shaper_size(void* handle, int shapersize);
 int ocio_baker_get_cube_size(void* handle);
 void ocio_baker_set_cube_size(void* handle, int cubesize);
 void ocio_baker_bake(void* handle, void* os);
+void* ocio_baker_bake_to_string(void* handle);
 
 // --- Context ---
 void* ocio_context_create(void);

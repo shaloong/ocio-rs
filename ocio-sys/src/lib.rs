@@ -1070,6 +1070,7 @@ unsafe extern "C" {
     pub fn ocio_baker_get_cube_size(handle: *mut c_void) -> i32;
     pub fn ocio_baker_set_cube_size(handle: *mut c_void, cubesize: i32) -> ();
     pub fn ocio_baker_bake(handle: *mut c_void, os: *mut c_void) -> ();
+    pub fn ocio_baker_bake_to_string(handle: *mut c_void) -> *mut c_void;
 
     // --- Context ---
     pub fn ocio_context_create() -> *mut c_void;

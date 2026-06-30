@@ -20,6 +20,9 @@
 - Make `Config::serialize()` and `Config::archive()` return real OCIO text in
   non-stub builds, and deprecate `Processor::optimized_legacy_gpu_processor()`
   so OCIO 2.5 callers prefer the main GPU processor path.
+- Fix `Baker::bake()` so it no longer routes a filesystem path through an
+  `ostream*` ABI slot; baked output now goes through `bake_to_string()` first
+  and is written to disk from Rust.
 
 ## 0.2.0
 

@@ -64,6 +64,12 @@ This matches OCIO's file-rule model and returns the matching rule index alongsid
 
 Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-in YAML text.
 
+### Baker output
+
+`Baker::bake()` now truly treats its argument as a filesystem path in Rust space. The OCIO stream output is collected with `Baker::bake_to_string()` first and then written to disk by Rust.
+
+The older ABI wiring passed a path pointer into an `ostream*` slot, which was not reliable in real OCIO mode.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

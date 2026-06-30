@@ -6871,6 +6871,20 @@ void ocio_baker_bake(void* handle, void* os) {
 #endif
 }
 
+void* ocio_baker_bake_to_string(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    std::ostringstream stream;
+    ocio_rs_bridge::get_real_baker(handle)->bake(stream);
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 
 // --- Context ---
 
