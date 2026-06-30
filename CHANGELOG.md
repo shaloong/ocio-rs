@@ -34,6 +34,9 @@
   accessors such as `uniform_value_count()`, `texture_value_count()`,
   `texture_3d_value_count()`, `texture_3d_values()`, and
   `texture_3d_shader_binding_index()`.
+- Add explicit `GpuShaderDesc::uniform_values_f32()` and
+  `uniform_values_i32()` helpers so callers do not need to lean on the older
+  `copy_uniform_*` compatibility names.
 - Normalize dynamic-property discovery around typed
   `has_dynamic_property_kind(DynamicPropertyType)` checks on both `Processor`
   and `CPUProcessor`, while keeping raw integer compatibility aliases.

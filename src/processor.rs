@@ -1028,20 +1028,34 @@ impl GpuShaderDesc {
         self.uniform_value_count(index)
     }
 
-    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform() or uniforms()")]
-    pub fn copy_uniform_f32_values(&self, index: u32) -> Vec<f32> {
+    pub fn uniform_values_f32(&self, index: u32) -> Vec<f32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::F32(values)) => values,
             _ => Vec::new(),
         }
     }
 
-    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform() or uniforms()")]
-    pub fn copy_uniform_i32_values(&self, index: u32) -> Vec<i32> {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer uniform_values_f32() or uniform()"
+    )]
+    pub fn copy_uniform_f32_values(&self, index: u32) -> Vec<f32> {
+        self.uniform_values_f32(index)
+    }
+
+    pub fn uniform_values_i32(&self, index: u32) -> Vec<i32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::I32(values)) => values,
             _ => Vec::new(),
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer uniform_values_i32() or uniform()"
+    )]
+    pub fn copy_uniform_i32_values(&self, index: u32) -> Vec<i32> {
+        self.uniform_values_i32(index)
     }
 
     pub fn uniforms(&self) -> Vec<GpuUniform> {
@@ -1754,6 +1768,8 @@ mod tests {
             let _ = desc.uniform_buffer_size();
             let _ = desc.uniform(0);
             let _ = desc.uniform_value_count(0);
+            let _ = desc.uniform_values_f32(0);
+            let _ = desc.uniform_values_i32(0);
             let _ = desc.uniforms();
             let _ = desc.texture_2d(0);
             let _ = desc.texture_value_count(0);
@@ -1771,6 +1787,8 @@ mod tests {
     fn gpu_shader_desc_compat_value_accessors_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
             let _ = desc.get_uniform_value_count(0);
+            let _ = desc.copy_uniform_f32_values(0);
+            let _ = desc.copy_uniform_i32_values(0);
             let _ = desc.get_texture_value_count(0);
             let _ = desc.get3d_texture_value_count(0);
             let _ = desc.get3d_texture_values(0);

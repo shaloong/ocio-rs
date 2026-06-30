@@ -115,7 +115,7 @@ The same naming cleanup now applies to common lookup helpers. Prefer `color_spac
 
 Crate-level and utility entry points are following the same pattern. Prefer `current_config()`, `Config::config_io_proxy()`, `Context::config_io_proxy()`, `Baker::num_formats()`, `Baker::format_name_by_index()`, and `Baker::format_extension_by_index()` over the corresponding `get_*` compatibility names.
 
-`GpuShaderDesc` is receiving the same treatment around lightweight value accessors. Prefer `uniform_value_count()`, `texture_value_count()`, `texture_3d_value_count()`, `texture_3d_values()`, and `texture_3d_shader_binding_index()` over the remaining `get_*` / `copy*` compatibility helpers when migrating `0.2` call sites.
+`GpuShaderDesc` is receiving the same treatment around lightweight value accessors. Prefer `uniform_value_count()`, `uniform_values_f32()`, `uniform_values_i32()`, `texture_value_count()`, `texture_3d_value_count()`, `texture_3d_values()`, and `texture_3d_shader_binding_index()` over the remaining `get_*` / `copy*` compatibility helpers when migrating `0.2` call sites.
 
 Dynamic-property discovery is being normalized toward typed enums as well. Prefer `Processor::has_dynamic_property_kind()` and `CPUProcessor::has_dynamic_property_kind()` with `DynamicPropertyType` over raw integer-based checks when updating `0.2` call sites.
 
