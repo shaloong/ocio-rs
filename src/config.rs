@@ -645,7 +645,7 @@ impl Config {
         }
     }
 
-    pub fn get_display_view_rule(
+    pub fn display_view_rule(
         &self,
         display: impl AsRef<str>,
         view: impl AsRef<str>,
@@ -661,7 +661,16 @@ impl Config {
         }
     }
 
-    pub fn get_display_view_description(
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer display_view_rule()")]
+    pub fn get_display_view_rule(
+        &self,
+        display: impl AsRef<str>,
+        view: impl AsRef<str>,
+    ) -> Option<String> {
+        self.display_view_rule(display, view)
+    }
+
+    pub fn display_view_description(
         &self,
         display: impl AsRef<str>,
         view: impl AsRef<str>,
@@ -675,6 +684,18 @@ impl Config {
                 view.as_ptr().cast(),
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer display_view_description()"
+    )]
+    pub fn get_display_view_description(
+        &self,
+        display: impl AsRef<str>,
+        view: impl AsRef<str>,
+    ) -> Option<String> {
+        self.display_view_description(display, view)
     }
 
     pub fn has_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
@@ -704,12 +725,20 @@ impl Config {
         NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
     }
 
-    pub fn get_default_view_transform_name(&self) -> Option<String> {
+    pub fn default_view_transform_name(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_view_transform_name(
                 self.handle.as_ptr(),
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer default_view_transform_name()"
+    )]
+    pub fn get_default_view_transform_name(&self) -> Option<String> {
+        self.default_view_transform_name()
     }
 
     pub fn set_default_view_transform_name(&self, default_name: impl AsRef<str>) -> Result<()> {
@@ -2072,7 +2101,7 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view_transform_name(&self, view: impl AsRef<str>) -> Option<String> {
+    pub fn virtual_display_view_transform_name(&self, view: impl AsRef<str>) -> Option<String> {
         let view = cstring(view).ok()?;
         unsafe {
             cstr_from_mut(
@@ -2084,10 +2113,15 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view_color_space_name(
-        &self,
-        view: impl AsRef<str>,
-    ) -> Option<String> {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_view_transform_name()"
+    )]
+    pub fn get_virtual_display_view_transform_name(&self, view: impl AsRef<str>) -> Option<String> {
+        self.virtual_display_view_transform_name(view)
+    }
+
+    pub fn virtual_display_view_color_space_name(&self, view: impl AsRef<str>) -> Option<String> {
         let view = cstring(view).ok()?;
         unsafe {
             cstr_from_mut(
@@ -2099,7 +2133,18 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view_looks(&self, view: impl AsRef<str>) -> Option<String> {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_view_color_space_name()"
+    )]
+    pub fn get_virtual_display_view_color_space_name(
+        &self,
+        view: impl AsRef<str>,
+    ) -> Option<String> {
+        self.virtual_display_view_color_space_name(view)
+    }
+
+    pub fn virtual_display_view_looks(&self, view: impl AsRef<str>) -> Option<String> {
         let view = cstring(view).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_looks(
@@ -2109,7 +2154,15 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view_rule(&self, view: impl AsRef<str>) -> Option<String> {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_view_looks()"
+    )]
+    pub fn get_virtual_display_view_looks(&self, view: impl AsRef<str>) -> Option<String> {
+        self.virtual_display_view_looks(view)
+    }
+
+    pub fn virtual_display_view_rule(&self, view: impl AsRef<str>) -> Option<String> {
         let view = cstring(view).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_rule(
@@ -2119,7 +2172,15 @@ impl Config {
         }
     }
 
-    pub fn get_virtual_display_view_description(&self, view: impl AsRef<str>) -> Option<String> {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_view_rule()"
+    )]
+    pub fn get_virtual_display_view_rule(&self, view: impl AsRef<str>) -> Option<String> {
+        self.virtual_display_view_rule(view)
+    }
+
+    pub fn virtual_display_view_description(&self, view: impl AsRef<str>) -> Option<String> {
         let view = cstring(view).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_description(
@@ -2127,6 +2188,14 @@ impl Config {
                 view.as_ptr().cast(),
             ))
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer virtual_display_view_description()"
+    )]
+    pub fn get_virtual_display_view_description(&self, view: impl AsRef<str>) -> Option<String> {
+        self.virtual_display_view_description(view)
     }
 
     pub fn remove_virtual_display_view(&self, view: impl AsRef<str>) -> Result<()> {
@@ -3124,6 +3193,8 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.display_view_transform_name("sRGB", "Film");
         let _ = config.display_view_color_space_name("sRGB", "Film");
+        let _ = config.display_view_rule("sRGB", "Film");
+        let _ = config.display_view_description("sRGB", "Film");
     }
 
     #[test]
@@ -3247,6 +3318,7 @@ mod tests {
         let config = Config::raw().unwrap();
         assert!(config.set_default_display("sRGB").is_ok());
         assert!(config.set_default_view("Film").is_ok());
+        let _ = config.default_view_transform_name();
     }
 
     #[test]
@@ -3616,6 +3688,28 @@ mod tests {
             .is_ok());
         let _ = config.virtual_display_num_views(crate::SearchReferenceSpaceType::Scene);
         let _ = config.virtual_display_view(crate::SearchReferenceSpaceType::Scene, 0);
+    }
+
+    #[test]
+    fn virtual_display_named_metadata_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config
+            .add_shared_view("SharedView", "MyViewTransform", "raw", "", "", "")
+            .is_ok());
+        assert!(config.add_display_shared_view("sRGB", "SharedView").is_ok());
+        assert!(config.add_virtual_display_shared_view("SharedView").is_ok());
+        assert!(config
+            .add_virtual_display_view("VirtualFilm", "MyViewTransform", "raw", "", "", "")
+            .is_ok());
+        let _ = config.virtual_display_num_views(crate::SearchReferenceSpaceType::Scene);
+        let _ = config.virtual_display_view(crate::SearchReferenceSpaceType::Scene, 0);
+        let _ = config.virtual_display_view_transform_name("VirtualFilm");
+        let _ = config.virtual_display_view_color_space_name("VirtualFilm");
+        let _ = config.virtual_display_view_looks("VirtualFilm");
+        let _ = config.virtual_display_view_rule("VirtualFilm");
+        let _ = config.virtual_display_view_description("VirtualFilm");
+        assert!(config.remove_virtual_display_view("VirtualFilm").is_ok());
+        config.clear_virtual_display();
     }
 
     #[test]

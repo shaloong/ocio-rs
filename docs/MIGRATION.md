@@ -115,6 +115,8 @@ Crate-level and utility entry points are following the same pattern. Prefer `cur
 
 Dynamic-property discovery is being normalized toward typed enums as well. Prefer `Processor::has_dynamic_property_kind()` and `CPUProcessor::has_dynamic_property_kind()` with `DynamicPropertyType` over raw integer-based checks when updating `0.2` call sites.
 
+Display/view metadata helpers are following the same path. Prefer `display_view_rule()`, `display_view_description()`, `default_view_transform_name()`, `virtual_display_view_transform_name()`, `virtual_display_view_color_space_name()`, `virtual_display_view_looks()`, `virtual_display_view_rule()`, and `virtual_display_view_description()` over the corresponding `get_*` forms.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

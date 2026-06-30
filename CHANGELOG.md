@@ -37,6 +37,9 @@
 - Normalize dynamic-property discovery around typed
   `has_dynamic_property_kind(DynamicPropertyType)` checks on both `Processor`
   and `CPUProcessor`, while keeping raw integer compatibility aliases.
+- Continue the Config naming cleanup for display/view metadata helpers,
+  including virtual-display queries and `default_view_transform_name()`, while
+  keeping deprecated `get_*` compatibility aliases.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.
