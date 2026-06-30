@@ -2301,12 +2301,20 @@ impl Config {
 
     /// # Safety
     /// The returned pointer is owned by OCIO; `set_viewing_rules` requires a valid OCIO viewing-rules pointer.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO viewing-rules handle; prefer higher-level Config APIs where possible"
+    )]
     pub unsafe fn get_viewing_rules(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_config_get_viewing_rules(self.handle.as_ptr()) }
     }
 
     /// # Safety
     /// `viewing_rules` must be a valid OCIO viewing-rules pointer for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO viewing-rules handle; prefer higher-level Config APIs where possible"
+    )]
     pub unsafe fn set_viewing_rules(&self, viewing_rules: *mut c_void) {
         unsafe { ocio_sys::ocio_config_set_viewing_rules(self.handle.as_ptr(), viewing_rules) };
     }
@@ -2338,12 +2346,20 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
+    )]
     pub fn get_config_io_proxy(&self) -> *mut std::ffi::c_void {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
     }
 
     /// # Safety
     /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
+    )]
     pub unsafe fn set_config_io_proxy(&self, proxy: *mut std::ffi::c_void) {
         unsafe { ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), proxy) };
     }
@@ -2895,6 +2911,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn config_io_proxy_no_crash() {
         let config = Config::raw().unwrap();
         unsafe { config.set_config_io_proxy(std::ptr::null_mut()) };
@@ -2957,6 +2974,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn viewing_rules_pointer_round_trip_no_crash() {
         let config = Config::raw().unwrap();
         let ptr = unsafe { config.get_viewing_rules() };

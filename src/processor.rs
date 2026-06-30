@@ -277,6 +277,10 @@ pub struct CPUProcessor {
 impl CPUProcessor {
     /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor compatible with the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
+    )]
     pub unsafe fn apply_v1(&self, img_desc: *mut c_void) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_v1(self.handle.as_ptr(), img_desc);
@@ -285,6 +289,10 @@ impl CPUProcessor {
 
     /// # Safety
     /// `src_img_desc` and `dst_img_desc` must point to valid OCIO image descriptors.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
+    )]
     pub unsafe fn apply_v2(&self, src_img_desc: *mut c_void, dst_img_desc: *mut c_void) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_v2(self.handle.as_ptr(), src_img_desc, dst_img_desc);
@@ -457,6 +465,10 @@ impl GPUProcessor {
 
     /// # Safety
     /// `shader_creator` must point to a valid OCIO shader creator object for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO shader-creator entry point; prefer extract_shader_info with GpuShaderDesc for Rust callers"
+    )]
     pub unsafe fn extract_gpu_shader_info_v2(&self, shader_creator: *mut c_void) {
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v2(

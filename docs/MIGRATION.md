@@ -85,6 +85,12 @@ The old low-level `write(...)` entry point remains `unsafe` for callers that nee
 
 The old raw handle accessors are now explicitly named as raw/deprecated escape hatches instead of looking like the primary API.
 
+### Raw ABI escape hatches
+
+Several APIs that still require OCIO-owned external objects remain available, but are now explicitly marked as deprecated/raw escape hatches in the Rust layer instead of looking like ordinary safe wrappers.
+
+This includes viewing-rules handles, config-IO proxy handles, legacy context-var pointer overloads, raw CPU image-descriptor entry points, and raw GPU shader-creator extraction.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

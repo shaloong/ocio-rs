@@ -29,6 +29,9 @@
 - Replace the grading RGB/hue curve transform value-handle APIs with safe Rust
   snapshot structs for read/write access, leaving raw handle access as explicit
   deprecated escape hatches.
+- Mark remaining raw ABI escape hatches in `Config`, `Context`, and
+  `CPU/GPUProcessor` as deprecated so they are less likely to be mistaken for
+  normal Rust-native APIs.
 
 ## 0.2.0
 

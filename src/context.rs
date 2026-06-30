@@ -128,6 +128,10 @@ impl Context {
 
     /// # Safety
     /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO context-vars pointer; prefer resolve_string_var unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn resolve_string_var_v1(
         &self,
         string: impl AsRef<str>,
@@ -155,6 +159,10 @@ impl Context {
 
     /// # Safety
     /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO context-vars pointer; prefer resolve_file_location unless you must interoperate with external OCIO ABI objects"
+    )]
     pub unsafe fn resolve_file_location_v1(
         &self,
         filename: impl AsRef<str>,
@@ -200,10 +208,18 @@ impl Context {
 
     /// # Safety
     /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
+    )]
     pub unsafe fn set_config_io_proxy(&self, proxy: *mut c_void) {
         unsafe { ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy) };
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
+    )]
     pub fn get_config_io_proxy(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
     }
@@ -252,6 +268,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn context_v1_methods_no_crash() {
         let ctx = Context::create().unwrap();
         let other = Context::create().unwrap();
