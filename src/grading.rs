@@ -400,3 +400,32 @@ impl GradingTone {
         a
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct GradingCurvePoint {
+    pub x: f32,
+    pub y: f32,
+    pub slope: f32,
+}
+
+impl GradingCurvePoint {
+    pub fn new(x: f32, y: f32, slope: f32) -> Self {
+        Self { x, y, slope }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GradingRGBCurveValue {
+    pub red: Vec<GradingCurvePoint>,
+    pub green: Vec<GradingCurvePoint>,
+    pub blue: Vec<GradingCurvePoint>,
+    pub master: Vec<GradingCurvePoint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GradingHueCurveValue {
+    pub hue_hue: Vec<GradingCurvePoint>,
+    pub hue_sat: Vec<GradingCurvePoint>,
+    pub hue_lum: Vec<GradingCurvePoint>,
+    pub lum_sat: Vec<GradingCurvePoint>,
+}

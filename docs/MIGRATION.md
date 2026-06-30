@@ -76,6 +76,15 @@ The older ABI wiring passed a path pointer into an `ostream*` slot, which was no
 
 The old low-level `write(...)` entry point remains `unsafe` for callers that need to provide raw ABI objects directly.
 
+### Grading curve values
+
+`GradingRGBCurveTransform` and `GradingHueCurveTransform` now expose safe Rust value snapshots:
+
+- Use `value()` to read the curve data into Rust structs.
+- Use `set_value(&...)` to replace the curve data from Rust structs.
+
+The old raw handle accessors are now explicitly named as raw/deprecated escape hatches instead of looking like the primary API.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

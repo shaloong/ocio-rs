@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::grading::{GradingCurvePoint, GradingHueCurveValue};
 use crate::{GradingStyle, HSYTransformStyle, HueCurveType, OcioError, Result, TransformDirection};
 use ocio_sys;
 
@@ -47,13 +48,65 @@ impl GradingHueCurveTransform {
         }
     }
 
-    pub fn get_value(&self) -> *mut c_void {
+    pub fn value(&self) -> GradingHueCurveValue {
+        fn read_curve(
+            transform: &GradingHueCurveTransform,
+            curve_type: HueCurveType,
+        ) -> Vec<GradingCurvePoint> {
+            let count = transform.num_control_points(curve_type).max(0) as usize;
+            (0..count)
+                .map(|index| {
+                    let index = index as i32;
+                    let (x, y) = transform.control_point(curve_type, index);
+                    let slope = transform.slope(curve_type, index);
+                    GradingCurvePoint { x, y, slope }
+                })
+                .collect()
+        }
+
+        GradingHueCurveValue {
+            hue_hue: read_curve(self, HueCurveType::HueHue),
+            hue_sat: read_curve(self, HueCurveType::HueSat),
+            hue_lum: read_curve(self, HueCurveType::HueLum),
+            lum_sat: read_curve(self, HueCurveType::LumSat),
+        }
+    }
+
+    pub fn set_value(&self, value: &GradingHueCurveValue) {
+        fn write_curve(
+            transform: &GradingHueCurveTransform,
+            curve_type: HueCurveType,
+            points: &[GradingCurvePoint],
+        ) {
+            transform.set_num_control_points(curve_type, points.len() as i32);
+            for (index, point) in points.iter().enumerate() {
+                let index = index as i32;
+                transform.set_control_point(curve_type, index, point.x, point.y);
+                transform.set_slope(curve_type, index, point.slope);
+            }
+        }
+
+        write_curve(self, HueCurveType::HueHue, &value.hue_hue);
+        write_curve(self, HueCurveType::HueSat, &value.hue_sat);
+        write_curve(self, HueCurveType::HueLum, &value.hue_lum);
+        write_curve(self, HueCurveType::LumSat, &value.lum_sat);
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "prefer value() to read a safe Rust snapshot of the grading curve"
+    )]
+    pub fn raw_value_handle(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_grading_hue_curve_transform_get_value(self.handle.as_ptr()) }
     }
 
     /// # Safety
     /// `values` must point to a valid OCIO grading-hue-curve value object for the active ABI.
-    pub unsafe fn set_value(&self, values: *mut c_void) {
+    #[deprecated(
+        since = "0.2.0",
+        note = "prefer set_value(&GradingHueCurveValue) instead of passing a raw OCIO handle"
+    )]
+    pub unsafe fn set_value_raw(&self, values: *mut c_void) {
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_value(self.handle.as_ptr(), values);
         }
@@ -254,6 +307,22 @@ mod tests {
         t.set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
         t.set_control_point(HueCurveType::HueHue, 1, 1.0, 1.0);
         t.set_slope(HueCurveType::HueHue, 0, 1.0);
+    }
+
+    #[test]
+    fn value_round_trip_no_crash() {
+        let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
+        let value = crate::grading::GradingHueCurveValue {
+            hue_hue: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            hue_sat: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            hue_lum: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            lum_sat: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+        };
+        t.set_value(&value);
+        let _ = t.value();
     }
 
     #[test]

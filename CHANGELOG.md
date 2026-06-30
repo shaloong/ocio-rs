@@ -26,6 +26,9 @@
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.
+- Replace the grading RGB/hue curve transform value-handle APIs with safe Rust
+  snapshot structs for read/write access, leaving raw handle access as explicit
+  deprecated escape hatches.
 
 ## 0.2.0
 

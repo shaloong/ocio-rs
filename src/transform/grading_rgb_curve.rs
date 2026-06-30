@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::grading::{GradingCurvePoint, GradingRGBCurveValue};
 use crate::{GradingStyle, OcioError, RGBCurveType, Result, TransformDirection};
 use ocio_sys;
 
@@ -47,13 +48,65 @@ impl GradingRGBCurveTransform {
         }
     }
 
-    pub fn get_value(&self) -> *mut c_void {
+    pub fn value(&self) -> GradingRGBCurveValue {
+        fn read_curve(
+            transform: &GradingRGBCurveTransform,
+            curve_type: RGBCurveType,
+        ) -> Vec<GradingCurvePoint> {
+            let count = transform.num_control_points(curve_type).max(0) as usize;
+            (0..count)
+                .map(|index| {
+                    let index = index as i32;
+                    let (x, y) = transform.control_point(curve_type, index);
+                    let slope = transform.slope(curve_type, index);
+                    GradingCurvePoint { x, y, slope }
+                })
+                .collect()
+        }
+
+        GradingRGBCurveValue {
+            red: read_curve(self, RGBCurveType::Red),
+            green: read_curve(self, RGBCurveType::Green),
+            blue: read_curve(self, RGBCurveType::Blue),
+            master: read_curve(self, RGBCurveType::Master),
+        }
+    }
+
+    pub fn set_value(&self, value: &GradingRGBCurveValue) {
+        fn write_curve(
+            transform: &GradingRGBCurveTransform,
+            curve_type: RGBCurveType,
+            points: &[GradingCurvePoint],
+        ) {
+            transform.set_num_control_points(curve_type, points.len() as i32);
+            for (index, point) in points.iter().enumerate() {
+                let index = index as i32;
+                transform.set_control_point(curve_type, index, point.x, point.y);
+                transform.set_slope(curve_type, index, point.slope);
+            }
+        }
+
+        write_curve(self, RGBCurveType::Red, &value.red);
+        write_curve(self, RGBCurveType::Green, &value.green);
+        write_curve(self, RGBCurveType::Blue, &value.blue);
+        write_curve(self, RGBCurveType::Master, &value.master);
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "prefer value() to read a safe Rust snapshot of the grading curve"
+    )]
+    pub fn raw_value_handle(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_grading_rgb_curve_transform_get_value(self.handle.as_ptr()) }
     }
 
     /// # Safety
     /// `values` must point to a valid OCIO grading-RGB-curve value object for the active ABI.
-    pub unsafe fn set_value(&self, values: *mut c_void) {
+    #[deprecated(
+        since = "0.2.0",
+        note = "prefer set_value(&GradingRGBCurveValue) instead of passing a raw OCIO handle"
+    )]
+    pub unsafe fn set_value_raw(&self, values: *mut c_void) {
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_value(self.handle.as_ptr(), values);
         }
@@ -250,6 +303,22 @@ mod tests {
         t.set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
         t.set_control_point(RGBCurveType::Red, 1, 1.0, 1.0);
         t.set_slope(RGBCurveType::Red, 0, 1.0);
+    }
+
+    #[test]
+    fn value_round_trip_no_crash() {
+        let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
+        let value = crate::grading::GradingRGBCurveValue {
+            red: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            green: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            blue: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            master: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+        };
+        t.set_value(&value);
+        let _ = t.value();
     }
 
     #[test]
