@@ -36,6 +36,9 @@
   aliases that now have clearer Rust-native replacements.
 - Mark `Config` helpers that require raw OCIO config/interchange/view pointers
   as deprecated escape hatches instead of ordinary wrapper APIs.
+- Deprecate the remaining `GpuShaderDesc::get_*` / `copy_*`,
+  `CPUProcessor` integer-only compatibility aliases, and
+  `FileRules::insert_rule_v1` in favor of the typed Rust wrapper surface.
 
 ## 0.2.0
 

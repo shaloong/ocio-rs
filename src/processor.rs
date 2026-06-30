@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, DynamicPropertyType, FormatMetadata, GpuLanguage,
-    HueCurveType, Interpolation, OcioError, RGBCurveType, Result,
+    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
+    GpuLanguage, HueCurveType, Interpolation, OcioError, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -339,28 +339,78 @@ impl CPUProcessor {
         }
     }
 
-    pub fn apply_rgba_packed(&self, rgba: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+    pub fn apply_rgba_packed_bit_depth(
+        &self,
+        rgba: &mut [u8],
+        bit_depth: BitDepth,
+        num_pixels: i64,
+        stride: i64,
+    ) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr() as *mut std::ffi::c_void,
-                bit_depth,
+                bit_depth as i32,
                 num_pixels,
                 stride,
             );
         }
     }
 
-    pub fn apply_rgb_packed(&self, rgb: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer apply_rgba_packed_bit_depth with the BitDepth enum"
+    )]
+    pub fn apply_rgba_packed(&self, rgba: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+        let bit_depth = match bit_depth {
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
+        };
+        self.apply_rgba_packed_bit_depth(rgba, bit_depth, num_pixels, stride);
+    }
+
+    pub fn apply_rgb_packed_bit_depth(
+        &self,
+        rgb: &mut [u8],
+        bit_depth: BitDepth,
+        num_pixels: i64,
+        stride: i64,
+    ) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_packed(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut std::ffi::c_void,
-                bit_depth,
+                bit_depth as i32,
                 num_pixels,
                 stride,
             );
         }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer apply_rgb_packed_bit_depth with the BitDepth enum"
+    )]
+    pub fn apply_rgb_packed(&self, rgb: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
+        let bit_depth = match bit_depth {
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
+        };
+        self.apply_rgb_packed_bit_depth(rgb, bit_depth, num_pixels, stride);
     }
 
     pub fn is_no_op(&self) -> bool {
@@ -398,6 +448,20 @@ impl CPUProcessor {
     }
 
     // ── v2.5.1 ──
+    pub fn dynamic_property(&self, prop_type: DynamicPropertyType) -> Option<DynamicProperty> {
+        let h = unsafe {
+            ocio_sys::ocio_cpu_processor_get_dynamic_property(
+                self.handle.as_ptr(),
+                prop_type as i32,
+            )
+        };
+        NonNull::new(h).map(|h| DynamicProperty { handle: h })
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer dynamic_property with DynamicPropertyType"
+    )]
     pub fn get_dynamic_property(&self, prop_type: i32) -> Option<DynamicProperty> {
         let h = unsafe {
             ocio_sys::ocio_cpu_processor_get_dynamic_property(self.handle.as_ptr(), prop_type)
@@ -405,6 +469,19 @@ impl CPUProcessor {
         NonNull::new(h).map(|h| DynamicProperty { handle: h })
     }
 
+    pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_has_dynamic_property(
+                self.handle.as_ptr(),
+                prop_type as i32,
+            )
+        }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
+    )]
     pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
         unsafe {
             ocio_sys::ocio_cpu_processor_has_dynamic_property(self.handle.as_ptr(), prop_type)
@@ -819,6 +896,7 @@ impl GpuShaderDesc {
         NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer clone_desc()")]
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Option<GpuShaderDesc> {
         self.clone_desc()
@@ -828,6 +906,7 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_uniforms()")]
     pub fn get_num_uniforms_u32(&self) -> u32 {
         self.num_uniforms()
     }
@@ -838,6 +917,7 @@ impl GpuShaderDesc {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_buffer_size()")]
     pub fn get_uniform_buffer_size_bytes(&self) -> usize {
         self.uniform_buffer_size()
     }
@@ -900,16 +980,22 @@ impl GpuShaderDesc {
         })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform()")]
     pub fn get_uniform_info(&self, index: u32) -> Option<GpuUniform> {
         self.uniform(index)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer uniform(index).map(|u| u.value_count)"
+    )]
     pub fn get_uniform_value_count(&self, index: u32) -> usize {
         self.uniform(index)
             .map(|uniform| uniform.value_count)
             .unwrap_or(0)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform() or uniforms()")]
     pub fn copy_uniform_f32_values(&self, index: u32) -> Vec<f32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::F32(values)) => values,
@@ -917,6 +1003,7 @@ impl GpuShaderDesc {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform() or uniforms()")]
     pub fn copy_uniform_i32_values(&self, index: u32) -> Vec<i32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::I32(values)) => values,
@@ -934,18 +1021,28 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_textures()")]
     pub fn get_num_textures_u32(&self) -> u32 {
         self.num_textures()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_2d() or textures_2d()"
+    )]
     pub fn get_texture_value_count(&self, index: u32) -> usize {
         self.texture_values(index).len()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_2d() or textures_2d()"
+    )]
     pub fn copy_texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_values(index)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_3d_textures()")]
     pub fn get_num3d_textures_u32(&self) -> u32 {
         self.num_3d_textures()
     }
@@ -993,16 +1090,25 @@ impl GpuShaderDesc {
         })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d()")]
     pub fn get3d_texture_info(&self, index: u32) -> Option<GpuTexture3D> {
         self.texture_3d(index)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_3d() or textures_3d()"
+    )]
     pub fn get3d_texture_value_count(&self, index: u32) -> usize {
         self.texture_3d(index)
             .map(|texture| texture.values.len())
             .unwrap_or(0)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_3d() or textures_3d()"
+    )]
     pub fn copy3d_texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_3d(index)
             .map(|texture| texture.values)
@@ -1015,18 +1121,30 @@ impl GpuShaderDesc {
             .collect()
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_3d_textures()")]
     pub fn get_num3d_textures(&self) -> u32 {
         self.num_3d_textures()
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d()")]
     pub fn get3d_texture(&self, index: u32) -> Option<GpuTexture3D> {
         self.texture_3d(index)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_3d() or textures_3d()"
+    )]
     pub fn get3d_texture_values(&self, index: u32) -> Vec<f32> {
-        self.copy3d_texture_values(index)
+        self.texture_3d(index)
+            .map(|texture| texture.values)
+            .unwrap_or_default()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer texture_3d(index).map(|t| t.binding_index)"
+    )]
     pub fn get3d_texture_shader_binding_index(&self, index: u32) -> Option<u32> {
         self.texture_3d(index).map(|texture| texture.binding_index)
     }
@@ -1549,9 +1667,33 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(cpu) = proc.default_cpu_processor() {
             let mut rgba = vec![0u8; 32]; // packed rgba bytes
-            cpu.apply_rgba_packed(&mut rgba, 8, 8, 4); // BIT_DEPTH_UINT8 = 0
+            cpu.apply_rgba_packed_bit_depth(&mut rgba, BitDepth::F32, 8, 4);
             let mut rgb = vec![0u8; 24]; // packed rgb bytes
-            cpu.apply_rgb_packed(&mut rgb, 8, 8, 3); // BIT_DEPTH_UINT8 = 0
+            cpu.apply_rgb_packed_bit_depth(&mut rgb, BitDepth::F32, 8, 3);
+        }
+    }
+
+    #[test]
+    fn cpu_processor_dynamic_property_typed_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(cpu) = proc.default_cpu_processor() {
+            let _ = cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure);
+            let _ = cpu.dynamic_property(DynamicPropertyType::Exposure);
+        }
+    }
+
+    #[test]
+    fn gpu_shader_desc_structured_accessors_no_crash() {
+        if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.num_uniforms();
+            let _ = desc.uniform_buffer_size();
+            let _ = desc.uniform(0);
+            let _ = desc.uniforms();
+            let _ = desc.texture_2d(0);
+            let _ = desc.textures_2d();
+            let _ = desc.texture_3d(0);
+            let _ = desc.textures_3d();
         }
     }
 

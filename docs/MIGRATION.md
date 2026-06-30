@@ -93,6 +93,8 @@ This includes viewing-rules handles, config-IO proxy handles, legacy context-var
 
 Additional compatibility aliases such as `GradingPrimaryTransform::copy_value`, `GradingPrimaryTransform::set_value_from_f64`, `GradingToneTransform::copy_value`, and `GradingToneTransform::set_value_from_f64` are also deprecated in favor of the clearer `value()` / `set_value(...)` methods.
 
+The same cleanup now applies to the remaining C-style compatibility entry points in processor wrappers. Prefer `CPUProcessor::apply_rgb_packed_bit_depth` / `apply_rgba_packed_bit_depth` with the `BitDepth` enum, `CPUProcessor::dynamic_property` / `has_dynamic_property_kind` with `DynamicPropertyType`, and the structured `GpuShaderDesc` accessors such as `uniform()`, `uniforms()`, `texture_2d()`, `textures_2d()`, `texture_3d()`, and `textures_3d()`.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

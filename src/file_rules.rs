@@ -229,6 +229,7 @@ impl FileRules {
         Ok(())
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer insert_rule_regex()")]
     pub fn insert_rule_v1(
         &self,
         rule_index: u64,
