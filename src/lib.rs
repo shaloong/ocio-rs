@@ -1,3 +1,9 @@
+#![allow(
+    unused_imports,
+    clippy::single_component_path_imports,
+    clippy::unnecessary_cast
+)]
+
 mod baker;
 mod builtin_config_registry;
 mod color_space_set;
@@ -24,7 +30,9 @@ pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;
 pub use look::Look;
 pub use named_transform::NamedTransform;
-pub use processor::{CPUProcessor, GPUProcessor, GpuShaderDesc, DynamicProperty, Processor, TextureInfo};
+pub use processor::{
+    CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, Processor, TextureInfo,
+};
 pub use types::*;
 pub use view_transform::ViewTransform;
 
@@ -56,7 +64,9 @@ pub fn get_current_config() -> Option<Config> {
     if handle.is_null() {
         None
     } else {
-        Some(Config { handle: std::ptr::NonNull::new(handle).unwrap() })
+        Some(Config {
+            handle: std::ptr::NonNull::new(handle).unwrap(),
+        })
     }
 }
 

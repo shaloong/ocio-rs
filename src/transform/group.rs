@@ -1,9 +1,9 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use ocio_sys;
+use super::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{OcioError, Result, TransformDirection};
-use super::{TransformHandle, Transform, transform_from_raw_handle};
+use ocio_sys;
 
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -12,7 +12,9 @@ pub struct GroupTransform {
 impl GroupTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_group_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn num_transforms(&self) -> i32 {
@@ -32,15 +34,17 @@ impl GroupTransform {
     }
 
     pub fn get_transform(&self, index: i32) -> Option<Transform> {
-        let handle = unsafe {
-            ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index)
-        };
+        let handle =
+            unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
         transform_from_raw_handle(handle)
     }
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_group_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -51,11 +55,15 @@ impl GroupTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn remove_transform(&self, index: usize) {
-        unsafe { ocio_sys::ocio_group_transform_remove_transform(self.handle.as_ptr(), index as u64) };
+        unsafe {
+            ocio_sys::ocio_group_transform_remove_transform(self.handle.as_ptr(), index as u64)
+        };
     }
 
     pub fn clear_transforms(&self) {
@@ -77,7 +85,7 @@ impl Drop for GroupTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transform::{FileTransform, CDLTransform};
+    use crate::transform::{CDLTransform, FileTransform};
 
     #[test]
     fn create_group() {

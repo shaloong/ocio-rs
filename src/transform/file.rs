@@ -1,8 +1,11 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{
+    cstr_from_mut, cstr_to_opt_string, cstring, CDLStyle, Interpolation, OcioError, Result,
+    TransformDirection,
+};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection, Interpolation, CDLStyle};
 
 pub struct FileTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +14,9 @@ pub struct FileTransform {
 impl FileTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_file_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn src(&self) -> Option<String> {
@@ -25,17 +30,24 @@ impl FileTransform {
     }
 
     pub fn ccc_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_transform_get_ccc_id(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_transform_get_ccc_id(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_ccc_id(&self, id: impl AsRef<str>) -> Result<()> {
         let id = cstring(id)?;
-        unsafe { ocio_sys::ocio_file_transform_set_ccc_id(self.handle.as_ptr(), id.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_file_transform_set_ccc_id(self.handle.as_ptr(), id.as_ptr().cast())
+        };
         Ok(())
     }
 
     pub fn interpolation(&self) -> Interpolation {
-        let interp = unsafe { ocio_sys::ocio_file_transform_get_interpolation(self.handle.as_ptr()) };
+        let interp =
+            unsafe { ocio_sys::ocio_file_transform_get_interpolation(self.handle.as_ptr()) };
         match interp {
             1 => Interpolation::Nearest,
             2 => Interpolation::Linear,
@@ -55,11 +67,16 @@ impl FileTransform {
 
     pub fn cdl_style(&self) -> CDLStyle {
         let s = unsafe { ocio_sys::ocio_file_transform_get_cdl_style(self.handle.as_ptr()) };
-        match s { 1 => CDLStyle::NoClamp, _ => CDLStyle::Asc }
+        match s {
+            1 => CDLStyle::NoClamp,
+            _ => CDLStyle::Asc,
+        }
     }
 
     pub fn set_cdl_style(&self, style: CDLStyle) {
-        unsafe { ocio_sys::ocio_file_transform_set_cdl_style(self.handle.as_ptr(), style as i32); }
+        unsafe {
+            ocio_sys::ocio_file_transform_set_cdl_style(self.handle.as_ptr(), style as i32);
+        }
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -78,7 +95,9 @@ impl FileTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

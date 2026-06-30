@@ -7,9 +7,8 @@
 mod common;
 use common::*;
 
-use ocio_rs;
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{TransformDirection, BitDepth, Config};
+use ocio_rs::{BitDepth, Config, TransformDirection};
 
 const OPTIMIZATION_DEFAULT: u64 = 0;
 
@@ -39,7 +38,7 @@ fn _apply_matrix(matrix: &MatrixTransform, pixels: &mut [[f32; 4]]) {
         Err(_) => return,
     };
     for pixel in pixels.iter_mut() {
-        let _ = cpu.apply_rgba(pixel);
+        cpu.apply_rgba(pixel);
     }
 }
 
@@ -61,10 +60,10 @@ fn matrix_identity_no_crash() {
     if let Ok(t) = result {
         let _dir = t.direction();
         let matrix = t.matrix();
-        assert_close(matrix[0] as f64, 1.0, 1e-10);
-        assert_close(matrix[5] as f64, 1.0, 1e-10);
-        assert_close(matrix[10] as f64, 1.0, 1e-10);
-        assert_close(matrix[15] as f64, 1.0, 1e-10);
+        assert_close(matrix[0], 1.0, 1e-10);
+        assert_close(matrix[5], 1.0, 1e-10);
+        assert_close(matrix[10], 1.0, 1e-10);
+        assert_close(matrix[15], 1.0, 1e-10);
     }
 }
 
@@ -104,10 +103,10 @@ fn matrix_create_no_crash() {
     let result = MatrixTransform::create();
     if let Ok(t) = result {
         let matrix = t.matrix();
-        assert_close(matrix[0] as f64, 1.0, 1e-10);
-        assert_close(matrix[5] as f64, 1.0, 1e-10);
-        assert_close(matrix[10] as f64, 1.0, 1e-10);
-        assert_close(matrix[15] as f64, 1.0, 1e-10);
+        assert_close(matrix[0], 1.0, 1e-10);
+        assert_close(matrix[5], 1.0, 1e-10);
+        assert_close(matrix[10], 1.0, 1e-10);
+        assert_close(matrix[15], 1.0, 1e-10);
     }
 }
 
@@ -115,10 +114,7 @@ fn matrix_create_no_crash() {
 fn matrix_set_get_matrix_no_crash() {
     let t = MatrixTransform::create().unwrap();
     let m44: [f64; 16] = [
-        1.1, 0.2, 0.3, 0.4,
-        0.5, 1.6, 0.7, 0.8,
-        0.2, 0.1, 1.1, 0.2,
-        0.3, 0.4, 0.5, 1.6,
+        1.1, 0.2, 0.3, 0.4, 0.5, 1.6, 0.7, 0.8, 0.2, 0.1, 1.1, 0.2, 0.3, 0.4, 0.5, 1.6,
     ];
     t.set_matrix(&m44);
     let result = t.matrix();
@@ -127,7 +123,7 @@ fn matrix_set_get_matrix_no_crash() {
     assert_eq!(result.len(), 16);
     if !is_stub() {
         for i in 0..16 {
-            assert_close(result[i] as f64, m44[i], 1e-10);
+            assert_close(result[i], m44[i], 1e-10);
         }
     }
 }
@@ -141,7 +137,7 @@ fn matrix_set_get_offset_no_crash() {
     // In stub mode, setter is a no-op. Only verify no-crash.
     if !is_stub() {
         for i in 0..4 {
-            assert_close(result[i] as f64, offset[i], 1e-10);
+            assert_close(result[i], offset[i], 1e-10);
         }
     }
 }
@@ -169,10 +165,7 @@ fn matrix_file_input_output_bit_depth_no_crash() {
 fn matrix_create_editable_copy_no_crash() {
     let t = MatrixTransform::create().unwrap();
     let m44: [f64; 16] = [
-        1.1, 0.2, 0.3, 0.4,
-        0.5, 1.6, 0.7, 0.8,
-        0.2, 0.1, 1.1, 0.2,
-        0.3, 0.4, 0.5, 1.6,
+        1.1, 0.2, 0.3, 0.4, 0.5, 1.6, 0.7, 0.8, 0.2, 0.1, 1.1, 0.2, 0.3, 0.4, 0.5, 1.6,
     ];
     t.set_matrix(&m44);
     let copy_result = t.create_editable_copy();
@@ -181,7 +174,7 @@ fn matrix_create_editable_copy_no_crash() {
         let copy = copy_result.unwrap();
         let copy_matrix = copy.matrix();
         for i in 0..16 {
-            assert_close(copy_matrix[i] as f64, m44[i], 1e-10);
+            assert_close(copy_matrix[i], m44[i], 1e-10);
         }
     }
 }
@@ -213,12 +206,13 @@ fn matrix_identity_pipeline_behavior() {
     let processor = config
         .processor_from_transform(&t, TransformDirection::Forward)
         .expect("processor_from_transform");
-    let cpu = processor.optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
         .expect("cpu_processor");
 
     let mut pixel: [f32; 4] = [0.1, 0.2, 0.3, 0.4];
     let original = pixel;
-    let _ = cpu.apply_rgba(&mut pixel);
+    cpu.apply_rgba(&mut pixel);
     assert_close(pixel[0] as f64, original[0] as f64, 1e-5);
     assert_close(pixel[1] as f64, original[1] as f64, 1e-5);
     assert_close(pixel[2] as f64, original[2] as f64, 1e-5);
@@ -244,11 +238,12 @@ fn matrix_scale_pipeline_behavior() {
     let processor = config
         .processor_from_transform(&t, TransformDirection::Forward)
         .expect("processor_from_transform");
-    let cpu = processor.optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
         .expect("cpu_processor");
 
     let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-    let _ = cpu.apply_rgba(&mut pixel);
+    cpu.apply_rgba(&mut pixel);
     // Scale: [2, 1, 0.5, 1] * [0.5, 0.5, 0.5, 1.0] = [1.0, 0.5, 0.25, 1.0]
     assert_close(pixel[0] as f64, 1.0, 1e-5);
     assert_close(pixel[1] as f64, 0.5, 1e-5);
@@ -275,11 +270,12 @@ fn matrix_scale_inverse_pipeline_behavior() {
     let processor = config
         .processor_from_transform(&t, TransformDirection::Inverse)
         .expect("processor_from_transform");
-    let cpu = processor.optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
         .expect("cpu_processor");
 
     let mut pixel: [f32; 4] = [1.0, 2.0, 0.25, 1.0];
-    let _ = cpu.apply_rgba(&mut pixel);
+    cpu.apply_rgba(&mut pixel);
     // Inverse: [1/2, 1/4, 1/0.5, 1] * [1.0, 2.0, 0.25, 1.0] = [0.5, 0.5, 0.5, 1.0]
     assert_close(pixel[0] as f64, 0.5, 1e-5);
     assert_close(pixel[1] as f64, 0.5, 1e-5);
@@ -306,12 +302,13 @@ fn matrix_sat_pipeline_behavior() {
     let processor = config
         .processor_from_transform(&t, TransformDirection::Forward)
         .expect("processor_from_transform");
-    let cpu = processor.optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
         .expect("cpu_processor");
 
     // With sat=0, all colors should become grayscale (R=G=B=luminance)
     let mut pixel: [f32; 4] = [1.0, 0.5, 0.25, 1.0];
-    let _ = cpu.apply_rgba(&mut pixel);
+    cpu.apply_rgba(&mut pixel);
     // All three channels should be equal (grayscale)
     assert_close(pixel[0] as f64, pixel[1] as f64, 1e-5);
     assert_close(pixel[1] as f64, pixel[2] as f64, 1e-5);
@@ -326,10 +323,7 @@ fn matrix_combined_scale_offset_behavior() {
     };
 
     t.set_matrix(&[
-        2.0, 0.0, 0.0, 0.0,
-        0.0, 3.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
+        2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
     t.set_offset(&[0.5, 0.25, 0.0, 0.0]);
 
@@ -345,11 +339,12 @@ fn matrix_combined_scale_offset_behavior() {
     let processor = config
         .processor_from_transform(&t, TransformDirection::Forward)
         .expect("processor_from_transform");
-    let cpu = processor.optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
         .expect("cpu_processor");
 
     let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-    let _ = cpu.apply_rgba(&mut pixel);
+    cpu.apply_rgba(&mut pixel);
     // [2*0.5+0.5, 3*0.5+0.25, 1*0.5+0, 1*1+0] = [1.5, 1.75, 0.5, 1.0]
     assert_close(pixel[0] as f64, 1.5, 1e-5);
     assert_close(pixel[1] as f64, 1.75, 1e-5);

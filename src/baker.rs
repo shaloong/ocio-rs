@@ -1,8 +1,10 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{
+    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, Config, FormatMetadata, OcioError, Result,
+};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, Config, FormatMetadata, OcioError, Result, BitDepth};
 
 pub struct Baker {
     handle: NonNull<c_void>,
@@ -11,12 +13,16 @@ pub struct Baker {
 impl Baker {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_baker_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_baker_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn set_config(&self, config: &Config) {
@@ -27,7 +33,9 @@ impl Baker {
 
     pub fn config(&self) -> Result<Config> {
         let handle = unsafe { ocio_sys::ocio_baker_get_config(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Config { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Config { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format(&self) -> Option<String> {
@@ -93,7 +101,9 @@ impl Baker {
         let v = cstring(view)?;
         unsafe {
             ocio_sys::ocio_baker_set_display_view(
-                self.handle.as_ptr(), d.as_ptr().cast(), v.as_ptr().cast(),
+                self.handle.as_ptr(),
+                d.as_ptr().cast(),
+                v.as_ptr().cast(),
             );
         }
         Ok(())
@@ -118,14 +128,22 @@ impl Baker {
     pub fn target_bit_depth(&self) -> BitDepth {
         let b = unsafe { ocio_sys::ocio_baker_get_target_bit_depth(self.handle.as_ptr()) };
         match b {
-            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
-            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
-            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
         }
     }
 
     pub fn set_target_bit_depth(&self, bit_depth: BitDepth) {
-        unsafe { ocio_sys::ocio_baker_set_target_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+        unsafe {
+            ocio_sys::ocio_baker_set_target_bit_depth(self.handle.as_ptr(), bit_depth as i32)
+        };
     }
 
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {

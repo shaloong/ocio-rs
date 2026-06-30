@@ -1,6 +1,7 @@
 #include "bridge.hpp"
 
 #include <cstring>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -183,7 +184,7 @@ struct FormatMetadataHandle { std::shared_ptr<void> inner; };
 
 // Handle types for referenced-only classes
 struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
-  int get_transform_type_tag() const override { return -1; }
+  int get_transform_type_tag() const override;
 #ifndef OCIO_RS_STUB
   OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
 #endif
@@ -619,6 +620,39 @@ struct RealMixingSlider {
 };
 
 // --- TransformHandleBase out-of-line ---
+int TransformHandle::get_transform_type_tag() const {
+#ifdef OCIO_RS_STUB
+  return -1;
+#else
+  auto transform = std::static_pointer_cast<RealTransform>(inner)->transform;
+  if (!transform) return -1;
+  if (std::dynamic_pointer_cast<ocio::AllocationTransform>(transform)) return 0;
+  if (std::dynamic_pointer_cast<ocio::BuiltinTransform>(transform)) return 1;
+  if (std::dynamic_pointer_cast<ocio::CDLTransform>(transform)) return 2;
+  if (std::dynamic_pointer_cast<ocio::ColorSpaceTransform>(transform)) return 3;
+  if (std::dynamic_pointer_cast<ocio::DisplayViewTransform>(transform)) return 4;
+  if (std::dynamic_pointer_cast<ocio::ExponentTransform>(transform)) return 5;
+  if (std::dynamic_pointer_cast<ocio::ExponentWithLinearTransform>(transform)) return 6;
+  if (std::dynamic_pointer_cast<ocio::ExposureContrastTransform>(transform)) return 7;
+  if (std::dynamic_pointer_cast<ocio::FileTransform>(transform)) return 8;
+  if (std::dynamic_pointer_cast<ocio::FixedFunctionTransform>(transform)) return 9;
+  if (std::dynamic_pointer_cast<ocio::GradingHueCurveTransform>(transform)) return 10;
+  if (std::dynamic_pointer_cast<ocio::GradingPrimaryTransform>(transform)) return 11;
+  if (std::dynamic_pointer_cast<ocio::GradingRGBCurveTransform>(transform)) return 12;
+  if (std::dynamic_pointer_cast<ocio::GradingToneTransform>(transform)) return 13;
+  if (std::dynamic_pointer_cast<ocio::GroupTransform>(transform)) return 14;
+  if (std::dynamic_pointer_cast<ocio::LogAffineTransform>(transform)) return 15;
+  if (std::dynamic_pointer_cast<ocio::LogCameraTransform>(transform)) return 16;
+  if (std::dynamic_pointer_cast<ocio::LogTransform>(transform)) return 17;
+  if (std::dynamic_pointer_cast<ocio::LookTransform>(transform)) return 18;
+  if (std::dynamic_pointer_cast<ocio::Lut1DTransform>(transform)) return 19;
+  if (std::dynamic_pointer_cast<ocio::Lut3DTransform>(transform)) return 20;
+  if (std::dynamic_pointer_cast<ocio::MatrixTransform>(transform)) return 21;
+  if (std::dynamic_pointer_cast<ocio::RangeTransform>(transform)) return 22;
+  return -1;
+#endif
+}
+
 ocio::TransformRcPtr TransformHandle::get_ocio_transform() {
   return std::static_pointer_cast<RealTransform>(inner)->transform;
 }
@@ -1146,6 +1180,45 @@ static std::unique_ptr<ConfigHandle> make_real_config_from_file(const char* path
   } catch (...) { return nullptr; }
 }
 
+template <typename HandleT, typename RealT, typename TransformT>
+static void* wrap_transform_copy_as(const ocio::TransformRcPtr& transform) {
+  auto typed = std::dynamic_pointer_cast<TransformT>(transform);
+  if (!typed) return nullptr;
+  auto handle = std::make_unique<HandleT>();
+  handle->inner = std::make_shared<RealT>(RealT{typed});
+  return handle.release();
+}
+
+static void* wrap_editable_transform_copy(const ocio::TransformRcPtr& transform) {
+  if (!transform) return nullptr;
+  if (auto* h = wrap_transform_copy_as<AllocationTransformHandle, RealAllocationTransform, ocio::AllocationTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<BuiltinTransformHandle, RealBuiltinTransform, ocio::BuiltinTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<CDLTransformHandle, RealCDLTransform, ocio::CDLTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<ColorSpaceTransformHandle, RealColorSpaceTransform, ocio::ColorSpaceTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<DisplayViewTransformHandle, RealDisplayViewTransform, ocio::DisplayViewTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<ExponentTransformHandle, RealExponentTransform, ocio::ExponentTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<ExponentWithLinearTransformHandle, RealExponentWithLinearTransform, ocio::ExponentWithLinearTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<ExposureContrastTransformHandle, RealExposureContrastTransform, ocio::ExposureContrastTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<FileTransformHandle, RealFileTransform, ocio::FileTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<FixedFunctionTransformHandle, RealFixedFunctionTransform, ocio::FixedFunctionTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<GradingHueCurveTransformHandle, RealGradingHueCurveTransform, ocio::GradingHueCurveTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<GradingPrimaryTransformHandle, RealGradingPrimaryTransform, ocio::GradingPrimaryTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<GradingRGBCurveTransformHandle, RealGradingRGBCurveTransform, ocio::GradingRGBCurveTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<GradingToneTransformHandle, RealGradingToneTransform, ocio::GradingToneTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<GroupTransformHandle, RealGroupTransform, ocio::GroupTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<LogAffineTransformHandle, RealLogAffineTransform, ocio::LogAffineTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<LogCameraTransformHandle, RealLogCameraTransform, ocio::LogCameraTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<LogTransformHandle, RealLogTransform, ocio::LogTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<LookTransformHandle, RealLookTransform, ocio::LookTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<Lut1DTransformHandle, RealLut1DTransform, ocio::Lut1DTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<Lut3DTransformHandle, RealLut3DTransform, ocio::Lut3DTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<MatrixTransformHandle, RealMatrixTransform, ocio::MatrixTransform>(transform)) return h;
+  if (auto* h = wrap_transform_copy_as<RangeTransformHandle, RealRangeTransform, ocio::RangeTransform>(transform)) return h;
+  auto handle = std::make_unique<TransformHandle>();
+  handle->inner = std::make_shared<RealTransform>(RealTransform{transform});
+  return handle.release();
+}
+
 #endif // OCIO_RS_STUB
 
 }  // namespace ocio_rs_bridge
@@ -1325,11 +1398,30 @@ void* ocio_config_create_raw(void) {
 
 void* ocio_config_create_from_file(const char* path) {
 #ifdef OCIO_RS_STUB
-  (void)path; return ocio_rs_bridge::make_stub_config().release();
+  if (!path) return nullptr;
+  std::ifstream file(path);
+  if (!file.good()) return nullptr;
+  return ocio_rs_bridge::make_stub_config().release();
 #else
   auto handle = ocio_rs_bridge::make_real_config_from_file(path);
   if (!handle) return nullptr;
   return handle.release();
+#endif
+}
+
+void* ocio_config_create_from_builtin_config(const char* configName) {
+#ifdef OCIO_RS_STUB
+  (void)configName;
+  return nullptr;
+#else
+  try {
+    auto result = ocio::Config::CreateFromBuiltinConfig(configName);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
+      ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -1721,7 +1813,7 @@ void ocio_config_set_working_dir(void* handle, const char* dirname) {
 void* ocio_config_get_color_spaces(void* handle, const char* category) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)category;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_color_space_set().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_config(handle)->getColorSpaces(category);
@@ -1915,7 +2007,7 @@ void* ocio_config_identify_builtin_color_space(void* handle, void* srcConfig, vo
     auto srcConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_srcConfig_h->inner)->config;
     auto* _builtinConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(builtinConfig);
     auto builtinConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_builtinConfig_h->inner)->config;
-    return ocio_rs_bridge::get_real_config(handle)->IdentifyBuiltinColorSpace(srcConfig_ptr, builtinConfig_ptr, builtinColorSpaceName);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->IdentifyBuiltinColorSpace(srcConfig_ptr, builtinConfig_ptr, builtinColorSpaceName)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -1930,7 +2022,7 @@ void ocio_config_identify_interchange_space(void* handle, void* srcInterchangeNa
     auto srcConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_srcConfig_h->inner)->config;
     auto* _builtinConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(builtinConfig);
     auto builtinConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_builtinConfig_h->inner)->config;
-    ocio_rs_bridge::get_real_config(handle)->IdentifyInterchangeSpace(srcInterchangeName, builtinInterchangeName, srcConfig_ptr, srcColorSpaceName, builtinConfig_ptr, builtinColorSpaceName);
+    ocio_rs_bridge::get_real_config(handle)->IdentifyInterchangeSpace(static_cast<const char**>(srcInterchangeName), static_cast<const char**>(builtinInterchangeName), srcConfig_ptr, srcColorSpaceName, builtinConfig_ptr, builtinColorSpaceName);
   } catch (...) { return ; }
 #endif
 }
@@ -2341,7 +2433,7 @@ void* ocio_config_get_virtual_display_view(void* handle, int type, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayView(static_cast<ocio::ViewType>(type), index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayView(static_cast<ocio::ViewType>(type), index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2477,7 +2569,7 @@ void* ocio_config_get_active_displays(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getActiveDisplays();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getActiveDisplays()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2642,7 +2734,7 @@ int ocio_config_get_display_all_by_name(void* handle, void* arg) {
   return 0;
 #else
   try {
-    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayAllByName(static_cast<const char*>(arg));
+    return ocio_rs_bridge::get_real_config(handle)->getDisplayAllByName(static_cast<const char*>(arg));
   } catch (...) { return 0; }
 #endif
 }
@@ -2686,7 +2778,7 @@ void* ocio_config_get_view_v2(void* handle, int type, const char* display, int i
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getView(static_cast<ocio::ViewType>(type), display, index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getView(static_cast<ocio::ViewType>(type), display, index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -2726,7 +2818,7 @@ void ocio_config_get_default_luma_coefs(void* handle, void* rgb) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_config(handle)->getDefaultLumaCoefs(rgb);
+    ocio_rs_bridge::get_real_config(handle)->getDefaultLumaCoefs(static_cast<double*>(rgb));
   } catch (...) { return ; }
 #endif
 }
@@ -2837,7 +2929,7 @@ void* ocio_config_get_view_transform_name_by_index(void* handle, int i) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getViewTransformNameByIndex(i);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getViewTransformNameByIndex(i)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3045,7 +3137,7 @@ void* ocio_config_get_color_space_from_filepath(void* handle, const char* filePa
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3056,7 +3148,19 @@ void* ocio_config_get_color_space_from_filepath_by_ref_type(void* handle, const 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath, *static_cast<size_t*>(ruleIndex));
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath, *static_cast<size_t*>(ruleIndex))));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_get_color_space_from_filepath_with_rule_index(void* handle, const char* filePath, size_t* ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filePath; (void)ruleIndex;
+  return nullptr;
+#else
+  try {
+    if (!ruleIndex) return nullptr;
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath, *ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3078,7 +3182,7 @@ void* ocio_config_parse_color_space_from_string(void* handle, const char* str) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->parseColorSpaceFromString(str);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->parseColorSpaceFromString(str)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3108,7 +3212,7 @@ void ocio_config_set_strict_parsing_enabled(void* handle, bool enabled) {
 void* ocio_config_get_processor(void* handle, void* context, void* srcColorSpace, void* dstColorSpace) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)srcColorSpace; (void)dstColorSpace;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
@@ -3130,7 +3234,7 @@ void* ocio_config_get_processor(void* handle, void* context, void* srcColorSpace
 void* ocio_config_get_processor_v1(void* handle, void* srcColorSpace, void* dstColorSpace) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcColorSpace; (void)dstColorSpace;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _srcColorSpace_h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(srcColorSpace);
@@ -3150,7 +3254,7 @@ void* ocio_config_get_processor_v1(void* handle, void* srcColorSpace, void* dstC
 void* ocio_config_get_processor_v2(void* handle, const char* srcColorSpaceName, const char* dstColorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcColorSpaceName; (void)dstColorSpaceName;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(srcColorSpaceName, dstColorSpaceName);
@@ -3166,7 +3270,7 @@ void* ocio_config_get_processor_v2(void* handle, const char* srcColorSpaceName, 
 void* ocio_config_get_processor_v3(void* handle, void* context, const char* srcColorSpaceName, const char* dstColorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)srcColorSpaceName; (void)dstColorSpaceName;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
@@ -3184,7 +3288,7 @@ void* ocio_config_get_processor_v3(void* handle, void* context, const char* srcC
 void* ocio_config_get_processor_v4(void* handle, const char* srcColorSpaceName, const char* display, const char* view, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcColorSpaceName; (void)display; (void)view; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(srcColorSpaceName, display, view, static_cast<ocio::TransformDirection>(direction));
@@ -3200,7 +3304,7 @@ void* ocio_config_get_processor_v4(void* handle, const char* srcColorSpaceName, 
 void* ocio_config_get_processor_v5(void* handle, void* context, const char* srcColorSpaceName, const char* display, const char* view, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)srcColorSpaceName; (void)display; (void)view; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
@@ -3218,7 +3322,7 @@ void* ocio_config_get_processor_v5(void* handle, void* context, const char* srcC
 void* ocio_config_get_processor_v6(void* handle, void* namedTransform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)namedTransform; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _namedTransform_h = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
@@ -3236,7 +3340,7 @@ void* ocio_config_get_processor_v6(void* handle, void* namedTransform, int direc
 void* ocio_config_get_processor_v7(void* handle, void* context, void* namedTransform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)namedTransform; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
@@ -3256,7 +3360,7 @@ void* ocio_config_get_processor_v7(void* handle, void* context, void* namedTrans
 void* ocio_config_get_processor_v8(void* handle, const char* namedTransformName, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)namedTransformName; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(namedTransformName, static_cast<ocio::TransformDirection>(direction));
@@ -3272,7 +3376,7 @@ void* ocio_config_get_processor_v8(void* handle, const char* namedTransformName,
 void* ocio_config_get_processor_v9(void* handle, void* context, const char* namedTransformName, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)namedTransformName; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
@@ -3290,11 +3394,11 @@ void* ocio_config_get_processor_v9(void* handle, void* context, const char* name
 void* ocio_config_get_processor_v10(void* handle, void* transform) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)transform;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(transform_ptr);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -3308,11 +3412,11 @@ void* ocio_config_get_processor_v10(void* handle, void* transform) {
 void* ocio_config_get_processor_v11(void* handle, void* transform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)transform; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(transform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -3326,13 +3430,13 @@ void* ocio_config_get_processor_v11(void* handle, void* transform, int direction
 void* ocio_config_get_processor_v12(void* handle, void* context, void* transform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)context; (void)transform; (void)direction;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, transform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -3346,7 +3450,7 @@ void* ocio_config_get_processor_v12(void* handle, void* context, void* transform
 void* ocio_config_get_processor_to_builtin_color_space(void* handle, void* srcConfig, const char* srcColorSpaceName, const char* builtinColorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcConfig; (void)srcColorSpaceName; (void)builtinColorSpaceName;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _srcConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(srcConfig);
@@ -3364,7 +3468,7 @@ void* ocio_config_get_processor_to_builtin_color_space(void* handle, void* srcCo
 void* ocio_config_get_processor_from_builtin_color_space(void* handle, const char* builtinColorSpaceName, void* srcConfig, const char* srcColorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)builtinColorSpaceName; (void)srcConfig; (void)srcColorSpaceName;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _srcConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(srcConfig);
@@ -3382,7 +3486,7 @@ void* ocio_config_get_processor_from_builtin_color_space(void* handle, const cha
 void* ocio_config_get_processor_from_configs(void* handle, void* srcConfig, const char* srcColorSpaceName, void* dstConfig, const char* dstColorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcConfig; (void)srcColorSpaceName; (void)dstConfig; (void)dstColorSpaceName;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto* _srcConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(srcConfig);
@@ -3683,7 +3787,7 @@ void* ocio_file_rules_get_name(void* handle, size_t ruleIndex) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getName(ruleIndex);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getName(ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3694,7 +3798,7 @@ void* ocio_file_rules_get_pattern(void* handle, size_t ruleIndex) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getPattern(ruleIndex);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getPattern(ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3716,7 +3820,7 @@ void* ocio_file_rules_get_extension(void* handle, size_t ruleIndex) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getExtension(ruleIndex);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getExtension(ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3738,7 +3842,7 @@ void* ocio_file_rules_get_regex(void* handle, size_t ruleIndex) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getRegex(ruleIndex);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getRegex(ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3760,7 +3864,7 @@ void* ocio_file_rules_get_color_space(void* handle, size_t ruleIndex) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getColorSpace(ruleIndex);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getColorSpace(ruleIndex)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3793,7 +3897,7 @@ void* ocio_file_rules_get_custom_key_name(void* handle, size_t ruleIndex, size_t
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyName(ruleIndex, key);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyName(ruleIndex, key)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3804,7 +3908,7 @@ void* ocio_file_rules_get_custom_key_value(void* handle, size_t ruleIndex, size_
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyValue(ruleIndex, key);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyValue(ruleIndex, key)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3931,7 +4035,7 @@ void* ocio_color_space_get_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getName();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getName()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -3964,7 +4068,7 @@ void* ocio_color_space_get_alias(void* handle, size_t idx) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getAlias(idx);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getAlias(idx)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4019,7 +4123,7 @@ void* ocio_color_space_get_family(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getFamily();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getFamily()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4041,7 +4145,7 @@ void* ocio_color_space_get_equality_group(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getEqualityGroup();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getEqualityGroup()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4063,7 +4167,7 @@ void* ocio_color_space_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4085,7 +4189,7 @@ void* ocio_color_space_get_interop_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getInteropID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getInteropID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4107,7 +4211,7 @@ void ocio_color_space_set_interchange_attribute(void* handle, const char* attrNa
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_color_space(handle)->setInterchangeAttribute(attrName, value);
+    ocio_rs_bridge::get_real_color_space(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
   } catch (...) { return ; }
 #endif
 }
@@ -4195,7 +4299,7 @@ void* ocio_color_space_get_category(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getCategory(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getCategory(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4217,7 +4321,7 @@ void* ocio_color_space_get_encoding(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space(handle)->getEncoding();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getEncoding()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4294,7 +4398,7 @@ void ocio_color_space_get_allocation_vars(void* handle, void* vars) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_color_space(handle)->getAllocationVars(vars);
+    ocio_rs_bridge::get_real_color_space(handle)->getAllocationVars(static_cast<float*>(vars));
   } catch (...) { return ; }
 #endif
 }
@@ -4332,8 +4436,8 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_color_space(handle)->setTransform(transform_ptr, static_cast<ocio::ColorSpaceDirection>(dir));
   } catch (...) { return ; }
 #endif
@@ -4373,7 +4477,7 @@ void* ocio_color_space_set_get_color_space_name_by_index(void* handle, int index
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space_set(handle)->getColorSpaceNameByIndex(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space_set(handle)->getColorSpaceNameByIndex(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4413,7 +4517,7 @@ void* ocio_color_space_set_get_color_space(void* handle, const char* name) {
 int ocio_color_space_set_get_color_space_index(void* handle, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name;
-  return 0;
+  return -1;
 #else
   try {
     return ocio_rs_bridge::get_real_color_space_set(handle)->getColorSpaceIndex(name);
@@ -4516,7 +4620,7 @@ void* ocio_look_get_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look(handle)->getName();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getName()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4538,7 +4642,7 @@ void* ocio_look_get_process_space(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look(handle)->getProcessSpace();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getProcessSpace()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4576,8 +4680,8 @@ void ocio_look_set_transform(void* handle, void* transform) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_look(handle)->setTransform(transform_ptr);
   } catch (...) { return ; }
 #endif
@@ -4605,8 +4709,8 @@ void ocio_look_set_inverse_transform(void* handle, void* transform) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_look(handle)->setInverseTransform(transform_ptr);
   } catch (...) { return ; }
 #endif
@@ -4618,7 +4722,7 @@ void* ocio_look_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look(handle)->getDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4640,7 +4744,7 @@ void ocio_look_set_interchange_attribute(void* handle, const char* attrName, voi
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_look(handle)->setInterchangeAttribute(attrName, value);
+    ocio_rs_bridge::get_real_look(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
   } catch (...) { return ; }
 #endif
 }
@@ -4668,7 +4772,7 @@ void* ocio_named_transform_get_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getName();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getName()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4701,7 +4805,7 @@ void* ocio_named_transform_get_alias(void* handle, size_t idx) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getAlias(idx);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getAlias(idx)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4756,7 +4860,7 @@ void* ocio_named_transform_get_family(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getFamily();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getFamily()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4778,7 +4882,7 @@ void* ocio_named_transform_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4844,7 +4948,7 @@ void* ocio_named_transform_get_category(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getCategory(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getCategory(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4866,7 +4970,7 @@ void* ocio_named_transform_get_encoding(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_named_transform(handle)->getEncoding();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getEncoding()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4904,8 +5008,8 @@ void ocio_named_transform_set_transform(void* handle, void* transform, int dir) 
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_named_transform(handle)->setTransform(transform_ptr, static_cast<ocio::TransformDirection>(dir));
   } catch (...) { return ; }
 #endif
@@ -4918,12 +5022,43 @@ void* ocio_view_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_view_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  return ocio_view_transform_create_with_reference_space(static_cast<int>(ocio::REFERENCE_SPACE_SCENE));
+#endif
+}
+
+void* ocio_view_transform_create_with_reference_space(int referenceSpace) {
+#ifdef OCIO_RS_STUB
+  (void)referenceSpace;
+  return ocio_rs_bridge::make_stub_view_transform().release();
+#else
+  try {
+    auto handle = std::make_unique<ocio_rs_bridge::ViewTransformHandle>();
+    auto obj = std::make_shared<ocio_rs_bridge::RealViewTransform>();
+    obj->transform = ocio::ViewTransform::Create(static_cast<ocio::ReferenceSpaceType>(referenceSpace));
+    handle->inner = obj;
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_view_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ViewTransformHandle*>(handle);
+}
+
+void* ocio_view_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_view_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_view_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ViewTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(
+        ocio_rs_bridge::RealViewTransform{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_view_transform_get_name(void* handle) {
@@ -4932,7 +5067,7 @@ void* ocio_view_transform_get_name(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_view_transform(handle)->getName();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getName()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4954,7 +5089,7 @@ void* ocio_view_transform_get_family(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_view_transform(handle)->getFamily();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getFamily()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4976,7 +5111,7 @@ void* ocio_view_transform_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_view_transform(handle)->getDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4998,7 +5133,7 @@ void ocio_view_transform_set_interchange_attribute(void* handle, const char* att
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, value);
+    ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
   } catch (...) { return ; }
 #endif
 }
@@ -5053,7 +5188,7 @@ void* ocio_view_transform_get_category(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_view_transform(handle)->getCategory(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getCategory(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5102,10 +5237,41 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    ocio::TransformRcPtr transform_ptr;
+    if (transform) {
+      auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+      transform_ptr = _transform_h->get_ocio_transform();
+    }
     ocio_rs_bridge::get_real_view_transform(handle)->setTransform(transform_ptr, static_cast<ocio::ViewTransformDirection>(dir));
   } catch (...) { return ; }
+#endif
+}
+
+void* ocio_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    if (!handle) return nullptr;
+    auto* transform_handle = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
+    auto transform = transform_handle->get_ocio_transform();
+    if (!transform) return nullptr;
+    return ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_transform_get_transform_type(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return -1;
+#else
+  try {
+    if (!handle) return -1;
+    auto* transform = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
+    return transform->get_transform_type_tag();
+  } catch (...) { return -1; }
 #endif
 }
 
@@ -5152,7 +5318,7 @@ void* ocio_processor_get_cache_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_processor(handle)->getCacheID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_processor(handle)->getCacheID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5160,7 +5326,7 @@ void* ocio_processor_get_cache_id(void* handle) {
 void* ocio_processor_get_processor_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return reinterpret_cast<void*>(1);
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getProcessorMetadata();
@@ -5176,10 +5342,10 @@ void* ocio_processor_get_processor_metadata(void* handle) {
 void* ocio_processor_get_format_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return reinterpret_cast<void*>(1);
 #else
   try {
-    return &ocio_rs_bridge::get_real_processor(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_processor(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5198,10 +5364,10 @@ int ocio_processor_get_num_transforms(void* handle) {
 void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index;
-  return nullptr;
+  return reinterpret_cast<void*>(1);
 #else
   try {
-    return &ocio_rs_bridge::get_real_processor(handle)->getTransformFormatMetadata(index);
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_processor(handle)->getTransformFormatMetadata(index))));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5209,7 +5375,7 @@ void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
 void* ocio_processor_create_group_transform(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return ocio_rs_bridge::make_stub_group_transform().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->createGroupTransform();
@@ -5261,7 +5427,7 @@ bool ocio_processor_is_dynamic(void* handle) {
 void* ocio_processor_get_optimized_processor_v1(void* handle, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
@@ -5277,7 +5443,7 @@ void* ocio_processor_get_optimized_processor_v1(void* handle, int oFlags) {
 void* ocio_processor_get_optimized_processor_v2(void* handle, int inBD, int outBD, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)inBD; (void)outBD; (void)oFlags;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(static_cast<ocio::BitDepth>(inBD), static_cast<ocio::BitDepth>(outBD), static_cast<ocio::OptimizationFlags>(oFlags));
@@ -5293,7 +5459,7 @@ void* ocio_processor_get_optimized_processor_v2(void* handle, int inBD, int outB
 void* ocio_processor_get_default_gpu_processor(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return ocio_rs_bridge::make_stub_gpu_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getDefaultGPUProcessor();
@@ -5309,7 +5475,7 @@ void* ocio_processor_get_default_gpu_processor(void* handle) {
 void* ocio_processor_get_optimized_gpu_processor(void* handle, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_gpu_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedGPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
@@ -5325,10 +5491,10 @@ void* ocio_processor_get_optimized_gpu_processor(void* handle, int oFlags) {
 void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags, void* edgelen) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags; (void)edgelen;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_gpu_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedLegacyGPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags), edgelen);
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedLegacyGPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags), static_cast<unsigned>(reinterpret_cast<uintptr_t>(edgelen)));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GPUProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
@@ -5341,7 +5507,7 @@ void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags
 void* ocio_processor_get_default_cpu_processor(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return ocio_rs_bridge::make_stub_cpu_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getDefaultCPUProcessor();
@@ -5357,7 +5523,7 @@ void* ocio_processor_get_default_cpu_processor(void* handle) {
 void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_cpu_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
@@ -5373,7 +5539,7 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
 void* ocio_processor_get_optimized_cpu_processor_v1(void* handle, int inBitDepth, int outBitDepth, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)inBitDepth; (void)outBitDepth; (void)oFlags;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_cpu_processor().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(static_cast<ocio::BitDepth>(inBitDepth), static_cast<ocio::BitDepth>(outBitDepth), static_cast<ocio::OptimizationFlags>(oFlags));
@@ -5440,7 +5606,7 @@ void* ocio_cpu_processor_get_cache_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_cpu_processor(handle)->getCacheID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cpu_processor(handle)->getCacheID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5532,7 +5698,7 @@ void ocio_cpu_processor_apply_rgb(void* handle, void* pixel) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGB(pixel);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGB(static_cast<float*>(pixel));
   } catch (...) { return ; }
 #endif
 }
@@ -5543,7 +5709,7 @@ void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGBA(pixel);
+    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGBA(static_cast<float*>(pixel));
   } catch (...) { return ; }
 #endif
 }
@@ -5591,7 +5757,7 @@ void* ocio_gpu_processor_get_cache_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_processor(handle)->getCacheID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_gpu_processor(handle)->getCacheID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5629,7 +5795,13 @@ void* ocio_gpu_shader_desc_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_gpu_shader_desc().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  try {
+    auto result = ocio::GpuShaderDesc::CreateShaderDesc();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -5645,10 +5817,268 @@ void* ocio_gpu_shader_desc_clone(void* handle) {
   try {
     auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->clone();
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::GpuShaderCreatorHandle>();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderCreator>(ocio_rs_bridge::RealGpuShaderCreator{result});
+    auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(result);
+    if (!desc) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{desc});
     return out_handle.release();
   } catch (...) { return nullptr; }
+#endif
+}
+
+unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumUniforms();
+  } catch (...) { return 0; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpuUniformInfo* out) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)out;
+  return false;
+#else
+  try {
+    if (!out) return false;
+    ocio::GpuShaderDesc::UniformData data;
+    const char* name = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
+    out->name = name;
+    out->type = static_cast<int>(data.m_type);
+    out->buffer_offset = data.m_bufferOffset;
+    out->value_count = 0;
+    switch (data.m_type) {
+      case ocio::UNIFORM_DOUBLE:
+      case ocio::UNIFORM_BOOL:
+        out->value_count = 1;
+        break;
+      case ocio::UNIFORM_FLOAT3:
+        out->value_count = 3;
+        break;
+      case ocio::UNIFORM_VECTOR_FLOAT:
+        out->value_count = data.m_vectorFloat.m_getSize ? static_cast<size_t>(data.m_vectorFloat.m_getSize()) : 0;
+        break;
+      case ocio::UNIFORM_VECTOR_INT:
+        out->value_count = data.m_vectorInt.m_getSize ? static_cast<size_t>(data.m_vectorInt.m_getSize()) : 0;
+        break;
+      default:
+        out->value_count = 0;
+        break;
+    }
+    return name != nullptr;
+  } catch (...) { return false; }
+#endif
+}
+
+size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index) {
+  OcioGpuUniformInfo info{};
+  return ocio_gpu_shader_desc_get_uniform_info(handle, index, &info) ? info.value_count : 0;
+}
+
+bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values) return false;
+    ocio::GpuShaderDesc::UniformData data;
+    const char* name = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
+    if (!name) return false;
+    switch (data.m_type) {
+      case ocio::UNIFORM_DOUBLE:
+        if (len < 1 || !data.m_getDouble) return false;
+        values[0] = static_cast<float>(data.m_getDouble());
+        return true;
+      case ocio::UNIFORM_BOOL:
+        if (len < 1 || !data.m_getBool) return false;
+        values[0] = data.m_getBool() ? 1.0f : 0.0f;
+        return true;
+      case ocio::UNIFORM_FLOAT3: {
+        if (len < 3 || !data.m_getFloat3) return false;
+        const auto& rgb = data.m_getFloat3();
+        values[0] = rgb[0];
+        values[1] = rgb[1];
+        values[2] = rgb[2];
+        return true;
+      }
+      case ocio::UNIFORM_VECTOR_FLOAT: {
+        if (!data.m_vectorFloat.m_getSize || !data.m_vectorFloat.m_getVector) return false;
+        const size_t count = static_cast<size_t>(data.m_vectorFloat.m_getSize());
+        if (len < count) return false;
+        const float* src = data.m_vectorFloat.m_getVector();
+        if (!src && count > 0) return false;
+        for (size_t i = 0; i < count; ++i) values[i] = src[i];
+        return true;
+      }
+      default:
+        return false;
+    }
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values) return false;
+    ocio::GpuShaderDesc::UniformData data;
+    const char* name = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
+    if (!name || data.m_type != ocio::UNIFORM_VECTOR_INT) return false;
+    if (!data.m_vectorInt.m_getSize || !data.m_vectorInt.m_getVector) return false;
+    const size_t count = static_cast<size_t>(data.m_vectorInt.m_getSize());
+    if (len < count) return false;
+    const int* src = data.m_vectorInt.m_getVector();
+    if (!src && count > 0) return false;
+    for (size_t i = 0; i < count; ++i) values[i] = src[i];
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniformBufferSize();
+  } catch (...) { return 0; }
+#endif
+}
+
+unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumTextures();
+  } catch (...) { return 0; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)out;
+  return false;
+#else
+  try {
+    if (!out) return false;
+    const char* textureName = nullptr;
+    const char* samplerName = nullptr;
+    unsigned width = 0;
+    unsigned height = 0;
+    ocio::GpuShaderDesc::TextureType channel = ocio::GpuShaderDesc::TEXTURE_RGB_CHANNEL;
+    ocio::GpuShaderDesc::TextureDimensions dimensions = ocio::GpuShaderDesc::TEXTURE_1D;
+    ocio::Interpolation interpolation = ocio::INTERP_LINEAR;
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    desc->getTexture(index, textureName, samplerName, width, height, channel, dimensions, interpolation);
+    out->texture_name = textureName;
+    out->sampler_name = samplerName;
+    out->width = width;
+    out->height = height;
+    out->channel = static_cast<int>(channel);
+    out->dimensions = static_cast<int>(dimensions);
+    out->interpolation = static_cast<int>(interpolation);
+    out->binding_index = desc->getTextureShaderBindingIndex(index);
+    return textureName && samplerName && width > 0;
+  } catch (...) { return false; }
+#endif
+}
+
+size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return 0;
+#else
+  OcioGpuTexture2DInfo info{};
+  if (!ocio_gpu_shader_desc_get_texture_info(handle, index, &info)) return 0;
+  const size_t channels = info.channel == ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL ? 1 : 3;
+  return static_cast<size_t>(info.width) * static_cast<size_t>(info.height) * channels;
+#endif
+}
+
+bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values) return false;
+    const size_t expected = ocio_gpu_shader_desc_get_texture_value_count(handle, index);
+    if (expected == 0 || len < expected) return false;
+    const float* src = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureValues(index, src);
+    if (!src) return false;
+    for (size_t i = 0; i < expected; ++i) values[i] = src[i];
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+unsigned ocio_gpu_shader_desc_get_num3d_textures_u32(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNum3DTextures();
+  } catch (...) { return 0; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioGpuTexture3DInfo* out) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)out;
+  return false;
+#else
+  try {
+    if (!out) return false;
+    const char* textureName = nullptr;
+    const char* samplerName = nullptr;
+    unsigned edgeLen = 0;
+    ocio::Interpolation interpolation = ocio::INTERP_LINEAR;
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    desc->get3DTexture(index, textureName, samplerName, edgeLen, interpolation);
+    out->texture_name = textureName;
+    out->sampler_name = samplerName;
+    out->edge_len = edgeLen;
+    out->interpolation = static_cast<int>(interpolation);
+    out->binding_index = desc->get3DTextureShaderBindingIndex(index);
+    return textureName && samplerName && edgeLen > 0;
+  } catch (...) { return false; }
+#endif
+}
+
+size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned index) {
+  OcioGpuTexture3DInfo info{};
+  if (!ocio_gpu_shader_desc_get3d_texture_info(handle, index, &info)) return 0;
+  const size_t edge = static_cast<size_t>(info.edge_len);
+  return edge * edge * edge * 3;
+}
+
+bool ocio_gpu_shader_desc_copy3d_texture_values(void* handle, unsigned index, float* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values) return false;
+    const size_t expected = ocio_gpu_shader_desc_get3d_texture_value_count(handle, index);
+    if (expected == 0 || len < expected) return false;
+    const float* src = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureValues(index, src);
+    if (!src) return false;
+    for (size_t i = 0; i < expected; ++i) values[i] = src[i];
+    return true;
+  } catch (...) { return false; }
 #endif
 }
 
@@ -5658,7 +6088,8 @@ void* ocio_gpu_shader_desc_get_num_uniforms(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumUniforms();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumUniforms()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5669,7 +6100,9 @@ void* ocio_gpu_shader_desc_get_uniform(void* handle, void* index, void* data) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, *static_cast<ocio::GpuShaderDesc::UniformData*>(data));
+    return const_cast<char*>(ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)),
+        *static_cast<ocio::GpuShaderDesc::UniformData*>(data)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5680,7 +6113,8 @@ void* ocio_gpu_shader_desc_get_uniform_buffer_size(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniformBufferSize();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniformBufferSize()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5691,7 +6125,8 @@ void* ocio_gpu_shader_desc_get_num_textures(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumTextures();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumTextures()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5702,7 +6137,19 @@ void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char* tex
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTexture(index, textureName, samplerName, *static_cast<unsigned*>(width), *static_cast<unsigned*>(height), *static_cast<ocio::GpuShaderCreator::TextureType*>(channel), *static_cast<ocio::GpuShaderDesc::TextureDimensions*>(dimensions), *static_cast<ocio::Interpolation*>(interpolation));
+    const char* localTextureName = nullptr;
+    const char* localSamplerName = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTexture(
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)),
+        localTextureName,
+        localSamplerName,
+        *static_cast<unsigned*>(width),
+        *static_cast<unsigned*>(height),
+        *static_cast<ocio::GpuShaderDesc::TextureType*>(channel),
+        *static_cast<ocio::GpuShaderDesc::TextureDimensions*>(dimensions),
+        *static_cast<ocio::Interpolation*>(interpolation));
+    (void)textureName;
+    (void)samplerName;
   } catch (...) { return ; }
 #endif
 }
@@ -5713,7 +6160,10 @@ void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const fl
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureValues(index, values);
+    const float* localValues = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureValues(
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)), localValues);
+    (void)values;
   } catch (...) { return ; }
 #endif
 }
@@ -5724,7 +6174,9 @@ void* ocio_gpu_shader_desc_get_texture_shader_binding_index(void* handle, void* 
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureShaderBindingIndex(index);
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureShaderBindingIndex(
+            static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)))));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5735,7 +6187,8 @@ void* ocio_gpu_shader_desc_get_num3d_textures(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNum3DTextures();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNum3DTextures()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5746,7 +6199,16 @@ void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* t
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTexture(index, textureName, samplerName, *static_cast<unsigned*>(edgelen), *static_cast<ocio::Interpolation*>(interpolation));
+    const char* localTextureName = nullptr;
+    const char* localSamplerName = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTexture(
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)),
+        localTextureName,
+        localSamplerName,
+        *static_cast<unsigned*>(edgelen),
+        *static_cast<ocio::Interpolation*>(interpolation));
+    (void)textureName;
+    (void)samplerName;
   } catch (...) { return ; }
 #endif
 }
@@ -5757,7 +6219,10 @@ void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const 
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureValues(index, values);
+    const float* localValues = nullptr;
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureValues(
+        static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)), localValues);
+    (void)values;
   } catch (...) { return ; }
 #endif
 }
@@ -5768,7 +6233,9 @@ void* ocio_gpu_shader_desc_get3d_texture_shader_binding_index(void* handle, void
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureShaderBindingIndex(index);
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(
+        ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureShaderBindingIndex(
+            static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)))));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5779,7 +6246,7 @@ void* ocio_gpu_shader_desc_get_shader_text(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getShaderText();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getShaderText()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5836,7 +6303,7 @@ void* ocio_baker_get_format(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getFormat();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getFormat()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5855,10 +6322,10 @@ void ocio_baker_set_format(void* handle, const char* formatName) {
 void* ocio_baker_get_format_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return reinterpret_cast<void*>(1);
 #else
   try {
-    return &ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5866,10 +6333,10 @@ void* ocio_baker_get_format_metadata(void* handle) {
 void* ocio_baker_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return nullptr;
+  return reinterpret_cast<void*>(1);
 #else
   try {
-    return &ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5880,7 +6347,7 @@ void* ocio_baker_get_input_space(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getInputSpace();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getInputSpace()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5902,7 +6369,7 @@ void* ocio_baker_get_shaper_space(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getShaperSpace();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getShaperSpace()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5924,7 +6391,7 @@ void* ocio_baker_get_looks(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getLooks();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getLooks()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5946,7 +6413,7 @@ void* ocio_baker_get_target_space(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getTargetSpace();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getTargetSpace()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5968,7 +6435,7 @@ void* ocio_baker_get_display(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getDisplay();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getDisplay()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -5979,7 +6446,7 @@ void* ocio_baker_get_view(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_baker(handle)->getView();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_baker(handle)->getView()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6073,7 +6540,7 @@ void* ocio_context_get_cache_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getCacheID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getCacheID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6095,7 +6562,7 @@ void* ocio_context_get_search_path(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getSearchPath();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getSearchPath()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6117,7 +6584,7 @@ void* ocio_context_get_search_path_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getSearchPath(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getSearchPath(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6161,7 +6628,7 @@ void* ocio_context_get_working_dir(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getWorkingDir();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getWorkingDir()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6183,7 +6650,7 @@ void* ocio_context_get_string_var(void* handle, const char* name) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getStringVar(name);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVar(name)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6205,7 +6672,7 @@ void* ocio_context_get_string_var_name_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getStringVarNameByIndex(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVarNameByIndex(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6216,7 +6683,7 @@ void* ocio_context_get_string_var_by_index(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->getStringVarByIndex(index);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVarByIndex(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6284,7 +6751,7 @@ void* ocio_context_resolve_string_var(void* handle, const char* string) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6297,7 +6764,7 @@ void* ocio_context_resolve_string_var_v1(void* handle, const char* string, void*
   try {
     auto* _usedContextVars_h = static_cast<ocio_rs_bridge::ContextHandle*>(usedContextVars);
     auto usedContextVars_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_usedContextVars_h->inner)->context;
-    return ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string, usedContextVars_ptr);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string, usedContextVars_ptr)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6308,7 +6775,7 @@ void* ocio_context_resolve_file_location(void* handle, const char* filename) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6321,7 +6788,7 @@ void* ocio_context_resolve_file_location_v1(void* handle, const char* filename, 
   try {
     auto* _usedContextVars_h = static_cast<ocio_rs_bridge::ContextHandle*>(usedContextVars);
     auto usedContextVars_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_usedContextVars_h->inner)->context;
-    return ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename, usedContextVars_ptr);
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename, usedContextVars_ptr)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6443,7 +6910,7 @@ void ocio_allocation_transform_get_vars(void* handle, void* vars) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_allocation_transform(handle)->getVars(vars);
+    ocio_rs_bridge::get_real_allocation_transform(handle)->getVars(static_cast<float*>(vars));
   } catch (...) { return ; }
 #endif
 }
@@ -6482,7 +6949,7 @@ void* ocio_builtin_transform_get_style(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_transform(handle)->getStyle();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_builtin_transform(handle)->getStyle()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6504,7 +6971,7 @@ void* ocio_builtin_transform_get_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_builtin_transform(handle)->getDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_builtin_transform(handle)->getDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6532,7 +6999,7 @@ void* ocio_cdl_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6543,7 +7010,7 @@ void* ocio_cdl_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6587,7 +7054,7 @@ void ocio_cdl_transform_get_slope(void* handle, void* rgb) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cdl_transform(handle)->getSlope(rgb);
+    ocio_rs_bridge::get_real_cdl_transform(handle)->getSlope(static_cast<double*>(rgb));
   } catch (...) { return ; }
 #endif
 }
@@ -6609,7 +7076,7 @@ void ocio_cdl_transform_get_offset(void* handle, void* rgb) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cdl_transform(handle)->getOffset(rgb);
+    ocio_rs_bridge::get_real_cdl_transform(handle)->getOffset(static_cast<double*>(rgb));
   } catch (...) { return ; }
 #endif
 }
@@ -6631,7 +7098,7 @@ void ocio_cdl_transform_get_power(void* handle, void* rgb) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cdl_transform(handle)->getPower(rgb);
+    ocio_rs_bridge::get_real_cdl_transform(handle)->getPower(static_cast<double*>(rgb));
   } catch (...) { return ; }
 #endif
 }
@@ -6653,7 +7120,7 @@ void ocio_cdl_transform_get_sop(void* handle, void* vec9) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cdl_transform(handle)->getSOP(vec9);
+    ocio_rs_bridge::get_real_cdl_transform(handle)->getSOP(static_cast<double*>(vec9));
   } catch (...) { return ; }
 #endif
 }
@@ -6697,7 +7164,7 @@ void ocio_cdl_transform_get_sat_luma_coefs(void* handle, void* rgb) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_cdl_transform(handle)->getSatLumaCoefs(rgb);
+    ocio_rs_bridge::get_real_cdl_transform(handle)->getSatLumaCoefs(static_cast<double*>(rgb));
   } catch (...) { return ; }
 #endif
 }
@@ -6708,7 +7175,7 @@ void* ocio_cdl_transform_get_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_cdl_transform(handle)->getID();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cdl_transform(handle)->getID()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6730,7 +7197,7 @@ void* ocio_cdl_transform_get_first_sop_description(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_cdl_transform(handle)->getFirstSOPDescription();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cdl_transform(handle)->getFirstSOPDescription()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6802,7 +7269,7 @@ void* ocio_color_space_transform_get_src(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space_transform(handle)->getSrc();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space_transform(handle)->getSrc()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6824,7 +7291,7 @@ void* ocio_color_space_transform_get_dst(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_color_space_transform(handle)->getDst();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space_transform(handle)->getDst()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6918,7 +7385,7 @@ void* ocio_display_view_transform_get_src(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_display_view_transform(handle)->getSrc();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_display_view_transform(handle)->getSrc()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6940,7 +7407,7 @@ void* ocio_display_view_transform_get_display(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_display_view_transform(handle)->getDisplay();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_display_view_transform(handle)->getDisplay()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6962,7 +7429,7 @@ void* ocio_display_view_transform_get_view(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_display_view_transform(handle)->getView();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_display_view_transform(handle)->getView()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7045,7 +7512,7 @@ void* ocio_exponent_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7056,7 +7523,7 @@ void* ocio_exponent_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7117,7 +7584,7 @@ void* ocio_exponent_with_linear_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7128,7 +7595,7 @@ void* ocio_exponent_with_linear_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7189,7 +7656,7 @@ void* ocio_exposure_contrast_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7200,7 +7667,7 @@ void* ocio_exposure_contrast_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7525,7 +7992,7 @@ void* ocio_file_transform_get_src(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_transform(handle)->getSrc();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_transform(handle)->getSrc()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7547,7 +8014,7 @@ void* ocio_file_transform_get_ccc_id(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_file_transform(handle)->getCCCId();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_transform(handle)->getCCCId()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7614,7 +8081,28 @@ void* ocio_fixed_function_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_fixed_function_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  try {
+    auto result = ocio::FixedFunctionTransform::Create(ocio::FIXED_FUNCTION_ACES_RED_MOD_03);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{result});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_fixed_function_transform_create_with_params(int style, const double* params, size_t num) {
+#ifdef OCIO_RS_STUB
+  (void)style; (void)params; (void)num;
+  return ocio_rs_bridge::make_stub_fixed_function_transform().release();
+#else
+  try {
+    auto result = ocio::FixedFunctionTransform::Create(static_cast<ocio::FixedFunctionStyle>(style), params, num);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{result});
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -7628,7 +8116,7 @@ void* ocio_fixed_function_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7639,7 +8127,7 @@ void* ocio_fixed_function_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7652,6 +8140,28 @@ bool ocio_fixed_function_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_fixed_function_transform(handle)->equals(*static_cast<const ocio::FixedFunctionTransform*>(other));
   } catch (...) { return false; }
+#endif
+}
+
+int ocio_fixed_function_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_fixed_function_transform(handle)->getDirection();
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_fixed_function_transform_set_direction(void* handle, int dir) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)dir;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_fixed_function_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
+  } catch (...) { return ; }
 #endif
 }
 
@@ -7694,7 +8204,7 @@ void ocio_fixed_function_transform_get_params(void* handle, void* params) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_fixed_function_transform(handle)->getParams(params);
+    ocio_rs_bridge::get_real_fixed_function_transform(handle)->getParams(static_cast<double*>(params));
   } catch (...) { return ; }
 #endif
 }
@@ -7717,7 +8227,22 @@ void* ocio_grading_primary_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_grading_primary_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  return ocio_grading_primary_transform_create_with_style(static_cast<int>(ocio::GRADING_LOG));
+#endif
+}
+
+void* ocio_grading_primary_transform_create_with_style(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return ocio_rs_bridge::make_stub_grading_primary_transform().release();
+#else
+  try {
+    auto handle = std::make_unique<ocio_rs_bridge::GradingPrimaryTransformHandle>();
+    auto obj = std::make_shared<ocio_rs_bridge::RealGradingPrimaryTransform>();
+    obj->transform = ocio::GradingPrimaryTransform::Create(static_cast<ocio::GradingStyle>(style));
+    handle->inner = obj;
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -7731,7 +8256,7 @@ void* ocio_grading_primary_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7742,7 +8267,7 @@ void* ocio_grading_primary_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7786,7 +8311,7 @@ void* ocio_grading_primary_transform_get_value(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_primary_transform(handle)->getValue();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getValue())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7799,6 +8324,76 @@ void ocio_grading_primary_transform_set_value(void* handle, void* values) {
   try {
     ocio_rs_bridge::get_real_grading_primary_transform(handle)->setValue(*static_cast<const ocio::GradingPrimary*>(values));
   } catch (...) { return ; }
+#endif
+}
+
+bool ocio_grading_primary_transform_copy_value(void* handle, double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values || len < 34) return false;
+    const auto& v = ocio_rs_bridge::get_real_grading_primary_transform(handle)->getValue();
+    size_t off = 0;
+    auto write_rgbm = [&](const ocio::GradingRGBM& rgbm) {
+      values[off++] = rgbm.m_red;
+      values[off++] = rgbm.m_green;
+      values[off++] = rgbm.m_blue;
+      values[off++] = rgbm.m_master;
+    };
+    write_rgbm(v.m_brightness);
+    write_rgbm(v.m_contrast);
+    write_rgbm(v.m_gamma);
+    write_rgbm(v.m_offset);
+    write_rgbm(v.m_exposure);
+    write_rgbm(v.m_lift);
+    write_rgbm(v.m_gain);
+    values[off++] = v.m_saturation;
+    values[off++] = v.m_pivot;
+    values[off++] = v.m_pivotBlack;
+    values[off++] = v.m_pivotWhite;
+    values[off++] = v.m_clampBlack;
+    values[off++] = v.m_clampWhite;
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values || len < 34) return false;
+    auto transform = ocio_rs_bridge::get_real_grading_primary_transform(handle);
+    ocio::GradingPrimary v(static_cast<ocio::GradingStyle>(transform->getStyle()));
+    size_t off = 0;
+    auto read_rgbm = [&]() {
+      ocio::GradingRGBM rgbm;
+      rgbm.m_red = values[off++];
+      rgbm.m_green = values[off++];
+      rgbm.m_blue = values[off++];
+      rgbm.m_master = values[off++];
+      return rgbm;
+    };
+    v.m_brightness = read_rgbm();
+    v.m_contrast = read_rgbm();
+    v.m_gamma = read_rgbm();
+    v.m_offset = read_rgbm();
+    v.m_exposure = read_rgbm();
+    v.m_lift = read_rgbm();
+    v.m_gain = read_rgbm();
+    v.m_saturation = values[off++];
+    v.m_pivot = values[off++];
+    v.m_pivotBlack = values[off++];
+    v.m_pivotWhite = values[off++];
+    v.m_clampBlack = values[off++];
+    v.m_clampWhite = values[off++];
+    transform->setValue(v);
+    return true;
+  } catch (...) { return false; }
 #endif
 }
 
@@ -7842,7 +8437,22 @@ void* ocio_grading_rgb_curve_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_grading_rgb_curve_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  return ocio_grading_rgb_curve_transform_create_with_style(static_cast<int>(ocio::GRADING_LOG));
+#endif
+}
+
+void* ocio_grading_rgb_curve_transform_create_with_style(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return ocio_rs_bridge::make_stub_grading_rgb_curve_transform().release();
+#else
+  try {
+    auto result = ocio::GradingRGBCurveTransform::Create(static_cast<ocio::GradingStyle>(style));
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::GradingRGBCurveTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealGradingRGBCurveTransform>(ocio_rs_bridge::RealGradingRGBCurveTransform{result});
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -7856,7 +8466,7 @@ void* ocio_grading_rgb_curve_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7867,7 +8477,7 @@ void* ocio_grading_rgb_curve_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -7880,6 +8490,28 @@ bool ocio_grading_rgb_curve_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->equals(*static_cast<const ocio::GradingRGBCurveTransform*>(other));
   } catch (...) { return false; }
+#endif
+}
+
+int ocio_grading_rgb_curve_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getDirection();
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_direction(void* handle, int dir) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)dir;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
+  } catch (...) { return ; }
 #endif
 }
 
@@ -7930,6 +8562,71 @@ void ocio_grading_rgb_curve_transform_set_value(void* handle, void* values) {
     auto* _values_h = static_cast<ocio_rs_bridge::GradingRGBCurveHandle*>(values);
     auto values_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGradingRGBCurve>(_values_h->inner)->curve;
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setValue(values_ptr);
+  } catch (...) { return ; }
+#endif
+}
+
+int ocio_grading_rgb_curve_transform_get_num_control_points(void* handle, int c) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c;
+  return 0;
+#else
+  try {
+    auto curve = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::RGBCurveType>(c));
+    if (!curve) return 0;
+    return static_cast<int>(curve->getNumControlPoints());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)index; (void)x; (void)y;
+  return;
+#else
+  try {
+    if (!x || !y || index < 0) return;
+    auto curve = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::RGBCurveType>(c));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    const auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    *x = point.m_x;
+    *y = point.m_y;
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_num_control_points(void* handle, int c, int num) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)num;
+  return;
+#else
+  try {
+    if (num < 0) return;
+    auto transform = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle);
+    auto value = ocio::GradingRGBCurve::Create(transform->getValue());
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(c));
+    if (!curve) return;
+    curve->setNumControlPoints(static_cast<size_t>(num));
+    transform->setValue(value);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_grading_rgb_curve_transform_set_control_point(void* handle, int c, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)index; (void)x; (void)y;
+  return;
+#else
+  try {
+    if (index < 0) return;
+    auto transform = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle);
+    auto value = ocio::GradingRGBCurve::Create(transform->getValue());
+    auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(c));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    point.m_x = x;
+    point.m_y = y;
+    transform->setValue(value);
   } catch (...) { return ; }
 #endif
 }
@@ -8029,7 +8726,22 @@ void* ocio_grading_hue_curve_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_grading_hue_curve_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  return ocio_grading_hue_curve_transform_create_with_style(static_cast<int>(ocio::GRADING_LOG));
+#endif
+}
+
+void* ocio_grading_hue_curve_transform_create_with_style(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return ocio_rs_bridge::make_stub_grading_hue_curve_transform().release();
+#else
+  try {
+    auto result = ocio::GradingHueCurveTransform::Create(static_cast<ocio::GradingStyle>(style));
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::GradingHueCurveTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealGradingHueCurveTransform>(ocio_rs_bridge::RealGradingHueCurveTransform{result});
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -8043,7 +8755,7 @@ void* ocio_grading_hue_curve_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8054,7 +8766,7 @@ void* ocio_grading_hue_curve_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8067,6 +8779,28 @@ bool ocio_grading_hue_curve_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->equals(*static_cast<const ocio::GradingHueCurveTransform*>(other));
   } catch (...) { return false; }
+#endif
+}
+
+int ocio_grading_hue_curve_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getDirection();
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_grading_hue_curve_transform_set_direction(void* handle, int dir) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)dir;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
+  } catch (...) { return ; }
 #endif
 }
 
@@ -8117,6 +8851,71 @@ void ocio_grading_hue_curve_transform_set_value(void* handle, void* value) {
     auto* _value_h = static_cast<ocio_rs_bridge::GradingHueCurveHandle*>(value);
     auto value_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGradingHueCurve>(_value_h->inner)->curve;
     ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->setValue(value_ptr);
+  } catch (...) { return ; }
+#endif
+}
+
+int ocio_grading_hue_curve_transform_get_num_control_points(void* handle, int c) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c;
+  return 0;
+#else
+  try {
+    auto curve = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::HueCurveType>(c));
+    if (!curve) return 0;
+    return static_cast<int>(curve->getNumControlPoints());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_grading_hue_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)index; (void)x; (void)y;
+  return;
+#else
+  try {
+    if (!x || !y || index < 0) return;
+    auto curve = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::HueCurveType>(c));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    const auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    *x = point.m_x;
+    *y = point.m_y;
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_grading_hue_curve_transform_set_num_control_points(void* handle, int c, int num) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)num;
+  return;
+#else
+  try {
+    if (num < 0) return;
+    auto transform = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle);
+    auto value = ocio::GradingHueCurve::Create(transform->getValue());
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
+    if (!curve) return;
+    curve->setNumControlPoints(static_cast<size_t>(num));
+    transform->setValue(value);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_grading_hue_curve_transform_set_control_point(void* handle, int c, int index, float x, float y) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)c; (void)index; (void)x; (void)y;
+  return;
+#else
+  try {
+    if (index < 0) return;
+    auto transform = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle);
+    auto value = ocio::GradingHueCurve::Create(transform->getValue());
+    auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
+    if (!curve || static_cast<size_t>(index) >= curve->getNumControlPoints()) return;
+    auto& point = curve->getControlPoint(static_cast<size_t>(index));
+    point.m_x = x;
+    point.m_y = y;
+    transform->setValue(value);
   } catch (...) { return ; }
 #endif
 }
@@ -8216,7 +9015,22 @@ void* ocio_grading_tone_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_grading_tone_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  return ocio_grading_tone_transform_create_with_style(static_cast<int>(ocio::GRADING_LOG));
+#endif
+}
+
+void* ocio_grading_tone_transform_create_with_style(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  return ocio_rs_bridge::make_stub_grading_tone_transform().release();
+#else
+  try {
+    auto handle = std::make_unique<ocio_rs_bridge::GradingToneTransformHandle>();
+    auto obj = std::make_shared<ocio_rs_bridge::RealGradingToneTransform>();
+    obj->transform = ocio::GradingToneTransform::Create(static_cast<ocio::GradingStyle>(style));
+    handle->inner = obj;
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -8230,7 +9044,7 @@ void* ocio_grading_tone_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8241,7 +9055,7 @@ void* ocio_grading_tone_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8285,7 +9099,7 @@ void* ocio_grading_tone_transform_get_value(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_grading_tone_transform(handle)->getValue();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getValue())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8298,6 +9112,66 @@ void ocio_grading_tone_transform_set_value(void* handle, void* values) {
   try {
     ocio_rs_bridge::get_real_grading_tone_transform(handle)->setValue(*static_cast<const ocio::GradingTone*>(values));
   } catch (...) { return ; }
+#endif
+}
+
+bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values || len < 31) return false;
+    const auto& v = ocio_rs_bridge::get_real_grading_tone_transform(handle)->getValue();
+    size_t off = 0;
+    auto write_rgbmsw = [&](const ocio::GradingRGBMSW& rgbmsw) {
+      values[off++] = rgbmsw.m_red;
+      values[off++] = rgbmsw.m_green;
+      values[off++] = rgbmsw.m_blue;
+      values[off++] = rgbmsw.m_master;
+      values[off++] = rgbmsw.m_start;
+      values[off++] = rgbmsw.m_width;
+    };
+    write_rgbmsw(v.m_blacks);
+    write_rgbmsw(v.m_shadows);
+    write_rgbmsw(v.m_midtones);
+    write_rgbmsw(v.m_highlights);
+    write_rgbmsw(v.m_whites);
+    values[off++] = v.m_scontrast;
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values; (void)len;
+  return false;
+#else
+  try {
+    if (!values || len < 31) return false;
+    auto transform = ocio_rs_bridge::get_real_grading_tone_transform(handle);
+    ocio::GradingTone v(static_cast<ocio::GradingStyle>(transform->getStyle()));
+    size_t off = 0;
+    auto read_rgbmsw = [&]() {
+      ocio::GradingRGBMSW rgbmsw;
+      rgbmsw.m_red = values[off++];
+      rgbmsw.m_green = values[off++];
+      rgbmsw.m_blue = values[off++];
+      rgbmsw.m_master = values[off++];
+      rgbmsw.m_start = values[off++];
+      rgbmsw.m_width = values[off++];
+      return rgbmsw;
+    };
+    v.m_blacks = read_rgbmsw();
+    v.m_shadows = read_rgbmsw();
+    v.m_midtones = read_rgbmsw();
+    v.m_highlights = read_rgbmsw();
+    v.m_whites = read_rgbmsw();
+    v.m_scontrast = values[off++];
+    transform->setValue(v);
+    return true;
+  } catch (...) { return false; }
 #endif
 }
 
@@ -8357,7 +9231,7 @@ void* ocio_group_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8368,7 +9242,7 @@ void* ocio_group_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8421,8 +9295,8 @@ void ocio_group_transform_append_transform(void* handle, void* transform) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_group_transform(handle)->appendTransform(transform_ptr);
   } catch (...) { return ; }
 #endif
@@ -8434,8 +9308,8 @@ void ocio_group_transform_prepend_transform(void* handle, void* transform) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandle*>(transform);
-    auto transform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealTransform>(_transform_h->inner)->transform;
+    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_group_transform(handle)->prependTransform(transform_ptr);
   } catch (...) { return ; }
 #endif
@@ -8477,7 +9351,7 @@ void* ocio_log_affine_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8488,7 +9362,7 @@ void* ocio_log_affine_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8533,7 +9407,25 @@ void* ocio_log_camera_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_log_camera_transform().release();
 #else
-  return nullptr; // @TODO: implement make_real
+  const double values[3] = {0.01, 0.01, 0.01};
+  return ocio_log_camera_transform_create_with_lin_side_break(values);
+#endif
+}
+
+void* ocio_log_camera_transform_create_with_lin_side_break(const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)values;
+  return ocio_rs_bridge::make_stub_log_camera_transform().release();
+#else
+  try {
+    if (!values) return nullptr;
+    double lin_side_break[3] = { values[0], values[1], values[2] };
+    auto result = ocio::LogCameraTransform::Create(lin_side_break);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::LogCameraTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealLogCameraTransform>(ocio_rs_bridge::RealLogCameraTransform{result});
+    return handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -8547,7 +9439,7 @@ void* ocio_log_camera_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8558,7 +9450,7 @@ void* ocio_log_camera_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8571,6 +9463,28 @@ bool ocio_log_camera_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_log_camera_transform(handle)->equals(*static_cast<const ocio::LogCameraTransform*>(other));
   } catch (...) { return false; }
+#endif
+}
+
+int ocio_log_camera_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_log_camera_transform(handle)->getDirection();
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_log_camera_transform_set_direction(void* handle, int dir) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)dir;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
+  } catch (...) { return ; }
 #endif
 }
 
@@ -8592,6 +9506,169 @@ void ocio_log_camera_transform_set_base(void* handle, double base) {
 #else
   try {
     ocio_rs_bridge::get_real_log_camera_transform(handle)->setBase(base);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_get_log_side_slope_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3];
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->getLogSideSlopeValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_set_log_side_slope_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLogSideSlopeValue(tmp);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_get_log_side_offset_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3];
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->getLogSideOffsetValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_set_log_side_offset_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLogSideOffsetValue(tmp);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_slope_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3];
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinSideSlopeValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_slope_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLinSideSlopeValue(tmp);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_offset_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3];
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinSideOffsetValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_offset_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLinSideOffsetValue(tmp);
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_get_lin_side_break_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3];
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinSideBreakValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+  } catch (...) { return ; }
+#endif
+}
+
+void ocio_log_camera_transform_set_lin_side_break_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLinSideBreakValue(tmp);
+  } catch (...) { return ; }
+#endif
+}
+
+bool ocio_log_camera_transform_get_linear_slope_value(void* handle, double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return false;
+#else
+  try {
+    if (!values) return false;
+    double tmp[3];
+    bool result = ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinearSlopeValue(tmp);
+    values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
+    return result;
+  } catch (...) { return false; }
+#endif
+}
+
+void ocio_log_camera_transform_set_linear_slope_value(void* handle, const double* values) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)values;
+  return;
+#else
+  try {
+    if (!values) return;
+    double tmp[3] = { values[0], values[1], values[2] };
+    ocio_rs_bridge::get_real_log_camera_transform(handle)->setLinearSlopeValue(tmp);
   } catch (...) { return ; }
 #endif
 }
@@ -8630,7 +9707,7 @@ void* ocio_log_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8641,7 +9718,7 @@ void* ocio_log_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8735,7 +9812,7 @@ void* ocio_look_transform_get_src(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look_transform(handle)->getSrc();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look_transform(handle)->getSrc()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8757,7 +9834,7 @@ void* ocio_look_transform_get_dst(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look_transform(handle)->getDst();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look_transform(handle)->getDst()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8779,7 +9856,7 @@ void* ocio_look_transform_get_looks(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_look_transform(handle)->getLooks();
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look_transform(handle)->getLooks()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8862,7 +9939,7 @@ void* ocio_lut1d_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8873,7 +9950,7 @@ void* ocio_lut1d_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8895,7 +9972,8 @@ void* ocio_lut1d_transform_get_length(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_lut1d_transform(handle)->getLength();
+    auto length = ocio_rs_bridge::get_real_lut1d_transform(handle)->getLength();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(length));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8906,7 +9984,30 @@ void ocio_lut1d_transform_set_length(void* handle, void* length) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(length);
+    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(length)));
+  } catch (...) { return ; }
+#endif
+}
+
+uint64_t ocio_lut1d_transform_get_length_u64(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return static_cast<uint64_t>(ocio_rs_bridge::get_real_lut1d_transform(handle)->getLength());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut1d_transform_set_length_u64(void* handle, uint64_t length) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)length;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(static_cast<unsigned long>(length));
   } catch (...) { return ; }
 #endif
 }
@@ -8917,7 +10018,9 @@ void ocio_lut1d_transform_get_value(void* handle, void* index, void* r, void* g,
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut1d_transform(handle)->getValue(index, *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
+    ocio_rs_bridge::get_real_lut1d_transform(handle)->getValue(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)),
+        *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
   } catch (...) { return ; }
 #endif
 }
@@ -8928,7 +10031,8 @@ void ocio_lut1d_transform_set_value(void* handle, void* index, float r, float g,
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut1d_transform(handle)->setValue(index, r, g, b);
+    ocio_rs_bridge::get_real_lut1d_transform(handle)->setValue(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)), r, g, b);
   } catch (...) { return ; }
 #endif
 }
@@ -9066,7 +10170,7 @@ void* ocio_lut3d_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9077,7 +10181,7 @@ void* ocio_lut3d_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9099,7 +10203,8 @@ void* ocio_lut3d_transform_get_grid_size(void* handle) {
   return nullptr;
 #else
   try {
-    return ocio_rs_bridge::get_real_lut3d_transform(handle)->getGridSize();
+    auto gridSize = ocio_rs_bridge::get_real_lut3d_transform(handle)->getGridSize();
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(gridSize));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9110,7 +10215,30 @@ void ocio_lut3d_transform_set_grid_size(void* handle, void* gridSize) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(gridSize);
+    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(gridSize)));
+  } catch (...) { return ; }
+#endif
+}
+
+uint64_t ocio_lut3d_transform_get_grid_size_u64(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return static_cast<uint64_t>(ocio_rs_bridge::get_real_lut3d_transform(handle)->getGridSize());
+  } catch (...) { return 0; }
+#endif
+}
+
+void ocio_lut3d_transform_set_grid_size_u64(void* handle, uint64_t gridSize) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)gridSize;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(static_cast<unsigned long>(gridSize));
   } catch (...) { return ; }
 #endif
 }
@@ -9121,7 +10249,11 @@ void ocio_lut3d_transform_get_value(void* handle, void* indexR, void* indexG, vo
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut3d_transform(handle)->getValue(indexR, indexG, indexB, *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
+    ocio_rs_bridge::get_real_lut3d_transform(handle)->getValue(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexR)),
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
+        *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
   } catch (...) { return ; }
 #endif
 }
@@ -9132,7 +10264,11 @@ void ocio_lut3d_transform_set_value(void* handle, void* indexR, void* indexG, vo
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut3d_transform(handle)->setValue(indexR, indexG, indexB, r, g, b);
+    ocio_rs_bridge::get_real_lut3d_transform(handle)->setValue(
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexR)),
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
+        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
+        r, g, b);
   } catch (...) { return ; }
 #endif
 }
@@ -9182,7 +10318,7 @@ void* ocio_matrix_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9193,7 +10329,7 @@ void* ocio_matrix_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9215,7 +10351,7 @@ void ocio_matrix_transform_get_matrix(void* handle, void* m44) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_matrix_transform(handle)->getMatrix(m44);
+    ocio_rs_bridge::get_real_matrix_transform(handle)->getMatrix(static_cast<double*>(m44));
   } catch (...) { return ; }
 #endif
 }
@@ -9237,7 +10373,7 @@ void ocio_matrix_transform_get_offset(void* handle, void* offset4) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_matrix_transform(handle)->getOffset(offset4);
+    ocio_rs_bridge::get_real_matrix_transform(handle)->getOffset(static_cast<double*>(offset4));
   } catch (...) { return ; }
 #endif
 }
@@ -9342,7 +10478,7 @@ void* ocio_range_transform_get_format_metadata_v1(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -9353,7 +10489,7 @@ void* ocio_range_transform_get_format_metadata_v2(void* handle) {
   return nullptr;
 #else
   try {
-    return &ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata();
+    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
   } catch (...) { return nullptr; }
 #endif
 }

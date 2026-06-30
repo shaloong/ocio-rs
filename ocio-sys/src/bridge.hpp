@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifndef BEGIN_TRY
 #define BEGIN_TRY try {
@@ -20,6 +21,32 @@
 #endif
 
 extern "C" {
+
+typedef struct OcioGpuTexture2DInfo {
+  const char* texture_name;
+  const char* sampler_name;
+  unsigned width;
+  unsigned height;
+  int channel;
+  int dimensions;
+  int interpolation;
+  unsigned binding_index;
+} OcioGpuTexture2DInfo;
+
+typedef struct OcioGpuTexture3DInfo {
+  const char* texture_name;
+  const char* sampler_name;
+  unsigned edge_len;
+  int interpolation;
+  unsigned binding_index;
+} OcioGpuTexture3DInfo;
+
+typedef struct OcioGpuUniformInfo {
+  const char* name;
+  int type;
+  size_t buffer_offset;
+  size_t value_count;
+} OcioGpuUniformInfo;
 
 // --- Runtime ---
 bool ocio_runtime_is_stub(void);
@@ -47,6 +74,7 @@ bool ocio_builtin_config_registry_is_builtin_config_recommended(void* handle, si
 // --- Config ---
 void* ocio_config_create_raw(void);
 void* ocio_config_create_from_file(const char* path);
+void* ocio_config_create_from_builtin_config(const char* configName);
 void ocio_config_destroy(void* handle);
 
 int ocio_config_get_major_version(void* handle);
@@ -199,6 +227,7 @@ void* ocio_config_get_file_rules(void* handle);
 void ocio_config_set_file_rules(void* handle, void* fileRules);
 void* ocio_config_get_color_space_from_filepath(void* handle, const char* filePath);
 void* ocio_config_get_color_space_from_filepath_by_ref_type(void* handle, const char* filePath, void* ruleIndex);
+void* ocio_config_get_color_space_from_filepath_with_rule_index(void* handle, const char* filePath, size_t* ruleIndex);
 bool ocio_config_filepath_only_matches_default_rule(void* handle, const char* filePath);
 void* ocio_config_parse_color_space_from_string(void* handle, const char* str);
 bool ocio_config_is_strict_parsing_enabled(void* handle);
@@ -365,7 +394,9 @@ void ocio_named_transform_set_transform(void* handle, void* transform, int dir);
 
 // --- ViewTransform ---
 void* ocio_view_transform_create(void);
+void* ocio_view_transform_create_with_reference_space(int referenceSpace);
 void ocio_view_transform_destroy(void* handle);
+void* ocio_view_transform_create_editable_copy(void* handle);
 
 void* ocio_view_transform_get_name(void* handle);
 void ocio_view_transform_set_name(void* handle, const char* name);
@@ -383,6 +414,10 @@ void ocio_view_transform_clear_categories(void* handle);
 int ocio_view_transform_get_reference_space_type(void* handle);
 void* ocio_view_transform_get_transform(void* handle, int dir);
 void ocio_view_transform_set_transform(void* handle, void* transform, int dir);
+
+// --- Transform ---
+void* ocio_transform_create_editable_copy(void* handle);
+int ocio_transform_get_transform_type(void* handle);
 
 // --- Processor ---
 void* ocio_processor_create(void);
@@ -441,6 +476,20 @@ void* ocio_gpu_shader_desc_create(void);
 void ocio_gpu_shader_desc_destroy(void* handle);
 
 void* ocio_gpu_shader_desc_clone(void* handle);
+unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle);
+bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpuUniformInfo* out);
+size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index);
+bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len);
+bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
+size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);
+unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
+bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
+size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);
+bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len);
+unsigned ocio_gpu_shader_desc_get_num3d_textures_u32(void* handle);
+bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioGpuTexture3DInfo* out);
+size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned index);
+bool ocio_gpu_shader_desc_copy3d_texture_values(void* handle, unsigned index, float* values, size_t len);
 void* ocio_gpu_shader_desc_get_num_uniforms(void* handle);
 void* ocio_gpu_shader_desc_get_uniform(void* handle, void* index, void* data);
 void* ocio_gpu_shader_desc_get_uniform_buffer_size(void* handle);
@@ -658,11 +707,14 @@ void ocio_file_transform_set_interpolation(void* handle, int interp);
 
 // --- FixedFunctionTransform ---
 void* ocio_fixed_function_transform_create(void);
+void* ocio_fixed_function_transform_create_with_params(int style, const double* params, size_t num);
 void ocio_fixed_function_transform_destroy(void* handle);
 
 void* ocio_fixed_function_transform_get_format_metadata_v1(void* handle);
 void* ocio_fixed_function_transform_get_format_metadata_v2(void* handle);
 bool ocio_fixed_function_transform_equals(void* handle, void* other);
+int ocio_fixed_function_transform_get_direction(void* handle);
+void ocio_fixed_function_transform_set_direction(void* handle, int dir);
 int ocio_fixed_function_transform_get_style(void* handle);
 void ocio_fixed_function_transform_set_style(void* handle, int style);
 size_t ocio_fixed_function_transform_get_num_params(void* handle);
@@ -671,6 +723,7 @@ void ocio_fixed_function_transform_set_params(void* handle, const double* params
 
 // --- GradingPrimaryTransform ---
 void* ocio_grading_primary_transform_create(void);
+void* ocio_grading_primary_transform_create_with_style(int style);
 void ocio_grading_primary_transform_destroy(void* handle);
 
 void* ocio_grading_primary_transform_get_format_metadata_v1(void* handle);
@@ -680,21 +733,30 @@ int ocio_grading_primary_transform_get_style(void* handle);
 void ocio_grading_primary_transform_set_style(void* handle, int style);
 void* ocio_grading_primary_transform_get_value(void* handle);
 void ocio_grading_primary_transform_set_value(void* handle, void* values);
+bool ocio_grading_primary_transform_copy_value(void* handle, double* values, size_t len);
+bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const double* values, size_t len);
 bool ocio_grading_primary_transform_is_dynamic(void* handle);
 void ocio_grading_primary_transform_make_dynamic(void* handle);
 void ocio_grading_primary_transform_make_non_dynamic(void* handle);
 
 // --- GradingRGBCurveTransform ---
 void* ocio_grading_rgb_curve_transform_create(void);
+void* ocio_grading_rgb_curve_transform_create_with_style(int style);
 void ocio_grading_rgb_curve_transform_destroy(void* handle);
 
 void* ocio_grading_rgb_curve_transform_get_format_metadata_v1(void* handle);
 void* ocio_grading_rgb_curve_transform_get_format_metadata_v2(void* handle);
 bool ocio_grading_rgb_curve_transform_equals(void* handle, void* other);
+int ocio_grading_rgb_curve_transform_get_direction(void* handle);
+void ocio_grading_rgb_curve_transform_set_direction(void* handle, int dir);
 int ocio_grading_rgb_curve_transform_get_style(void* handle);
 void ocio_grading_rgb_curve_transform_set_style(void* handle, int style);
 void* ocio_grading_rgb_curve_transform_get_value(void* handle);
 void ocio_grading_rgb_curve_transform_set_value(void* handle, void* values);
+int ocio_grading_rgb_curve_transform_get_num_control_points(void* handle, int c);
+void ocio_grading_rgb_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y);
+void ocio_grading_rgb_curve_transform_set_num_control_points(void* handle, int c, int num);
+void ocio_grading_rgb_curve_transform_set_control_point(void* handle, int c, int index, float x, float y);
 float ocio_grading_rgb_curve_transform_get_slope(void* handle, int c, size_t index);
 void ocio_grading_rgb_curve_transform_set_slope(void* handle, int c, size_t index, float slope);
 bool ocio_grading_rgb_curve_transform_slopes_are_default(void* handle, int c);
@@ -706,15 +768,22 @@ void ocio_grading_rgb_curve_transform_make_non_dynamic(void* handle);
 
 // --- GradingHueCurveTransform ---
 void* ocio_grading_hue_curve_transform_create(void);
+void* ocio_grading_hue_curve_transform_create_with_style(int style);
 void ocio_grading_hue_curve_transform_destroy(void* handle);
 
 void* ocio_grading_hue_curve_transform_get_format_metadata_v1(void* handle);
 void* ocio_grading_hue_curve_transform_get_format_metadata_v2(void* handle);
 bool ocio_grading_hue_curve_transform_equals(void* handle, void* other);
+int ocio_grading_hue_curve_transform_get_direction(void* handle);
+void ocio_grading_hue_curve_transform_set_direction(void* handle, int dir);
 int ocio_grading_hue_curve_transform_get_style(void* handle);
 void ocio_grading_hue_curve_transform_set_style(void* handle, int style);
 void* ocio_grading_hue_curve_transform_get_value(void* handle);
 void ocio_grading_hue_curve_transform_set_value(void* handle, void* value);
+int ocio_grading_hue_curve_transform_get_num_control_points(void* handle, int c);
+void ocio_grading_hue_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y);
+void ocio_grading_hue_curve_transform_set_num_control_points(void* handle, int c, int num);
+void ocio_grading_hue_curve_transform_set_control_point(void* handle, int c, int index, float x, float y);
 float ocio_grading_hue_curve_transform_get_slope(void* handle, int c, size_t index);
 void ocio_grading_hue_curve_transform_set_slope(void* handle, int c, size_t index, float slope);
 bool ocio_grading_hue_curve_transform_slopes_are_default(void* handle, int c);
@@ -726,6 +795,7 @@ void ocio_grading_hue_curve_transform_make_non_dynamic(void* handle);
 
 // --- GradingToneTransform ---
 void* ocio_grading_tone_transform_create(void);
+void* ocio_grading_tone_transform_create_with_style(int style);
 void ocio_grading_tone_transform_destroy(void* handle);
 
 void* ocio_grading_tone_transform_get_format_metadata_v1(void* handle);
@@ -735,6 +805,8 @@ int ocio_grading_tone_transform_get_style(void* handle);
 void ocio_grading_tone_transform_set_style(void* handle, int style);
 void* ocio_grading_tone_transform_get_value(void* handle);
 void ocio_grading_tone_transform_set_value(void* handle, void* values);
+bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t len);
+bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* values, size_t len);
 bool ocio_grading_tone_transform_is_dynamic(void* handle);
 void ocio_grading_tone_transform_make_dynamic(void* handle);
 void ocio_grading_tone_transform_make_non_dynamic(void* handle);
@@ -764,13 +836,28 @@ void ocio_log_affine_transform_set_base(void* handle, double base);
 
 // --- LogCameraTransform ---
 void* ocio_log_camera_transform_create(void);
+void* ocio_log_camera_transform_create_with_lin_side_break(const double* values);
 void ocio_log_camera_transform_destroy(void* handle);
 
 void* ocio_log_camera_transform_get_format_metadata_v1(void* handle);
 void* ocio_log_camera_transform_get_format_metadata_v2(void* handle);
 bool ocio_log_camera_transform_equals(void* handle, void* other);
+int ocio_log_camera_transform_get_direction(void* handle);
+void ocio_log_camera_transform_set_direction(void* handle, int dir);
 double ocio_log_camera_transform_get_base(void* handle);
 void ocio_log_camera_transform_set_base(void* handle, double base);
+void ocio_log_camera_transform_get_log_side_slope_value(void* handle, double* values);
+void ocio_log_camera_transform_set_log_side_slope_value(void* handle, const double* values);
+void ocio_log_camera_transform_get_log_side_offset_value(void* handle, double* values);
+void ocio_log_camera_transform_set_log_side_offset_value(void* handle, const double* values);
+void ocio_log_camera_transform_get_lin_side_slope_value(void* handle, double* values);
+void ocio_log_camera_transform_set_lin_side_slope_value(void* handle, const double* values);
+void ocio_log_camera_transform_get_lin_side_offset_value(void* handle, double* values);
+void ocio_log_camera_transform_set_lin_side_offset_value(void* handle, const double* values);
+void ocio_log_camera_transform_get_lin_side_break_value(void* handle, double* values);
+void ocio_log_camera_transform_set_lin_side_break_value(void* handle, const double* values);
+bool ocio_log_camera_transform_get_linear_slope_value(void* handle, double* values);
+void ocio_log_camera_transform_set_linear_slope_value(void* handle, const double* values);
 void ocio_log_camera_transform_unset_linear_slope_value(void* handle);
 
 // --- LogTransform ---
@@ -810,6 +897,8 @@ void* ocio_lut1d_transform_get_format_metadata_v2(void* handle);
 bool ocio_lut1d_transform_equals(void* handle, void* other);
 void* ocio_lut1d_transform_get_length(void* handle);
 void ocio_lut1d_transform_set_length(void* handle, void* length);
+uint64_t ocio_lut1d_transform_get_length_u64(void* handle);
+void ocio_lut1d_transform_set_length_u64(void* handle, uint64_t length);
 void ocio_lut1d_transform_get_value(void* handle, void* index, void* r, void* g, void* b);
 void ocio_lut1d_transform_set_value(void* handle, void* index, float r, float g, float b);
 bool ocio_lut1d_transform_get_input_half_domain(void* handle);
@@ -832,6 +921,8 @@ void* ocio_lut3d_transform_get_format_metadata_v2(void* handle);
 bool ocio_lut3d_transform_equals(void* handle, void* other);
 void* ocio_lut3d_transform_get_grid_size(void* handle);
 void ocio_lut3d_transform_set_grid_size(void* handle, void* gridSize);
+uint64_t ocio_lut3d_transform_get_grid_size_u64(void* handle);
+void ocio_lut3d_transform_set_grid_size_u64(void* handle, uint64_t gridSize);
 void ocio_lut3d_transform_get_value(void* handle, void* indexR, void* indexG, void* indexB, void* r, void* g, void* b);
 void ocio_lut3d_transform_set_value(void* handle, void* indexR, void* indexG, void* indexB, float r, float g, float b);
 int ocio_lut3d_transform_get_interpolation(void* handle);

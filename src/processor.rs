@@ -1,9 +1,12 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
+use crate::{
+    cstr_from_mut, cstr_to_opt_string, cstring, DynamicPropertyType, FormatMetadata, GpuLanguage,
+    HueCurveType, Interpolation, OcioError, RGBCurveType, Result,
+};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, GpuLanguage, DynamicPropertyType, RGBCurveType, FormatMetadata};
-use crate::transform::{Transform, GroupTransform, transform_from_raw_handle};
 
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
@@ -12,14 +15,23 @@ pub struct Processor {
 impl Processor {
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
         unsafe {
-            ocio_sys::ocio_processor_apply_rgba(self.handle.as_ptr(), rgba.as_mut_ptr(), rgba.len());
+            ocio_sys::ocio_processor_apply_rgba(
+                self.handle.as_ptr(),
+                rgba.as_mut_ptr(),
+                rgba.len(),
+            );
         }
         Ok(())
     }
 
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
         unsafe {
-            ocio_sys::ocio_processor_apply_rgba_pixels(self.handle.as_ptr(), rgba.as_mut_ptr(), num_pixels, stride);
+            ocio_sys::ocio_processor_apply_rgba_pixels(
+                self.handle.as_ptr(),
+                rgba.as_mut_ptr(),
+                num_pixels,
+                stride,
+            );
         }
     }
 
@@ -28,78 +40,111 @@ impl Processor {
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_processor_get_cache_id(
+                self.handle.as_ptr() as *mut c_void
+            ))
+        }
     }
 
     pub fn default_cpu_processor(&self) -> Result<CPUProcessor> {
-        let handle = unsafe { ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void)
+        };
+        NonNull::new(handle)
+            .map(|h| CPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn optimized_cpu_processor(&self, flags: u64) -> Result<CPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| CPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn default_gpu_processor(&self) -> Result<GPUProcessor> {
-        let handle = unsafe { ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void)
+        };
+        NonNull::new(handle)
+            .map(|h| GPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| GPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn default_cpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32) -> Result<CPUProcessor> {
-        let handle = unsafe {
-            ocio_sys::ocio_processor_get_default_cpu_processor_bitdepth(
-                self.handle.as_ptr(), in_bit_depth, out_bit_depth,
-            )
-        };
-        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    pub fn default_cpu_processor_bitdepth(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+    ) -> Result<CPUProcessor> {
+        self.optimized_cpu_processor_bitdepth(in_bit_depth, out_bit_depth, 0)
     }
 
-    pub fn optimized_cpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32, flags: u64) -> Result<CPUProcessor> {
+    pub fn optimized_cpu_processor_bitdepth(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+        flags: u64,
+    ) -> Result<CPUProcessor> {
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_cpu_processor_bitdepth(
-                self.handle.as_ptr(), in_bit_depth, out_bit_depth, flags,
+            ocio_sys::ocio_processor_get_optimized_cpu_processor_v1(
+                self.handle.as_ptr(),
+                in_bit_depth,
+                out_bit_depth,
+                flags as i32,
             )
         };
-        NonNull::new(handle).map(|h| CPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| CPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn default_gpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32) -> Result<GPUProcessor> {
-        let handle = unsafe {
-            ocio_sys::ocio_processor_get_default_gpu_processor_bitdepth(
-                self.handle.as_ptr(), in_bit_depth, out_bit_depth,
-            )
-        };
-        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    pub fn default_gpu_processor_bitdepth(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+    ) -> Result<GPUProcessor> {
+        let _ = (in_bit_depth, out_bit_depth);
+        self.default_gpu_processor()
     }
 
-    pub fn optimized_gpu_processor_bitdepth(&self, in_bit_depth: i32, out_bit_depth: i32, flags: u64) -> Result<GPUProcessor> {
-        let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_gpu_processor_bitdepth(
-                self.handle.as_ptr(), in_bit_depth, out_bit_depth, flags,
-            )
-        };
-        NonNull::new(handle).map(|h| GPUProcessor { handle: h }).ok_or(OcioError::AllocationFailed)
+    pub fn optimized_gpu_processor_bitdepth(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+        flags: u64,
+    ) -> Result<GPUProcessor> {
+        let _ = (in_bit_depth, out_bit_depth);
+        self.optimized_gpu_processor(flags)
     }
 
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_dynamic_property(self.handle.as_ptr(), property_type as i32)
+            ocio_sys::ocio_processor_get_dynamic_property(
+                self.handle.as_ptr(),
+                property_type as i32,
+            )
         };
-        NonNull::new(handle).map(|h| DynamicProperty { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| DynamicProperty { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn num_transforms(&self) -> i32 {
@@ -107,7 +152,9 @@ impl Processor {
     }
 
     pub fn create_group_transform(&self) -> Option<GroupTransform> {
-        let handle = unsafe { ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr() as *mut c_void) };
+        let handle = unsafe {
+            ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr() as *mut c_void)
+        };
         match transform_from_raw_handle(handle) {
             Some(Transform::Group(gt)) => Some(gt),
             _ => None,
@@ -118,24 +165,34 @@ impl Processor {
         let fmt = cstring(format_name)?;
         let fname = cstring(file_name)?;
         unsafe {
-            ocio_sys::ocio_processor_write(self.handle.as_ptr(), fmt.as_ptr().cast(), fname.as_ptr().cast());
+            ocio_sys::ocio_processor_write(
+                self.handle.as_ptr(),
+                fmt.as_ptr().cast(),
+                fname.as_ptr().cast(),
+            );
         }
         Ok(())
     }
 
     // ── v2.5.1 ──
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
-        let h = unsafe { ocio_sys::ocio_processor_get_format_metadata(self.handle.as_ptr() as *mut c_void) };
+        let h = unsafe {
+            ocio_sys::ocio_processor_get_format_metadata(self.handle.as_ptr() as *mut c_void)
+        };
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
     pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
-        let h = unsafe { ocio_sys::ocio_processor_get_transform_format_metadata(self.handle.as_ptr(), index) };
+        let h = unsafe {
+            ocio_sys::ocio_processor_get_transform_format_metadata(self.handle.as_ptr(), index)
+        };
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
     pub fn processor_metadata(&self) -> Option<FormatMetadata> {
-        let h = unsafe { ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void) };
+        let h = unsafe {
+            ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void)
+        };
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
@@ -163,32 +220,52 @@ pub struct CPUProcessor {
 impl CPUProcessor {
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba(self.handle.as_ptr(), rgba.as_mut_ptr() as *mut c_void);
+            ocio_sys::ocio_cpu_processor_apply_rgba(
+                self.handle.as_ptr(),
+                rgba.as_mut_ptr() as *mut c_void,
+            );
         }
     }
 
     pub fn apply_rgb(&self, rgb: &mut [f32; 3]) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgb(self.handle.as_ptr(), rgb.as_mut_ptr() as *mut c_void);
+            ocio_sys::ocio_cpu_processor_apply_rgb(
+                self.handle.as_ptr(),
+                rgb.as_mut_ptr() as *mut c_void,
+            );
         }
     }
 
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba_pixels(self.handle.as_ptr(), rgba.as_mut_ptr(), num_pixels, stride);
+            ocio_sys::ocio_cpu_processor_apply_rgba_pixels(
+                self.handle.as_ptr(),
+                rgba.as_mut_ptr(),
+                num_pixels,
+                stride,
+            );
         }
     }
 
     pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
         unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgb_pixels(self.handle.as_ptr(), rgb.as_mut_ptr(), num_pixels, stride);
+            ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
+                self.handle.as_ptr(),
+                rgb.as_mut_ptr(),
+                num_pixels,
+                stride,
+            );
         }
     }
 
     pub fn apply_rgba_packed(&self, rgba: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
-                self.handle.as_ptr(), rgba.as_mut_ptr() as *mut std::ffi::c_void, bit_depth, num_pixels, stride,
+                self.handle.as_ptr(),
+                rgba.as_mut_ptr() as *mut std::ffi::c_void,
+                bit_depth,
+                num_pixels,
+                stride,
             );
         }
     }
@@ -196,7 +273,11 @@ impl CPUProcessor {
     pub fn apply_rgb_packed(&self, rgb: &mut [u8], bit_depth: i32, num_pixels: i64, stride: i64) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_packed(
-                self.handle.as_ptr(), rgb.as_mut_ptr() as *mut std::ffi::c_void, bit_depth, num_pixels, stride,
+                self.handle.as_ptr(),
+                rgb.as_mut_ptr() as *mut std::ffi::c_void,
+                bit_depth,
+                num_pixels,
+                stride,
             );
         }
     }
@@ -206,19 +287,29 @@ impl CPUProcessor {
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_cpu_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_cpu_processor_get_cache_id(
+                self.handle.as_ptr() as *mut c_void,
+            ))
+        }
     }
 
     pub fn input_bit_depth(&self) -> i32 {
-        unsafe { ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn output_bit_depth(&self) -> i32 {
-        unsafe { ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn is_identity(&self) -> bool {
@@ -227,12 +318,16 @@ impl CPUProcessor {
 
     // ── v2.5.1 ──
     pub fn get_dynamic_property(&self, prop_type: i32) -> Option<DynamicProperty> {
-        let h = unsafe { ocio_sys::ocio_cpu_processor_get_dynamic_property(self.handle.as_ptr(), prop_type) };
+        let h = unsafe {
+            ocio_sys::ocio_cpu_processor_get_dynamic_property(self.handle.as_ptr(), prop_type)
+        };
         NonNull::new(h).map(|h| DynamicProperty { handle: h })
     }
 
     pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
+        unsafe {
+            ocio_sys::ocio_cpu_processor_has_dynamic_property(self.handle.as_ptr(), prop_type)
+        }
     }
 
     pub fn is_dynamic(&self) -> bool {
@@ -258,23 +353,33 @@ impl GPUProcessor {
     }
 
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe { ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_gpu_processor_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_gpu_processor_get_cache_id(
+                self.handle.as_ptr() as *mut c_void,
+            ))
+        }
     }
 
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
         unsafe {
-            ocio_sys::ocio_gpu_processor_extract_shader_info(
-                self.handle.as_ptr(), shader_desc.handle.as_ptr(),
+            ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v1(
+                self.handle.as_ptr(),
+                shader_desc.handle.as_ptr(),
             );
         }
     }
 
     // v2.5.1: API changed — now takes 3 args
-    pub fn extract_gpu_shader_info_cache_id(&self, _shader_desc: &mut GpuShaderDesc) -> Option<String> {
+    pub fn extract_gpu_shader_info_cache_id(
+        &self,
+        _shader_desc: &mut GpuShaderDesc,
+    ) -> Option<String> {
         None
     }
 }
@@ -291,30 +396,208 @@ pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum GpuTextureChannel {
+    Red = 0,
+    Rgb = 1,
+}
+
+impl GpuTextureChannel {
+    fn from_raw(value: i32) -> Self {
+        match value {
+            0 => Self::Red,
+            _ => Self::Rgb,
+        }
+    }
+
+    fn channel_count(self) -> usize {
+        match self {
+            Self::Red => 1,
+            Self::Rgb => 3,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum GpuTextureDimensions {
+    Texture1D = 0,
+    Texture2D = 1,
+}
+
+impl GpuTextureDimensions {
+    fn from_raw(value: i32) -> Self {
+        match value {
+            1 => Self::Texture2D,
+            _ => Self::Texture1D,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum GpuUniformType {
+    Double = 0,
+    Bool = 1,
+    Float3 = 2,
+    VectorFloat = 3,
+    VectorInt = 4,
+    Unknown = 5,
+}
+
+impl GpuUniformType {
+    fn from_raw(value: i32) -> Self {
+        match value {
+            0 => Self::Double,
+            1 => Self::Bool,
+            2 => Self::Float3,
+            3 => Self::VectorFloat,
+            4 => Self::VectorInt,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GpuTexture2D {
+    pub texture_name: String,
+    pub sampler_name: String,
+    pub width: u32,
+    pub height: u32,
+    pub channel: GpuTextureChannel,
+    pub dimensions: GpuTextureDimensions,
+    pub interpolation: Interpolation,
+    pub binding_index: u32,
+    pub values: Vec<f32>,
+}
+
+impl GpuTexture2D {
+    pub fn expected_value_count(&self) -> usize {
+        self.width as usize * self.height as usize * self.channel.channel_count()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GpuTexture3D {
+    pub texture_name: String,
+    pub sampler_name: String,
+    pub edge_len: u32,
+    pub interpolation: Interpolation,
+    pub binding_index: u32,
+    pub values: Vec<f32>,
+}
+
+impl GpuTexture3D {
+    pub fn expected_value_count(&self) -> usize {
+        let edge = self.edge_len as usize;
+        edge * edge * edge * 3
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum GpuUniformValue {
+    F32(Vec<f32>),
+    I32(Vec<i32>),
+    Unsupported,
+}
+
+#[derive(Debug, Clone)]
+pub struct GpuUniform {
+    pub name: String,
+    pub uniform_type: GpuUniformType,
+    pub buffer_offset: usize,
+    pub value_count: usize,
+    pub value: GpuUniformValue,
+}
+
 impl GpuShaderDesc {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_gpu_shader_desc_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn shader_text(&self) -> Option<String> {
         unsafe {
-            cstr_from_mut(ocio_sys::ocio_gpu_shader_desc_get_shader_text(self.handle.as_ptr() as *mut c_void))
+            cstr_from_mut(ocio_sys::ocio_gpu_shader_desc_get_shader_text(
+                self.handle.as_ptr() as *mut c_void,
+            ))
         }
     }
 
     pub fn num_textures(&self) -> u32 {
-        // v2.5.1: returns handle now, not u32
-        0
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(self.handle.as_ptr()) }
     }
 
-    pub fn texture_info(&self, _index: u32) -> Option<TextureInfo> {
-        // v2.5.1: API redesigned — params changed to *mut c_void
-        None
+    pub fn texture_info(&self, index: u32) -> Option<TextureInfo> {
+        self.texture_2d(index).map(|texture| TextureInfo {
+            texture_name: texture.texture_name,
+            sampler_name: texture.sampler_name,
+            width: texture.width,
+            height: texture.height,
+            channel: texture.channel as i32,
+            dimensions: texture.dimensions as i32,
+            interpolation: texture.interpolation as i32,
+        })
+    }
+
+    pub fn texture_2d(&self, index: u32) -> Option<GpuTexture2D> {
+        let mut info = ocio_sys::OcioGpuTexture2DInfo {
+            texture_name: std::ptr::null(),
+            sampler_name: std::ptr::null(),
+            width: 0,
+            height: 0,
+            channel: 0,
+            dimensions: 0,
+            interpolation: 0,
+            binding_index: 0,
+        };
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_info(self.handle.as_ptr(), index, &mut info)
+        };
+        if !ok {
+            return None;
+        }
+        let value_count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_value_count(self.handle.as_ptr(), index)
+        };
+        let mut values = vec![0.0f32; value_count];
+        let values_ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy_texture_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        if !values_ok && value_count > 0 {
+            return None;
+        }
+        Some(GpuTexture2D {
+            texture_name: unsafe { cstr_to_opt_string(info.texture_name) }.unwrap_or_default(),
+            sampler_name: unsafe { cstr_to_opt_string(info.sampler_name) }.unwrap_or_default(),
+            width: info.width,
+            height: info.height,
+            channel: GpuTextureChannel::from_raw(info.channel),
+            dimensions: GpuTextureDimensions::from_raw(info.dimensions),
+            interpolation: interpolation_from_raw(info.interpolation),
+            binding_index: info.binding_index,
+            values,
+        })
+    }
+
+    pub fn textures_2d(&self) -> Vec<GpuTexture2D> {
+        (0..self.num_textures())
+            .filter_map(|index| self.texture_2d(index))
+            .collect()
     }
 
     pub fn language(&self) -> GpuLanguage {
-        let l = unsafe { ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr() as *mut c_void) };
+        let l = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr() as *mut c_void)
+        };
         match l {
             0 => GpuLanguage::Cg,
             1 => GpuLanguage::Glsl1_2,
@@ -338,21 +621,28 @@ impl GpuShaderDesc {
 
     pub fn function_name(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(self.handle.as_ptr() as *mut c_void))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(
+                self.handle.as_ptr() as *mut c_void,
+            ))
         }
     }
 
     pub fn set_function_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         unsafe {
-            ocio_sys::ocio_gpu_shader_desc_set_function_name(self.handle.as_ptr(), n.as_ptr().cast());
+            ocio_sys::ocio_gpu_shader_desc_set_function_name(
+                self.handle.as_ptr(),
+                n.as_ptr().cast(),
+            );
         }
         Ok(())
     }
 
     pub fn pixel_name(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(self.handle.as_ptr() as *mut c_void))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(
+                self.handle.as_ptr() as *mut c_void,
+            ))
         }
     }
 
@@ -366,21 +656,27 @@ impl GpuShaderDesc {
 
     pub fn resource_prefix(&self) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(self.handle.as_ptr() as *mut c_void))
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(
+                self.handle.as_ptr() as *mut c_void,
+            ))
         }
     }
 
     pub fn set_resource_prefix(&self, prefix: impl AsRef<str>) -> Result<()> {
         let p = cstring(prefix)?;
         unsafe {
-            ocio_sys::ocio_gpu_shader_desc_set_resource_prefix(self.handle.as_ptr(), p.as_ptr().cast());
+            ocio_sys::ocio_gpu_shader_desc_set_resource_prefix(
+                self.handle.as_ptr(),
+                p.as_ptr().cast(),
+            );
         }
         Ok(())
     }
 
-    pub fn texture_values(&self, _index: u32) -> &[f32] {
-        // v2.5.1: get_texture_values takes 3 args now, API redesigned
-        &[]
+    pub fn texture_values(&self, index: u32) -> Vec<f32> {
+        self.texture_2d(index)
+            .map(|texture| texture.values)
+            .unwrap_or_default()
     }
 
     pub fn finalize(&self) {
@@ -394,28 +690,169 @@ impl GpuShaderDesc {
     }
 
     pub fn texture_max_height(&self, index: i32) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_max_height(self.handle.as_ptr(), index) }
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_max_height(self.handle.as_ptr(), index)
+        }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(
+                self.handle.as_ptr() as *mut c_void,
+            ))
+        }
     }
 
     pub fn texture_uid(&self, index: i32) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(self.handle.as_ptr(), index)) }
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(
+                self.handle.as_ptr(),
+                index,
+            ))
+        }
     }
 
     // ── v2.5.1 ──
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
-        let h = unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
+        let h =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
     }
 
-    pub fn num_uniforms(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms(self.handle.as_ptr() as *mut c_void) } }
-    pub fn uniform_buffer_size(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size(self.handle.as_ptr() as *mut c_void) } }
-    pub fn num_3d_textures(&self) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures(self.handle.as_ptr() as *mut c_void) } }
-    pub fn texture_shader_binding_index(&self, index: i32) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_shader_binding_index(self.handle.as_ptr(), index as *mut c_void) } }
-    pub fn uniform_name(&self, index: i32) -> *mut c_void { unsafe { ocio_sys::ocio_gpu_shader_desc_get_uniform(self.handle.as_ptr(), index as *mut c_void, std::ptr::null_mut()) } }
+    pub fn num_uniforms(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
+    }
+
+    pub fn uniform_buffer_size(&self) -> usize {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(self.handle.as_ptr())
+        }
+    }
+
+    pub fn uniform(&self, index: u32) -> Option<GpuUniform> {
+        let mut info = ocio_sys::OcioGpuUniformInfo {
+            name: std::ptr::null(),
+            type_: 5,
+            buffer_offset: 0,
+            value_count: 0,
+        };
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_info(self.handle.as_ptr(), index, &mut info)
+        };
+        if !ok {
+            return None;
+        }
+        let uniform_type = GpuUniformType::from_raw(info.type_);
+        let value = match uniform_type {
+            GpuUniformType::VectorInt => {
+                let mut values = vec![0i32; info.value_count];
+                let ok = unsafe {
+                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
+                        self.handle.as_ptr(),
+                        index,
+                        values.as_mut_ptr(),
+                        values.len(),
+                    )
+                };
+                if ok {
+                    GpuUniformValue::I32(values)
+                } else {
+                    GpuUniformValue::Unsupported
+                }
+            }
+            GpuUniformType::Unknown => GpuUniformValue::Unsupported,
+            _ => {
+                let mut values = vec![0.0f32; info.value_count];
+                let ok = unsafe {
+                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
+                        self.handle.as_ptr(),
+                        index,
+                        values.as_mut_ptr(),
+                        values.len(),
+                    )
+                };
+                if ok {
+                    GpuUniformValue::F32(values)
+                } else {
+                    GpuUniformValue::Unsupported
+                }
+            }
+        };
+        Some(GpuUniform {
+            name: unsafe { cstr_to_opt_string(info.name) }.unwrap_or_default(),
+            uniform_type,
+            buffer_offset: info.buffer_offset,
+            value_count: info.value_count,
+            value,
+        })
+    }
+
+    pub fn uniforms(&self) -> Vec<GpuUniform> {
+        (0..self.num_uniforms())
+            .filter_map(|index| self.uniform(index))
+            .collect()
+    }
+
+    pub fn num_3d_textures(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
+    }
+
+    pub fn texture_3d(&self, index: u32) -> Option<GpuTexture3D> {
+        let mut info = ocio_sys::OcioGpuTexture3DInfo {
+            texture_name: std::ptr::null(),
+            sampler_name: std::ptr::null(),
+            edge_len: 0,
+            interpolation: 0,
+            binding_index: 0,
+        };
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_info(
+                self.handle.as_ptr(),
+                index,
+                &mut info,
+            )
+        };
+        if !ok {
+            return None;
+        }
+        let value_count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_value_count(self.handle.as_ptr(), index)
+        };
+        let mut values = vec![0.0f32; value_count];
+        let values_ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy3d_texture_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        if !values_ok && value_count > 0 {
+            return None;
+        }
+        Some(GpuTexture3D {
+            texture_name: unsafe { cstr_to_opt_string(info.texture_name) }.unwrap_or_default(),
+            sampler_name: unsafe { cstr_to_opt_string(info.sampler_name) }.unwrap_or_default(),
+            edge_len: info.edge_len,
+            interpolation: interpolation_from_raw(info.interpolation),
+            binding_index: info.binding_index,
+            values,
+        })
+    }
+
+    pub fn textures_3d(&self) -> Vec<GpuTexture3D> {
+        (0..self.num_3d_textures())
+            .filter_map(|index| self.texture_3d(index))
+            .collect()
+    }
+
+    pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
+        self.texture_2d(index).map(|texture| texture.binding_index)
+    }
+
+    pub fn uniform_name(&self, index: u32) -> Option<String> {
+        self.uniform(index).map(|uniform| uniform.name)
+    }
 }
 
 impl Drop for GpuShaderDesc {
@@ -434,6 +871,18 @@ pub struct TextureInfo {
     pub interpolation: i32,
 }
 
+fn interpolation_from_raw(value: i32) -> Interpolation {
+    match value {
+        1 => Interpolation::Nearest,
+        2 => Interpolation::Linear,
+        3 => Interpolation::Tetrahedral,
+        4 => Interpolation::Cubic,
+        5 => Interpolation::Default,
+        6 => Interpolation::Best,
+        _ => Interpolation::Unknown,
+    }
+}
+
 // --- DynamicProperty ---
 
 pub struct DynamicProperty {
@@ -442,7 +891,9 @@ pub struct DynamicProperty {
 
 impl DynamicProperty {
     pub fn property_type(&self) -> DynamicPropertyType {
-        let t = unsafe { ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void) };
+        let t = unsafe {
+            ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void)
+        };
         match t {
             0 => DynamicPropertyType::Exposure,
             1 => DynamicPropertyType::Contrast,
@@ -456,7 +907,9 @@ impl DynamicProperty {
     }
 
     pub fn double_value(&self) -> f64 {
-        unsafe { ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn set_double_value(&self, value: f64) {
@@ -470,7 +923,8 @@ impl DynamicProperty {
         let mut values = [0.0f64; 34];
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_primary_get_value(
-                self.handle.as_ptr(), values.as_mut_ptr(),
+                self.handle.as_ptr(),
+                values.as_mut_ptr(),
             );
         }
         Some(crate::grading::GradingPrimary::from_flat_array(&values))
@@ -480,7 +934,8 @@ impl DynamicProperty {
         let values = value.to_flat_array();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_primary_set_value(
-                self.handle.as_ptr(), values.as_ptr(),
+                self.handle.as_ptr(),
+                values.as_ptr(),
             );
         }
     }
@@ -492,7 +947,8 @@ impl DynamicProperty {
         let mut values = [0.0f64; 31];
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_tone_get_value(
-                self.handle.as_ptr(), values.as_mut_ptr(),
+                self.handle.as_ptr(),
+                values.as_mut_ptr(),
             );
         }
         Some(crate::grading::GradingTone::from_flat_array(&values))
@@ -502,7 +958,8 @@ impl DynamicProperty {
         let values = value.to_flat_array();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_tone_set_value(
-                self.handle.as_ptr(), values.as_ptr(),
+                self.handle.as_ptr(),
+                values.as_ptr(),
             );
         }
     }
@@ -510,7 +967,8 @@ impl DynamicProperty {
     pub fn grading_rgb_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_num_control_points(
-                self.handle.as_ptr(), curve_type as i32,
+                self.handle.as_ptr(),
+                curve_type as i32,
             )
         }
     }
@@ -518,26 +976,46 @@ impl DynamicProperty {
     pub fn grading_rgb_curve_set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_num_control_points(
-                self.handle.as_ptr(), curve_type as i32, num,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                num,
             );
         }
     }
 
-    pub fn grading_rgb_curve_control_point(&self, curve_type: RGBCurveType, index: i32) -> (f32, f32) {
+    pub fn grading_rgb_curve_control_point(
+        &self,
+        curve_type: RGBCurveType,
+        index: i32,
+    ) -> (f32, f32) {
         let mut x = 0.0f32;
         let mut y = 0.0f32;
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_control_point(
-                self.handle.as_ptr(), curve_type as i32, index, &mut x, &mut y,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                &mut x,
+                &mut y,
             );
         }
         (x, y)
     }
 
-    pub fn grading_rgb_curve_set_control_point(&self, curve_type: RGBCurveType, index: i32, x: f32, y: f32) {
+    pub fn grading_rgb_curve_set_control_point(
+        &self,
+        curve_type: RGBCurveType,
+        index: i32,
+        x: f32,
+        y: f32,
+    ) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_control_point(
-                self.handle.as_ptr(), curve_type as i32, index, x, y,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                x,
+                y,
             );
         }
     }
@@ -545,7 +1023,9 @@ impl DynamicProperty {
     pub fn grading_rgb_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_slope(
-                self.handle.as_ptr(), curve_type as i32, index,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
             )
         }
     }
@@ -553,7 +1033,10 @@ impl DynamicProperty {
     pub fn grading_rgb_curve_set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_slope(
-                self.handle.as_ptr(), curve_type as i32, index, slope,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                slope,
             );
         }
     }
@@ -561,66 +1044,94 @@ impl DynamicProperty {
     pub fn grading_rgb_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_slopes_are_default(
-                self.handle.as_ptr(), curve_type as i32,
+                self.handle.as_ptr(),
+                curve_type as i32,
             )
         }
     }
 
-    pub fn grading_hue_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
+    pub fn grading_hue_curve_num_control_points(&self, curve_type: HueCurveType) -> i32 {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_num_control_points(
-                self.handle.as_ptr(), curve_type as i32,
+                self.handle.as_ptr(),
+                curve_type as i32,
             )
         }
     }
 
-    pub fn grading_hue_curve_set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
+    pub fn grading_hue_curve_set_num_control_points(&self, curve_type: HueCurveType, num: i32) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_num_control_points(
-                self.handle.as_ptr(), curve_type as i32, num,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                num,
             );
         }
     }
 
-    pub fn grading_hue_curve_control_point(&self, curve_type: RGBCurveType, index: i32) -> (f32, f32) {
+    pub fn grading_hue_curve_control_point(
+        &self,
+        curve_type: HueCurveType,
+        index: i32,
+    ) -> (f32, f32) {
         let mut x = 0.0f32;
         let mut y = 0.0f32;
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_control_point(
-                self.handle.as_ptr(), curve_type as i32, index, &mut x, &mut y,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                &mut x,
+                &mut y,
             );
         }
         (x, y)
     }
 
-    pub fn grading_hue_curve_set_control_point(&self, curve_type: RGBCurveType, index: i32, x: f32, y: f32) {
+    pub fn grading_hue_curve_set_control_point(
+        &self,
+        curve_type: HueCurveType,
+        index: i32,
+        x: f32,
+        y: f32,
+    ) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_control_point(
-                self.handle.as_ptr(), curve_type as i32, index, x, y,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                x,
+                y,
             );
         }
     }
 
-    pub fn grading_hue_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
+    pub fn grading_hue_curve_slope(&self, curve_type: HueCurveType, index: i32) -> f32 {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_slope(
-                self.handle.as_ptr(), curve_type as i32, index,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
             )
         }
     }
 
-    pub fn grading_hue_curve_set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
+    pub fn grading_hue_curve_set_slope(&self, curve_type: HueCurveType, index: i32, slope: f32) {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_slope(
-                self.handle.as_ptr(), curve_type as i32, index, slope,
+                self.handle.as_ptr(),
+                curve_type as i32,
+                index,
+                slope,
             );
         }
     }
 
-    pub fn grading_hue_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
+    pub fn grading_hue_curve_slopes_are_default(&self, curve_type: HueCurveType) -> bool {
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_slopes_are_default(
-                self.handle.as_ptr(), curve_type as i32,
+                self.handle.as_ptr(),
+                curve_type as i32,
             )
         }
     }
@@ -793,7 +1304,12 @@ mod tests {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingRgbCurve) {
-            for ct in [RGBCurveType::Red, RGBCurveType::Green, RGBCurveType::Blue, RGBCurveType::Master] {
+            for ct in [
+                RGBCurveType::Red,
+                RGBCurveType::Green,
+                RGBCurveType::Blue,
+                RGBCurveType::Master,
+            ] {
                 let _ = dp.grading_rgb_curve_num_control_points(ct);
                 let _ = dp.grading_rgb_curve_control_point(ct, 0);
                 let _ = dp.grading_rgb_curve_slope(ct, 0);
@@ -810,15 +1326,20 @@ mod tests {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingHueCurve) {
-            for ct in [RGBCurveType::Red, RGBCurveType::Green, RGBCurveType::Blue, RGBCurveType::Master] {
+            for ct in [
+                HueCurveType::HueHue,
+                HueCurveType::HueSat,
+                HueCurveType::HueLum,
+                HueCurveType::LumSat,
+            ] {
                 let _ = dp.grading_hue_curve_num_control_points(ct);
                 let _ = dp.grading_hue_curve_control_point(ct, 0);
                 let _ = dp.grading_hue_curve_slope(ct, 0);
                 let _ = dp.grading_hue_curve_slopes_are_default(ct);
             }
-            dp.grading_hue_curve_set_num_control_points(RGBCurveType::Red, 2);
-            dp.grading_hue_curve_set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
-            dp.grading_hue_curve_set_slope(RGBCurveType::Red, 0, 1.0);
+            dp.grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 2);
+            dp.grading_hue_curve_set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
+            dp.grading_hue_curve_set_slope(HueCurveType::HueHue, 0, 1.0);
         }
     }
 

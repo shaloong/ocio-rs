@@ -1,9 +1,12 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
+use crate::{
+    cstr_from_mut, cstr_to_opt_string, cstring, Allocation, BitDepth, ColorSpaceDirection,
+    ColorSpaceVisibility, OcioError, ReferenceSpaceType, Result,
+};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, ReferenceSpaceType, BitDepth, Allocation, ColorSpaceDirection, ColorSpaceVisibility};
-use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct ColorSpace {
     pub(crate) handle: NonNull<c_void>,
@@ -12,12 +15,17 @@ pub struct ColorSpace {
 impl ColorSpace {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_color_space_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_color_space_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle =
+            unsafe { ocio_sys::ocio_color_space_create_editable_copy(self.handle.as_ptr()) };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn name(&self) -> Option<String> {
@@ -41,22 +49,34 @@ impl ColorSpace {
     }
 
     pub fn equality_group(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_equality_group(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_equality_group(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_equality_group(&self, group: impl AsRef<str>) -> Result<()> {
         let g = cstring(group)?;
-        unsafe { ocio_sys::ocio_color_space_set_equality_group(self.handle.as_ptr(), g.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_color_space_set_equality_group(self.handle.as_ptr(), g.as_ptr().cast())
+        };
         Ok(())
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_description(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_description(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
-        unsafe { ocio_sys::ocio_color_space_set_description(self.handle.as_ptr(), d.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_color_space_set_description(self.handle.as_ptr(), d.as_ptr().cast())
+        };
         Ok(())
     }
 
@@ -80,8 +100,12 @@ impl ColorSpace {
     }
 
     pub fn reference_space_type(&self) -> ReferenceSpaceType {
-        let r = unsafe { ocio_sys::ocio_color_space_get_reference_space_type(self.handle.as_ptr()) };
-        match r { 1 => ReferenceSpaceType::Display, _ => ReferenceSpaceType::Scene }
+        let r =
+            unsafe { ocio_sys::ocio_color_space_get_reference_space_type(self.handle.as_ptr()) };
+        match r {
+            1 => ReferenceSpaceType::Display,
+            _ => ReferenceSpaceType::Scene,
+        }
     }
 
     pub fn is_data(&self) -> bool {
@@ -93,7 +117,12 @@ impl ColorSpace {
     }
 
     pub fn category(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_category(self.handle.as_ptr(), 0)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_category(
+                self.handle.as_ptr(),
+                0,
+            ))
+        }
     }
 
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
@@ -112,7 +141,9 @@ impl ColorSpace {
     }
 
     pub fn set_allocation(&self, allocation: Allocation) {
-        unsafe { ocio_sys::ocio_color_space_set_allocation(self.handle.as_ptr(), allocation as i32) };
+        unsafe {
+            ocio_sys::ocio_color_space_set_allocation(self.handle.as_ptr(), allocation as i32)
+        };
     }
 
     pub fn allocation_num_vars(&self) -> i32 {
@@ -127,7 +158,8 @@ impl ColorSpace {
         let mut vars = vec![0.0f32; n as usize];
         unsafe {
             ocio_sys::ocio_color_space_get_allocation_vars(
-                self.handle.as_ptr(), vars.as_mut_ptr() as *mut c_void,
+                self.handle.as_ptr(),
+                vars.as_mut_ptr() as *mut c_void,
             );
         }
         vars
@@ -136,13 +168,19 @@ impl ColorSpace {
     pub fn set_allocation_vars(&self, vars: &[f32]) {
         unsafe {
             ocio_sys::ocio_color_space_set_allocation_vars(
-                self.handle.as_ptr(), vars.len() as i32, vars.as_ptr() as *mut c_void,
+                self.handle.as_ptr(),
+                vars.len() as i32,
+                vars.as_ptr() as *mut c_void,
             );
         }
     }
 
     pub fn encoding(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_encoding(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_encoding(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
@@ -173,7 +211,12 @@ impl ColorSpace {
     }
 
     pub fn alias(&self, index: i32) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_alias(self.handle.as_ptr(), index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_alias(
+                self.handle.as_ptr(),
+                index as usize,
+            ))
+        }
     }
 
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
@@ -210,21 +253,32 @@ impl ColorSpace {
     }
 
     pub fn set_visibility(&self, visibility: ColorSpaceVisibility) {
-        unsafe { ocio_sys::ocio_color_space_set_visibility(self.handle.as_ptr(), visibility as i32) };
+        unsafe {
+            ocio_sys::ocio_color_space_set_visibility(self.handle.as_ptr(), visibility as i32)
+        };
     }
 
     pub fn set_reference_space_type(&self, reference_space: ReferenceSpaceType) {
         unsafe {
-            ocio_sys::ocio_color_space_set_reference_space_type(self.handle.as_ptr(), reference_space as i32);
+            ocio_sys::ocio_color_space_set_reference_space_type(
+                self.handle.as_ptr(),
+                reference_space as i32,
+            );
         }
     }
 
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_color_space_get_cache_id(self.handle.as_ptr())) }
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_color_space_get_cache_id(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
-        unsafe { ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32) }
+        unsafe {
+            ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32)
+        }
     }
 
     // ── v2.5.1 new methods ──
@@ -237,7 +291,9 @@ impl ColorSpace {
 
     pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
-        unsafe { ocio_sys::ocio_color_space_remove_category(self.handle.as_ptr(), c.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_color_space_remove_category(self.handle.as_ptr(), c.as_ptr().cast())
+        };
         Ok(())
     }
 
@@ -246,24 +302,40 @@ impl ColorSpace {
     }
 
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
-        let c = match cstring(category) { Ok(c) => c, Err(_) => return false };
+        let c = match cstring(category) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
         unsafe { ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), c.as_ptr().cast()) }
     }
 
     pub fn num_categories(&self) -> i32 {
-        unsafe { ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
-        let a = match cstring(alias) { Ok(a) => a, Err(_) => return false };
+        let a = match cstring(alias) {
+            Ok(a) => a,
+            Err(_) => return false,
+        };
         unsafe { ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
     }
 
     pub fn interop_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_interop_id(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_interop_id(
+                self.handle.as_ptr() as *mut c_void,
+            ))
+        }
     }
 
-    pub fn set_interchange_attribute(&self, _name: impl AsRef<str>, _value: impl AsRef<str>) -> Result<()> {
+    pub fn set_interchange_attribute(
+        &self,
+        _name: impl AsRef<str>,
+        _value: impl AsRef<str>,
+    ) -> Result<()> {
         // v2.5.1: takes (handle, name, value) with value as *mut c_void
         Ok(())
     }

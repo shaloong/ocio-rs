@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct LookTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +11,9 @@ pub struct LookTransform {
 impl LookTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_look_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn src(&self) -> Option<String> {
@@ -35,7 +37,11 @@ impl LookTransform {
     }
 
     pub fn looks(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_look_transform_get_looks(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_look_transform_get_looks(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_looks(&self, looks: impl AsRef<str>) -> Result<()> {
@@ -46,7 +52,10 @@ impl LookTransform {
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_look_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -57,7 +66,9 @@ impl LookTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -66,12 +77,17 @@ impl LookTransform {
     }
 
     pub fn skip_color_space_conversion(&self) -> bool {
-        unsafe { ocio_sys::ocio_look_transform_get_skip_color_space_conversion(self.handle.as_ptr()) }
+        unsafe {
+            ocio_sys::ocio_look_transform_get_skip_color_space_conversion(self.handle.as_ptr())
+        }
     }
 
     pub fn set_skip_color_space_conversion(&self, skip: bool) {
         unsafe {
-            ocio_sys::ocio_look_transform_set_skip_color_space_conversion(self.handle.as_ptr(), skip);
+            ocio_sys::ocio_look_transform_set_skip_color_space_conversion(
+                self.handle.as_ptr(),
+                skip,
+            );
         }
     }
 }

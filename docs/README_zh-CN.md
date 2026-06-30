@@ -11,6 +11,8 @@
 
 > [English](../README.md)
 
+> 破坏性 API 变更见 [MIGRATION_zh-CN.md](MIGRATION_zh-CN.md)。
+
 ```toml
 [dependencies]
 ocio-rs = "0.1"
@@ -54,8 +56,9 @@ ocio-rs/
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
-| 0.1.0   | v2.5.1 |
+| 0.2.0   | v2.5.2 |
 | 0.1.1   | v2.5.2 |
+| 0.1.0   | v2.5.1 |
 
 OCIO 版本升级流程：更新子模块 → 运行代码生成器 → 修复编译错误 → 发版。
 

@@ -39,6 +39,7 @@ fn main() {
         if let Some(ocio_source) = resolve_ocio_source_dir() {
             let dst = std::panic::catch_unwind(|| {
                 cmake::Config::new(&ocio_source)
+                    .profile("Release")
                     .define("BUILD_SHARED_LIBS", "OFF")
                     .define("OCIO_BUILD_APPS", "OFF")
                     .define("OCIO_BUILD_OPENFX", "OFF")
@@ -79,7 +80,8 @@ fn main() {
                     has_real_ocio = true;
                 }
                 Err(e) => {
-                    let msg = e.downcast_ref::<String>()
+                    let msg = e
+                        .downcast_ref::<String>()
                         .map(|s| s.as_str())
                         .or_else(|| e.downcast_ref::<&str>().copied())
                         .unwrap_or("unknown error");
@@ -166,7 +168,7 @@ fn main() {
         // Library file names vary by platform and build type; we emit the
         // most common name for each. If a particular name is not found,
         // the linker will report which library is missing.
-        link_transitive_deps();
+        link_transitive_deps(&link_paths);
 
         if cfg!(target_os = "linux") {
             println!("cargo:rustc-link-lib=stdc++");
@@ -187,15 +189,15 @@ fn main() {
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
 }
 
-fn link_transitive_deps() {
+fn link_transitive_deps(link_paths: &[PathBuf]) {
     #[cfg(target_os = "windows")]
     {
-        println!("cargo:rustc-link-lib=static=libexpatMD");
-        println!("cargo:rustc-link-lib=static=yaml-cpp");
-        println!("cargo:rustc-link-lib=static=Imath-3_2");
-        println!("cargo:rustc-link-lib=static=pystring");
-        println!("cargo:rustc-link-lib=static=minizip-ng");
-        println!("cargo:rustc-link-lib=static=zlibstatic");
+        link_static_library(link_paths, &["libexpatMD", "expat", "libexpatdMD"]);
+        link_static_library(link_paths, &["yaml-cpp", "yaml-cppd"]);
+        link_static_library(link_paths, &["Imath-3_2", "Imath-3_2_d"]);
+        link_static_library(link_paths, &["pystring"]);
+        link_static_library(link_paths, &["minizip-ng"]);
+        link_static_library(link_paths, &["zlibstatic", "zlib", "zlibstaticd", "zlibd"]);
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -205,6 +207,21 @@ fn link_transitive_deps() {
         println!("cargo:rustc-link-lib=static=pystring");
         println!("cargo:rustc-link-lib=static=minizip-ng");
         println!("cargo:rustc-link-lib=static=z");
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn link_static_library(link_paths: &[PathBuf], candidates: &[&str]) {
+    for candidate in candidates {
+        let file_name = format!("{candidate}.lib");
+        if link_paths.iter().any(|dir| dir.join(&file_name).exists()) {
+            println!("cargo:rustc-link-lib=static={candidate}");
+            return;
+        }
+    }
+
+    if let Some(candidate) = candidates.first() {
+        println!("cargo:rustc-link-lib=static={candidate}");
     }
 }
 
@@ -242,7 +259,12 @@ fn find_msvc_include() -> Option<PathBuf> {
     // Probe well-known VS 2022 / 2019 MSVC include directories.
     let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
     for year in &["2022", "2019"] {
-        let vc_dir = base.join(year).join("BuildTools").join("VC").join("Tools").join("MSVC");
+        let vc_dir = base
+            .join(year)
+            .join("BuildTools")
+            .join("VC")
+            .join("Tools")
+            .join("MSVC");
         if let Ok(entries) = std::fs::read_dir(&vc_dir) {
             for entry in entries.flatten() {
                 let candidate = entry.path().join("include");
@@ -261,7 +283,7 @@ fn find_windows_sdk_includes() -> Vec<PathBuf> {
     if let Ok(versions) = std::fs::read_dir(kits) {
         // Pick the latest SDK version.
         let mut versions: Vec<_> = versions.flatten().collect();
-        versions.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+        versions.sort_by_key(|entry| std::cmp::Reverse(entry.file_name()));
         for entry in versions {
             let base = entry.path();
             for sub in &["ucrt", "shared", "um", "winrt"] {

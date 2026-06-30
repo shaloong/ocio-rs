@@ -10,7 +10,12 @@ pub struct GradingRGBM {
 
 impl GradingRGBM {
     pub fn new(red: f64, green: f64, blue: f64, master: f64) -> Self {
-        Self { red, green, blue, master }
+        Self {
+            red,
+            green,
+            blue,
+            master,
+        }
     }
 
     pub fn to_array(&self) -> [f64; 4] {
@@ -18,13 +23,23 @@ impl GradingRGBM {
     }
 
     pub fn from_array(a: &[f64; 4]) -> Self {
-        Self { red: a[0], green: a[1], blue: a[2], master: a[3] }
+        Self {
+            red: a[0],
+            green: a[1],
+            blue: a[2],
+            master: a[3],
+        }
     }
 }
 
 impl Default for GradingRGBM {
     fn default() -> Self {
-        Self { red: 0.0, green: 0.0, blue: 0.0, master: 0.0 }
+        Self {
+            red: 0.0,
+            green: 0.0,
+            blue: 0.0,
+            master: 0.0,
+        }
     }
 }
 
@@ -40,21 +55,49 @@ pub struct GradingRGBMSW {
 
 impl GradingRGBMSW {
     pub fn new(red: f64, green: f64, blue: f64, master: f64, start: f64, width: f64) -> Self {
-        Self { red, green, blue, master, start, width }
+        Self {
+            red,
+            green,
+            blue,
+            master,
+            start,
+            width,
+        }
     }
 
     pub fn to_array(&self) -> [f64; 6] {
-        [self.red, self.green, self.blue, self.master, self.start, self.width]
+        [
+            self.red,
+            self.green,
+            self.blue,
+            self.master,
+            self.start,
+            self.width,
+        ]
     }
 
     pub fn from_array(a: &[f64; 6]) -> Self {
-        Self { red: a[0], green: a[1], blue: a[2], master: a[3], start: a[4], width: a[5] }
+        Self {
+            red: a[0],
+            green: a[1],
+            blue: a[2],
+            master: a[3],
+            start: a[4],
+            width: a[5],
+        }
     }
 }
 
 impl Default for GradingRGBMSW {
     fn default() -> Self {
-        Self { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.0, width: 1.0 }
+        Self {
+            red: 1.0,
+            green: 1.0,
+            blue: 1.0,
+            master: 1.0,
+            start: 0.0,
+            width: 1.0,
+        }
     }
 }
 
@@ -83,12 +126,27 @@ impl GradingPrimary {
         };
         Self {
             brightness: GradingRGBM::default(),
-            contrast: GradingRGBM { red: 1.0, green: 1.0, blue: 1.0, master: 1.0 },
-            gamma: GradingRGBM { red: 1.0, green: 1.0, blue: 1.0, master: 1.0 },
+            contrast: GradingRGBM {
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
+                master: 1.0,
+            },
+            gamma: GradingRGBM {
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
+                master: 1.0,
+            },
             offset: GradingRGBM::default(),
             exposure: GradingRGBM::default(),
             lift: GradingRGBM::default(),
-            gain: GradingRGBM { red: 1.0, green: 1.0, blue: 1.0, master: 1.0 },
+            gain: GradingRGBM {
+                red: 1.0,
+                green: 1.0,
+                blue: 1.0,
+                master: 1.0,
+            },
             saturation: 1.0,
             pivot,
             pivot_black: 0.0,
@@ -98,13 +156,22 @@ impl GradingPrimary {
         }
     }
 
-    pub fn no_clamp_black() -> f64 { -0.0001 }
-    pub fn no_clamp_white() -> f64 { 1.0001 }
+    pub fn no_clamp_black() -> f64 {
+        -0.0001
+    }
+    pub fn no_clamp_white() -> f64 {
+        1.0001
+    }
 
     pub(crate) fn from_flat_array(values: &[f64; 34]) -> Self {
         let mut off = 0;
         let mut read_rgbm = || -> GradingRGBM {
-            let r = GradingRGBM { red: values[off], green: values[off+1], blue: values[off+2], master: values[off+3] };
+            let r = GradingRGBM {
+                red: values[off],
+                green: values[off + 1],
+                blue: values[off + 2],
+                master: values[off + 3],
+            };
             off += 4;
             r
         };
@@ -115,18 +182,31 @@ impl GradingPrimary {
         let exposure = read_rgbm();
         let lift = read_rgbm();
         let gain = read_rgbm();
-        let saturation = values[off]; off += 1;
-        let pivot = values[off]; off += 1;
-        let pivot_black = values[off]; off += 1;
-        let pivot_white = values[off]; off += 1;
-        let clamp_black = values[off]; off += 1;
+        let saturation = values[off];
+        off += 1;
+        let pivot = values[off];
+        off += 1;
+        let pivot_black = values[off];
+        off += 1;
+        let pivot_white = values[off];
+        off += 1;
+        let clamp_black = values[off];
+        off += 1;
         let clamp_white = values[off];
         Self {
-            brightness, contrast, gamma,
+            brightness,
+            contrast,
+            gamma,
             offset: offset_rgbm,
-            exposure, lift, gain,
-            saturation, pivot, pivot_black, pivot_white,
-            clamp_black, clamp_white,
+            exposure,
+            lift,
+            gain,
+            saturation,
+            pivot,
+            pivot_black,
+            pivot_white,
+            clamp_black,
+            clamp_white,
         }
     }
 
@@ -134,7 +214,10 @@ impl GradingPrimary {
         let mut a = [0.0f64; 34];
         let mut off = 0;
         let mut write_rgbm = |g: &GradingRGBM| {
-            a[off] = g.red; a[off+1] = g.green; a[off+2] = g.blue; a[off+3] = g.master;
+            a[off] = g.red;
+            a[off + 1] = g.green;
+            a[off + 2] = g.blue;
+            a[off + 3] = g.master;
             off += 4;
         };
         write_rgbm(&self.brightness);
@@ -144,10 +227,14 @@ impl GradingPrimary {
         write_rgbm(&self.exposure);
         write_rgbm(&self.lift);
         write_rgbm(&self.gain);
-        a[off] = self.saturation; off += 1;
-        a[off] = self.pivot; off += 1;
-        a[off] = self.pivot_black; off += 1;
-        a[off] = self.pivot_white; off += 1;
+        a[off] = self.saturation;
+        off += 1;
+        a[off] = self.pivot;
+        off += 1;
+        a[off] = self.pivot_black;
+        off += 1;
+        a[off] = self.pivot_white;
+        off += 1;
         a[off] = self.clamp_black;
         a[off + 1] = self.clamp_white;
         a
@@ -168,29 +255,110 @@ impl GradingTone {
     pub fn new(style: GradingStyle) -> Self {
         let (blacks, shadows, midtones, highlights, whites) = match style {
             GradingStyle::Lin => (
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.0, width: 4.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 2.0, width: -7.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.0, width: 8.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: -2.0, width: 9.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.0, width: 8.0 },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.0,
+                    width: 4.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 2.0,
+                    width: -7.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.0,
+                    width: 8.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: -2.0,
+                    width: 9.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.0,
+                    width: 8.0,
+                },
             ),
             _ => (
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.4, width: 0.4 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.5, width: 0.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.4, width: 0.7 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.2, width: 1.0 },
-                GradingRGBMSW { red: 1.0, green: 1.0, blue: 1.0, master: 1.0, start: 0.5, width: 0.5 },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.4,
+                    width: 0.4,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.5,
+                    width: 0.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.4,
+                    width: 0.7,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.2,
+                    width: 1.0,
+                },
+                GradingRGBMSW {
+                    red: 1.0,
+                    green: 1.0,
+                    blue: 1.0,
+                    master: 1.0,
+                    start: 0.5,
+                    width: 0.5,
+                },
             ),
         };
-        Self { blacks, shadows, midtones, highlights, whites, scontrast: 1.0 }
+        Self {
+            blacks,
+            shadows,
+            midtones,
+            highlights,
+            whites,
+            scontrast: 1.0,
+        }
     }
 
     pub(crate) fn from_flat_array(values: &[f64; 31]) -> Self {
         let mut off = 0;
         let mut read_rgbmsw = || -> GradingRGBMSW {
             let r = GradingRGBMSW {
-                red: values[off], green: values[off+1], blue: values[off+2],
-                master: values[off+3], start: values[off+4], width: values[off+5],
+                red: values[off],
+                green: values[off + 1],
+                blue: values[off + 2],
+                master: values[off + 3],
+                start: values[off + 4],
+                width: values[off + 5],
             };
             off += 6;
             r
@@ -201,15 +369,26 @@ impl GradingTone {
         let highlights = read_rgbmsw();
         let whites = read_rgbmsw();
         let scontrast = values[off];
-        Self { blacks, shadows, midtones, highlights, whites, scontrast }
+        Self {
+            blacks,
+            shadows,
+            midtones,
+            highlights,
+            whites,
+            scontrast,
+        }
     }
 
     pub(crate) fn to_flat_array(&self) -> [f64; 31] {
         let mut a = [0.0f64; 31];
         let mut off = 0;
         let mut write_rgbmsw = |g: &GradingRGBMSW| {
-            a[off] = g.red; a[off+1] = g.green; a[off+2] = g.blue;
-            a[off+3] = g.master; a[off+4] = g.start; a[off+5] = g.width;
+            a[off] = g.red;
+            a[off + 1] = g.green;
+            a[off + 2] = g.blue;
+            a[off + 3] = g.master;
+            a[off + 4] = g.start;
+            a[off + 5] = g.width;
             off += 6;
         };
         write_rgbmsw(&self.blacks);

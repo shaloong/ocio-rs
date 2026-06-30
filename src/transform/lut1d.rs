@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{BitDepth, Interpolation, Lut1DHueAdjust, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, Interpolation, BitDepth, Lut1DHueAdjust};
 
 pub struct Lut1DTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +11,9 @@ pub struct Lut1DTransform {
 impl Lut1DTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_lut1d_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn interpolation(&self) -> Interpolation {
@@ -29,12 +31,17 @@ impl Lut1DTransform {
 
     pub fn set_interpolation(&self, interpolation: Interpolation) {
         unsafe {
-            ocio_sys::ocio_lut1d_transform_set_interpolation(self.handle.as_ptr(), interpolation as i32);
+            ocio_sys::ocio_lut1d_transform_set_interpolation(
+                self.handle.as_ptr(),
+                interpolation as i32,
+            );
         }
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_lut1d_transform_get_file_output_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe {
+            ocio_sys::ocio_lut1d_transform_get_file_output_bit_depth(self.handle.as_ptr())
+        };
         match b {
             1 => BitDepth::Uint8,
             2 => BitDepth::Uint10,
@@ -51,14 +58,18 @@ impl Lut1DTransform {
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
         unsafe {
             ocio_sys::ocio_lut1d_transform_set_file_output_bit_depth(
-                self.handle.as_ptr(), bit_depth as i32,
+                self.handle.as_ptr(),
+                bit_depth as i32,
             );
         }
     }
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_lut1d_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -69,21 +80,25 @@ impl Lut1DTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn length(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut1d_transform_get_length(self.handle.as_ptr()) as u64 }
+        unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) }
     }
 
     pub fn set_length(&self, len: u64) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_length(self.handle.as_ptr(), std::ptr::null_mut()) };
+        unsafe { ocio_sys::ocio_lut1d_transform_set_length_u64(self.handle.as_ptr(), len) };
     }
 
     pub fn values(&self) -> Vec<f64> {
         let len = self.length() as usize;
         let mut data = vec![0.0f64; len.max(1) * 3];
-        unsafe { ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr()) };
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
+        };
         data
     }
 
@@ -96,7 +111,9 @@ impl Lut1DTransform {
     }
 
     pub fn set_input_half_domain(&self, half_domain: bool) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain) };
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain)
+        };
     }
 
     pub fn output_raw_halfs(&self) -> bool {
@@ -104,7 +121,9 @@ impl Lut1DTransform {
     }
 
     pub fn set_output_raw_halfs(&self, raw_halfs: bool) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs) };
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs)
+        };
     }
 
     pub fn hue_adjust(&self) -> Lut1DHueAdjust {
@@ -116,7 +135,9 @@ impl Lut1DTransform {
     }
 
     pub fn set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32) };
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32)
+        };
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

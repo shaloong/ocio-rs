@@ -5,7 +5,6 @@
 //! With real OCIO: measures full pipeline including actual color processing.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ocio_rs;
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::TransformDirection;
 
@@ -26,7 +25,7 @@ fn bench_matrix_pipeline(c: &mut Criterion) {
         let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
 
         b.iter(|| {
-            let _ = cpu.apply_rgba(black_box(&mut pixel));
+            cpu.apply_rgba(black_box(&mut pixel));
         });
     });
 }
@@ -45,7 +44,7 @@ fn bench_matrix_scale(c: &mut Criterion) {
         let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
 
         b.iter(|| {
-            let _ = cpu.apply_rgba(black_box(&mut pixel));
+            cpu.apply_rgba(black_box(&mut pixel));
         });
     });
 }
@@ -63,7 +62,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                 .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
                 .unwrap();
             let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-            let _ = cpu.apply_rgba(black_box(&mut pixel));
+            cpu.apply_rgba(black_box(&mut pixel));
         });
     });
 }

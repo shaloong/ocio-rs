@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, Result};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, Result};
 
 pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
@@ -48,7 +48,9 @@ impl FormatMetadata {
     }
 
     pub fn num_attributes(&self) -> i32 {
-        unsafe { ocio_sys::ocio_format_metadata_get_num_attributes(self.handle.as_ptr() as *mut c_void) }
+        unsafe {
+            ocio_sys::ocio_format_metadata_get_num_attributes(self.handle.as_ptr() as *mut c_void)
+        }
     }
 
     pub fn attribute_name(&self, i: i32) -> Option<String> {
@@ -62,12 +64,10 @@ impl FormatMetadata {
 
     pub fn attribute_value_by_index(&self, i: i32) -> Option<String> {
         unsafe {
-            cstr_to_opt_string(
-                ocio_sys::ocio_format_metadata_get_attribute_value_by_index(
-                    self.handle.as_ptr(),
-                    i,
-                ),
-            )
+            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_attribute_value_by_index(
+                self.handle.as_ptr(),
+                i,
+            ))
         }
     }
 
@@ -97,24 +97,22 @@ impl FormatMetadata {
     pub fn remove_attribute(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         unsafe {
-            ocio_sys::ocio_format_metadata_remove_attribute(
-                self.handle.as_ptr(),
-                n.as_ptr().cast(),
-            )
+            ocio_sys::ocio_format_metadata_remove_attribute(self.handle.as_ptr(), n.as_ptr().cast())
         };
         Ok(())
     }
 
     pub fn num_children(&self) -> i32 {
         unsafe {
-            ocio_sys::ocio_format_metadata_get_num_children_elements(self.handle.as_ptr() as *mut c_void)
+            ocio_sys::ocio_format_metadata_get_num_children_elements(
+                self.handle.as_ptr() as *mut c_void
+            )
         }
     }
 
     pub fn child_element(&self, i: i32) -> Option<FormatMetadata> {
-        let handle = unsafe {
-            ocio_sys::ocio_format_metadata_get_child_element(self.handle.as_ptr(), i)
-        };
+        let handle =
+            unsafe { ocio_sys::ocio_format_metadata_get_child_element(self.handle.as_ptr(), i) };
         NonNull::new(handle).map(|h| FormatMetadata { handle: h })
     }
 
@@ -145,25 +143,17 @@ impl FormatMetadata {
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
-        unsafe {
-            ocio_sys::ocio_format_metadata_set_name(self.handle.as_ptr(), n.as_ptr().cast())
-        };
+        unsafe { ocio_sys::ocio_format_metadata_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
         Ok(())
     }
 
     pub fn id(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_id(
-                self.handle.as_ptr(),
-            ))
-        }
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_id(self.handle.as_ptr())) }
     }
 
     pub fn set_id(&self, id: impl AsRef<str>) -> Result<()> {
         let i = cstring(id)?;
-        unsafe {
-            ocio_sys::ocio_format_metadata_set_id(self.handle.as_ptr(), i.as_ptr().cast())
-        };
+        unsafe { ocio_sys::ocio_format_metadata_set_id(self.handle.as_ptr(), i.as_ptr().cast()) };
         Ok(())
     }
 }

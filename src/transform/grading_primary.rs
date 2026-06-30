@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use ocio_sys;
 use crate::{grading::GradingPrimary, GradingStyle, OcioError, Result, TransformDirection};
+use ocio_sys;
 
 pub struct GradingPrimaryTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -10,33 +10,59 @@ pub struct GradingPrimaryTransform {
 
 impl GradingPrimaryTransform {
     pub fn create(style: GradingStyle) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_grading_primary_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle =
+            unsafe { ocio_sys::ocio_grading_primary_transform_create_with_style(style as i32) };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn style(&self) -> GradingStyle {
         let v = unsafe { ocio_sys::ocio_grading_primary_transform_get_style(self.handle.as_ptr()) };
-        match v { 1 => GradingStyle::Lin, 2 => GradingStyle::Video, _ => GradingStyle::Log }
+        match v {
+            1 => GradingStyle::Lin,
+            2 => GradingStyle::Video,
+            _ => GradingStyle::Log,
+        }
     }
 
     pub fn set_style(&self, style: GradingStyle) {
-        unsafe { ocio_sys::ocio_grading_primary_transform_set_style(self.handle.as_ptr(), style as i32); }
+        unsafe {
+            ocio_sys::ocio_grading_primary_transform_set_style(self.handle.as_ptr(), style as i32);
+        }
     }
 
     pub fn value(&self) -> GradingPrimary {
         let mut flat = [0.0f64; 34];
-        unsafe { std::ptr::null_mut::<c_void>(); }
+        let copied = unsafe {
+            ocio_sys::ocio_grading_primary_transform_copy_value(
+                self.handle.as_ptr(),
+                flat.as_mut_ptr(),
+                flat.len(),
+            )
+        };
+        if !copied {
+            return GradingPrimary::new(self.style());
+        }
         GradingPrimary::from_flat_array(&flat)
     }
 
     pub fn set_value(&self, value: &GradingPrimary) {
         let flat = value.to_flat_array();
-        unsafe { ocio_sys::ocio_grading_primary_transform_set_value(self.handle.as_ptr(), flat.as_ptr() as *mut c_void); }
+        unsafe {
+            ocio_sys::ocio_grading_primary_transform_set_value_from_f64(
+                self.handle.as_ptr(),
+                flat.as_ptr(),
+                flat.len(),
+            );
+        }
     }
 
     pub fn is_dynamic(&self) -> bool {
@@ -44,20 +70,33 @@ impl GradingPrimaryTransform {
     }
 
     pub fn make_dynamic(&self) {
-        unsafe { ocio_sys::ocio_grading_primary_transform_make_dynamic(self.handle.as_ptr()); }
+        unsafe {
+            ocio_sys::ocio_grading_primary_transform_make_dynamic(self.handle.as_ptr());
+        }
     }
 
     pub fn make_non_dynamic(&self) {
-        unsafe { ocio_sys::ocio_grading_primary_transform_make_non_dynamic(self.handle.as_ptr()); }
+        unsafe {
+            ocio_sys::ocio_grading_primary_transform_make_non_dynamic(self.handle.as_ptr());
+        }
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir = unsafe { ocio_sys::ocio_grading_primary_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        let dir =
+            unsafe { ocio_sys::ocio_grading_primary_transform_get_direction(self.handle.as_ptr()) };
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
-        unsafe { ocio_sys::ocio_grading_primary_transform_set_direction(self.handle.as_ptr(), direction as i32); }
+        unsafe {
+            ocio_sys::ocio_grading_primary_transform_set_direction(
+                self.handle.as_ptr(),
+                direction as i32,
+            );
+        }
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

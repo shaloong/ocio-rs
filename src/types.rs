@@ -143,13 +143,25 @@ pub enum FixedFunctionStyle {
     AcesRedMod10 = 1,
     AcesGlow03 = 2,
     AcesGlow10 = 3,
-    AcesGamutCompress13 = 4,
-    AcesGamutCompress20 = 5,
-    Rec2100Surround = 6,
-    RgbToHsv = 7,
-    XyzToxyY = 8,
-    XyzTouvY = 9,
-    XyzToLuv = 10,
+    AcesDarkToDim10 = 4,
+    Rec2100Surround = 5,
+    RgbToHsv = 6,
+    XyzToxyY = 7,
+    XyzTouvY = 8,
+    XyzToLuv = 9,
+    AcesGamutMap02 = 10,
+    AcesGamutMap07 = 11,
+    AcesGamutCompress13 = 12,
+    LinToPq = 13,
+    LinToGammaLog = 14,
+    LinToDoubleLog = 15,
+    AcesOutputTransform20 = 16,
+    AcesRgbToJmh20 = 17,
+    AcesTonescaleCompress20 = 18,
+    AcesGamutCompress20 = 19,
+    RgbToHsyLin = 20,
+    RgbToHsyLog = 21,
+    RgbToHsyVid = 22,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,6 +195,26 @@ pub enum RGBCurveType {
     Green = 1,
     Blue = 2,
     Master = 3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum HueCurveType {
+    HueHue = 0,
+    HueSat = 1,
+    HueLum = 2,
+    LumSat = 3,
+    SatSat = 4,
+    LumLum = 5,
+    SatLum = 6,
+    HueFx = 7,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum HSYTransformStyle {
+    None = 0,
+    Default = 1,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

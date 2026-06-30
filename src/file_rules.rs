@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result};
 
 pub struct FileRules {
     pub(crate) handle: NonNull<c_void>,
@@ -11,12 +11,18 @@ pub struct FileRules {
 impl FileRules {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_file_rules_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_file_rules_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle = unsafe {
+            ocio_sys::ocio_file_rules_create_editable_copy(self.handle.as_ptr() as *mut c_void)
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn num_entries(&self) -> u64 {
@@ -37,11 +43,21 @@ impl FileRules {
     }
 
     pub fn name(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_name(self.handle.as_ptr(), rule_index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_name(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ))
+        }
     }
 
     pub fn pattern(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(self.handle.as_ptr(), rule_index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ))
+        }
     }
 
     pub fn set_pattern(&self, rule_index: u64, pattern: impl AsRef<str>) -> Result<()> {
@@ -57,7 +73,12 @@ impl FileRules {
     }
 
     pub fn extension(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(self.handle.as_ptr(), rule_index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ))
+        }
     }
 
     pub fn set_extension(&self, rule_index: u64, extension: impl AsRef<str>) -> Result<()> {
@@ -73,7 +94,12 @@ impl FileRules {
     }
 
     pub fn regex(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(self.handle.as_ptr(), rule_index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ))
+        }
     }
 
     pub fn set_regex(&self, rule_index: u64, regex: impl AsRef<str>) -> Result<()> {
@@ -89,7 +115,12 @@ impl FileRules {
     }
 
     pub fn color_space(&self, rule_index: u64) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(self.handle.as_ptr(), rule_index as usize)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ))
+        }
     }
 
     pub fn set_color_space(&self, rule_index: u64, color_space: impl AsRef<str>) -> Result<()> {
@@ -105,7 +136,10 @@ impl FileRules {
     }
 
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
-        unsafe { ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize) as u64 }
+        unsafe {
+            ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize)
+                as u64
+        }
     }
 
     pub fn custom_key_name(&self, rule_index: u64, key: u64) -> Option<String> {
@@ -128,7 +162,12 @@ impl FileRules {
         }
     }
 
-    pub fn set_custom_key(&self, rule_index: u64, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
+    pub fn set_custom_key(
+        &self,
+        rule_index: u64,
+        key: impl AsRef<str>,
+        value: impl AsRef<str>,
+    ) -> Result<()> {
         let key = cstring(key)?;
         let value = cstring(value)?;
         unsafe {
@@ -190,7 +229,12 @@ impl FileRules {
     }
 
     pub fn insert_path_search_rule(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_insert_path_search_rule(self.handle.as_ptr(), rule_index as usize) };
+        unsafe {
+            ocio_sys::ocio_file_rules_insert_path_search_rule(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            )
+        };
     }
 
     pub fn set_default_rule_color_space(&self, color_space: impl AsRef<str>) -> Result<()> {
@@ -209,11 +253,21 @@ impl FileRules {
     }
 
     pub fn increase_rule_priority(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_increase_rule_priority(self.handle.as_ptr(), rule_index as usize) };
+        unsafe {
+            ocio_sys::ocio_file_rules_increase_rule_priority(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            )
+        };
     }
 
     pub fn decrease_rule_priority(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_file_rules_decrease_rule_priority(self.handle.as_ptr(), rule_index as usize) };
+        unsafe {
+            ocio_sys::ocio_file_rules_decrease_rule_priority(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            )
+        };
     }
 
     pub fn is_default(&self) -> bool {
@@ -224,7 +278,8 @@ impl FileRules {
         let fp = cstring(file_path).ok()?;
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_file_rules_get_color_space_from_filepath(
-                self.handle.as_ptr(), fp.as_ptr().cast(),
+                self.handle.as_ptr(),
+                fp.as_ptr().cast(),
             ))
         }
     }

@@ -4,10 +4,9 @@
 //! Usage:
 //!   OCIO_SOURCE_DIR=path/to/ocio cargo run --release --bin bench_ocio_rs
 
-use std::time::Instant;
-use ocio_rs;
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::TransformDirection;
+use std::time::Instant;
 
 const OPTIMIZATION_DEFAULT: u64 = 0;
 
@@ -21,10 +20,7 @@ fn main() {
     let config = ocio_rs::Config::raw().expect("Config::raw()");
     let mtx = MatrixTransform::create().expect("MatrixTransform::create()");
     mtx.set_matrix(&[
-        2.0, 0.0, 0.0, 0.0,
-        0.0, 3.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
+        2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
     mtx.set_offset(&[0.5, 0.25, 0.0, 0.0]);
 
@@ -42,7 +38,7 @@ fn main() {
         let mut pixel: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
         let t0 = Instant::now();
         for _ in 0..n {
-            let _ = cpu.apply_rgba(&mut pixel);
+            cpu.apply_rgba(&mut pixel);
         }
         let elapsed = t0.elapsed();
         println!(

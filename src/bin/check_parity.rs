@@ -7,7 +7,7 @@
 //!
 //! Usage: cargo run --bin check_parity [-- --check-l3] [--verbose] [--json report.json]
 
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -22,6 +22,7 @@ const OCIO_INCLUDE: &str = "third_party/OpenColorIO/include/OpenColorIO";
 struct CFunc {
     name: String,
     return_type: String,
+    #[allow(dead_code)]
     params: String,
     class_prefix: String,
     method_name: String,
@@ -46,6 +47,7 @@ struct L2Result {
 struct L2Missing {
     rust_class: String,
     expected_method: String,
+    #[allow(dead_code)]
     bridge_func: String,
 }
 
@@ -111,20 +113,45 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
 
 fn known_c_prefixes() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = vec![
-        "log_camera_transform", "log_affine_transform",
-        "exposure_contrast_transform", "exponent_with_linear_transform",
-        "grading_rgb_curve_transform", "grading_hue_curve_transform",
-        "grading_primary_transform", "grading_tone_transform",
-        "display_view_transform", "fixed_function_transform",
-        "color_space_transform", "builtin_config_registry",
-        "color_space_set", "allocation_transform", "look_transform",
-        "lut1d_transform", "lut3d_transform", "builtin_transform",
-        "matrix_transform", "exponent_transform", "group_transform",
-        "cdl_transform", "file_transform", "log_transform", "range_transform",
-        "view_transform", "named_transform", "dynamic_property",
-        "format_metadata", "gpu_shader_desc", "gpu_processor",
-        "cpu_processor", "color_space", "file_rules",
-        "config", "processor", "baker", "context", "look",
+        "log_camera_transform",
+        "log_affine_transform",
+        "exposure_contrast_transform",
+        "exponent_with_linear_transform",
+        "grading_rgb_curve_transform",
+        "grading_hue_curve_transform",
+        "grading_primary_transform",
+        "grading_tone_transform",
+        "display_view_transform",
+        "fixed_function_transform",
+        "color_space_transform",
+        "builtin_config_registry",
+        "color_space_set",
+        "allocation_transform",
+        "look_transform",
+        "lut1d_transform",
+        "lut3d_transform",
+        "builtin_transform",
+        "matrix_transform",
+        "exponent_transform",
+        "group_transform",
+        "cdl_transform",
+        "file_transform",
+        "log_transform",
+        "range_transform",
+        "view_transform",
+        "named_transform",
+        "dynamic_property",
+        "format_metadata",
+        "gpu_shader_desc",
+        "gpu_processor",
+        "cpu_processor",
+        "color_space",
+        "file_rules",
+        "config",
+        "processor",
+        "baker",
+        "context",
+        "look",
     ];
     v.sort_by_key(|a| std::cmp::Reverse(a.len()));
     v
@@ -141,7 +168,9 @@ fn strip_comments(text: &str) -> String {
                 Some(&'/') => {
                     chars.next();
                     while let Some(&c) = chars.peek() {
-                        if c == '\n' { break; }
+                        if c == '\n' {
+                            break;
+                        }
                         chars.next();
                     }
                 }
@@ -149,8 +178,16 @@ fn strip_comments(text: &str) -> String {
                     chars.next();
                     let mut depth = 1;
                     while let Some(c) = chars.next() {
-                        if c == '/' && chars.peek() == Some(&'*') { depth += 1; }
-                        if c == '*' && chars.peek() == Some(&'/') { chars.next(); depth -= 1; if depth == 0 { break; } }
+                        if c == '/' && chars.peek() == Some(&'*') {
+                            depth += 1;
+                        }
+                        if c == '*' && chars.peek() == Some(&'/') {
+                            chars.next();
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
                     }
                 }
                 _ => out.push(ch),
@@ -166,11 +203,14 @@ fn camel_to_snake(name: &str) -> String {
     let mut out = String::new();
     let chars: Vec<char> = name.chars().collect();
     for i in 0..chars.len() {
-        if i > 0 && chars[i].is_uppercase() && chars[i-1].is_lowercase() {
+        if i > 0 && chars[i].is_uppercase() && chars[i - 1].is_lowercase() {
             out.push('_');
         }
-        if i > 0 && i + 1 < chars.len()
-            && chars[i].is_uppercase() && chars[i-1].is_uppercase() && chars[i+1].is_lowercase()
+        if i > 0
+            && i + 1 < chars.len()
+            && chars[i].is_uppercase()
+            && chars[i - 1].is_uppercase()
+            && chars[i + 1].is_lowercase()
         {
             out.push('_');
         }
@@ -220,7 +260,10 @@ fn parse_single_decl(decl: &str) -> Option<CFunc> {
     let decl = decl.trim_end_matches(';').trim();
     let paren_pos = decl.find('(')?;
     let before_paren = &decl[..paren_pos].trim();
-    let params = decl[paren_pos + 1..].trim_end_matches(')').trim().to_string();
+    let params = decl[paren_pos + 1..]
+        .trim_end_matches(')')
+        .trim()
+        .to_string();
 
     let words: Vec<&str> = before_paren.split_whitespace().collect();
     if words.len() < 2 {
@@ -270,7 +313,7 @@ fn parse_rust_wrappers(src_dir: &Path) -> HashMap<String, HashSet<String>> {
                 let path = entry.path();
                 if path.is_dir() {
                     visit_dir(&path, methods);
-                } else if path.extension().map_or(false, |e| e == "rs") {
+                } else if path.extension().is_some_and(|e| e == "rs") {
                     parse_rust_file(&path, methods);
                 }
             }
@@ -328,28 +371,25 @@ fn parse_rust_file(path: &Path, methods: &mut HashMap<String, HashSet<String>>) 
             for fn_line in body.lines() {
                 let trimmed = fn_line.trim();
                 if trimmed.starts_with("pub fn ") {
-                    if let Some(name) = trimmed
-                        .strip_prefix("pub fn ")
-                        .and_then(|rest| {
-                            // Handle generic params: method<A, B>(...) -> method
-                            let no_generics = if let Some(angle) = rest.find('<') {
-                                let before_angle = &rest[..angle];
-                                // Make sure the angle bracket is for generics (before '(')
-                                if let Some(paren) = rest.find('(') {
-                                    if angle < paren {
-                                        before_angle.trim()
-                                    } else {
-                                        rest.split('(').next().unwrap_or("")
-                                    }
-                                } else {
+                    if let Some(name) = trimmed.strip_prefix("pub fn ").map(|rest| {
+                        // Handle generic params: method<A, B>(...) -> method
+                        let no_generics = if let Some(angle) = rest.find('<') {
+                            let before_angle = &rest[..angle];
+                            // Make sure the angle bracket is for generics (before '(')
+                            if let Some(paren) = rest.find('(') {
+                                if angle < paren {
                                     before_angle.trim()
+                                } else {
+                                    rest.split('(').next().unwrap_or("")
                                 }
                             } else {
-                                rest.split('(').next().unwrap_or("")
-                            };
-                            Some(no_generics.to_string())
-                        })
-                    {
+                                before_angle.trim()
+                            }
+                        } else {
+                            rest.split('(').next().unwrap_or("")
+                        };
+                        no_generics.to_string()
+                    }) {
                         entry.insert(name);
                     }
                 }
@@ -367,24 +407,56 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
     }
 
     let cpp_classes = [
-        "Config", "FileRules", "ColorSpace", "ColorSpaceSet", "Look", "NamedTransform",
-        "ViewTransform", "Processor", "CPUProcessor", "GPUProcessor", "GpuShaderDesc",
-        "Baker", "Context", "FileTransform", "CDLTransform", "ExponentTransform",
-        "ExponentWithLinearTransform", "MatrixTransform", "LogTransform", "RangeTransform",
-        "GroupTransform", "BuiltinTransform", "FixedFunctionTransform", "Lut1DTransform",
-        "Lut3DTransform", "ExposureContrastTransform", "ColorSpaceTransform",
-        "LookTransform", "DisplayViewTransform", "GradingPrimaryTransform",
-        "GradingToneTransform", "GradingRGBCurveTransform", "GradingHueCurveTransform",
-        "AllocationTransform", "LogAffineTransform", "LogCameraTransform",
-        "FormatMetadata", "BuiltinConfigRegistry",
+        "Config",
+        "FileRules",
+        "ColorSpace",
+        "ColorSpaceSet",
+        "Look",
+        "NamedTransform",
+        "ViewTransform",
+        "Processor",
+        "CPUProcessor",
+        "GPUProcessor",
+        "GpuShaderDesc",
+        "Baker",
+        "Context",
+        "FileTransform",
+        "CDLTransform",
+        "ExponentTransform",
+        "ExponentWithLinearTransform",
+        "MatrixTransform",
+        "LogTransform",
+        "RangeTransform",
+        "GroupTransform",
+        "BuiltinTransform",
+        "FixedFunctionTransform",
+        "Lut1DTransform",
+        "Lut3DTransform",
+        "ExposureContrastTransform",
+        "ColorSpaceTransform",
+        "LookTransform",
+        "DisplayViewTransform",
+        "GradingPrimaryTransform",
+        "GradingToneTransform",
+        "GradingRGBCurveTransform",
+        "GradingHueCurveTransform",
+        "AllocationTransform",
+        "LogAffineTransform",
+        "LogCameraTransform",
+        "FormatMetadata",
+        "BuiltinConfigRegistry",
     ];
 
     let entries: Vec<_> = fs::read_dir(include_dir)
         .into_iter()
         .flatten()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "h") && e.path().file_name()
-            .map_or(false, |n| n != "OpenColorABI.h" && n != "OpenColorAppHelpers.h"))
+        .filter(|e| {
+            e.path().extension().is_some_and(|ext| ext == "h")
+                && e.path()
+                    .file_name()
+                    .is_some_and(|n| n != "OpenColorABI.h" && n != "OpenColorAppHelpers.h")
+        })
         .collect();
 
     for entry in entries {
@@ -425,9 +497,13 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
                         .lines()
                         .filter(|line| {
                             let t = line.trim();
-                            t.ends_with(';') && !t.starts_with("//") && !t.starts_with("typedef")
-                                && !t.starts_with("using ") && !t.starts_with("friend ")
-                                && t.contains('(') && t.contains(')')
+                            t.ends_with(';')
+                                && !t.starts_with("//")
+                                && !t.starts_with("typedef")
+                                && !t.starts_with("using ")
+                                && !t.starts_with("friend ")
+                                && t.contains('(')
+                                && t.contains(')')
                         })
                         .filter_map(|line| {
                             let t = line.trim().trim_end_matches(';').trim();
@@ -446,7 +522,8 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
                         .collect();
 
                     if !methods.is_empty() {
-                        classes.entry(cpp_class.to_string())
+                        classes
+                            .entry(cpp_class.to_string())
                             .or_default()
                             .extend(methods);
                     }
@@ -467,7 +544,8 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
         }
     }
     let bridge_names: HashSet<_> = bridge_funcs.iter().map(|f| &f.name).collect();
-    let extra: Vec<_> = lib_funcs.iter()
+    let extra: Vec<_> = lib_funcs
+        .iter()
         .filter(|n| !bridge_names.contains(*n))
         .cloned()
         .collect();
@@ -489,7 +567,10 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         // Processor naming differences
         ("get_cache_id_n", "cache_id_with_context"),
         ("get_processor_transform", "processor_from_transform"),
-        ("get_default_scene_to_display_view_transform", "get_default_scene_to_display_view_transform"),
+        (
+            "get_default_scene_to_display_view_transform",
+            "get_default_scene_to_display_view_transform",
+        ),
         // BuiltinTransform: completely different static method names
         ("get_num_styles", "num_builtin_styles"),
         ("get_style_by_index", "builtin_style"),
@@ -505,18 +586,33 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("grading_primary_set_value", "set_grading_primary_value"),
         ("grading_tone_get_value", "grading_tone_value"),
         ("grading_tone_set_value", "set_grading_tone_value"),
-        ("grading_rgb_curve_get_num_control_points", "grading_rgb_curve_num_control_points"),
-        ("grading_rgb_curve_get_control_point", "grading_rgb_curve_control_point"),
+        (
+            "grading_rgb_curve_get_num_control_points",
+            "grading_rgb_curve_num_control_points",
+        ),
+        (
+            "grading_rgb_curve_get_control_point",
+            "grading_rgb_curve_control_point",
+        ),
         ("grading_rgb_curve_get_slope", "grading_rgb_curve_slope"),
-        ("grading_hue_curve_get_num_control_points", "grading_hue_curve_num_control_points"),
-        ("grading_hue_curve_get_control_point", "grading_hue_curve_control_point"),
+        (
+            "grading_hue_curve_get_num_control_points",
+            "grading_hue_curve_num_control_points",
+        ),
+        (
+            "grading_hue_curve_get_control_point",
+            "grading_hue_curve_control_point",
+        ),
         ("grading_hue_curve_get_slope", "grading_hue_curve_slope"),
         // ColorSpaceSet: get_color_space_by_name -> color_space (by name variant)
         ("get_color_space_by_name", "get_color_space"),
         // DVT/LookTransform
         ("get_looks_bypass", "looks_bypass"),
         ("get_data_bypass", "data_bypass"),
-        ("get_skip_color_space_conversion", "skip_color_space_conversion"),
+        (
+            "get_skip_color_space_conversion",
+            "skip_color_space_conversion",
+        ),
         // GpuShaderDesc: get_texture -> texture_info (returns struct, not raw fields)
         ("get_texture", "texture_info"),
         // FormatMetadata: get_num_children_elements -> num_children
@@ -531,7 +627,10 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("get_role_color_space_by_name", "role_color_space"),
         // Config: get_display_view_transform_name (strip get_ gives display_view_transform_name ✓)
         // Config: get_color_space_set (strip get_ gives color_space_set ✓, with generics fix)
-    ].iter().cloned().collect()
+    ]
+    .iter()
+    .cloned()
+    .collect()
 }
 
 fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>>) -> L2Result {
@@ -568,7 +667,11 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
         }
     }
 
-    L2Result { total, matched, missing }
+    L2Result {
+        total,
+        matched,
+        missing,
+    }
 }
 
 fn find_rust_method(
@@ -606,42 +709,67 @@ fn find_rust_method(
     None
 }
 
-fn run_l3(bridge_funcs: &[CFunc], cpp_classes: &HashMap<String, Vec<(String, String)>>) -> L3Result {
-    let bridge_methods: HashMap<String, HashSet<String>> = bridge_funcs.iter()
-        .fold(HashMap::new(), |mut acc, f| {
+fn run_l3(
+    bridge_funcs: &[CFunc],
+    cpp_classes: &HashMap<String, Vec<(String, String)>>,
+) -> L3Result {
+    let bridge_methods: HashMap<String, HashSet<String>> =
+        bridge_funcs.iter().fold(HashMap::new(), |mut acc, f| {
             if let Some(rust_class) = c_prefix_to_rust(&f.class_prefix) {
-                acc.entry(rust_class.to_string()).or_default().insert(f.method_name.clone());
+                acc.entry(rust_class.to_string())
+                    .or_default()
+                    .insert(f.method_name.clone());
             }
             acc
         });
 
     let cpp_to_rust: HashMap<&str, &str> = [
-        ("Config", "Config"), ("FileRules", "FileRules"), ("ColorSpace", "ColorSpace"),
-        ("ColorSpaceSet", "ColorSpaceSet"), ("Look", "Look"), ("NamedTransform", "NamedTransform"),
-        ("ViewTransform", "ViewTransform"), ("Processor", "Processor"),
-        ("CPUProcessor", "CPUProcessor"), ("GPUProcessor", "GPUProcessor"),
-        ("GpuShaderDesc", "GpuShaderDesc"), ("Baker", "Baker"), ("Context", "Context"),
-        ("FileTransform", "FileTransform"), ("CDLTransform", "CDLTransform"),
+        ("Config", "Config"),
+        ("FileRules", "FileRules"),
+        ("ColorSpace", "ColorSpace"),
+        ("ColorSpaceSet", "ColorSpaceSet"),
+        ("Look", "Look"),
+        ("NamedTransform", "NamedTransform"),
+        ("ViewTransform", "ViewTransform"),
+        ("Processor", "Processor"),
+        ("CPUProcessor", "CPUProcessor"),
+        ("GPUProcessor", "GPUProcessor"),
+        ("GpuShaderDesc", "GpuShaderDesc"),
+        ("Baker", "Baker"),
+        ("Context", "Context"),
+        ("FileTransform", "FileTransform"),
+        ("CDLTransform", "CDLTransform"),
         ("ExponentTransform", "ExponentTransform"),
         ("ExponentWithLinearTransform", "ExponentWithLinearTransform"),
-        ("MatrixTransform", "MatrixTransform"), ("LogTransform", "LogTransform"),
-        ("RangeTransform", "RangeTransform"), ("GroupTransform", "GroupTransform"),
-        ("BuiltinTransform", "BuiltinTransform"), ("FixedFunctionTransform", "FixedFunctionTransform"),
-        ("Lut1DTransform", "Lut1DTransform"), ("Lut3DTransform", "Lut3DTransform"),
+        ("MatrixTransform", "MatrixTransform"),
+        ("LogTransform", "LogTransform"),
+        ("RangeTransform", "RangeTransform"),
+        ("GroupTransform", "GroupTransform"),
+        ("BuiltinTransform", "BuiltinTransform"),
+        ("FixedFunctionTransform", "FixedFunctionTransform"),
+        ("Lut1DTransform", "Lut1DTransform"),
+        ("Lut3DTransform", "Lut3DTransform"),
         ("ExposureContrastTransform", "ExposureContrastTransform"),
-        ("ColorSpaceTransform", "ColorSpaceTransform"), ("LookTransform", "LookTransform"),
+        ("ColorSpaceTransform", "ColorSpaceTransform"),
+        ("LookTransform", "LookTransform"),
         ("DisplayViewTransform", "DisplayViewTransform"),
         ("GradingPrimaryTransform", "GradingPrimaryTransform"),
         ("GradingToneTransform", "GradingToneTransform"),
         ("GradingRGBCurveTransform", "GradingRGBCurveTransform"),
         ("GradingHueCurveTransform", "GradingHueCurveTransform"),
         ("AllocationTransform", "AllocationTransform"),
-        ("LogAffineTransform", "LogAffineTransform"), ("LogCameraTransform", "LogCameraTransform"),
-        ("FormatMetadata", "FormatMetadata"), ("BuiltinConfigRegistry", "BuiltinConfigRegistry"),
-    ].iter().cloned().collect();
+        ("LogAffineTransform", "LogAffineTransform"),
+        ("LogCameraTransform", "LogCameraTransform"),
+        ("FormatMetadata", "FormatMetadata"),
+        ("BuiltinConfigRegistry", "BuiltinConfigRegistry"),
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     let method_name_overrides: HashMap<&str, &str> = [
-        ("CreateRaw", "raw"), ("CreateFromFile", "from_file"),
+        ("CreateRaw", "raw"),
+        ("CreateFromFile", "from_file"),
         ("CreateEditableCopy", "create_editable_copy"),
         ("getProcessor", "processor"),
         ("getDefaultCPUProcessor", "default_cpu_processor"),
@@ -649,8 +777,12 @@ fn run_l3(bridge_funcs: &[CFunc], cpp_classes: &HashMap<String, Vec<(String, Str
         ("getDefaultGPUProcessor", "default_gpu_processor"),
         ("getOptimizedGPUProcessor", "optimized_gpu_processor"),
         ("getDynamicProperty", "dynamic_property"),
-        ("isNoOp", "is_no_op"), ("hasChannelCrosstalk", "has_channel_crosstalk"),
-    ].iter().cloned().collect();
+        ("isNoOp", "is_no_op"),
+        ("hasChannelCrosstalk", "has_channel_crosstalk"),
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     let mut total_cpp = 0;
     let mut matched = 0;
@@ -658,22 +790,27 @@ fn run_l3(bridge_funcs: &[CFunc], cpp_classes: &HashMap<String, Vec<(String, Str
 
     for (cpp_class, methods) in cpp_classes {
         let rust_class = cpp_to_rust.get(cpp_class.as_str());
-        if rust_class.is_none() { continue; }
+        if rust_class.is_none() {
+            continue;
+        }
         let rust_class = rust_class.unwrap();
         let bridged = bridge_methods.get(*rust_class);
 
         total_cpp += methods.len();
         for (method_name, _signature) in methods {
-            if method_name == "Create" { continue; }
+            if method_name == "Create" {
+                continue;
+            }
 
-            let expected = method_name_overrides.get(method_name.as_str())
+            let expected = method_name_overrides
+                .get(method_name.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| {
                     let snake = camel_to_snake(method_name);
-                    if snake.starts_with("get_") {
-                        snake[4..].to_string()
-                    } else if snake.starts_with("set_") {
-                        snake[4..].to_string()
+                    if let Some(stripped) = snake.strip_prefix("get_") {
+                        stripped.to_string()
+                    } else if let Some(stripped) = snake.strip_prefix("set_") {
+                        stripped.to_string()
                     } else {
                         snake
                     }
@@ -690,13 +827,22 @@ fn run_l3(bridge_funcs: &[CFunc], cpp_classes: &HashMap<String, Vec<(String, Str
             if found {
                 matched += 1;
             } else {
-                missing.entry(cpp_class.clone()).or_insert_with(Vec::new)
-                    .push(L3Missing { cpp_name: method_name.clone(), expected_snake: expected });
+                missing
+                    .entry(cpp_class.clone())
+                    .or_insert_with(Vec::new)
+                    .push(L3Missing {
+                        cpp_name: method_name.clone(),
+                        expected_snake: expected,
+                    });
             }
         }
     }
 
-    L3Result { total_cpp_methods: total_cpp, matched, missing }
+    L3Result {
+        total_cpp_methods: total_cpp,
+        matched,
+        missing,
+    }
 }
 
 // ─── Report ───
@@ -724,7 +870,10 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
     }
     if !l1.extra_in_lib.is_empty() {
         has_gaps = true;
-        println!("  EXTRA in lib.rs (not in bridge.hpp): {}", l1.extra_in_lib.len());
+        println!(
+            "  EXTRA in lib.rs (not in bridge.hpp): {}",
+            l1.extra_in_lib.len()
+        );
         for e in &l1.extra_in_lib {
             println!("    - {}", e);
         }
@@ -733,13 +882,19 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
 
     // L2
     println!("[L2] bridge.hpp <-> Rust safe wrappers");
-    println!("  Total: {} wrapped functions, {} matched", l2.total, l2.matched);
+    println!(
+        "  Total: {} wrapped functions, {} matched",
+        l2.total, l2.matched
+    );
     if !l2.missing.is_empty() {
         has_gaps = true;
         println!("  MISSING Rust wrapper methods: {}", l2.missing.len());
         let mut by_class: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for m in &l2.missing {
-            by_class.entry(&m.rust_class).or_default().push(&m.expected_method);
+            by_class
+                .entry(&m.rust_class)
+                .or_default()
+                .push(&m.expected_method);
         }
         for (cls, meths) in &by_class {
             println!("    {}: {}", cls, meths.join(", "));
@@ -788,7 +943,9 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let check_l3 = args.iter().any(|a| a == "--check-l3");
     let verbose = args.iter().any(|a| a == "--verbose" || a == "-v");
-    let json_out = args.iter().position(|a| a == "--json")
+    let json_out = args
+        .iter()
+        .position(|a| a == "--json")
         .and_then(|i| args.get(i + 1).cloned());
 
     let root = PathBuf::from(ROOT);
@@ -832,7 +989,11 @@ fn main() {
 
     if let Some(path) = &json_out {
         let missing_l1: Vec<_> = l1.missing_in_lib.iter().map(|f| f.name.clone()).collect();
-        let missing_l2: Vec<_> = l2.missing.iter().map(|m| format!("{}::{}", m.rust_class, m.expected_method)).collect();
+        let missing_l2: Vec<_> = l2
+            .missing
+            .iter()
+            .map(|m| format!("{}::{}", m.rust_class, m.expected_method))
+            .collect();
         let json = format!(
             r#"{{
   "L1": {{
@@ -848,13 +1009,22 @@ fn main() {
   }},
   "L3": {}
 }}"#,
-            l1.total_hpp, l1.total_lib, missing_l1, l1.extra_in_lib,
-            l2.total, l2.matched, missing_l2,
+            l1.total_hpp,
+            l1.total_lib,
+            missing_l1,
+            l1.extra_in_lib,
+            l2.total,
+            l2.matched,
+            missing_l2,
             if let Some(ref l3) = l3 {
                 let missing_count: usize = l3.missing.values().map(|v| v.len()).sum();
-                format!(r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {} }}"#,
-                    l3.total_cpp_methods, l3.matched, missing_count)
-            } else { r#""skipped (use --check-l3)""#.to_string() }
+                format!(
+                    r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {} }}"#,
+                    l3.total_cpp_methods, l3.matched, missing_count
+                )
+            } else {
+                r#""skipped (use --check-l3)""#.to_string()
+            }
         );
         fs::write(path, json).unwrap_or_else(|e| eprintln!("Failed to write JSON: {}", e));
         println!("  JSON report saved to {}", path);

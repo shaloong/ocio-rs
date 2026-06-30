@@ -1,9 +1,9 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
-use crate::transform::{TransformHandle, Transform, transform_from_raw_handle};
 
 pub struct Look {
     pub(crate) handle: NonNull<c_void>,
@@ -12,16 +12,26 @@ pub struct Look {
 impl Look {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_look_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_look_create_editable_copy(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        let handle = unsafe {
+            ocio_sys::ocio_look_create_editable_copy(self.handle.as_ptr() as *mut c_void)
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn name(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_look_get_name(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_look_get_name(
+                self.handle.as_ptr() as *mut c_void
+            ))
+        }
     }
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
@@ -31,7 +41,11 @@ impl Look {
     }
 
     pub fn process_space(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_look_get_process_space(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_look_get_process_space(
+                self.handle.as_ptr() as *mut c_void
+            ))
+        }
     }
 
     pub fn set_process_space(&self, space: impl AsRef<str>) -> Result<()> {
@@ -41,7 +55,11 @@ impl Look {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_look_get_description(self.handle.as_ptr() as *mut c_void)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_look_get_description(
+                self.handle.as_ptr() as *mut c_void
+            ))
+        }
     }
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
@@ -51,7 +69,8 @@ impl Look {
     }
 
     pub fn transform(&self) -> Option<Transform> {
-        let handle = unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
+        let handle =
+            unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
         transform_from_raw_handle(handle)
     }
 
@@ -65,7 +84,9 @@ impl Look {
     }
 
     pub fn inverse_transform(&self) -> Option<Transform> {
-        let handle = unsafe { ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr() as *mut c_void) };
+        let handle = unsafe {
+            ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr() as *mut c_void)
+        };
         transform_from_raw_handle(handle)
     }
 
@@ -80,7 +101,10 @@ impl Look {
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_look_get_direction(self.handle.as_ptr() as *mut c_void) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {

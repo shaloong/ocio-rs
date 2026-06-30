@@ -1,0 +1,67 @@
+# Migration Notes
+
+## 0.2.0
+
+`0.2.0` is an alpha-stage breaking cleanup that aligns the safe Rust layer with OpenColorIO 2.5.2 rather than preserving previously generated compatibility shims.
+
+### GPU shader descriptors
+
+`GpuShaderDesc` now exposes typed GPU resources:
+
+- Use `textures_2d()` / `texture_2d(index)` for 1D/2D texture metadata and values.
+- Use `textures_3d()` / `texture_3d(index)` for 3D texture metadata and values.
+- Use `uniforms()` / `uniform(index)` for uniform metadata and current values.
+- `texture_values(index)` now returns an owned `Vec<f32>`.
+- `num_uniforms()`, `num_textures()`, `num_3d_textures()`, and binding-index APIs return concrete Rust integer types instead of pointer-shaped compatibility values.
+
+The old pointer-shaped GPU descriptor methods were not reliable in real OCIO mode and should not be used by application code.
+
+### View transforms
+
+`ViewTransform` is now modeled as OpenColorIO defines it:
+
+- Create it with `ViewTransform::create(ReferenceSpaceType)`.
+- Read/write the transform in a specific `ViewTransformDirection` with `transform(direction)` and `set_transform(transform, direction)`.
+- Use category APIs: `has_category`, `add_category`, `remove_category`, `num_categories`, `category(index)`, and `clear_categories`.
+
+Display/view/looks/rule helpers were removed from `ViewTransform`. Use `DisplayViewTransform` for display/view mappings.
+
+### Config processors and file rules
+
+The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
+
+`color_space_from_filepath_by_ref_type` has been replaced by:
+
+```rust
+let (color_space, rule_index) = config
+    .color_space_from_filepath_with_rule_index(path)
+    .expect("file rules should resolve a color space");
+```
+
+This matches OCIO's file-rule model and returns the matching rule index alongside the resolved color-space name.
+
+### Grading and LUT transforms
+
+`GradingPrimaryTransform::create(style)` and `GradingToneTransform::create(style)` now construct real OCIO transforms with the requested style. `value()` and `set_value()` copy real OCIO grading fields instead of returning default zero data.
+
+`GradingRGBCurveTransform::create(style)` and `GradingHueCurveTransform::create(style)` now construct real OCIO transforms. Hue curves now use `HueCurveType` and `HSYTransformStyle`; they no longer reuse `RGBCurveType` or expose the non-OCIO `bypass_lin_to_log` helper. The `DynamicProperty::grading_hue_curve_*` methods use `HueCurveType` for the same reason.
+
+`Lut1DTransform::set_length` and `Lut3DTransform::set_grid_size` now pass concrete integer values through the C ABI.
+
+### Fixed functions and log camera
+
+`FixedFunctionStyle` now matches the OpenColorIO 2.5.2 enum values exactly. Existing code that persisted integer enum discriminants must migrate those values instead of reusing old integer data.
+
+`FixedFunctionTransform::create_with_params` now follows OCIO validation. Pass parameters only to styles that accept them, for example `FixedFunctionStyle::Rec2100Surround` with one gamma parameter.
+
+`LogCameraTransform::create(lin_side_break_values)` now passes the break values into `LogCameraTransform::Create`; the argument is no longer ignored.
+
+### Built-in configs
+
+`BuiltinConfigRegistry::config_by_name` and `config_by_index` now return an actual `Config` created via `Config::CreateFromBuiltinConfig`.
+
+Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-in YAML text.
+
+### Bundled builds
+
+Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct BuiltinTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,22 +11,33 @@ pub struct BuiltinTransform {
 impl BuiltinTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_builtin_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn style(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_builtin_transform_get_style(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_builtin_transform_get_style(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_style(&self, style: impl AsRef<str>) -> Result<()> {
         let s = cstring(style)?;
-        unsafe { ocio_sys::ocio_builtin_transform_set_style(self.handle.as_ptr(), s.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_builtin_transform_set_style(self.handle.as_ptr(), s.as_ptr().cast())
+        };
         Ok(())
     }
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_builtin_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -36,12 +47,18 @@ impl BuiltinTransform {
     }
 
     pub fn description(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_builtin_transform_get_description(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_builtin_transform_get_description(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -60,7 +77,10 @@ impl BuiltinTransform {
     }
 
     pub fn is_valid_builtin_style(style: impl AsRef<str>) -> bool {
-        let s = match crate::cstring(style) { Ok(s) => s, Err(_) => return false };
+        let s = match crate::cstring(style) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
         unsafe { ocio_sys::ocio_builtin_transform_is_valid_style(s.as_ptr().cast()) }
     }
 }

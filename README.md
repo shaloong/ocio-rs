@@ -11,6 +11,8 @@ Wraps the full v2.5.2 public API — 38 classes, 22 transform types, 748 functio
 
 > [中文文档](docs/README_zh-CN.md)
 
+> Breaking API updates are tracked in [docs/MIGRATION.md](docs/MIGRATION.md).
+
 ```toml
 [dependencies]
 ocio-rs = "0.1"
@@ -54,8 +56,9 @@ ocio-rs/
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
-| 0.1.0   | v2.5.1 |
+| 0.2.0   | v2.5.2 |
 | 0.1.1   | v2.5.2 |
+| 0.1.0   | v2.5.1 |
 
 OCIO upgrade workflow: update submodule → run code generator → fix compile errors → release.
 

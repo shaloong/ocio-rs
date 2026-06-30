@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, EnvironmentMode, OcioError, Result};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, EnvironmentMode};
 
 pub struct Context {
     pub(crate) handle: NonNull<c_void>,
@@ -11,12 +11,16 @@ pub struct Context {
 impl Context {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_context_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_context_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn cache_id(&self) -> Option<String> {
@@ -40,7 +44,8 @@ impl Context {
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_search_path_by_index(
-                self.handle.as_ptr(), index,
+                self.handle.as_ptr(),
+                index,
             ))
         }
     }
@@ -69,7 +74,8 @@ impl Context {
         let name = cstring(name).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var(
-                self.handle.as_ptr(), name.as_ptr().cast(),
+                self.handle.as_ptr(),
+                name.as_ptr().cast(),
             ))
         }
     }
@@ -79,7 +85,9 @@ impl Context {
         let v = cstring(value)?;
         unsafe {
             ocio_sys::ocio_context_set_string_var(
-                self.handle.as_ptr(), n.as_ptr().cast(), v.as_ptr().cast(),
+                self.handle.as_ptr(),
+                n.as_ptr().cast(),
+                v.as_ptr().cast(),
             );
         }
         Ok(())
@@ -92,7 +100,8 @@ impl Context {
     pub fn string_var_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_name_by_index(
-                self.handle.as_ptr(), index,
+                self.handle.as_ptr(),
+                index,
             ))
         }
     }
@@ -100,7 +109,8 @@ impl Context {
     pub fn string_var_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_by_index(
-                self.handle.as_ptr(), index,
+                self.handle.as_ptr(),
+                index,
             ))
         }
     }
@@ -109,7 +119,8 @@ impl Context {
         let s = cstring(string).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_resolve_string_var(
-                self.handle.as_ptr(), s.as_ptr().cast(),
+                self.handle.as_ptr(),
+                s.as_ptr().cast(),
             ))
         }
     }
@@ -118,7 +129,8 @@ impl Context {
         let f = cstring(filename).ok()?;
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_resolve_file_location(
-                self.handle.as_ptr(), f.as_ptr().cast(),
+                self.handle.as_ptr(),
+                f.as_ptr().cast(),
             ))
         }
     }
@@ -135,7 +147,10 @@ impl Context {
 
     pub fn environment_mode(&self) -> EnvironmentMode {
         let m = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
-        match m { 1 => EnvironmentMode::LoadAll, _ => EnvironmentMode::LoadPredefined }
+        match m {
+            1 => EnvironmentMode::LoadAll,
+            _ => EnvironmentMode::LoadPredefined,
+        }
     }
 
     pub fn load_environment(&self) {

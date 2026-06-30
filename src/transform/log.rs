@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use ocio_sys;
 use crate::{OcioError, Result, TransformDirection};
+use ocio_sys;
 
 pub struct LogTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +11,9 @@ pub struct LogTransform {
 impl LogTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_log_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn base(&self) -> f64 {
@@ -24,7 +26,10 @@ impl LogTransform {
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_log_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -35,7 +40,9 @@ impl LogTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

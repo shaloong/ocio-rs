@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{BitDepth, OcioError, RangeStyle, Result, TransformDirection};
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, RangeStyle, BitDepth};
 
 pub struct RangeTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,12 +11,17 @@ pub struct RangeTransform {
 impl RangeTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_range_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn style(&self) -> RangeStyle {
         let s = unsafe { ocio_sys::ocio_range_transform_get_style(self.handle.as_ptr()) };
-        match s { 1 => RangeStyle::Clamp, _ => RangeStyle::NoClamp }
+        match s {
+            1 => RangeStyle::Clamp,
+            _ => RangeStyle::NoClamp,
+        }
     }
 
     pub fn set_style(&self, style: RangeStyle) {
@@ -57,7 +62,10 @@ impl RangeTransform {
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_range_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -68,7 +76,9 @@ impl RangeTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn has_min_in_value(&self) -> bool {
@@ -104,29 +114,55 @@ impl RangeTransform {
     }
 
     pub fn file_input_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_range_transform_get_file_input_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe {
+            ocio_sys::ocio_range_transform_get_file_input_bit_depth(self.handle.as_ptr())
+        };
         match b {
-            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
-            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
-            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
         }
     }
 
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
-        unsafe { ocio_sys::ocio_range_transform_set_file_input_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+        unsafe {
+            ocio_sys::ocio_range_transform_set_file_input_bit_depth(
+                self.handle.as_ptr(),
+                bit_depth as i32,
+            )
+        };
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_range_transform_get_file_output_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe {
+            ocio_sys::ocio_range_transform_get_file_output_bit_depth(self.handle.as_ptr())
+        };
         match b {
-            1 => BitDepth::Uint8, 2 => BitDepth::Uint10, 3 => BitDepth::Uint12,
-            4 => BitDepth::Uint14, 5 => BitDepth::Uint16, 6 => BitDepth::Uint32,
-            7 => BitDepth::F16, 8 => BitDepth::F32, _ => BitDepth::Unknown,
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
         }
     }
 
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
-        unsafe { ocio_sys::ocio_range_transform_set_file_output_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+        unsafe {
+            ocio_sys::ocio_range_transform_set_file_output_bit_depth(
+                self.handle.as_ptr(),
+                bit_depth as i32,
+            )
+        };
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

@@ -15,7 +15,11 @@ fn main() -> Result<()> {
     let n = config.num_color_spaces();
     println!("Number of color spaces: {n}");
     for i in 0..n.min(5) {
-        println!("  ColorSpace[{}]: {:?}", i, config.color_space_name_by_index(i));
+        println!(
+            "  ColorSpace[{}]: {:?}",
+            i,
+            config.color_space_name_by_index(i)
+        );
     }
 
     // Displays and views

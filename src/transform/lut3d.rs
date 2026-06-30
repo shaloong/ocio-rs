@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{BitDepth, Interpolation, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, Interpolation, BitDepth};
 
 pub struct Lut3DTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +11,9 @@ pub struct Lut3DTransform {
 impl Lut3DTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_lut3d_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn interpolation(&self) -> Interpolation {
@@ -29,12 +31,17 @@ impl Lut3DTransform {
 
     pub fn set_interpolation(&self, interpolation: Interpolation) {
         unsafe {
-            ocio_sys::ocio_lut3d_transform_set_interpolation(self.handle.as_ptr(), interpolation as i32);
+            ocio_sys::ocio_lut3d_transform_set_interpolation(
+                self.handle.as_ptr(),
+                interpolation as i32,
+            );
         }
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
-        let b = unsafe { ocio_sys::ocio_lut3d_transform_get_file_output_bit_depth(self.handle.as_ptr()) };
+        let b = unsafe {
+            ocio_sys::ocio_lut3d_transform_get_file_output_bit_depth(self.handle.as_ptr())
+        };
         match b {
             1 => BitDepth::Uint8,
             2 => BitDepth::Uint10,
@@ -51,14 +58,18 @@ impl Lut3DTransform {
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
         unsafe {
             ocio_sys::ocio_lut3d_transform_set_file_output_bit_depth(
-                self.handle.as_ptr(), bit_depth as i32,
+                self.handle.as_ptr(),
+                bit_depth as i32,
             );
         }
     }
 
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_lut3d_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
@@ -69,22 +80,26 @@ impl Lut3DTransform {
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn grid_size(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size(self.handle.as_ptr()) as u64 }
+        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size_u64(self.handle.as_ptr()) }
     }
 
     pub fn set_grid_size(&self, size: u64) {
-        unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size(self.handle.as_ptr(), std::ptr::null_mut()) };
+        unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size_u64(self.handle.as_ptr(), size) };
     }
 
     pub fn values(&self) -> Vec<f64> {
         let gs = self.grid_size() as usize;
         let len = gs.max(1);
         let mut data = vec![0.0f64; len * len * len * 3];
-        unsafe { ocio_sys::ocio_lut3d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr()) };
+        unsafe {
+            ocio_sys::ocio_lut3d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
+        };
         data
     }
 

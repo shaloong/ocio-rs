@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, OcioError, Result};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, ColorSpace, OcioError, Result};
 
 pub struct ColorSpaceSet {
     pub(crate) handle: NonNull<c_void>,
@@ -73,10 +73,7 @@ impl ColorSpaceSet {
             Err(_) => return false,
         };
         unsafe {
-            ocio_sys::ocio_color_space_set_has_color_space(
-                self.handle.as_ptr(),
-                n.as_ptr().cast(),
-            )
+            ocio_sys::ocio_color_space_set_has_color_space(self.handle.as_ptr(), n.as_ptr().cast())
         }
     }
 }

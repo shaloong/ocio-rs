@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{ExposureContrastStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{OcioError, Result, TransformDirection, ExposureContrastStyle};
 
 pub struct ExposureContrastTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,7 +11,9 @@ pub struct ExposureContrastTransform {
 impl ExposureContrastTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_exposure_contrast_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn exposure(&self) -> f64 {
@@ -19,7 +21,9 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_exposure(&self, exposure: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_exposure(self.handle.as_ptr(), exposure) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_exposure(self.handle.as_ptr(), exposure)
+        };
     }
 
     pub fn contrast(&self) -> f64 {
@@ -27,7 +31,9 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_contrast(&self, contrast: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_contrast(self.handle.as_ptr(), contrast) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_contrast(self.handle.as_ptr(), contrast)
+        };
     }
 
     pub fn gamma(&self) -> f64 {
@@ -35,7 +41,9 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_gamma(&self, gamma: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_gamma(self.handle.as_ptr(), gamma) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_gamma(self.handle.as_ptr(), gamma)
+        };
     }
 
     pub fn pivot(&self) -> f64 {
@@ -43,11 +51,14 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_pivot(&self, pivot: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_pivot(self.handle.as_ptr(), pivot) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_pivot(self.handle.as_ptr(), pivot)
+        };
     }
 
     pub fn style(&self) -> ExposureContrastStyle {
-        let s = unsafe { ocio_sys::ocio_exposure_contrast_transform_get_style(self.handle.as_ptr()) };
+        let s =
+            unsafe { ocio_sys::ocio_exposure_contrast_transform_get_style(self.handle.as_ptr()) };
         match s {
             1 => ExposureContrastStyle::Video,
             2 => ExposureContrastStyle::Logarithmic,
@@ -57,32 +68,51 @@ impl ExposureContrastTransform {
 
     pub fn set_style(&self, style: ExposureContrastStyle) {
         unsafe {
-            ocio_sys::ocio_exposure_contrast_transform_set_style(self.handle.as_ptr(), style as i32);
+            ocio_sys::ocio_exposure_contrast_transform_set_style(
+                self.handle.as_ptr(),
+                style as i32,
+            );
         }
     }
 
     pub fn is_exposure_dynamic(&self) -> bool {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_is_exposure_dynamic(self.handle.as_ptr()) }
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_is_exposure_dynamic(self.handle.as_ptr())
+        }
     }
 
     pub fn make_exposure_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_exposure_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_exposure_dynamic(self.handle.as_ptr())
+        };
     }
 
     pub fn is_contrast_dynamic(&self) -> bool {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_is_contrast_dynamic(self.handle.as_ptr()) }
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_is_contrast_dynamic(self.handle.as_ptr())
+        }
     }
 
     pub fn make_contrast_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_contrast_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_contrast_dynamic(self.handle.as_ptr())
+        };
     }
 
     pub fn make_exposure_non_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_exposure_non_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_exposure_non_dynamic(
+                self.handle.as_ptr(),
+            )
+        };
     }
 
     pub fn make_contrast_non_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_contrast_non_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_contrast_non_dynamic(
+                self.handle.as_ptr(),
+            )
+        };
     }
 
     pub fn is_gamma_dynamic(&self) -> bool {
@@ -90,19 +120,30 @@ impl ExposureContrastTransform {
     }
 
     pub fn make_gamma_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_gamma_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_gamma_dynamic(self.handle.as_ptr())
+        };
     }
 
     pub fn make_gamma_non_dynamic(&self) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_make_gamma_non_dynamic(self.handle.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_make_gamma_non_dynamic(self.handle.as_ptr())
+        };
     }
 
     pub fn log_exposure_step(&self) -> f64 {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_get_log_exposure_step(self.handle.as_ptr()) }
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_get_log_exposure_step(self.handle.as_ptr())
+        }
     }
 
     pub fn set_log_exposure_step(&self, step: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_log_exposure_step(self.handle.as_ptr(), step) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_log_exposure_step(
+                self.handle.as_ptr(),
+                step,
+            )
+        };
     }
 
     pub fn log_mid_gray(&self) -> f64 {
@@ -110,23 +151,38 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_log_mid_gray(&self, mid_gray: f64) {
-        unsafe { ocio_sys::ocio_exposure_contrast_transform_set_log_mid_gray(self.handle.as_ptr(), mid_gray) };
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_set_log_mid_gray(
+                self.handle.as_ptr(),
+                mid_gray,
+            )
+        };
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir = unsafe { ocio_sys::ocio_exposure_contrast_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        let dir = unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_get_direction(self.handle.as_ptr())
+        };
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe {
-            ocio_sys::ocio_exposure_contrast_transform_set_direction(self.handle.as_ptr(), direction as i32);
+            ocio_sys::ocio_exposure_contrast_transform_set_direction(
+                self.handle.as_ptr(),
+                direction as i32,
+            );
         }
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

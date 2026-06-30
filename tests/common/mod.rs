@@ -6,8 +6,6 @@
 //!   OCIO_CHECK_THROW_WHAT   → #[should_panic(expected = "...")]
 //!   OCIO_CHECK_NO_THROW     → just call it
 
-use ocio_rs;
-
 /// Check if the build uses the OCIO stub (no real C++ library available).
 /// Tests that need real pixel processing must gate on this.
 pub fn is_stub() -> bool {
@@ -27,6 +25,7 @@ pub fn assert_close(a: f64, b: f64, tol: f64) {
 }
 
 /// Assert two f64 slices are element-wise within `tol`.
+#[allow(dead_code)]
 #[track_caller]
 pub fn assert_vec_close(a: &[f64], b: &[f64], tol: f64) {
     assert_eq!(
@@ -48,6 +47,7 @@ pub fn assert_vec_close(a: &[f64], b: &[f64], tol: f64) {
 }
 
 /// Assert two 4-element RGBA f64 arrays are element-wise within `tol`.
+#[allow(dead_code)]
 #[track_caller]
 pub fn assert_rgba_close(a: &[f64; 4], b: &[f64; 4], tol: f64) {
     for i in 0..4 {
@@ -62,6 +62,7 @@ pub fn assert_rgba_close(a: &[f64; 4], b: &[f64; 4], tol: f64) {
 }
 
 /// Assert two f32 slices are element-wise within `tol`.
+#[allow(dead_code)]
 #[track_caller]
 pub fn assert_f32_vec_close(a: &[f32], b: &[f32], tol: f32) {
     assert_eq!(
@@ -92,6 +93,11 @@ pub fn create_test_config() -> Option<ocio_rs::Config> {
 }
 
 /// Normalize a f64 value for comparison (handle -0.0 vs 0.0).
+#[allow(dead_code)]
 pub fn normalize_zero(v: f64) -> f64 {
-    if v == 0.0 { 0.0 } else { v }
+    if v == 0.0 {
+        0.0
+    } else {
+        v
+    }
 }

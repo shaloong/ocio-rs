@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
-use crate::{cstr_to_opt_string, cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 
 pub struct ColorSpaceTransform {
     pub(crate) handle: NonNull<c_void>,
@@ -11,26 +11,40 @@ pub struct ColorSpaceTransform {
 impl ColorSpaceTransform {
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_color_space_transform_create() };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn src(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_transform_get_src(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_transform_get_src(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
-        unsafe { ocio_sys::ocio_color_space_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_color_space_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast())
+        };
         Ok(())
     }
 
     pub fn dst(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_color_space_transform_get_dst(self.handle.as_ptr())) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_transform_get_dst(
+                self.handle.as_ptr(),
+            ))
+        }
     }
 
     pub fn set_dst(&self, dst: impl AsRef<str>) -> Result<()> {
         let d = cstring(dst)?;
-        unsafe { ocio_sys::ocio_color_space_transform_set_dst(self.handle.as_ptr(), d.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_color_space_transform_set_dst(self.handle.as_ptr(), d.as_ptr().cast())
+        };
         Ok(())
     }
 
@@ -39,23 +53,34 @@ impl ColorSpaceTransform {
     }
 
     pub fn set_data_bypass(&self, bypass: bool) {
-        unsafe { ocio_sys::ocio_color_space_transform_set_data_bypass(self.handle.as_ptr(), bypass) };
+        unsafe {
+            ocio_sys::ocio_color_space_transform_set_data_bypass(self.handle.as_ptr(), bypass)
+        };
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir = unsafe { ocio_sys::ocio_color_space_transform_get_direction(self.handle.as_ptr()) };
-        match dir { 1 => TransformDirection::Inverse, _ => TransformDirection::Forward }
+        let dir =
+            unsafe { ocio_sys::ocio_color_space_transform_get_direction(self.handle.as_ptr()) };
+        match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        }
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe {
-            ocio_sys::ocio_color_space_transform_set_direction(self.handle.as_ptr(), direction as i32);
+            ocio_sys::ocio_color_space_transform_set_direction(
+                self.handle.as_ptr(),
+                direction as i32,
+            );
         }
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| Self { handle: h }).ok_or(OcioError::AllocationFailed)
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
