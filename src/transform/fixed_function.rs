@@ -139,6 +139,23 @@ impl FixedFunctionTransform {
         };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_fixed_function_transform_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
+        }
+    }
 }
 
 impl Drop for FixedFunctionTransform {
@@ -198,5 +215,12 @@ mod tests {
     fn format_metadata_no_crash() {
         let ft = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
         let _ = ft.format_metadata();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
+        let b = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
+        let _ = a.equals(&b);
     }
 }

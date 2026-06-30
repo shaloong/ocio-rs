@@ -89,8 +89,16 @@ impl Lut3DTransform {
         unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size_u64(self.handle.as_ptr()) }
     }
 
+    pub fn grid_size_u64(&self) -> u64 {
+        self.grid_size()
+    }
+
     pub fn set_grid_size(&self, size: u64) {
         unsafe { ocio_sys::ocio_lut3d_transform_set_grid_size_u64(self.handle.as_ptr(), size) };
+    }
+
+    pub fn set_grid_size_u64(&self, size: u64) {
+        self.set_grid_size(size);
     }
 
     pub fn values(&self) -> Vec<f64> {
@@ -107,9 +115,53 @@ impl Lut3DTransform {
         unsafe { ocio_sys::ocio_lut3d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
     }
 
+    pub fn value(&self, index_r: u64, index_g: u64, index_b: u64) -> Option<[f32; 3]> {
+        let edge = self.grid_size();
+        if index_r >= edge || index_g >= edge || index_b >= edge {
+            return None;
+        }
+        let values = self.values();
+        let edge = edge as usize;
+        let offset =
+            ((index_b as usize * edge * edge) + (index_g as usize * edge) + index_r as usize) * 3;
+        Some([
+            values.get(offset).copied().unwrap_or_default() as f32,
+            values.get(offset + 1).copied().unwrap_or_default() as f32,
+            values.get(offset + 2).copied().unwrap_or_default() as f32,
+        ])
+    }
+
+    pub fn set_value(&self, index_r: u64, index_g: u64, index_b: u64, value: [f32; 3]) {
+        unsafe {
+            ocio_sys::ocio_lut3d_transform_set_value(
+                self.handle.as_ptr(),
+                index_r as *mut c_void,
+                index_g as *mut c_void,
+                index_b as *mut c_void,
+                value[0],
+                value[1],
+                value[2],
+            );
+        }
+    }
+
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_lut3d_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use crate::{cstr_from_mut, cstr_to_opt_string, cstring, EnvironmentMode, OcioError, Result};
+use crate::{cstr_from_mut, cstring, EnvironmentMode, OcioError, Result};
 use ocio_sys;
 
 pub struct Context {
@@ -125,6 +125,23 @@ impl Context {
         }
     }
 
+    /// # Safety
+    /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    pub unsafe fn resolve_string_var_v1(
+        &self,
+        string: impl AsRef<str>,
+        used_context_vars: *mut c_void,
+    ) -> Option<String> {
+        let s = cstring(string).ok()?;
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_context_resolve_string_var_v1(
+                self.handle.as_ptr(),
+                s.as_ptr().cast(),
+                used_context_vars,
+            ))
+        }
+    }
+
     pub fn resolve_file_location(&self, filename: impl AsRef<str>) -> Option<String> {
         let f = cstring(filename).ok()?;
         unsafe {
@@ -135,8 +152,31 @@ impl Context {
         }
     }
 
+    /// # Safety
+    /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    pub unsafe fn resolve_file_location_v1(
+        &self,
+        filename: impl AsRef<str>,
+        used_context_vars: *mut c_void,
+    ) -> Option<String> {
+        let f = cstring(filename).ok()?;
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_context_resolve_file_location_v1(
+                self.handle.as_ptr(),
+                f.as_ptr().cast(),
+                used_context_vars,
+            ))
+        }
+    }
+
     pub fn clear_string_vars(&self) {
         unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
+    }
+
+    pub fn add_string_vars(&self, other: &Context) {
+        unsafe {
+            ocio_sys::ocio_context_add_string_vars(self.handle.as_ptr(), other.handle.as_ptr())
+        };
     }
 
     pub fn set_environment_mode(&self, mode: EnvironmentMode) {
@@ -155,6 +195,16 @@ impl Context {
 
     pub fn load_environment(&self) {
         unsafe { ocio_sys::ocio_context_load_environment(self.handle.as_ptr()) };
+    }
+
+    /// # Safety
+    /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    pub unsafe fn set_config_io_proxy(&self, proxy: *mut c_void) {
+        unsafe { ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy) };
+    }
+
+    pub fn get_config_io_proxy(&self) -> *mut c_void {
+        unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
     }
 }
 
@@ -198,5 +248,16 @@ mod tests {
         let ctx = Context::create().unwrap();
         ctx.clear_search_paths();
         assert!(ctx.add_search_path("/some/path").is_ok());
+    }
+
+    #[test]
+    fn context_v1_methods_no_crash() {
+        let ctx = Context::create().unwrap();
+        let other = Context::create().unwrap();
+        ctx.add_string_vars(&other);
+        let _ = unsafe { ctx.resolve_string_var_v1("${SHOT}/file.exr", std::ptr::null_mut()) };
+        let _ = unsafe { ctx.resolve_file_location_v1("file.exr", std::ptr::null_mut()) };
+        unsafe { ctx.set_config_io_proxy(std::ptr::null_mut()) };
+        let _ = ctx.get_config_io_proxy();
     }
 }

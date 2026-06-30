@@ -87,6 +87,10 @@ impl ColorSpaceTransform {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn validate(&self) {
+        unsafe { ocio_sys::ocio_color_space_transform_validate(self.handle.as_ptr()) };
+    }
 }
 
 impl Drop for ColorSpaceTransform {
@@ -144,5 +148,11 @@ mod tests {
     fn format_metadata_no_crash() {
         let t = ColorSpaceTransform::create().unwrap();
         let _ = t.format_metadata();
+    }
+
+    #[test]
+    fn validate_no_crash() {
+        let t = ColorSpaceTransform::create().unwrap();
+        t.validate();
     }
 }

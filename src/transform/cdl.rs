@@ -194,6 +194,18 @@ impl CDLTransform {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe { ocio_sys::ocio_cdl_transform_equals(self.handle.as_ptr(), other.handle.as_ptr()) }
+    }
 }
 
 impl Drop for CDLTransform {
@@ -263,5 +275,12 @@ mod tests {
     fn format_metadata_no_crash() {
         let cdl = CDLTransform::create().unwrap();
         let _ = cdl.format_metadata();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = CDLTransform::create().unwrap();
+        let b = CDLTransform::create().unwrap();
+        let _ = a.equals(&b);
     }
 }

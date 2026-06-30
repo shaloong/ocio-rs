@@ -9,6 +9,10 @@ pub struct GradingToneTransform {
 }
 
 impl GradingToneTransform {
+    pub fn create_with_style(style: GradingStyle) -> Result<Self> {
+        Self::create(style)
+    }
+
     pub fn create(style: GradingStyle) -> Result<Self> {
         let handle =
             unsafe { ocio_sys::ocio_grading_tone_transform_create_with_style(style as i32) };
@@ -54,6 +58,10 @@ impl GradingToneTransform {
         GradingTone::from_flat_array(&flat)
     }
 
+    pub fn copy_value(&self) -> GradingTone {
+        self.value()
+    }
+
     pub fn set_value(&self, value: &GradingTone) {
         let flat = value.to_flat_array();
         unsafe {
@@ -63,6 +71,10 @@ impl GradingToneTransform {
                 flat.len(),
             );
         }
+    }
+
+    pub fn set_value_from_f64(&self, value: &GradingTone) {
+        self.set_value(value);
     }
 
     pub fn is_dynamic(&self) -> bool {
@@ -102,6 +114,23 @@ impl GradingToneTransform {
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_grading_tone_transform_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
+        }
     }
 }
 

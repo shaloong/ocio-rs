@@ -89,8 +89,16 @@ impl Lut1DTransform {
         unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) }
     }
 
+    pub fn length_u64(&self) -> u64 {
+        self.length()
+    }
+
     pub fn set_length(&self, len: u64) {
         unsafe { ocio_sys::ocio_lut1d_transform_set_length_u64(self.handle.as_ptr(), len) };
+    }
+
+    pub fn set_length_u64(&self, len: u64) {
+        self.set_length(len);
     }
 
     pub fn values(&self) -> Vec<f64> {
@@ -104,6 +112,31 @@ impl Lut1DTransform {
 
     pub fn set_values(&self, data: &[f64]) {
         unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+    }
+
+    pub fn value(&self, index: u64) -> Option<[f32; 3]> {
+        if index >= self.length() {
+            return None;
+        }
+        let values = self.values();
+        let offset = index as usize * 3;
+        Some([
+            values.get(offset).copied().unwrap_or_default() as f32,
+            values.get(offset + 1).copied().unwrap_or_default() as f32,
+            values.get(offset + 2).copied().unwrap_or_default() as f32,
+        ])
+    }
+
+    pub fn set_value(&self, index: u64, value: [f32; 3]) {
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_value(
+                self.handle.as_ptr(),
+                index as *mut c_void,
+                value[0],
+                value[1],
+                value[2],
+            );
+        }
     }
 
     pub fn input_half_domain(&self) -> bool {
@@ -143,6 +176,20 @@ impl Lut1DTransform {
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
+        }
     }
 }
 

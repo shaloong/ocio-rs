@@ -4235,13 +4235,13 @@ void ocio_color_space_set_interop_id(void* handle, const char* interopID) {
 #endif
 }
 
-void ocio_color_space_set_interchange_attribute(void* handle, const char* attrName, void* value) {
+void ocio_color_space_set_interchange_attribute(void* handle, const char* attrName, const char* value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)attrName; (void)value;
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_color_space(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
+    ocio_rs_bridge::get_real_color_space(handle)->setInterchangeAttribute(attrName, value);
   } catch (...) { return ; }
 #endif
 }
@@ -4783,13 +4783,13 @@ void ocio_look_set_description(void* handle, const char* description) {
 #endif
 }
 
-void ocio_look_set_interchange_attribute(void* handle, const char* attrName, void* value) {
+void ocio_look_set_interchange_attribute(void* handle, const char* attrName, const char* value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)attrName; (void)value;
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_look(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
+    ocio_rs_bridge::get_real_look(handle)->setInterchangeAttribute(attrName, value);
   } catch (...) { return ; }
 #endif
 }
@@ -5187,13 +5187,13 @@ void ocio_view_transform_set_description(void* handle, const char* description) 
 #endif
 }
 
-void ocio_view_transform_set_interchange_attribute(void* handle, const char* attrName, void* value) {
+void ocio_view_transform_set_interchange_attribute(void* handle, const char* attrName, const char* value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)attrName; (void)value;
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, static_cast<const char*>(value));
+    ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, value);
   } catch (...) { return ; }
 #endif
 }
@@ -5582,13 +5582,14 @@ void* ocio_processor_get_optimized_gpu_processor(void* handle, int oFlags) {
 #endif
 }
 
-void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags, void* edgelen) {
+void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags, unsigned edgelen) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags; (void)edgelen;
   return ocio_rs_bridge::make_stub_gpu_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedLegacyGPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags), static_cast<unsigned>(reinterpret_cast<uintptr_t>(edgelen)));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedLegacyGPUProcessor(
+        static_cast<ocio::OptimizationFlags>(oFlags), edgelen);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GPUProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);

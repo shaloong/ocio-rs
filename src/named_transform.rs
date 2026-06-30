@@ -117,19 +117,61 @@ impl NamedTransform {
         Ok(())
     }
 
+    pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
+        let a = match cstring(alias) {
+            Ok(a) => a,
+            Err(_) => return false,
+        };
+        unsafe { ocio_sys::ocio_named_transform_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
+    }
+
     pub fn clear_aliases(&self) {
         unsafe {
             ocio_sys::ocio_named_transform_clear_aliases(self.handle.as_ptr() as *mut c_void)
         };
     }
 
-    pub fn category(&self) -> Option<String> {
+    pub fn num_categories(&self) -> i32 {
+        unsafe { ocio_sys::ocio_named_transform_get_num_categories(self.handle.as_ptr()) }
+    }
+
+    pub fn category(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_category(
                 self.handle.as_ptr(),
-                0,
+                index,
             ))
         }
+    }
+
+    pub fn has_category(&self, category: impl AsRef<str>) -> bool {
+        let c = match cstring(category) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        unsafe {
+            ocio_sys::ocio_named_transform_has_category(self.handle.as_ptr(), c.as_ptr().cast())
+        }
+    }
+
+    pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe {
+            ocio_sys::ocio_named_transform_add_category(self.handle.as_ptr(), c.as_ptr().cast())
+        };
+        Ok(())
+    }
+
+    pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
+        let c = cstring(category)?;
+        unsafe {
+            ocio_sys::ocio_named_transform_remove_category(self.handle.as_ptr(), c.as_ptr().cast())
+        };
+        Ok(())
+    }
+
+    pub fn clear_categories(&self) {
+        unsafe { ocio_sys::ocio_named_transform_clear_categories(self.handle.as_ptr()) };
     }
 
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
@@ -225,7 +267,9 @@ mod tests {
         let nt = NamedTransform::create().unwrap();
         let _ = nt.num_aliases();
         let _ = nt.alias(0);
+        assert!(!nt.has_alias("test_alias"));
         assert!(nt.add_alias("test_alias").is_ok());
+        let _ = nt.has_alias("test_alias");
         assert!(nt.remove_alias("test_alias").is_ok());
         nt.clear_aliases();
     }
@@ -233,6 +277,12 @@ mod tests {
     #[test]
     fn category_no_crash() {
         let nt = NamedTransform::create().unwrap();
-        let _ = nt.category();
+        let _ = nt.num_categories();
+        let _ = nt.category(0);
+        let _ = nt.has_category("test_category");
+        assert!(nt.add_category("test_category").is_ok());
+        let _ = nt.has_category("test_category");
+        assert!(nt.remove_category("test_category").is_ok());
+        nt.clear_categories();
     }
 }

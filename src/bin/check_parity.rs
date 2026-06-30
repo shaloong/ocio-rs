@@ -221,6 +221,31 @@ fn camel_to_snake(name: &str) -> String {
 
 fn classify_ocio_func(name: &str) -> (String, String) {
     let rest = name.strip_prefix("ocio_").unwrap_or(name);
+    if let Some(suffix) = rest.strip_prefix("color_space_set_") {
+        let is_real_color_space_set_method = matches!(
+            suffix,
+            "create"
+                | "destroy"
+                | "get_num_color_spaces"
+                | "get_color_space_name_by_index"
+                | "get_color_space_by_index"
+                | "get_color_space"
+                | "get_color_space_index"
+                | "has_color_space"
+                | "add_color_space"
+                | "add_color_spaces"
+                | "remove_color_space"
+                | "remove_color_spaces"
+                | "clear_color_spaces"
+                | "create_editable_copy"
+        );
+        if !is_real_color_space_set_method {
+            return (
+                "color_space".to_string(),
+                rest["color_space_".len()..].to_string(),
+            );
+        }
+    }
     for prefix in known_c_prefixes() {
         if let Some(suffix) = rest.strip_prefix(&format!("{}_", prefix)) {
             return (prefix.to_string(), suffix.to_string());
@@ -292,11 +317,12 @@ fn parse_lib_rs(path: &Path) -> HashSet<String> {
     let mut funcs = HashSet::new();
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("pub fn ocio_") {
-            if let Some(name) = trimmed
+        if trimmed.starts_with("pub fn ocio_") || trimmed.starts_with("pub unsafe fn ocio_") {
+            let name = trimmed
                 .strip_prefix("pub fn ")
-                .and_then(|rest| rest.split('(').next())
-            {
+                .or_else(|| trimmed.strip_prefix("pub unsafe fn "))
+                .and_then(|rest| rest.split('(').next());
+            if let Some(name) = name {
                 funcs.insert(name.trim().to_string());
             }
         }
@@ -370,8 +396,13 @@ fn parse_rust_file(path: &Path, methods: &mut HashMap<String, HashSet<String>>) 
             let entry = methods.entry(struct_name.clone()).or_default();
             for fn_line in body.lines() {
                 let trimmed = fn_line.trim();
-                if trimmed.starts_with("pub fn ") {
-                    if let Some(name) = trimmed.strip_prefix("pub fn ").map(|rest| {
+                if trimmed.starts_with("pub fn ") || trimmed.starts_with("pub unsafe fn ") {
+                    let prefix = if trimmed.starts_with("pub unsafe fn ") {
+                        "pub unsafe fn "
+                    } else {
+                        "pub fn "
+                    };
+                    if let Some(name) = trimmed.strip_prefix(prefix).map(|rest| {
                         // Handle generic params: method<A, B>(...) -> method
                         let no_generics = if let Some(angle) = rest.find('<') {
                             let before_angle = &rest[..angle];

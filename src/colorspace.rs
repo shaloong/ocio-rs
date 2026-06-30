@@ -293,10 +293,18 @@ impl ColorSpace {
 
     pub fn set_interchange_attribute(
         &self,
-        _name: impl AsRef<str>,
-        _value: impl AsRef<str>,
+        name: impl AsRef<str>,
+        value: impl AsRef<str>,
     ) -> Result<()> {
-        // v2.5.1: takes (handle, name, value) with value as *mut c_void
+        let name = cstring(name)?;
+        let value = cstring(value)?;
+        unsafe {
+            ocio_sys::ocio_color_space_set_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr().cast(),
+                value.as_ptr().cast(),
+            )
+        };
         Ok(())
     }
 }
@@ -365,6 +373,14 @@ mod tests {
         assert!(cs.add_alias("test_alias").is_ok());
         assert!(cs.remove_alias("test_alias").is_ok());
         cs.clear_aliases();
+    }
+
+    #[test]
+    fn interchange_attribute_no_crash() {
+        let cs = ColorSpace::create().unwrap();
+        assert!(cs
+            .set_interchange_attribute("amf_transform_ids", "urn:ampas:aces:transformId:v1.5:CSC")
+            .is_ok());
     }
 
     #[test]

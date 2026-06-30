@@ -34,6 +34,10 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    pub fn get_builtin_config_name(&self, index: i32) -> Option<String> {
+        self.config_name(index)
+    }
+
     pub fn config_ui_name(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(
@@ -45,6 +49,10 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    pub fn get_builtin_config_ui_name(&self, index: i32) -> Option<String> {
+        self.config_ui_name(index)
+    }
+
     pub fn is_config_recommended(&self, index: i32) -> bool {
         unsafe {
             ocio_sys::ocio_builtin_config_registry_is_builtin_config_recommended(
@@ -54,15 +62,27 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    pub fn is_builtin_config_recommended(&self, index: i32) -> bool {
+        self.is_config_recommended(index)
+    }
+
     pub fn config_by_index(&self, index: i32) -> Option<Config> {
         let name = self.config_name(index)?;
         self.config_by_name(name)
+    }
+
+    pub fn get_builtin_config(&self, index: i32) -> Option<String> {
+        self.config_yaml_by_index(index)
     }
 
     pub fn config_by_name(&self, name: impl AsRef<str>) -> Option<Config> {
         let n = cstring(name).ok()?;
         let handle = unsafe { ocio_sys::ocio_config_create_from_builtin_config(n.as_ptr().cast()) };
         NonNull::new(handle).map(|h| Config { handle: h })
+    }
+
+    pub fn get_builtin_config_by_name(&self, name: impl AsRef<str>) -> Option<String> {
+        self.config_yaml_by_name(name)
     }
 
     pub fn config_yaml_by_index(&self, index: i32) -> Option<String> {
@@ -112,10 +132,15 @@ mod tests {
         if let Ok(reg) = BuiltinConfigRegistry::get() {
             let _ = reg.num_builtin_configs();
             let _ = reg.config_name(0);
+            let _ = reg.get_builtin_config_name(0);
             let _ = reg.config_ui_name(0);
+            let _ = reg.get_builtin_config_ui_name(0);
             let _ = reg.is_config_recommended(0);
+            let _ = reg.is_builtin_config_recommended(0);
             let _ = reg.config_yaml_by_index(0);
+            let _ = reg.get_builtin_config(0);
             let _ = reg.config_yaml_by_name("default");
+            let _ = reg.get_builtin_config_by_name("default");
             let _ = reg.config_by_index(0);
             let _ = reg.config_by_name("default");
         }

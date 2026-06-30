@@ -1,10 +1,11 @@
-//! Experimental Rust bindings for OpenColorIO.
+//! Rust bindings for OpenColorIO.
 //!
 //! # Project status
 //!
-//! This crate is early-stage. The low-level API surface is generated and being
-//! validated against OpenColorIO 2.5, while the safe wrapper layer is still
-//! being hardened around ownership, error propagation, and real-OCIO behavior.
+//! This crate targets broad OpenColorIO 2.5 coverage. The low-level FFI and
+//! safe-wrapper layers are available for most of the exposed OCIO 2.5 surface,
+//! while release hardening and long-tail behavioral validation are still in
+//! progress.
 //!
 //! # Stub mode
 //!

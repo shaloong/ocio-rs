@@ -716,7 +716,7 @@ unsafe extern "C" {
     pub fn ocio_color_space_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
-        value: *mut c_void,
+        value: *const i8,
     ) -> ();
     pub fn ocio_color_space_get_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_color_space_set_bit_depth(handle: *mut c_void, bitDepth: i32) -> ();
@@ -787,7 +787,7 @@ unsafe extern "C" {
     pub fn ocio_look_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
-        value: *mut c_void,
+        value: *const i8,
     ) -> ();
 
     // --- NamedTransform ---
@@ -834,7 +834,7 @@ unsafe extern "C" {
     pub fn ocio_view_transform_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
-        value: *mut c_void,
+        value: *const i8,
     ) -> ();
     pub fn ocio_view_transform_has_category(handle: *mut c_void, category: *const i8) -> bool;
     pub fn ocio_view_transform_add_category(handle: *mut c_void, category: *const i8) -> ();
@@ -889,7 +889,7 @@ unsafe extern "C" {
     pub fn ocio_processor_get_optimized_legacy_gpu_processor(
         handle: *mut c_void,
         oFlags: i32,
-        edgelen: *mut c_void,
+        edgelen: u32,
     ) -> *mut c_void;
     pub fn ocio_processor_get_default_cpu_processor(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_processor_get_optimized_cpu_processor(
@@ -2231,11 +2231,6 @@ unsafe extern "C" {
     pub fn ocio_named_transform_get_cache_id(namedTransform: *mut c_void) -> *const i8;
 
     pub fn ocio_named_transform_is_inactive(namedTransform: *mut c_void) -> bool;
-
-    pub fn ocio_named_transform_set_category(
-        namedTransform: *mut c_void,
-        category: *const i8,
-    ) -> ();
 
     pub fn ocio_named_transform_set_inactive(namedTransform: *mut c_void, inactive: bool) -> ();
 

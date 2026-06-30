@@ -13,6 +13,10 @@ pub struct ViewTransform {
 }
 
 impl ViewTransform {
+    pub fn create_with_reference_space(reference_space: ReferenceSpaceType) -> Result<Self> {
+        Self::create(reference_space)
+    }
+
     pub fn create(reference_space: ReferenceSpaceType) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_view_transform_create_with_reference_space(reference_space as i32)
@@ -60,6 +64,23 @@ impl ViewTransform {
         let d = cstring(desc)?;
         unsafe {
             ocio_sys::ocio_view_transform_set_description(self.handle.as_ptr(), d.as_ptr().cast())
+        };
+        Ok(())
+    }
+
+    pub fn set_interchange_attribute(
+        &self,
+        name: impl AsRef<str>,
+        value: impl AsRef<str>,
+    ) -> Result<()> {
+        let name = cstring(name)?;
+        let value = cstring(value)?;
+        unsafe {
+            ocio_sys::ocio_view_transform_set_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr().cast(),
+                value.as_ptr().cast(),
+            )
         };
         Ok(())
     }
@@ -168,11 +189,20 @@ mod tests {
     }
 
     #[test]
+    fn create_view_transform_with_reference_space() {
+        let vt = ViewTransform::create_with_reference_space(ReferenceSpaceType::Display);
+        assert!(vt.is_ok());
+    }
+
+    #[test]
     fn metadata_round_trip_no_crash() {
         let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
         assert!(vt.set_name("MyViewTransform").is_ok());
         assert!(vt.set_family("TestFamily").is_ok());
         assert!(vt.set_description("test description").is_ok());
+        assert!(vt
+            .set_interchange_attribute("amf_transform_ids", "urn:ampas:aces:transformId:v1.5:ODT")
+            .is_ok());
         let _ = vt.name();
         let _ = vt.family();
         let _ = vt.description();

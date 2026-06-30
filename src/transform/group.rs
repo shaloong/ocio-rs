@@ -43,6 +43,10 @@ impl GroupTransform {
         transform_from_raw_handle(handle)
     }
 
+    pub fn get_transform_v1(&self, index: i32) -> Option<Transform> {
+        self.get_transform(index)
+    }
+
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_group_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -74,9 +78,25 @@ impl GroupTransform {
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
     }
 
+    /// # Safety
+    /// `config`, `format_name`, and `os` must be valid pointers accepted by the OCIO ABI.
+    pub unsafe fn write(&self, config: *mut c_void, format_name: *const i8, os: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_group_transform_write(self.handle.as_ptr(), config, format_name, os);
+        }
+    }
+
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
     }
 }
 

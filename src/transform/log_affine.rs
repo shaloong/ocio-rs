@@ -116,6 +116,14 @@ impl LogAffineTransform {
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
     pub fn lin_side_offset_value(&self) -> [f64; 3] {
         let mut v = [0.0f64; 3];
         unsafe {
@@ -133,6 +141,12 @@ impl LogAffineTransform {
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
+        }
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_log_affine_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
         }
     }
 }
@@ -190,5 +204,12 @@ mod tests {
     fn format_metadata_no_crash() {
         let t = LogAffineTransform::create().unwrap();
         let _ = t.format_metadata();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = LogAffineTransform::create().unwrap();
+        let b = LogAffineTransform::create().unwrap();
+        let _ = a.equals(&b);
     }
 }

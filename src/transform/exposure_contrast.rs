@@ -189,6 +189,23 @@ impl ExposureContrastTransform {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_exposure_contrast_transform_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
+        }
+    }
 }
 
 impl Drop for ExposureContrastTransform {
@@ -262,5 +279,12 @@ mod tests {
     fn format_metadata_no_crash() {
         let t = ExposureContrastTransform::create().unwrap();
         let _ = t.format_metadata();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = ExposureContrastTransform::create().unwrap();
+        let b = ExposureContrastTransform::create().unwrap();
+        let _ = a.equals(&b);
     }
 }

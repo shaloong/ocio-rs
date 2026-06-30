@@ -9,6 +9,10 @@ pub struct LogCameraTransform {
 }
 
 impl LogCameraTransform {
+    pub fn create_with_lin_side_break(lin_side_break_values: &[f64; 3]) -> Result<Self> {
+        Self::create(lin_side_break_values)
+    }
+
     pub fn create(lin_side_break_values: &[f64; 3]) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_log_camera_transform_create_with_lin_side_break(
@@ -189,6 +193,20 @@ impl LogCameraTransform {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_log_camera_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
+        }
+    }
 }
 
 impl Drop for LogCameraTransform {
@@ -236,6 +254,13 @@ mod tests {
     fn create_editable_copy_no_crash() {
         let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
         let _ = t.create_editable_copy();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
+        let b = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
+        let _ = a.equals(&b);
     }
 
     #[test]

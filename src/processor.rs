@@ -75,6 +75,34 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    pub fn optimized_processor_v1(&self, flags: u64) -> Result<Self> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_processor_v1(self.handle.as_ptr(), flags as i32)
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn optimized_processor_v2(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+        flags: u64,
+    ) -> Result<Self> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_processor_v2(
+                self.handle.as_ptr(),
+                in_bit_depth,
+                out_bit_depth,
+                flags as i32,
+            )
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
     pub fn default_gpu_processor(&self) -> Result<GPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void)
@@ -87,6 +115,24 @@ impl Processor {
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
+        };
+        NonNull::new(handle)
+            .map(|h| GPUProcessor { handle: h })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn optimized_legacy_gpu_processor(
+        &self,
+        flags: u64,
+        edge_len: u32,
+    ) -> Result<GPUProcessor> {
+        // OCIO v1-style GPU path that bakes some ops into a 3D LUT.
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_legacy_gpu_processor(
+                self.handle.as_ptr(),
+                flags as i32,
+                edge_len,
+            )
         };
         NonNull::new(handle)
             .map(|h| GPUProcessor { handle: h })
@@ -118,6 +164,15 @@ impl Processor {
         NonNull::new(handle)
             .map(|h| CPUProcessor { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn optimized_cpu_processor_v1(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+        flags: u64,
+    ) -> Result<CPUProcessor> {
+        self.optimized_cpu_processor_bitdepth(in_bit_depth, out_bit_depth, flags)
     }
 
     pub fn default_gpu_processor_bitdepth(
@@ -212,6 +267,22 @@ pub struct CPUProcessor {
 }
 
 impl CPUProcessor {
+    /// # Safety
+    /// `img_desc` must point to a valid OCIO image descriptor compatible with the active ABI.
+    pub unsafe fn apply_v1(&self, img_desc: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_v1(self.handle.as_ptr(), img_desc);
+        }
+    }
+
+    /// # Safety
+    /// `src_img_desc` and `dst_img_desc` must point to valid OCIO image descriptors.
+    pub unsafe fn apply_v2(&self, src_img_desc: *mut c_void, dst_img_desc: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_v2(self.handle.as_ptr(), src_img_desc, dst_img_desc);
+        }
+    }
+
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba(
@@ -368,6 +439,21 @@ impl GPUProcessor {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v1(
                 self.handle.as_ptr(),
                 shader_desc.handle.as_ptr(),
+            );
+        }
+    }
+
+    pub fn extract_gpu_shader_info_v1(&self, shader_desc: &mut GpuShaderDesc) {
+        self.extract_shader_info(shader_desc);
+    }
+
+    /// # Safety
+    /// `shader_creator` must point to a valid OCIO shader creator object for the active ABI.
+    pub unsafe fn extract_gpu_shader_info_v2(&self, shader_creator: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v2(
+                self.handle.as_ptr(),
+                shader_creator,
             );
         }
     }
@@ -708,14 +794,27 @@ impl GpuShaderDesc {
         NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
     }
 
+    #[allow(clippy::should_implement_trait)]
+    pub fn clone(&self) -> Option<GpuShaderDesc> {
+        self.clone_desc()
+    }
+
     pub fn num_uniforms(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
+    }
+
+    pub fn get_num_uniforms_u32(&self) -> u32 {
+        self.num_uniforms()
     }
 
     pub fn uniform_buffer_size(&self) -> usize {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(self.handle.as_ptr())
         }
+    }
+
+    pub fn get_uniform_buffer_size_bytes(&self) -> usize {
+        self.uniform_buffer_size()
     }
 
     pub fn uniform(&self, index: u32) -> Option<GpuUniform> {
@@ -776,6 +875,30 @@ impl GpuShaderDesc {
         })
     }
 
+    pub fn get_uniform_info(&self, index: u32) -> Option<GpuUniform> {
+        self.uniform(index)
+    }
+
+    pub fn get_uniform_value_count(&self, index: u32) -> usize {
+        self.uniform(index)
+            .map(|uniform| uniform.value_count)
+            .unwrap_or(0)
+    }
+
+    pub fn copy_uniform_f32_values(&self, index: u32) -> Vec<f32> {
+        match self.uniform(index).map(|uniform| uniform.value) {
+            Some(GpuUniformValue::F32(values)) => values,
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn copy_uniform_i32_values(&self, index: u32) -> Vec<i32> {
+        match self.uniform(index).map(|uniform| uniform.value) {
+            Some(GpuUniformValue::I32(values)) => values,
+            _ => Vec::new(),
+        }
+    }
+
     pub fn uniforms(&self) -> Vec<GpuUniform> {
         (0..self.num_uniforms())
             .filter_map(|index| self.uniform(index))
@@ -784,6 +907,22 @@ impl GpuShaderDesc {
 
     pub fn num_3d_textures(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
+    }
+
+    pub fn get_num_textures_u32(&self) -> u32 {
+        self.num_textures()
+    }
+
+    pub fn get_texture_value_count(&self, index: u32) -> usize {
+        self.texture_values(index).len()
+    }
+
+    pub fn copy_texture_values(&self, index: u32) -> Vec<f32> {
+        self.texture_values(index)
+    }
+
+    pub fn get_num3d_textures_u32(&self) -> u32 {
+        self.num_3d_textures()
     }
 
     pub fn texture_3d(&self, index: u32) -> Option<GpuTexture3D> {
@@ -829,10 +968,42 @@ impl GpuShaderDesc {
         })
     }
 
+    pub fn get3d_texture_info(&self, index: u32) -> Option<GpuTexture3D> {
+        self.texture_3d(index)
+    }
+
+    pub fn get3d_texture_value_count(&self, index: u32) -> usize {
+        self.texture_3d(index)
+            .map(|texture| texture.values.len())
+            .unwrap_or(0)
+    }
+
+    pub fn copy3d_texture_values(&self, index: u32) -> Vec<f32> {
+        self.texture_3d(index)
+            .map(|texture| texture.values)
+            .unwrap_or_default()
+    }
+
     pub fn textures_3d(&self) -> Vec<GpuTexture3D> {
         (0..self.num_3d_textures())
             .filter_map(|index| self.texture_3d(index))
             .collect()
+    }
+
+    pub fn get_num3d_textures(&self) -> u32 {
+        self.num_3d_textures()
+    }
+
+    pub fn get3d_texture(&self, index: u32) -> Option<GpuTexture3D> {
+        self.texture_3d(index)
+    }
+
+    pub fn get3d_texture_values(&self, index: u32) -> Vec<f32> {
+        self.copy3d_texture_values(index)
+    }
+
+    pub fn get3d_texture_shader_binding_index(&self, index: u32) -> Option<u32> {
+        self.texture_3d(index).map(|texture| texture.binding_index)
     }
 
     pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
@@ -1175,6 +1346,16 @@ mod tests {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(gpu) = proc.default_gpu_processor() {
+            let _ = gpu.is_no_op();
+            let _ = gpu.cache_id();
+        }
+    }
+
+    #[test]
+    fn legacy_gpu_processor() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(gpu) = proc.optimized_legacy_gpu_processor(0, 32) {
             let _ = gpu.is_no_op();
             let _ = gpu.cache_id();
         }

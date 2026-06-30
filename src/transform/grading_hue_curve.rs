@@ -9,6 +9,10 @@ pub struct GradingHueCurveTransform {
 }
 
 impl GradingHueCurveTransform {
+    pub fn create_with_style(style: GradingStyle) -> Result<Self> {
+        Self::create(style)
+    }
+
     pub fn create(style: GradingStyle) -> Result<Self> {
         let handle =
             unsafe { ocio_sys::ocio_grading_hue_curve_transform_create_with_style(style as i32) };
@@ -40,6 +44,18 @@ impl GradingHueCurveTransform {
                 self.handle.as_ptr(),
                 style as i32,
             );
+        }
+    }
+
+    pub fn get_value(&self) -> *mut c_void {
+        unsafe { ocio_sys::ocio_grading_hue_curve_transform_get_value(self.handle.as_ptr()) }
+    }
+
+    /// # Safety
+    /// `values` must point to a valid OCIO grading-hue-curve value object for the active ABI.
+    pub unsafe fn set_value(&self, values: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_grading_hue_curve_transform_set_value(self.handle.as_ptr(), values);
         }
     }
 
@@ -176,6 +192,23 @@ impl GradingHueCurveTransform {
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
+    }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_grading_hue_curve_transform_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
+        }
     }
 }
 

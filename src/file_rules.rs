@@ -228,6 +228,16 @@ impl FileRules {
         Ok(())
     }
 
+    pub fn insert_rule_v1(
+        &self,
+        rule_index: u64,
+        name: impl AsRef<str>,
+        color_space: impl AsRef<str>,
+        regex: impl AsRef<str>,
+    ) -> Result<()> {
+        self.insert_rule_regex(rule_index, name, color_space, regex)
+    }
+
     pub fn insert_path_search_rule(&self, rule_index: u64) {
         unsafe {
             ocio_sys::ocio_file_rules_insert_path_search_rule(

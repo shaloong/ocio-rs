@@ -136,6 +136,10 @@ impl Baker {
         NonNull::new(handle).map(|h| FormatMetadata { handle: h })
     }
 
+    pub fn format_metadata_v1(&self) -> Option<FormatMetadata> {
+        self.format_metadata()
+    }
+
     // --- Static format metadata ---
 
     pub fn get_num_formats() -> i32 {

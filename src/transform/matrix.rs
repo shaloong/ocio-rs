@@ -150,6 +150,20 @@ impl MatrixTransform {
         };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
+        self.format_metadata()
+    }
+
+    pub fn equals(&self, other: &Self) -> bool {
+        unsafe {
+            ocio_sys::ocio_matrix_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
+        }
+    }
 }
 
 impl MatrixTransform {
@@ -267,5 +281,12 @@ mod tests {
     fn format_metadata_no_crash() {
         let mt = MatrixTransform::create().unwrap();
         let _ = mt.format_metadata();
+    }
+
+    #[test]
+    fn equals_no_crash() {
+        let a = MatrixTransform::create().unwrap();
+        let b = MatrixTransform::create().unwrap();
+        let _ = a.equals(&b);
     }
 }

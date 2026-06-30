@@ -68,6 +68,23 @@ impl Look {
         Ok(())
     }
 
+    pub fn set_interchange_attribute(
+        &self,
+        name: impl AsRef<str>,
+        value: impl AsRef<str>,
+    ) -> Result<()> {
+        let name = cstring(name)?;
+        let value = cstring(value)?;
+        unsafe {
+            ocio_sys::ocio_look_set_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr().cast(),
+                value.as_ptr().cast(),
+            )
+        };
+        Ok(())
+    }
+
     pub fn transform(&self) -> Option<Transform> {
         let handle =
             unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
@@ -127,6 +144,14 @@ mod tests {
     fn set_name() {
         let look = Look::create().unwrap();
         assert!(look.set_name("MyLook").is_ok());
+    }
+
+    #[test]
+    fn interchange_attribute_no_crash() {
+        let look = Look::create().unwrap();
+        assert!(look
+            .set_interchange_attribute("amf_transform_ids", "urn:ampas:aces:transformId:v1.5:Look")
+            .is_ok());
     }
 
     #[test]

@@ -107,6 +107,10 @@ impl FileTransform {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
+
+    pub fn validate(&self) {
+        unsafe { ocio_sys::ocio_file_transform_validate(self.handle.as_ptr()) };
+    }
 }
 
 impl Drop for FileTransform {
@@ -162,5 +166,11 @@ mod tests {
     fn format_metadata_no_crash() {
         let ft = FileTransform::create().unwrap();
         let _ = ft.format_metadata();
+    }
+
+    #[test]
+    fn validate_no_crash() {
+        let ft = FileTransform::create().unwrap();
+        ft.validate();
     }
 }

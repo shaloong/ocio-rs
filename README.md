@@ -7,9 +7,10 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This project targets OpenColorIO v2.5.2. It is experimental: the generated FFI
-surface is broad, but real-OCIO validation and safe wrapper design are still in
-progress.
+This project targets OpenColorIO v2.5.2. The OCIO 2.5 wrapper surface is now
+largely in place, including bundled real-OCIO builds and broad safe-wrapper
+coverage, while release hardening and long-tail behavioral validation are still
+ongoing.
 
 > [中文文档](docs/README_zh-CN.md)
 
@@ -22,7 +23,9 @@ ocio-rs = "0.2"
 
 ## Build
 
-**Stub mode** (default): compiles and tests run without an OCIO installation. APIs return safe defaults — sufficient for development and CI.
+**Stub mode** (default): compiles and tests run without an OCIO installation.
+APIs return safe defaults for API-shape testing and CI, but do not perform real
+color management.
 
 ```bash
 cargo build
@@ -64,8 +67,8 @@ ocio-rs/
 
 OCIO upgrade workflow: update submodule -> run code generator -> fix compile errors -> release.
 
-See [STATUS.md](STATUS.md) for the current implementation status before relying
-on a particular API area in production.
+See [STATUS.md](STATUS.md) for the current validation matrix and remaining
+release caveats before relying on a particular API area in production.
 
 ## License
 

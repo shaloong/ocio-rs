@@ -76,6 +76,48 @@ impl ColorSpaceSet {
             ocio_sys::ocio_color_space_set_has_color_space(self.handle.as_ptr(), n.as_ptr().cast())
         }
     }
+
+    pub fn add_color_space(&self, color_space: &ColorSpace) {
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_space(
+                self.handle.as_ptr(),
+                color_space.handle.as_ptr(),
+            );
+        }
+    }
+
+    pub fn add_color_spaces(&self, other: &ColorSpaceSet) {
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_spaces(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            );
+        }
+    }
+
+    pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
+        let n = cstring(name)?;
+        unsafe {
+            ocio_sys::ocio_color_space_set_remove_color_space(
+                self.handle.as_ptr(),
+                n.as_ptr().cast(),
+            )
+        };
+        Ok(())
+    }
+
+    pub fn remove_color_spaces(&self, other: &ColorSpaceSet) {
+        unsafe {
+            ocio_sys::ocio_color_space_set_remove_color_spaces(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            );
+        }
+    }
+
+    pub fn clear_color_spaces(&self) {
+        unsafe { ocio_sys::ocio_color_space_set_clear_color_spaces(self.handle.as_ptr()) };
+    }
 }
 
 impl Drop for ColorSpaceSet {
@@ -136,5 +178,17 @@ mod tests {
         // In non-stub mode this returns -1 for missing
         // In stub mode it also returns -1
         assert_eq!(idx, -1);
+    }
+
+    #[test]
+    fn mutate_color_space_set_no_crash() {
+        let set = ColorSpaceSet::create().unwrap();
+        let other = ColorSpaceSet::create().unwrap();
+        let cs = ColorSpace::create().unwrap();
+        set.add_color_space(&cs);
+        set.add_color_spaces(&other);
+        let _ = set.remove_color_space("raw");
+        set.remove_color_spaces(&other);
+        set.clear_color_spaces();
     }
 }
