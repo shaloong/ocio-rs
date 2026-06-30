@@ -109,6 +109,8 @@ The multi-config processor overloads now have descriptive Rust names as well. Pr
 
 The same naming cleanup now applies to common lookup helpers. Prefer `color_space()`, `color_space_index()`, `look()`, `named_transform()`, `named_transform_index()`, `view_transform()`, `processor_to_builtin_color_space()`, and `processor_from_builtin_color_space()` over the older `get_*` variants when updating call sites for `0.2`.
 
+Crate-level and utility entry points are following the same pattern. Prefer `current_config()`, `Config::config_io_proxy()`, `Context::config_io_proxy()`, `Baker::num_formats()`, `Baker::format_name_by_index()`, and `Baker::format_extension_by_index()` over the corresponding `get_*` compatibility names.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

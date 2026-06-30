@@ -158,16 +158,34 @@ impl Baker {
 
     // --- Static format metadata ---
 
-    pub fn get_num_formats() -> i32 {
+    pub fn num_formats() -> i32 {
         unsafe { ocio_sys::ocio_baker_get_num_formats() }
     }
 
-    pub fn get_format_name_by_index(index: i32) -> Option<String> {
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_formats()")]
+    pub fn get_num_formats() -> i32 {
+        Self::num_formats()
+    }
+
+    pub fn format_name_by_index(index: i32) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_name_by_index(index)) }
     }
 
-    pub fn get_format_extension_by_index(index: i32) -> Option<String> {
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer format_name_by_index()")]
+    pub fn get_format_name_by_index(index: i32) -> Option<String> {
+        Self::format_name_by_index(index)
+    }
+
+    pub fn format_extension_by_index(index: i32) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_extension_by_index(index)) }
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer format_extension_by_index()"
+    )]
+    pub fn get_format_extension_by_index(index: i32) -> Option<String> {
+        Self::format_extension_by_index(index)
     }
 }
 
@@ -210,8 +228,8 @@ mod tests {
         if !crate::is_stub_build() {
             let config = Config::raw().unwrap();
             baker.set_config(&config);
-            if Baker::get_num_formats() > 0 {
-                if let Some(format) = Baker::get_format_name_by_index(0) {
+            if Baker::num_formats() > 0 {
+                if let Some(format) = Baker::format_name_by_index(0) {
                     let _ = baker.set_format(format);
                 }
             }
@@ -226,13 +244,24 @@ mod tests {
 
     #[test]
     fn static_format_metadata() {
+        let num = Baker::num_formats();
+        assert!(num >= 0);
+        if num > 0 {
+            let name = Baker::format_name_by_index(0);
+            let ext = Baker::format_extension_by_index(0);
+            assert!(name.is_some());
+            assert!(ext.is_some());
+        }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn static_format_metadata_compat_aliases_no_crash() {
         let num = Baker::get_num_formats();
         assert!(num >= 0);
         if num > 0 {
-            let name = Baker::get_format_name_by_index(0);
-            let ext = Baker::get_format_extension_by_index(0);
-            assert!(name.is_some());
-            assert!(ext.is_some());
+            let _ = Baker::get_format_name_by_index(0);
+            let _ = Baker::get_format_extension_by_index(0);
         }
     }
 }

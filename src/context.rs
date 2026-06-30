@@ -220,6 +220,11 @@ impl Context {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
     )]
+    pub fn config_io_proxy(&self) -> *mut c_void {
+        unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_io_proxy()")]
     pub fn get_config_io_proxy(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
     }
@@ -276,6 +281,13 @@ mod tests {
         let _ = unsafe { ctx.resolve_string_var_v1("${SHOT}/file.exr", std::ptr::null_mut()) };
         let _ = unsafe { ctx.resolve_file_location_v1("file.exr", std::ptr::null_mut()) };
         unsafe { ctx.set_config_io_proxy(std::ptr::null_mut()) };
+        let _ = ctx.config_io_proxy();
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn context_config_io_proxy_compat_alias_no_crash() {
+        let ctx = Context::create().unwrap();
         let _ = ctx.get_config_io_proxy();
     }
 }

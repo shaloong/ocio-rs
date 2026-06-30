@@ -78,7 +78,7 @@ pub fn is_stub_build() -> bool {
     unsafe { ocio_sys::ocio_runtime_is_stub() }
 }
 
-pub fn get_current_config() -> Option<Config> {
+pub fn current_config() -> Option<Config> {
     let handle = unsafe { ocio_sys::ocio_get_current_config() };
     if handle.is_null() {
         None
@@ -87,6 +87,11 @@ pub fn get_current_config() -> Option<Config> {
             handle: std::ptr::NonNull::new(handle).unwrap(),
         })
     }
+}
+
+#[deprecated(since = "0.2.0", note = "compat alias; prefer current_config()")]
+pub fn get_current_config() -> Option<Config> {
+    current_config()
 }
 
 pub fn set_current_config(config: &Config) {
@@ -126,13 +131,13 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 }
 
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    get_current_config()
+    current_config()
         .map(|config| crate::ProcessorCacheFlags(config.processor_cache_flags() as u32))
         .unwrap_or(crate::ProcessorCacheFlags(0))
 }
 
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
-    if let Some(config) = get_current_config() {
+    if let Some(config) = current_config() {
         config.set_processor_cache_flags(flags.0 as i32);
     }
 }
@@ -162,5 +167,16 @@ mod tests {
     fn processor_cache_flags_no_crash() {
         let f = processor_cache_flags();
         set_processor_cache_flags(f);
+    }
+
+    #[test]
+    fn current_config_no_crash() {
+        let _ = current_config();
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn current_config_compat_alias_no_crash() {
+        let _ = get_current_config();
     }
 }

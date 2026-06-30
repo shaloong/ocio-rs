@@ -27,6 +27,9 @@
   Rust-style names such as `color_space()`, `named_transform()`,
   `view_transform()`, and `processor_to_builtin_color_space()`, while keeping
   the legacy `get_*` entry points as deprecated compatibility aliases.
+- Continue the same cleanup for crate-level and utility entry points, including
+  `current_config()`, `config_io_proxy()`, and `Baker` format enumeration
+  helpers, while retaining deprecated `get_*` aliases for compatibility.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

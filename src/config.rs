@@ -2835,6 +2835,11 @@ impl Config {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
     )]
+    pub fn config_io_proxy(&self) -> *mut std::ffi::c_void {
+        unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_io_proxy()")]
     pub fn get_config_io_proxy(&self) -> *mut std::ffi::c_void {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
     }
@@ -3554,6 +3559,13 @@ mod tests {
     fn config_io_proxy_no_crash() {
         let config = Config::raw().unwrap();
         unsafe { config.set_config_io_proxy(std::ptr::null_mut()) };
+        let _ = config.config_io_proxy();
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn config_io_proxy_compat_alias_no_crash() {
+        let config = Config::raw().unwrap();
         let _ = config.get_config_io_proxy();
     }
 
