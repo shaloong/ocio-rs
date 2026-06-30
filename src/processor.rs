@@ -1764,14 +1764,18 @@ mod tests {
     #[test]
     fn gpu_shader_desc_structured_accessors_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.clone_desc();
             let _ = desc.num_uniforms();
             let _ = desc.uniform_buffer_size();
             let _ = desc.uniform(0);
+            let _ = desc.uniform_name(0);
             let _ = desc.uniform_value_count(0);
             let _ = desc.uniform_values_f32(0);
             let _ = desc.uniform_values_i32(0);
             let _ = desc.uniforms();
             let _ = desc.texture_2d(0);
+            let _ = desc.texture_shader_binding_index(0);
+            let _ = desc.texture_values(0);
             let _ = desc.texture_value_count(0);
             let _ = desc.textures_2d();
             let _ = desc.texture_3d(0);
@@ -1786,11 +1790,22 @@ mod tests {
     #[allow(deprecated)]
     fn gpu_shader_desc_compat_value_accessors_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
+            let _ = desc.clone();
+            let _ = desc.get_num_uniforms_u32();
+            let _ = desc.get_uniform_buffer_size_bytes();
+            let _ = desc.get_uniform_info(0);
             let _ = desc.get_uniform_value_count(0);
             let _ = desc.copy_uniform_f32_values(0);
             let _ = desc.copy_uniform_i32_values(0);
+            let _ = desc.get_num_textures_u32();
             let _ = desc.get_texture_value_count(0);
+            let _ = desc.copy_texture_values(0);
+            let _ = desc.get_num3d_textures_u32();
+            let _ = desc.get3d_texture_info(0);
             let _ = desc.get3d_texture_value_count(0);
+            let _ = desc.copy3d_texture_values(0);
+            let _ = desc.get_num3d_textures();
+            let _ = desc.get3d_texture(0);
             let _ = desc.get3d_texture_values(0);
             let _ = desc.get3d_texture_shader_binding_index(0);
         }
