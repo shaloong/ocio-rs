@@ -16,7 +16,7 @@ OpenColorIO workflow.
 | Dynamic properties | Wrapped |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
-| CI real-OCIO validation | Manual bundled job |
+| CI real-OCIO validation | Manual bundled full test job |
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
@@ -29,6 +29,10 @@ Current release checklist highlights:
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
+
+The GitHub Actions workflow keeps bundled validation as a manual job because it
+requires a recursive checkout and a slower native OCIO build, but the manual
+path executes the bundled test suite rather than stopping at `--no-run`.
 
 Release note: `ocio-sys` must be published before `ocio-rs` for matching
 versions because the top-level crate depends on the registry version of

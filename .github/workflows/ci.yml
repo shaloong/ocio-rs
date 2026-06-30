@@ -49,5 +49,5 @@ jobs:
       - name: Install native dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
 
-      - name: Build tests with bundled OCIO
-        run: cargo test --workspace --features bundled --no-run
+      - name: Test with bundled OCIO
+        run: cargo test --workspace --features bundled
