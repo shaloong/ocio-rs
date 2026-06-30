@@ -27,8 +27,19 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - `cargo test --workspace --no-default-features` passes.
+- `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
+- `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
+  passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
+- `cargo package -p ocio-sys --allow-dirty --offline` passes.
+
+Latest release-audit result:
+
+- `./tools/release_audit.ps1 -IncludeBundled -Offline` passes end to end.
+- `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
+  repository-side checks and reports only the known registry sequencing warning
+  for top-level `cargo package`.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -36,4 +47,5 @@ path executes the bundled test suite rather than stopping at `--no-run`.
 
 Release note: `ocio-sys` must be published before `ocio-rs` for matching
 versions because the top-level crate depends on the registry version of
-`ocio-sys` during `cargo package` verification.
+`ocio-sys` during `cargo package` verification. At the moment, that publish
+order remains the only known blocker observed by the repository audit.
