@@ -42,6 +42,9 @@
 - Add descriptive `Config` processor overload names for display/context/
   transform/named-transform workflows and deprecate the corresponding
   `get_processor_v*` compatibility aliases.
+- Deprecate the remaining transform-level `format_metadata_v1/v2` aliases and
+  `GroupTransform::get_transform_v1` so callers are steered toward the
+  canonical metadata and child-transform helpers.
 
 ## 0.2.0
 

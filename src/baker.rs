@@ -151,6 +151,7 @@ impl Baker {
         NonNull::new(handle).map(|h| FormatMetadata { handle: h })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer format_metadata()")]
     pub fn format_metadata_v1(&self) -> Option<FormatMetadata> {
         self.format_metadata()
     }

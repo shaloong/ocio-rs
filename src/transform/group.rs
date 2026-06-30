@@ -43,6 +43,7 @@ impl GroupTransform {
         transform_from_raw_handle(handle)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer get_transform()")]
     pub fn get_transform_v1(&self, index: i32) -> Option<Transform> {
         self.get_transform(index)
     }
@@ -113,10 +114,12 @@ impl GroupTransform {
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer format_metadata()")]
     pub fn format_metadata_v1(&self) -> Option<crate::FormatMetadata> {
         self.format_metadata()
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer format_metadata()")]
     pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
         self.format_metadata()
     }
