@@ -59,6 +59,7 @@ Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets
 Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features")
 Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-default-features")
 Invoke-Check -Name "Docs (stub)" -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features")
+Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet")
 
 $ocioSysPackageArgs = @("package", "-p", "ocio-sys", "--allow-dirty")
 if ($Offline) {

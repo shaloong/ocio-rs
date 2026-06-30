@@ -15,6 +15,8 @@
   reports the known top-level package blocker separately from real failures.
 - Add a manual GitHub Actions `Release Audit` workflow that runs the repository
   audit, bundled tests, and offline packaging checks from a recursive checkout.
+- Promote the parity checker into both CI and the release-audit flow so wrapper
+  and bridge drift show up as first-class release failures.
 
 ## 0.2.0
 
