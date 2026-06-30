@@ -3577,13 +3577,22 @@ mod tests {
     fn processor_overload_named_wrappers_no_crash() {
         let config = Config::raw().unwrap();
         let ft = crate::transform::FileTransform::create().unwrap();
+        let src_cs = crate::ColorSpace::create().unwrap();
+        let dst_cs = crate::ColorSpace::create().unwrap();
         let nt = NamedTransform::create().unwrap();
 
+        let _ = config.processor("raw", "raw");
+        let _ = config.processor_from_color_spaces(&src_cs, &dst_cs);
+        let _ = config.processor_display("raw", "sRGB", "Film", TransformDirection::Forward);
         let _ = config.processor_from_transform_default_direction(&ft);
+        let _ = config.processor_from_transform(&ft, TransformDirection::Forward);
         let _ = config.processor_named_transform(&nt, TransformDirection::Forward);
         let _ = config.processor_named_transform_name("Default", TransformDirection::Forward);
+        let _ = config.processor_to_builtin_color_space(&config, "raw", "ACES2065-1");
+        let _ = config.processor_from_builtin_color_space("ACES2065-1", &config, "raw");
 
         if let Some(ctx) = config.current_context() {
+            let _ = config.processor_with_context("raw", "raw", &ctx);
             let _ = config.processor_display_with_context(
                 "raw",
                 "sRGB",
@@ -3606,6 +3615,35 @@ mod tests {
                 "Default",
                 TransformDirection::Forward,
             );
+        }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn processor_overload_compat_aliases_no_crash() {
+        let config = Config::raw().unwrap();
+        let ft = crate::transform::FileTransform::create().unwrap();
+        let src_cs = crate::ColorSpace::create().unwrap();
+        let dst_cs = crate::ColorSpace::create().unwrap();
+        let nt = NamedTransform::create().unwrap();
+
+        let _ = config.get_processor_v1(&src_cs, &dst_cs);
+        let _ = config.get_processor_v2("raw", "raw");
+        let _ = config.get_processor_v4("raw", "sRGB", "Film", TransformDirection::Forward);
+        let _ = config.get_processor_v10(&ft);
+        let _ = config.get_processor_v11(&ft, TransformDirection::Forward);
+        let _ = config.get_processor_v6(&nt, TransformDirection::Forward);
+        let _ = config.get_processor_v8("Default", TransformDirection::Forward);
+        let _ = config.get_processor_to_builtin_color_space(&config, "raw", "ACES2065-1");
+        let _ = config.get_processor_from_builtin_color_space("ACES2065-1", &config, "raw");
+
+        if let Some(ctx) = config.current_context() {
+            let _ = config.get_processor_v3("raw", "raw", &ctx);
+            let _ =
+                config.get_processor_v5("raw", "sRGB", "Film", TransformDirection::Forward, &ctx);
+            let _ = config.get_processor_v12(&ctx, &ft, TransformDirection::Forward);
+            let _ = config.get_processor_v7(&ctx, &nt, TransformDirection::Forward);
+            let _ = config.get_processor_v9(&ctx, "Default", TransformDirection::Forward);
         }
     }
 
