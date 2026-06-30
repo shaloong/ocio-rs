@@ -37,6 +37,9 @@
 - Normalize dynamic-property discovery around typed
   `has_dynamic_property_kind(DynamicPropertyType)` checks on both `Processor`
   and `CPUProcessor`, while keeping raw integer compatibility aliases.
+- Normalize `GroupTransform` child access around `transform(index)`, keeping
+  `get_transform()` and `get_transform_v1()` as deprecated compatibility
+  aliases.
 - Continue the Config naming cleanup for display/view metadata helpers,
   including virtual-display queries and `default_view_transform_name()`, while
   keeping deprecated `get_*` compatibility aliases.

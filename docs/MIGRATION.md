@@ -99,7 +99,9 @@ The same cleanup now applies to the remaining C-style compatibility entry points
 
 On `Config`, the older `get_processor_v*` overload naming is also being phased out where clearer Rust names now exist. Prefer `processor()`, `processor_with_context()`, `processor_display()`, `processor_display_with_context()`, `processor_from_transform_default_direction()`, `processor_from_transform()`, `processor_from_transform_with_context()`, `processor_named_transform()`, `processor_named_transform_with_context()`, `processor_named_transform_name()`, and `processor_named_transform_name_with_context()`.
 
-The same cleanup now applies to the long-lived transform metadata aliases. `format_metadata_v1()` / `format_metadata_v2()` and `GroupTransform::get_transform_v1()` remain available for compatibility, but should be treated as deprecated aliases for `format_metadata()` and `get_transform()`.
+The same cleanup now applies to the long-lived transform metadata aliases. `format_metadata_v1()` / `format_metadata_v2()` and `GroupTransform::get_transform_v1()` remain available for compatibility, but should be treated as deprecated aliases for `format_metadata()` and `transform()`.
+
+`GroupTransform` itself now follows the same naming style as the rest of the wrapper layer: prefer `transform(index)` over `get_transform()` / `get_transform_v1()`.
 
 Processor and config enumeration wrappers are also converging on clearer Rust names. Prefer `Processor::optimized_processor_bitdepth()`, `Processor::optimized_cpu_processor_bitdepth()`, `GPUProcessor::extract_shader_info()`, `Config::num_color_spaces()`, `Config::color_space_name_by_index()`, `Config::num_named_transforms()`, and `Config::named_transform_name_by_index()` over the legacy `*_v1` compatibility aliases.
 

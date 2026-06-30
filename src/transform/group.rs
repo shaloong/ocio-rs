@@ -37,15 +37,20 @@ impl GroupTransform {
         }
     }
 
-    pub fn get_transform(&self, index: i32) -> Option<Transform> {
+    pub fn transform(&self, index: i32) -> Option<Transform> {
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
         transform_from_raw_handle(handle)
     }
 
-    #[deprecated(since = "0.2.0", note = "compat alias; prefer get_transform()")]
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]
+    pub fn get_transform(&self, index: i32) -> Option<Transform> {
+        self.transform(index)
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]
     pub fn get_transform_v1(&self, index: i32) -> Option<Transform> {
-        self.get_transform(index)
+        self.transform(index)
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -167,13 +172,21 @@ mod tests {
         let gt = GroupTransform::create().unwrap();
         let ft = FileTransform::create().unwrap();
         gt.append_transform(&ft);
-        let _ = gt.get_transform(0);
+        let _ = gt.transform(0);
     }
 
     #[test]
     fn get_transform_out_of_range() {
         let gt = GroupTransform::create().unwrap();
-        assert!(gt.get_transform(0).is_none());
+        assert!(gt.transform(0).is_none());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn get_transform_compat_aliases_no_crash() {
+        let gt = GroupTransform::create().unwrap();
+        let _ = gt.get_transform(0);
+        let _ = gt.get_transform_v1(0);
     }
 
     #[test]
