@@ -70,6 +70,12 @@ Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-
 
 The older ABI wiring passed a path pointer into an `ostream*` slot, which was not reliable in real OCIO mode.
 
+### Group transform writing
+
+`GroupTransform` now has a safe `write_to_string(&Config, format_name)` helper for OCIO's serialized transform output.
+
+The old low-level `write(...)` entry point remains `unsafe` for callers that need to provide raw ABI objects directly.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

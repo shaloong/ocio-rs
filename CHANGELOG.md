@@ -23,6 +23,9 @@
 - Fix `Baker::bake()` so it no longer routes a filesystem path through an
   `ostream*` ABI slot; baked output now goes through `bake_to_string()` first
   and is written to disk from Rust.
+- Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
+  to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
+  output.
 
 ## 0.2.0
 

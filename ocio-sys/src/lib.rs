@@ -1513,6 +1513,11 @@ unsafe extern "C" {
         formatName: *const i8,
         os: *mut c_void,
     ) -> ();
+    pub fn ocio_group_transform_write_to_string(
+        handle: *mut c_void,
+        config: *mut c_void,
+        formatName: *const i8,
+    ) -> *mut c_void;
 
     // --- LogAffineTransform ---
     pub fn ocio_log_affine_transform_create() -> *mut c_void;

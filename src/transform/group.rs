@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use super::{transform_from_raw_handle, Transform, TransformHandle};
-use crate::{OcioError, Result, TransformDirection};
+use crate::{cstr_from_mut, cstring, Config, OcioError, Result, TransformDirection};
 use ocio_sys;
 
 /// An ordered list of transforms evaluated as one transform.
@@ -84,6 +84,24 @@ impl GroupTransform {
         unsafe {
             ocio_sys::ocio_group_transform_write(self.handle.as_ptr(), config, format_name, os);
         }
+    }
+
+    /// Serialize this group transform using OCIO's writer for `format_name`.
+    ///
+    /// Returns `None` in stub builds where no real OCIO serializer is linked.
+    pub fn write_to_string(
+        &self,
+        config: &Config,
+        format_name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let format_name = cstring(format_name)?;
+        Ok(unsafe {
+            cstr_from_mut(ocio_sys::ocio_group_transform_write_to_string(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+                format_name.as_ptr(),
+            ))
+        })
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -186,5 +204,20 @@ mod tests {
     fn format_metadata_no_crash() {
         let g = GroupTransform::create().unwrap();
         let _ = g.format_metadata();
+    }
+
+    #[test]
+    fn write_to_string_no_crash() {
+        let g = GroupTransform::create().unwrap();
+        let cdl = CDLTransform::create().unwrap();
+        g.append_transform(&cdl);
+
+        let config = Config::raw().unwrap();
+        let written = g.write_to_string(&config, "Academy/ASC Common LUT Format");
+        assert!(written.is_ok());
+
+        if crate::is_stub_build() {
+            assert!(written.unwrap().is_none());
+        }
     }
 }

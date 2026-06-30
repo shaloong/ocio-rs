@@ -9740,6 +9740,22 @@ void ocio_group_transform_write(void* handle, void* config, const char* formatNa
 #endif
 }
 
+void* ocio_group_transform_write_to_string(void* handle, void* config, const char* formatName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config; (void)formatName;
+  return nullptr;
+#else
+  try {
+    auto* _config_h = static_cast<ocio_rs_bridge::ConfigHandle*>(config);
+    auto config_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_config_h->inner)->config;
+    std::ostringstream stream;
+    ocio_rs_bridge::get_real_group_transform(handle)->write(config_ptr, formatName, stream);
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 
 // --- LogAffineTransform ---
 
