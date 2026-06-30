@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstring, OcioError, Result};
 use ocio_sys;
 
+/// Holds filename-based routing rules that map media to color spaces and views.
 pub struct FileRules {
     pub(crate) handle: NonNull<c_void>,
 }

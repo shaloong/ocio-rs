@@ -6,6 +6,7 @@ use crate::{
 };
 use ocio_sys;
 
+/// Builds LUT and shader outputs from a [`Config`] using OCIO's baker API.
 pub struct Baker {
     handle: NonNull<c_void>,
 }

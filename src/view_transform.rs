@@ -8,6 +8,7 @@ use crate::{
     cstr_from_mut, cstring, OcioError, ReferenceSpaceType, Result, ViewTransformDirection,
 };
 
+/// Describes a scene/display view transform entry stored in a [`Config`](crate::Config).
 pub struct ViewTransform {
     pub(crate) handle: NonNull<c_void>,
 }

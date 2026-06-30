@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, OcioError, Result};
 use ocio_sys;
 
+/// Mutable collection of [`ColorSpace`] handles used by OCIO set-style APIs.
 pub struct ColorSpaceSet {
     pub(crate) handle: NonNull<c_void>,
 }

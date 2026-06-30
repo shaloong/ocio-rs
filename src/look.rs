@@ -5,6 +5,7 @@ use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{cstr_from_mut, cstring, OcioError, Result};
 use ocio_sys;
 
+/// Wraps an OCIO look definition with forward and inverse transform slots.
 pub struct Look {
     pub(crate) handle: NonNull<c_void>,
 }

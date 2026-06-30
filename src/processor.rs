@@ -471,6 +471,7 @@ impl Drop for GPUProcessor {
 
 // --- GpuShaderDesc ---
 
+/// Collects parameters and emitted source for GPU shader extraction.
 pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }
@@ -1049,6 +1050,7 @@ fn interpolation_from_raw(value: i32) -> Interpolation {
 
 // --- DynamicProperty ---
 
+/// References a processor property that may be adjusted dynamically at runtime.
 pub struct DynamicProperty {
     handle: NonNull<c_void>,
 }

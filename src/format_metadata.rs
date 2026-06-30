@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, Result};
 use ocio_sys;
 
+/// Structured metadata attached to transforms and baked outputs.
 pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
 }

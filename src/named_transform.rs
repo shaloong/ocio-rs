@@ -5,6 +5,7 @@ use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{cstr_from_mut, cstring, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Names a reusable transform pair inside a config for interchange and lookup.
 pub struct NamedTransform {
     pub(crate) handle: NonNull<c_void>,
 }

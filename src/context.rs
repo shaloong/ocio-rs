@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstring, EnvironmentMode, OcioError, Result};
 use ocio_sys;
 
+/// Resolves search paths, environment variables, and working context for file-based operations.
 pub struct Context {
     pub(crate) handle: NonNull<c_void>,
 }

@@ -8,6 +8,7 @@ use crate::{
 };
 use ocio_sys;
 
+/// Describes a color space definition stored in a [`Config`](crate::Config).
 pub struct ColorSpace {
     pub(crate) handle: NonNull<c_void>,
 }

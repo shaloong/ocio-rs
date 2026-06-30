@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstring, Config, OcioError, Result};
 use ocio_sys;
 
+/// Enumerates built-in OCIO configurations bundled with the upstream library.
 pub struct BuiltinConfigRegistry {
     handle: NonNull<c_void>,
 }
