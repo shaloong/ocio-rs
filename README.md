@@ -17,7 +17,7 @@ progress.
 
 ```toml
 [dependencies]
-ocio-rs = "0.1"
+ocio-rs = "0.2"
 ```
 
 ## Build
@@ -62,7 +62,7 @@ ocio-rs/
 | 0.1.1   | v2.5.2 |
 | 0.1.0   | v2.5.1 |
 
-OCIO upgrade workflow: update submodule → run code generator → fix compile errors → release.
+OCIO upgrade workflow: update submodule -> run code generator -> fix compile errors -> release.
 
 See [STATUS.md](STATUS.md) for the current implementation status before relying
 on a particular API area in production.

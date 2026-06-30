@@ -2,7 +2,8 @@
 //! Mirrors third_party/bench_ocio_cpp.cpp exactly.
 //!
 //! Usage:
-//!   OCIO_SOURCE_DIR=path/to/ocio cargo run --release --bin bench_ocio_rs
+//!   cargo run --release --features bundled --bin bench_ocio_rs
+//!   OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=path/to/ocio cargo run --release --bin bench_ocio_rs
 
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::TransformDirection;
@@ -13,7 +14,7 @@ const OPTIMIZATION_DEFAULT: u64 = 0;
 fn main() {
     if ocio_rs::is_stub_build() {
         eprintln!("This benchmark requires real OCIO, not stub mode.");
-        eprintln!("Set OCIO_SOURCE_DIR or OCIO_INSTALL_DIR.");
+        eprintln!("Use --features bundled or set OCIO_RS_ENABLE_REAL=1 with OCIO_INSTALL_DIR.");
         std::process::exit(1);
     }
 
