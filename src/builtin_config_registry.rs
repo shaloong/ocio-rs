@@ -35,6 +35,7 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_name()")]
     pub fn get_builtin_config_name(&self, index: i32) -> Option<String> {
         self.config_name(index)
     }
@@ -50,6 +51,7 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_ui_name()")]
     pub fn get_builtin_config_ui_name(&self, index: i32) -> Option<String> {
         self.config_ui_name(index)
     }
@@ -72,6 +74,7 @@ impl BuiltinConfigRegistry {
         self.config_by_name(name)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_yaml_by_index()")]
     pub fn get_builtin_config(&self, index: i32) -> Option<String> {
         self.config_yaml_by_index(index)
     }
@@ -82,6 +85,7 @@ impl BuiltinConfigRegistry {
         NonNull::new(handle).map(|h| Config { handle: h })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer config_yaml_by_name()")]
     pub fn get_builtin_config_by_name(&self, name: impl AsRef<str>) -> Option<String> {
         self.config_yaml_by_name(name)
     }
@@ -133,17 +137,24 @@ mod tests {
         if let Ok(reg) = BuiltinConfigRegistry::get() {
             let _ = reg.num_builtin_configs();
             let _ = reg.config_name(0);
-            let _ = reg.get_builtin_config_name(0);
             let _ = reg.config_ui_name(0);
-            let _ = reg.get_builtin_config_ui_name(0);
             let _ = reg.is_config_recommended(0);
             let _ = reg.is_builtin_config_recommended(0);
             let _ = reg.config_yaml_by_index(0);
-            let _ = reg.get_builtin_config(0);
             let _ = reg.config_yaml_by_name("default");
-            let _ = reg.get_builtin_config_by_name("default");
             let _ = reg.config_by_index(0);
             let _ = reg.config_by_name("default");
+        }
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn registry_compat_aliases_no_crash() {
+        if let Ok(reg) = BuiltinConfigRegistry::get() {
+            let _ = reg.get_builtin_config_name(0);
+            let _ = reg.get_builtin_config_ui_name(0);
+            let _ = reg.get_builtin_config(0);
+            let _ = reg.get_builtin_config_by_name("default");
         }
     }
 }

@@ -23,6 +23,10 @@
 - Fix `Baker::bake()` so it no longer routes a filesystem path through an
   `ostream*` ABI slot; baked output now goes through `bake_to_string()` first
   and is written to disk from Rust.
+- Continue normalizing Config and builtin-registry lookup helpers toward
+  Rust-style names such as `color_space()`, `named_transform()`,
+  `view_transform()`, and `processor_to_builtin_color_space()`, while keeping
+  the legacy `get_*` entry points as deprecated compatibility aliases.
 - Add `GroupTransform::write_to_string(&Config, format)` so callers do not need
   to pass raw `ostream*` pointers through the OCIO ABI for serialized transform
   output.

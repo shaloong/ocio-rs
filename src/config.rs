@@ -1102,7 +1102,7 @@ impl Config {
         self.processor_named_transform_name_with_context(context, named_transform_name, direction)
     }
 
-    pub fn get_processor_to_builtin_color_space(
+    pub fn processor_to_builtin_color_space(
         &self,
         src_config: &Config,
         src_color_space_name: impl AsRef<str>,
@@ -1123,7 +1123,24 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_from_builtin_color_space(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_to_builtin_color_space()"
+    )]
+    pub fn get_processor_to_builtin_color_space(
+        &self,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        builtin_color_space_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        self.processor_to_builtin_color_space(
+            src_config,
+            src_color_space_name,
+            builtin_color_space_name,
+        )
+    }
+
+    pub fn processor_from_builtin_color_space(
         &self,
         builtin_color_space_name: impl AsRef<str>,
         src_config: &Config,
@@ -1142,6 +1159,23 @@ impl Config {
         NonNull::new(handle)
             .map(|h| Processor { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_builtin_color_space()"
+    )]
+    pub fn get_processor_from_builtin_color_space(
+        &self,
+        builtin_color_space_name: impl AsRef<str>,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        self.processor_from_builtin_color_space(
+            builtin_color_space_name,
+            src_config,
+            src_color_space_name,
+        )
     }
 
     pub fn processor_from_configs(
@@ -1576,7 +1610,7 @@ impl Config {
         )
     }
 
-    pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
+    pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
             ocio_sys::ocio_config_get_color_space(self.handle.as_ptr(), n.as_ptr().cast())
@@ -1584,12 +1618,17 @@ impl Config {
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer color_space()")]
+    pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
+        self.color_space(name)
+    }
+
     pub fn color_space_by_ref_type(
         &self,
         name: impl AsRef<str>,
         ref_type: SearchReferenceSpaceType,
     ) -> Option<ColorSpace> {
-        let color_space = self.get_color_space(name)?;
+        let color_space = self.color_space(name)?;
         match ref_type {
             SearchReferenceSpaceType::All => Some(color_space),
             SearchReferenceSpaceType::Scene
@@ -1624,7 +1663,7 @@ impl Config {
         Some((color_space, rule_index))
     }
 
-    pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
+    pub fn color_space_index(&self, name: impl AsRef<str>) -> i32 {
         let n = cstring(name);
         match n {
             Ok(n) => unsafe {
@@ -1635,6 +1674,11 @@ impl Config {
             },
             Err(_) => -1,
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer color_space_index()")]
+    pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
+        self.color_space_index(name)
     }
 
     pub fn add_color_space(&self, cs: &ColorSpace) {
@@ -1664,11 +1708,16 @@ impl Config {
         }
     }
 
-    pub fn get_look(&self, name: impl AsRef<str>) -> Option<Look> {
+    pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
         let n = cstring(name).ok()?;
         let handle =
             unsafe { ocio_sys::ocio_config_get_look(self.handle.as_ptr(), n.as_ptr().cast()) };
         NonNull::new(handle).map(|h| Look { handle: h })
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer look()")]
+    pub fn get_look(&self, name: impl AsRef<str>) -> Option<Look> {
+        self.look(name)
     }
 
     pub fn add_look(&self, look: &Look) {
@@ -2154,7 +2203,7 @@ impl Config {
         self.named_transform_name_by_index(index)
     }
 
-    pub fn get_named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
+    pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
             ocio_sys::ocio_config_get_named_transform(self.handle.as_ptr(), n.as_ptr().cast())
@@ -2162,7 +2211,12 @@ impl Config {
         NonNull::new(handle).map(|h| NamedTransform { handle: h })
     }
 
-    pub fn get_index_for_named_transform(&self, name: impl AsRef<str>) -> i32 {
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer named_transform()")]
+    pub fn get_named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
+        self.named_transform(name)
+    }
+
+    pub fn named_transform_index(&self, name: impl AsRef<str>) -> i32 {
         let name = match cstring(name) {
             Ok(v) => v,
             Err(_) => return -1,
@@ -2173,6 +2227,11 @@ impl Config {
                 name.as_ptr().cast(),
             )
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer named_transform_index()")]
+    pub fn get_index_for_named_transform(&self, name: impl AsRef<str>) -> i32 {
+        self.named_transform_index(name)
     }
 
     pub fn add_named_transform(&self, named_transform: &NamedTransform) {
@@ -2209,12 +2268,17 @@ impl Config {
         }
     }
 
-    pub fn get_view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
+    pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
             ocio_sys::ocio_config_get_view_transform(self.handle.as_ptr(), n.as_ptr().cast())
         };
         NonNull::new(handle).map(|h| ViewTransform { handle: h })
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer view_transform()")]
+    pub fn get_view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
+        self.view_transform(name)
     }
 
     pub fn add_view_transform(&self, view_transform: &ViewTransform) {
@@ -2928,9 +2992,14 @@ mod tests {
     }
 
     #[test]
-    fn get_color_space_no_crash() {
+    fn config_lookup_named_wrappers_no_crash() {
         let config = Config::raw().unwrap();
-        let _ = config.get_color_space("raw");
+        let _ = config.color_space("raw");
+        let _ = config.color_space_index("raw");
+        let _ = config.look("look_name");
+        let _ = config.named_transform("Default");
+        let _ = config.named_transform_index("Default");
+        let _ = config.view_transform("Default");
     }
 
     #[test]
@@ -2939,7 +3008,7 @@ mod tests {
         let cs = ColorSpace::create().unwrap();
         cs.set_name("TestCS").unwrap();
         config.add_color_space(&cs);
-        let _ = config.get_index_for_color_space("TestCS");
+        let _ = config.color_space_index("TestCS");
         let _ = config.is_color_space_used("TestCS");
         let _ = config.remove_color_space("TestCS");
     }
@@ -2947,7 +3016,7 @@ mod tests {
     #[test]
     fn get_look_no_crash() {
         let config = Config::raw().unwrap();
-        let _ = config.get_look("look_name");
+        let _ = config.look("look_name");
     }
 
     #[test]
@@ -3082,7 +3151,8 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.num_named_transforms();
         let _ = config.named_transform_name_by_index(0);
-        let _ = config.get_named_transform("Default");
+        let _ = config.named_transform("Default");
+        let _ = config.named_transform_index("Default");
     }
 
     #[test]
@@ -3098,7 +3168,7 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.num_view_transforms();
         let _ = config.view_transform_name_by_index(0);
-        let _ = config.get_view_transform("Default");
+        let _ = config.view_transform("Default");
     }
 
     #[test]
