@@ -2555,13 +2555,18 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_active_display(&self, index: i32) -> Option<String> {
+    pub fn active_display(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_display(
                 self.handle.as_ptr(),
                 index,
             ))
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer active_display()")]
+    pub fn get_active_display(&self, index: i32) -> Option<String> {
+        self.active_display(index)
     }
 
     pub fn remove_active_display(&self, display: impl AsRef<str>) -> Result<()> {
@@ -2581,13 +2586,18 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_active_view(&self, index: i32) -> Option<String> {
+    pub fn active_view(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_view(
                 self.handle.as_ptr(),
                 index,
             ))
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer active_view()")]
+    pub fn get_active_view(&self, index: i32) -> Option<String> {
+        self.active_view(index)
     }
 
     pub fn remove_active_view(&self, view: impl AsRef<str>) -> Result<()> {
@@ -2616,11 +2626,16 @@ impl Config {
         unsafe { ocio_sys::ocio_config_get_num_active_views(self.handle.as_ptr() as *mut c_void) }
     }
 
-    pub fn get_num_displays_all(&self) -> i32 {
+    pub fn num_displays_all(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_displays_all(self.handle.as_ptr()) }
     }
 
-    pub fn get_display_all(&self, index: i32) -> Option<String> {
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_displays_all()")]
+    pub fn get_num_displays_all(&self) -> i32 {
+        self.num_displays_all()
+    }
+
+    pub fn display_all(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_display_all(
                 self.handle.as_ptr(),
@@ -2629,7 +2644,12 @@ impl Config {
         }
     }
 
-    pub fn get_display_all_by_name(&self, display: impl AsRef<str>) -> i32 {
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer display_all()")]
+    pub fn get_display_all(&self, index: i32) -> Option<String> {
+        self.display_all(index)
+    }
+
+    pub fn display_all_index(&self, display: impl AsRef<str>) -> i32 {
         let display = match cstring(display) {
             Ok(v) => v,
             Err(_) => return -1,
@@ -2640,6 +2660,11 @@ impl Config {
                 display.as_ptr() as *mut c_void,
             )
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer display_all_index()")]
+    pub fn get_display_all_by_name(&self, display: impl AsRef<str>) -> i32 {
+        self.display_all_index(display)
     }
 
     pub fn is_display_temporary(&self, index: i32) -> bool {
@@ -3331,6 +3356,18 @@ mod tests {
     }
 
     #[test]
+    fn active_and_all_display_named_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.num_active_displays();
+        let _ = config.num_active_views();
+        let _ = config.active_display(0);
+        let _ = config.active_view(0);
+        let _ = config.num_displays_all();
+        let _ = config.display_all(0);
+        let _ = config.display_all_index("sRGB");
+    }
+
+    #[test]
     fn processor_with_context_no_crash() {
         let config = Config::raw().unwrap();
         if let Some(ctx) = config.current_context() {
@@ -3451,6 +3488,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn active_display_view_management_v251_no_crash() {
         let config = Config::raw().unwrap();
         assert!(config.add_active_display("sRGB").is_ok());
@@ -3532,6 +3570,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn builtin_config_entry_points_no_crash() {
         if let Ok(registry) = crate::BuiltinConfigRegistry::get() {
             if registry.num_builtin_configs() > 0 {

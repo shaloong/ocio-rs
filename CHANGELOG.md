@@ -54,6 +54,9 @@
 - Add descriptive names for the remaining multi-config processor overloads and
   deprecate the corresponding `get_processor_v1` /
   `get_processor_from_configs_v*` compatibility entry points.
+- Continue the Config naming cleanup for active-display and all-display
+  enumeration helpers by adding `active_display()`, `active_view()`,
+  `num_displays_all()`, `display_all()`, and `display_all_index()`.
 
 ## 0.2.0
 
