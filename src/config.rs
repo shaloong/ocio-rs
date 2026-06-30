@@ -2693,6 +2693,79 @@ mod tests {
     }
 
     #[test]
+    fn processor_from_configs_overloads_no_crash() {
+        let config = Config::raw().unwrap();
+        let src_config = Config::raw().unwrap();
+        let dst_config = Config::raw().unwrap();
+        let src_ctx = src_config.current_context();
+        let dst_ctx = dst_config.current_context();
+
+        let _ =
+            config.get_processor_from_configs_v2(&src_config, "raw", "", &dst_config, "raw", "");
+        let _ = config.get_processor_from_configs_v4(
+            &src_config,
+            "raw",
+            &dst_config,
+            "sRGB",
+            "Film",
+            TransformDirection::Forward,
+        );
+        let _ = config.get_processor_from_configs_v6(
+            &src_config,
+            "raw",
+            "",
+            &dst_config,
+            "sRGB",
+            "Film",
+            "",
+            TransformDirection::Forward,
+        );
+
+        if let (Some(src_ctx), Some(dst_ctx)) = (src_ctx, dst_ctx) {
+            let _ = config.get_processor_from_configs_v1(
+                &src_ctx,
+                &src_config,
+                "raw",
+                &dst_ctx,
+                &dst_config,
+                "raw",
+            );
+            let _ = config.get_processor_from_configs_v3(
+                &src_ctx,
+                &src_config,
+                "raw",
+                "",
+                &dst_ctx,
+                &dst_config,
+                "raw",
+                "",
+            );
+            let _ = config.get_processor_from_configs_v5(
+                &src_ctx,
+                &src_config,
+                "raw",
+                &dst_ctx,
+                &dst_config,
+                "sRGB",
+                "Film",
+                TransformDirection::Forward,
+            );
+            let _ = config.get_processor_from_configs_v7(
+                &src_ctx,
+                &src_config,
+                "raw",
+                "",
+                &dst_ctx,
+                &dst_config,
+                "sRGB",
+                "Film",
+                "",
+                TransformDirection::Forward,
+            );
+        }
+    }
+
+    #[test]
     fn processor_with_context_no_crash() {
         let config = Config::raw().unwrap();
         if let Some(ctx) = config.current_context() {
@@ -2763,5 +2836,83 @@ mod tests {
         let config = Config::raw().unwrap();
         unsafe { config.set_config_io_proxy(std::ptr::null_mut()) };
         let _ = config.get_config_io_proxy();
+    }
+
+    #[test]
+    fn active_display_view_management_v251_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config.add_active_display("sRGB").is_ok());
+        assert!(config.add_active_view("Film").is_ok());
+        let _ = config.num_active_displays();
+        let _ = config.num_active_views();
+        let _ = config.get_active_display(0);
+        let _ = config.get_active_view(0);
+        assert!(config.remove_active_display("sRGB").is_ok());
+        assert!(config.remove_active_view("Film").is_ok());
+        config.clear_active_displays();
+        config.clear_active_views();
+    }
+
+    #[test]
+    fn display_view_v2_and_view_transform_aliases_no_crash() {
+        let config = Config::raw().unwrap();
+        let vt = crate::ViewTransform::create(crate::ReferenceSpaceType::Scene).unwrap();
+        assert!(vt.set_name("MyViewTransform").is_ok());
+        config.add_view_transform(&vt);
+
+        assert!(config
+            .set_default_view_transform_name("MyViewTransform")
+            .is_ok());
+        let _ = config.get_default_view_transform_name();
+        assert!(config
+            .add_display_view_v2("sRGB", "Film", "MyViewTransform", "raw", "", "", "",)
+            .is_ok());
+        let _ = config.get_num_views_v2(crate::SearchReferenceSpaceType::Scene, "sRGB");
+        let _ = config.get_view_v2(crate::SearchReferenceSpaceType::Scene, "sRGB", 0);
+    }
+
+    #[test]
+    fn virtual_display_management_no_crash() {
+        let config = Config::raw().unwrap();
+        assert!(config
+            .add_shared_view("SharedView", "MyViewTransform", "raw", "", "", "")
+            .is_ok());
+        assert!(config.add_display_shared_view("sRGB", "SharedView").is_ok());
+        assert!(config.add_virtual_display_shared_view("SharedView").is_ok());
+        assert!(config
+            .add_virtual_display_view("VirtualFilm", "MyViewTransform", "raw", "", "", "")
+            .is_ok());
+        let _ = config.get_virtual_display_num_views(crate::SearchReferenceSpaceType::Scene);
+        let _ = config.get_virtual_display_view(crate::SearchReferenceSpaceType::Scene, 0);
+        let _ = config.get_virtual_display_view_transform_name("VirtualFilm");
+        let _ = config.get_virtual_display_view_color_space_name("VirtualFilm");
+        let _ = config.get_virtual_display_view_looks("VirtualFilm");
+        let _ = config.get_virtual_display_view_rule("VirtualFilm");
+        let _ = config.get_virtual_display_view_description("VirtualFilm");
+        assert!(config.remove_virtual_display_view("VirtualFilm").is_ok());
+        config.clear_virtual_display();
+    }
+
+    #[test]
+    fn viewing_rules_pointer_round_trip_no_crash() {
+        let config = Config::raw().unwrap();
+        let ptr = unsafe { config.get_viewing_rules() };
+        if !ptr.is_null() {
+            unsafe { config.set_viewing_rules(ptr) };
+        }
+    }
+
+    #[test]
+    fn builtin_config_entry_points_no_crash() {
+        if let Ok(registry) = crate::BuiltinConfigRegistry::get() {
+            if registry.num_builtin_configs() > 0 {
+                if let Some(name) = registry.config_name(0) {
+                    let config = Config::create_from_builtin_config(&name).unwrap();
+                    let _ = config.validate();
+                    let _ = config.get_num_displays_all();
+                    let _ = config.get_display_all(0);
+                }
+            }
+        }
     }
 }
