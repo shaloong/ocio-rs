@@ -879,7 +879,8 @@ fn run_l3(
 // ─── Report ───
 
 fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
-    let mut has_gaps = false;
+    let mut has_hard_gaps = false;
+    let mut has_soft_gaps = false;
 
     println!("{}", "=".repeat(64));
     println!("  OCIO-rs API Parity Report");
@@ -891,7 +892,7 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
     println!("  bridge.hpp functions: {}", l1.total_hpp);
     println!("  lib.rs declarations:  {}", l1.total_lib);
     if !l1.missing_in_lib.is_empty() {
-        has_gaps = true;
+        has_hard_gaps = true;
         println!("  MISSING in lib.rs: {}", l1.missing_in_lib.len());
         for f in &l1.missing_in_lib {
             println!("    - {} ({})", f.name, f.return_type);
@@ -900,9 +901,9 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
         println!("  Status: OK");
     }
     if !l1.extra_in_lib.is_empty() {
-        has_gaps = true;
+        has_soft_gaps = true;
         println!(
-            "  EXTRA in lib.rs (not in bridge.hpp): {}",
+            "  EXTRA in lib.rs (not in bridge.hpp, typically compat aliases): {}",
             l1.extra_in_lib.len()
         );
         for e in &l1.extra_in_lib {
@@ -918,7 +919,7 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
         l2.total, l2.matched
     );
     if !l2.missing.is_empty() {
-        has_gaps = true;
+        has_hard_gaps = true;
         println!("  MISSING Rust wrapper methods: {}", l2.missing.len());
         let mut by_class: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for m in &l2.missing {
@@ -941,7 +942,7 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
         println!("  C++ methods total: {}", l3.total_cpp_methods);
         println!("  Bridged: {}/{}", l3.matched, l3.total_cpp_methods);
         if !l3.missing.is_empty() {
-            has_gaps = true;
+            has_hard_gaps = true;
             let total_missing: usize = l3.missing.values().map(|v| v.len()).sum();
             println!("  NOT YET BRIDGED: {} methods", total_missing);
             for (cls, meths) in &l3.missing {
@@ -960,14 +961,16 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
     }
 
     println!("{}", "=".repeat(64));
-    if has_gaps {
+    if has_hard_gaps {
         println!("  RESULT: GAPS FOUND");
+    } else if has_soft_gaps {
+        println!("  RESULT: OK WITH COMPAT EXTRAS");
     } else {
         println!("  RESULT: ALL CLEAN");
     }
     println!("{}", "=".repeat(64));
 
-    has_gaps
+    has_hard_gaps
 }
 
 fn main() {
