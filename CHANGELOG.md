@@ -51,6 +51,9 @@
 - Continue the Config cleanup by deprecating display/view overload aliases and
   adding clearer names such as `add_display_view_detailed()`,
   `virtual_display_num_views()`, and `virtual_display_view()`.
+- Add descriptive names for the remaining multi-config processor overloads and
+  deprecate the corresponding `get_processor_v1` /
+  `get_processor_from_configs_v*` compatibility entry points.
 
 ## 0.2.0
 

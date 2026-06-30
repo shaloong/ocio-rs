@@ -103,6 +103,8 @@ Processor and config enumeration wrappers are also converging on clearer Rust na
 
 Display/view configuration is following the same pattern. Prefer `Config::default_view()`, `num_views()`, `view()`, `add_display()`, `add_display_view_detailed()`, `virtual_display_num_views()`, and `virtual_display_view()` over the older `get_*_v1`, `get_*_v2`, and `add_display_view_v1/v2` compatibility names unless you explicitly need those OCIO-shaped overloads.
 
+The multi-config processor overloads now have descriptive Rust names as well. Prefer `processor_from_color_spaces()`, `processor_from_configs_with_contexts()`, `processor_from_configs_with_interchange()`, `processor_from_configs_with_contexts_and_interchange()`, `processor_from_configs_to_display()`, `processor_from_configs_to_display_with_contexts()`, `processor_from_configs_to_display_with_interchange()`, and `processor_from_configs_to_display_with_contexts_and_interchange()` over the old `get_processor_v1` and `get_processor_from_configs_v*` numbering.
+
 The same treatment now applies to `Config` helpers that require external OCIO config, interchange, view, or virtual-view descriptor pointers. They remain available for ABI interop, but are no longer presented as normal Rust-native APIs.
 
 ### Bundled builds

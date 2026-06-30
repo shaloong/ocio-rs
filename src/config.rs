@@ -741,7 +741,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_v1(
+    pub fn processor_from_color_spaces(
         &self,
         src_color_space: &ColorSpace,
         dst_color_space: &ColorSpace,
@@ -756,6 +756,18 @@ impl Config {
         NonNull::new(handle)
             .map(|h| Processor { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_color_spaces()"
+    )]
+    pub fn get_processor_v1(
+        &self,
+        src_color_space: &ColorSpace,
+        dst_color_space: &ColorSpace,
+    ) -> Result<Processor> {
+        self.processor_from_color_spaces(src_color_space, dst_color_space)
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer processor()")]
@@ -1154,7 +1166,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_from_configs_v1(
+    pub fn processor_from_configs_with_contexts(
         &self,
         src_context: &Context,
         src_config: &Config,
@@ -1181,7 +1193,30 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_from_configs_v2(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_with_contexts()"
+    )]
+    pub fn get_processor_from_configs_v1(
+        &self,
+        src_context: &Context,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        dst_context: &Context,
+        dst_config: &Config,
+        dst_color_space_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        self.processor_from_configs_with_contexts(
+            src_context,
+            src_config,
+            src_color_space_name,
+            dst_context,
+            dst_config,
+            dst_color_space_name,
+        )
+    }
+
+    pub fn processor_from_configs_with_interchange(
         &self,
         src_config: &Config,
         src_color_space_name: impl AsRef<str>,
@@ -1210,8 +1245,31 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_with_interchange()"
+    )]
+    pub fn get_processor_from_configs_v2(
+        &self,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        src_interchange_name: impl AsRef<str>,
+        dst_config: &Config,
+        dst_color_space_name: impl AsRef<str>,
+        dst_interchange_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        self.processor_from_configs_with_interchange(
+            src_config,
+            src_color_space_name,
+            src_interchange_name,
+            dst_config,
+            dst_color_space_name,
+            dst_interchange_name,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
-    pub fn get_processor_from_configs_v3(
+    pub fn processor_from_configs_with_contexts_and_interchange(
         &self,
         src_context: &Context,
         src_config: &Config,
@@ -1244,7 +1302,35 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn get_processor_from_configs_v4(
+    #[allow(clippy::too_many_arguments)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_with_contexts_and_interchange()"
+    )]
+    pub fn get_processor_from_configs_v3(
+        &self,
+        src_context: &Context,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        src_interchange_name: impl AsRef<str>,
+        dst_context: &Context,
+        dst_config: &Config,
+        dst_color_space_name: impl AsRef<str>,
+        dst_interchange_name: impl AsRef<str>,
+    ) -> Result<Processor> {
+        self.processor_from_configs_with_contexts_and_interchange(
+            src_context,
+            src_config,
+            src_color_space_name,
+            src_interchange_name,
+            dst_context,
+            dst_config,
+            dst_color_space_name,
+            dst_interchange_name,
+        )
+    }
+
+    pub fn processor_from_configs_to_display(
         &self,
         src_config: &Config,
         src_color_space_name: impl AsRef<str>,
@@ -1272,8 +1358,31 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_to_display()"
+    )]
+    pub fn get_processor_from_configs_v4(
+        &self,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        dst_config: &Config,
+        dst_display: impl AsRef<str>,
+        dst_view: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_from_configs_to_display(
+            src_config,
+            src_color_space_name,
+            dst_config,
+            dst_display,
+            dst_view,
+            direction,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
-    pub fn get_processor_from_configs_v5(
+    pub fn processor_from_configs_to_display_with_contexts(
         &self,
         src_context: &Context,
         src_config: &Config,
@@ -1306,7 +1415,35 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn get_processor_from_configs_v6(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_to_display_with_contexts()"
+    )]
+    pub fn get_processor_from_configs_v5(
+        &self,
+        src_context: &Context,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        dst_context: &Context,
+        dst_config: &Config,
+        dst_display: impl AsRef<str>,
+        dst_view: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_from_configs_to_display_with_contexts(
+            src_context,
+            src_config,
+            src_color_space_name,
+            dst_context,
+            dst_config,
+            dst_display,
+            dst_view,
+            direction,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn processor_from_configs_to_display_with_interchange(
         &self,
         src_config: &Config,
         src_color_space_name: impl AsRef<str>,
@@ -1341,7 +1478,35 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn get_processor_from_configs_v7(
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_to_display_with_interchange()"
+    )]
+    pub fn get_processor_from_configs_v6(
+        &self,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        src_interchange_name: impl AsRef<str>,
+        dst_config: &Config,
+        dst_display: impl AsRef<str>,
+        dst_view: impl AsRef<str>,
+        dst_interchange_name: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_from_configs_to_display_with_interchange(
+            src_config,
+            src_color_space_name,
+            src_interchange_name,
+            dst_config,
+            dst_display,
+            dst_view,
+            dst_interchange_name,
+            direction,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn processor_from_configs_to_display_with_contexts_and_interchange(
         &self,
         src_context: &Context,
         src_config: &Config,
@@ -1377,6 +1542,38 @@ impl Config {
         NonNull::new(handle)
             .map(|h| Processor { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer processor_from_configs_to_display_with_contexts_and_interchange()"
+    )]
+    pub fn get_processor_from_configs_v7(
+        &self,
+        src_context: &Context,
+        src_config: &Config,
+        src_color_space_name: impl AsRef<str>,
+        src_interchange_name: impl AsRef<str>,
+        dst_context: &Context,
+        dst_config: &Config,
+        dst_display: impl AsRef<str>,
+        dst_view: impl AsRef<str>,
+        dst_interchange_name: impl AsRef<str>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        self.processor_from_configs_to_display_with_contexts_and_interchange(
+            src_context,
+            src_config,
+            src_color_space_name,
+            src_interchange_name,
+            dst_context,
+            dst_config,
+            dst_display,
+            dst_view,
+            dst_interchange_name,
+            direction,
+        )
     }
 
     pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
@@ -2981,6 +3178,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn processor_from_configs_overloads_no_crash() {
         let config = Config::raw().unwrap();
         let src_config = Config::raw().unwrap();
@@ -3039,6 +3237,85 @@ mod tests {
                 TransformDirection::Forward,
             );
             let _ = config.get_processor_from_configs_v7(
+                &src_ctx,
+                &src_config,
+                "raw",
+                "",
+                &dst_ctx,
+                &dst_config,
+                "sRGB",
+                "Film",
+                "",
+                TransformDirection::Forward,
+            );
+        }
+    }
+
+    #[test]
+    fn processor_from_configs_named_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let src_config = Config::raw().unwrap();
+        let dst_config = Config::raw().unwrap();
+        let src_ctx = src_config.current_context();
+        let dst_ctx = dst_config.current_context();
+
+        let _ = config.processor_from_configs_with_interchange(
+            &src_config,
+            "raw",
+            "",
+            &dst_config,
+            "raw",
+            "",
+        );
+        let _ = config.processor_from_configs_to_display(
+            &src_config,
+            "raw",
+            &dst_config,
+            "sRGB",
+            "Film",
+            TransformDirection::Forward,
+        );
+        let _ = config.processor_from_configs_to_display_with_interchange(
+            &src_config,
+            "raw",
+            "",
+            &dst_config,
+            "sRGB",
+            "Film",
+            "",
+            TransformDirection::Forward,
+        );
+
+        if let (Some(src_ctx), Some(dst_ctx)) = (src_ctx, dst_ctx) {
+            let _ = config.processor_from_configs_with_contexts(
+                &src_ctx,
+                &src_config,
+                "raw",
+                &dst_ctx,
+                &dst_config,
+                "raw",
+            );
+            let _ = config.processor_from_configs_with_contexts_and_interchange(
+                &src_ctx,
+                &src_config,
+                "raw",
+                "",
+                &dst_ctx,
+                &dst_config,
+                "raw",
+                "",
+            );
+            let _ = config.processor_from_configs_to_display_with_contexts(
+                &src_ctx,
+                &src_config,
+                "raw",
+                &dst_ctx,
+                &dst_config,
+                "sRGB",
+                "Film",
+                TransformDirection::Forward,
+            );
+            let _ = config.processor_from_configs_to_display_with_contexts_and_interchange(
                 &src_ctx,
                 &src_config,
                 "raw",
