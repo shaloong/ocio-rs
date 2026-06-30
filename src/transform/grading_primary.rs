@@ -58,6 +58,7 @@ impl GradingPrimaryTransform {
         GradingPrimary::from_flat_array(&flat)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer value()")]
     pub fn copy_value(&self) -> GradingPrimary {
         self.value()
     }
@@ -73,6 +74,10 @@ impl GradingPrimaryTransform {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer set_value(&GradingPrimary)"
+    )]
     pub fn set_value_from_f64(&self, value: &GradingPrimary) {
         self.set_value(value);
     }

@@ -32,6 +32,8 @@
 - Mark remaining raw ABI escape hatches in `Config`, `Context`, and
   `CPU/GPUProcessor` as deprecated so they are less likely to be mistaken for
   normal Rust-native APIs.
+- Deprecate `GroupTransform::write` and grading primary/tone compatibility
+  aliases that now have clearer Rust-native replacements.
 
 ## 0.2.0
 

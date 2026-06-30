@@ -91,6 +91,8 @@ Several APIs that still require OCIO-owned external objects remain available, bu
 
 This includes viewing-rules handles, config-IO proxy handles, legacy context-var pointer overloads, raw CPU image-descriptor entry points, and raw GPU shader-creator extraction.
 
+Additional compatibility aliases such as `GradingPrimaryTransform::copy_value`, `GradingPrimaryTransform::set_value_from_f64`, `GradingToneTransform::copy_value`, and `GradingToneTransform::set_value_from_f64` are also deprecated in favor of the clearer `value()` / `set_value(...)` methods.
+
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.

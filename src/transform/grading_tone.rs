@@ -58,6 +58,7 @@ impl GradingToneTransform {
         GradingTone::from_flat_array(&flat)
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer value()")]
     pub fn copy_value(&self) -> GradingTone {
         self.value()
     }
@@ -73,6 +74,7 @@ impl GradingToneTransform {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer set_value(&GradingTone)")]
     pub fn set_value_from_f64(&self, value: &GradingTone) {
         self.set_value(value);
     }
