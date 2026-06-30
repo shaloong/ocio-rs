@@ -78,6 +78,10 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer optimized_processor_bitdepth or optimized_cpu/gpu_processor helpers"
+    )]
     pub fn optimized_processor_v1(&self, flags: u64) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_processor_v1(self.handle.as_ptr(), flags as i32)
@@ -87,7 +91,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn optimized_processor_v2(
+    pub fn optimized_processor_bitdepth(
         &self,
         in_bit_depth: i32,
         out_bit_depth: i32,
@@ -104,6 +108,19 @@ impl Processor {
         NonNull::new(handle)
             .map(|h| Self { handle: h })
             .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer optimized_processor_bitdepth()"
+    )]
+    pub fn optimized_processor_v2(
+        &self,
+        in_bit_depth: i32,
+        out_bit_depth: i32,
+        flags: u64,
+    ) -> Result<Self> {
+        self.optimized_processor_bitdepth(in_bit_depth, out_bit_depth, flags)
     }
 
     /// Create the default GPU execution path for this processor.
@@ -174,6 +191,10 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer optimized_cpu_processor_bitdepth()"
+    )]
     pub fn optimized_cpu_processor_v1(
         &self,
         in_bit_depth: i32,
@@ -536,6 +557,7 @@ impl GPUProcessor {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
     pub fn extract_gpu_shader_info_v1(&self, shader_desc: &mut GpuShaderDesc) {
         self.extract_shader_info(shader_desc);
     }
@@ -1497,6 +1519,14 @@ mod tests {
     }
 
     #[test]
+    fn processor_named_optimization_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        let _ = proc.optimized_processor_bitdepth(8, 8, 0);
+        let _ = proc.optimized_cpu_processor_bitdepth(8, 8, 0);
+    }
+
+    #[test]
     #[allow(deprecated)]
     fn legacy_gpu_processor() {
         let config = Config::raw().unwrap();
@@ -1522,6 +1552,15 @@ mod tests {
             let _ = desc.set_pixel_name("outColor");
             let _ = desc.set_resource_prefix("ocio_");
             desc.finalize();
+        }
+    }
+
+    #[test]
+    fn gpu_extract_shader_info_named_wrapper_no_crash() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let (Ok(gpu), Ok(mut desc)) = (proc.default_gpu_processor(), GpuShaderDesc::create()) {
+            gpu.extract_shader_info(&mut desc);
         }
     }
 

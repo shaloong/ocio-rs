@@ -45,6 +45,9 @@
 - Deprecate the remaining transform-level `format_metadata_v1/v2` aliases and
   `GroupTransform::get_transform_v1` so callers are steered toward the
   canonical metadata and child-transform helpers.
+- Add clearer processor/config wrapper names around optimization, shader
+  extraction, and enumeration helpers, and deprecate the corresponding
+  `*_v1` compatibility aliases.
 
 ## 0.2.0
 

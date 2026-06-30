@@ -132,6 +132,7 @@ impl Config {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_color_spaces()")]
     pub fn get_num_color_spaces_v1(&self) -> i32 {
         self.num_color_spaces()
     }
@@ -145,6 +146,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer color_space_name_by_index()"
+    )]
     pub fn get_color_space_name_by_index_v1(&self, index: i32) -> Option<String> {
         self.color_space_name_by_index(index)
     }
@@ -1871,6 +1876,7 @@ impl Config {
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer num_named_transforms()")]
     pub fn get_num_named_transforms_v1(&self) -> i32 {
         self.num_named_transforms()
     }
@@ -1884,6 +1890,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer named_transform_name_by_index()"
+    )]
     pub fn get_named_transform_name_by_index_v1(&self, index: i32) -> Option<String> {
         self.named_transform_name_by_index(index)
     }
@@ -3060,12 +3070,22 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn config_version_aliases_no_crash() {
         let config = Config::raw().unwrap();
         let _ = config.get_num_color_spaces_v1();
         let _ = config.get_color_space_name_by_index_v1(0);
         config.set_version(2, 5);
         config.upgrade_to_latest_version();
+    }
+
+    #[test]
+    fn config_named_enumeration_wrappers_no_crash() {
+        let config = Config::raw().unwrap();
+        let _ = config.num_color_spaces();
+        let _ = config.color_space_name_by_index(0);
+        let _ = config.num_named_transforms();
+        let _ = config.named_transform_name_by_index(0);
     }
 
     #[test]
