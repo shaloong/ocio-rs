@@ -48,6 +48,7 @@ Current release checklist highlights:
   `exponent_transform_behavior`, `exponent_with_linear_transform_behavior`,
   `exposure_contrast_transform_behavior`,
   `fixed_function_transform_behavior`,
+  `grading_primary_transform_behavior`,
   `range_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
@@ -71,7 +72,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirty
+- The current bundled validation path exercises `373` crate tests plus thirty-one
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -81,6 +82,7 @@ Latest release-audit result:
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
+  grading-primary-transform behavior,
   log-affine-transform behavior, log-camera-transform behavior,
   log-transform behavior, lut1d-transform behavior, lut3d-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
@@ -130,6 +132,12 @@ Current runtime semantics worth calling out explicitly:
   linear breakpoint, a `[2, 2, 2, 1]` gamma with `[0.1, 0.1, 0.1, 0]` offset
   executes the expected moncurve forward/inverse CPU processing pair rather
   than collapsing to a plain exponent or no-op path.
+- `GradingPrimaryTransform` round-trips style, value, dynamic, and direction
+  state in bundled mode; changing the style resets the grading payload to that
+  style's upstream defaults, the default clamp sentinels stay at OCIO's real
+  no-clamp `+/-f64::MAX` values, and a linear grading setup with identity
+  contrast/saturation applies the expected offset-plus-`2^exposure`
+  forward/inverse CPU behavior.
 - `LogTransform` round-trips base and direction state in bundled mode, uses
   the documented default base of `2.0`, executes the expected `log(color,
   base)` CPU path on positive inputs, and leaves alpha numerically unchanged

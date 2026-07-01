@@ -160,10 +160,10 @@ impl GradingPrimary {
     }
 
     pub fn no_clamp_black() -> f64 {
-        -0.0001
+        -f64::MAX
     }
     pub fn no_clamp_white() -> f64 {
-        1.0001
+        f64::MAX
     }
 
     pub(crate) fn from_flat_array(values: &[f64; 34]) -> Self {
