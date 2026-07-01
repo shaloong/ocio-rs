@@ -132,6 +132,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_color_spaces()")]
     pub fn get_num_color_spaces_v1(&self) -> i32 {
         self.num_color_spaces()
@@ -146,6 +147,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer color_space_name_by_index()"
@@ -193,6 +195,7 @@ impl Config {
 
     /// # Safety
     /// `src_config` and `builtin_config` must be valid OCIO config pointers for the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO config-pointer entry point; prefer built-in config and color-space APIs unless you must interoperate with external OCIO ABI objects"
@@ -217,6 +220,7 @@ impl Config {
     /// # Safety
     /// `src_interchange_name`, `builtin_interchange_name`, `src_config`, and `builtin_config`
     /// must be valid pointers accepted by the OCIO ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO interchange/config pointer entry point; prefer higher-level config APIs unless you must interoperate with external OCIO ABI objects"
@@ -261,6 +265,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer color_space_from_filepath_with_rule_index() or color_space_from_filepath()"
@@ -686,6 +691,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer display_view_rule()")]
     pub fn get_display_view_rule(
         &self,
@@ -711,6 +717,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer display_view_description()"
@@ -758,6 +765,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer default_view_transform_name()"
