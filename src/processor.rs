@@ -603,6 +603,7 @@ pub struct GpuShaderDesc {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
+/// Channel layout used by extracted 1D/2D GPU texture payloads.
 pub enum GpuTextureChannel {
     Red = 0,
     Rgb = 1,
@@ -626,6 +627,7 @@ impl GpuTextureChannel {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
+/// Dimensionality metadata for extracted 1D/2D GPU texture payloads.
 pub enum GpuTextureDimensions {
     Texture1D = 0,
     Texture2D = 1,
@@ -642,6 +644,7 @@ impl GpuTextureDimensions {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
+/// Uniform value encoding reported by OCIO GPU shader extraction.
 pub enum GpuUniformType {
     Double = 0,
     Bool = 1,

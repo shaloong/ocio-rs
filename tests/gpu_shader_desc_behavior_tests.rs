@@ -11,7 +11,10 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{GpuLanguage, GpuShaderDesc, TransformDirection};
+use ocio_rs::{
+    GpuLanguage, GpuShaderDesc, GpuTextureChannel, GpuTextureDimensions, GpuUniformType,
+    GpuUniformValue, TransformDirection,
+};
 
 fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -93,15 +96,21 @@ fn gpu_shader_desc_extraction_structural_behavior() {
             Some(uniform.name.as_str())
         );
         assert_eq!(desc.uniform_value_count(index as u32), uniform.value_count);
-        let f32_values = desc.uniform_values_f32(index as u32);
-        let i32_values = desc.uniform_values_i32(index as u32);
-        if !i32_values.is_empty() {
-            assert_eq!(i32_values.len(), uniform.value_count);
-            assert!(f32_values.is_empty());
-        } else if !f32_values.is_empty() {
-            assert_eq!(f32_values.len(), uniform.value_count);
-        } else {
-            assert_eq!(uniform.value_count, 0);
+        match (&uniform.uniform_type, &uniform.value) {
+            (GpuUniformType::VectorInt, GpuUniformValue::I32(values)) => {
+                assert_eq!(values.len(), uniform.value_count);
+                assert_eq!(desc.uniform_values_i32(index as u32), *values);
+                assert!(desc.uniform_values_f32(index as u32).is_empty());
+            }
+            (GpuUniformType::Unknown, GpuUniformValue::Unsupported) => {
+                assert!(desc.uniform_values_f32(index as u32).is_empty());
+                assert!(desc.uniform_values_i32(index as u32).is_empty());
+            }
+            (_, GpuUniformValue::F32(values)) => {
+                assert_eq!(values.len(), uniform.value_count);
+                assert_eq!(desc.uniform_values_f32(index as u32), *values);
+            }
+            _ => panic!("uniform type/value mismatch at index {}", index),
         }
     }
 
@@ -126,6 +135,14 @@ fn gpu_shader_desc_extraction_structural_behavior() {
         assert_eq!(info.channel, texture.channel as i32);
         assert_eq!(info.dimensions, texture.dimensions as i32);
         assert_eq!(info.interpolation, texture.interpolation as i32);
+        assert!(matches!(
+            texture.channel,
+            GpuTextureChannel::Red | GpuTextureChannel::Rgb
+        ));
+        assert!(matches!(
+            texture.dimensions,
+            GpuTextureDimensions::Texture1D | GpuTextureDimensions::Texture2D
+        ));
     }
 
     let textures_3d = desc.textures_3d();

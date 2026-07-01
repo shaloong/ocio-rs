@@ -50,7 +50,9 @@ pub use format_metadata::FormatMetadata;
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
-    CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, Processor, TextureInfo,
+    CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
+    GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
+    Processor, TextureInfo,
 };
 pub use types::*;
 pub use view_transform::ViewTransform;
