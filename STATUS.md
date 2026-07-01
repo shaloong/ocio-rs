@@ -42,7 +42,8 @@ Current release checklist highlights:
   `baker_behavior`, `builtin_config_registry_behavior`, `color_space_behavior`,
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
-  `cpu_processor_behavior`, `matrix_op`, and `named_transform_behavior`
+  `cpu_processor_behavior`, `matrix_op`,
+  `builtin_transform_registry_behavior`, and `named_transform_behavior`
   integration suites in addition to crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
@@ -59,12 +60,12 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus eleven
+- The current bundled validation path exercises `373` crate tests plus twelve
   dedicated integration suites covering baker output, builtin-config registry
-  enumeration, color-space metadata and processor behavior, config behavior,
-  context resolution, file rules, dynamic properties, GPU shader descriptors,
-  CPU processor execution, matrix processing behavior, and named-transform
-  execution.
+  enumeration, builtin-transform registry enumeration, color-space metadata
+  and processor behavior, config behavior, context resolution, file rules,
+  dynamic properties, GPU shader descriptors, CPU processor execution, matrix
+  processing behavior, and named-transform execution.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -88,6 +89,9 @@ Current runtime semantics worth calling out explicitly:
   attached transforms in bundled mode; when validating processors across
   custom color spaces, distinct `equality_group` values matter because equal
   groups may let OCIO optimize the conversion path away.
+- `BuiltinTransformRegistry` and `BuiltinTransform` helper enumeration stay
+  coherent in bundled mode, and builtin descriptions may legitimately be empty
+  strings for some upstream styles rather than guaranteed human-readable text.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
