@@ -10,6 +10,7 @@ pub struct ColorSpaceSet {
 }
 
 impl ColorSpaceSet {
+    /// Create an empty color-space set.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_color_space_set_create() };
         NonNull::new(handle)
@@ -17,6 +18,7 @@ impl ColorSpaceSet {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an editable copy that is independent from the original set.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle =
             unsafe { ocio_sys::ocio_color_space_set_create_editable_copy(self.handle.as_ptr()) };
@@ -25,10 +27,12 @@ impl ColorSpaceSet {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the number of color spaces currently in the set.
     pub fn num_color_spaces(&self) -> i32 {
         unsafe { ocio_sys::ocio_color_space_set_get_num_color_spaces(self.handle.as_ptr()) }
     }
 
+    /// Return one color-space name by index.
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(
@@ -40,6 +44,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Return one color-space handle by index.
     pub fn color_space_by_index(&self, index: i32) -> Option<ColorSpace> {
         let handle = unsafe {
             ocio_sys::ocio_color_space_set_get_color_space_by_index(self.handle.as_ptr(), index)
@@ -47,6 +52,7 @@ impl ColorSpaceSet {
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
     }
 
+    /// Look up a color-space handle by name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
@@ -55,6 +61,7 @@ impl ColorSpaceSet {
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
     }
 
+    /// Return the index of a color space by name, or `-1` when missing.
     pub fn color_space_index(&self, name: impl AsRef<str>) -> i32 {
         let n = match cstring(name) {
             Ok(n) => n,
@@ -68,6 +75,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Return whether a color space named `name` is present in the set.
     pub fn has_color_space(&self, name: impl AsRef<str>) -> bool {
         let n = match cstring(name) {
             Ok(n) => n,
@@ -78,6 +86,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Insert one color space into the set.
     pub fn add_color_space(&self, color_space: &ColorSpace) {
         unsafe {
             ocio_sys::ocio_color_space_set_add_color_space(
@@ -87,6 +96,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Insert every color space from `other` into the set.
     pub fn add_color_spaces(&self, other: &ColorSpaceSet) {
         unsafe {
             ocio_sys::ocio_color_space_set_add_color_spaces(
@@ -96,6 +106,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Remove one color space by name.
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         unsafe {
@@ -107,6 +118,7 @@ impl ColorSpaceSet {
         Ok(())
     }
 
+    /// Remove every color space found in `other` from this set.
     pub fn remove_color_spaces(&self, other: &ColorSpaceSet) {
         unsafe {
             ocio_sys::ocio_color_space_set_remove_color_spaces(
@@ -116,6 +128,7 @@ impl ColorSpaceSet {
         }
     }
 
+    /// Remove every color space from the set.
     pub fn clear_color_spaces(&self) {
         unsafe { ocio_sys::ocio_color_space_set_clear_color_spaces(self.handle.as_ptr()) };
     }

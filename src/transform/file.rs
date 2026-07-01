@@ -15,6 +15,7 @@ pub struct FileTransform {
 }
 
 impl FileTransform {
+    /// Create an empty file transform.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_file_transform_create() };
         NonNull::new(handle)
@@ -22,16 +23,19 @@ impl FileTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the source path or URI attached to the transform.
     pub fn src(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_file_transform_get_src(self.handle.as_ptr())) }
     }
 
+    /// Set the source path or URI used to load the external transform data.
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let src = cstring(src)?;
         unsafe { ocio_sys::ocio_file_transform_set_src(self.handle.as_ptr(), src.as_ptr().cast()) };
         Ok(())
     }
 
+    /// Return the optional CCC identifier used with multi-grade CDL files.
     pub fn ccc_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_transform_get_ccc_id(
@@ -40,6 +44,7 @@ impl FileTransform {
         }
     }
 
+    /// Set the optional CCC identifier used with multi-grade CDL files.
     pub fn set_ccc_id(&self, id: impl AsRef<str>) -> Result<()> {
         let id = cstring(id)?;
         unsafe {
@@ -48,6 +53,7 @@ impl FileTransform {
         Ok(())
     }
 
+    /// Return the interpolation mode requested for LUT sampling.
     pub fn interpolation(&self) -> Interpolation {
         let interp =
             unsafe { ocio_sys::ocio_file_transform_get_interpolation(self.handle.as_ptr()) };
@@ -62,12 +68,14 @@ impl FileTransform {
         }
     }
 
+    /// Set the interpolation mode requested for LUT sampling.
     pub fn set_interpolation(&self, interp: Interpolation) {
         unsafe {
             ocio_sys::ocio_file_transform_set_interpolation(self.handle.as_ptr(), interp as i32);
         }
     }
 
+    /// Return the CDL style used when the file source is CDL-based.
     pub fn cdl_style(&self) -> CDLStyle {
         let s = unsafe { ocio_sys::ocio_file_transform_get_cdl_style(self.handle.as_ptr()) };
         match s {
@@ -76,12 +84,14 @@ impl FileTransform {
         }
     }
 
+    /// Set the CDL style used when the file source is CDL-based.
     pub fn set_cdl_style(&self, style: CDLStyle) {
         unsafe {
             ocio_sys::ocio_file_transform_set_cdl_style(self.handle.as_ptr(), style as i32);
         }
     }
 
+    /// Return the transform direction used when this op is evaluated.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_file_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -90,12 +100,14 @@ impl FileTransform {
         }
     }
 
+    /// Set the transform direction used when this op is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe {
             ocio_sys::ocio_file_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle =
             unsafe { ocio_sys::ocio_file_transform_create_editable_copy(self.handle.as_ptr()) };
@@ -104,11 +116,13 @@ impl FileTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
+    /// Ask OCIO to validate the transform in place.
     pub fn validate(&self) {
         unsafe { ocio_sys::ocio_file_transform_validate(self.handle.as_ptr()) };
     }

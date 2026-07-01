@@ -10,6 +10,7 @@ pub struct Context {
 }
 
 impl Context {
+    /// Create a new OCIO context with default search-path and environment behavior.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_context_create() };
         NonNull::new(handle)
@@ -17,6 +18,7 @@ impl Context {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an editable copy that is independent from the original context.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_context_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle)
@@ -24,24 +26,29 @@ impl Context {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return OCIO's cache identifier for the current context state.
     pub fn cache_id(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_context_get_cache_id(self.handle.as_ptr())) }
     }
 
+    /// Return the concatenated search-path string used by OCIO.
     pub fn search_path(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_context_get_search_path(self.handle.as_ptr())) }
     }
 
+    /// Replace the concatenated search-path string used by OCIO.
     pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
         unsafe { ocio_sys::ocio_context_set_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
         Ok(())
     }
 
+    /// Return the number of individual search-path entries.
     pub fn num_search_paths(&self) -> i32 {
         unsafe { ocio_sys::ocio_context_get_num_search_paths(self.handle.as_ptr()) }
     }
 
+    /// Return one search-path entry by index.
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_search_path_by_index(
@@ -51,26 +58,31 @@ impl Context {
         }
     }
 
+    /// Remove every explicit search-path entry.
     pub fn clear_search_paths(&self) {
         unsafe { ocio_sys::ocio_context_clear_search_paths(self.handle.as_ptr()) };
     }
 
+    /// Append one search-path entry.
     pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
         unsafe { ocio_sys::ocio_context_add_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
         Ok(())
     }
 
+    /// Return the working directory used for relative file resolution.
     pub fn working_dir(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) }
     }
 
+    /// Set the working directory used for relative file resolution.
     pub fn set_working_dir(&self, dirname: impl AsRef<str>) -> Result<()> {
         let d = cstring(dirname)?;
         unsafe { ocio_sys::ocio_context_set_working_dir(self.handle.as_ptr(), d.as_ptr().cast()) };
         Ok(())
     }
 
+    /// Return one named string variable from the context.
     pub fn string_var(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -81,6 +93,7 @@ impl Context {
         }
     }
 
+    /// Set or replace one named string variable on the context.
     pub fn set_string_var(&self, name: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         let v = cstring(value)?;
@@ -94,10 +107,12 @@ impl Context {
         Ok(())
     }
 
+    /// Return the number of named string variables on the context.
     pub fn num_string_vars(&self) -> i32 {
         unsafe { ocio_sys::ocio_context_get_num_string_vars(self.handle.as_ptr()) }
     }
 
+    /// Return one string-variable name by index.
     pub fn string_var_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_name_by_index(
@@ -107,6 +122,7 @@ impl Context {
         }
     }
 
+    /// Return one string-variable value by index.
     pub fn string_var_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_by_index(
@@ -116,6 +132,7 @@ impl Context {
         }
     }
 
+    /// Resolve `${VAR}`-style substitutions in `string` using this context.
     pub fn resolve_string_var(&self, string: impl AsRef<str>) -> Option<String> {
         let s = cstring(string).ok()?;
         unsafe {

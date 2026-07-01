@@ -13,6 +13,7 @@ pub struct ConfigIOProxy {
 }
 
 impl ConfigIOProxy {
+    /// Create an empty in-memory config/LUT provider.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_config_io_proxy_create() };
         NonNull::new(handle)
@@ -20,6 +21,7 @@ impl ConfigIOProxy {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Replace the primary OCIO config text payload.
     pub fn set_config_data(&self, data: impl AsRef<str>) -> Result<()> {
         let data = cstring(data)?;
         unsafe {
@@ -28,6 +30,7 @@ impl ConfigIOProxy {
         Ok(())
     }
 
+    /// Return the primary OCIO config text payload, if set.
     pub fn config_data(&self) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_config_io_proxy_get_config_data(
@@ -36,6 +39,9 @@ impl ConfigIOProxy {
         }
     }
 
+    /// Register the byte payload for a LUT file path and its fast hash.
+    ///
+    /// Returns whether the payload was accepted by the upstream OCIO proxy.
     pub fn set_lut_data(
         &self,
         filepath: impl AsRef<str>,
@@ -55,6 +61,7 @@ impl ConfigIOProxy {
         })
     }
 
+    /// Return the registered LUT payload for `filepath`, if present.
     pub fn lut_data(&self, filepath: impl AsRef<str>) -> Option<Vec<u8>> {
         let filepath = cstring(filepath).ok()?;
         let len = self.get_lut_data_size(filepath.as_c_str().to_str().ok()?) as usize;
@@ -66,6 +73,7 @@ impl ConfigIOProxy {
         copied.then_some(bytes)
     }
 
+    /// Return the upstream fast hash associated with `filepath`, if present.
     pub fn fast_lut_file_hash(&self, filepath: impl AsRef<str>) -> Option<String> {
         let filepath = cstring(filepath).ok()?;
         unsafe {

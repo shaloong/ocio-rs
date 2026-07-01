@@ -13,6 +13,7 @@ pub struct MatrixTransform {
 }
 
 impl MatrixTransform {
+    /// Create a new identity matrix transform.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create() };
         NonNull::new(handle)
@@ -20,6 +21,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the current 4x4 matrix in row-major order.
     pub fn matrix(&self) -> [f64; 16] {
         let mut m = [0.0f64; 16];
         for i in 0..4 {
@@ -34,6 +36,7 @@ impl MatrixTransform {
         m
     }
 
+    /// Replace the current 4x4 matrix in row-major order.
     pub fn set_matrix(&self, m44: &[f64; 16]) {
         unsafe {
             ocio_sys::ocio_matrix_transform_set_matrix(
@@ -43,6 +46,7 @@ impl MatrixTransform {
         };
     }
 
+    /// Return the current RGBA offset vector.
     pub fn offset(&self) -> [f64; 4] {
         let mut o = [0.0f64; 4];
         unsafe {
@@ -54,6 +58,7 @@ impl MatrixTransform {
         o
     }
 
+    /// Replace the current RGBA offset vector.
     pub fn set_offset(&self, offset4: &[f64; 4]) {
         unsafe {
             ocio_sys::ocio_matrix_transform_set_offset(
@@ -63,6 +68,7 @@ impl MatrixTransform {
         };
     }
 
+    /// Return the transform direction used when this op is evaluated.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe {
             ocio_sys::ocio_matrix_transform_get_direction(self.handle.as_ptr() as *mut c_void)
@@ -73,12 +79,14 @@ impl MatrixTransform {
         }
     }
 
+    /// Set the transform direction used when this op is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe {
             ocio_sys::ocio_matrix_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void)
@@ -88,6 +96,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the bit depth declared for file-based input serialization.
     pub fn file_input_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_matrix_transform_get_file_input_bit_depth(
@@ -107,6 +116,7 @@ impl MatrixTransform {
         }
     }
 
+    /// Set the bit depth declared for file-based input serialization.
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_input_bit_depth(
@@ -116,6 +126,7 @@ impl MatrixTransform {
         };
     }
 
+    /// Return the bit depth declared for file-based output serialization.
     pub fn file_output_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_matrix_transform_get_file_output_bit_depth(
@@ -135,6 +146,7 @@ impl MatrixTransform {
         }
     }
 
+    /// Set the bit depth declared for file-based output serialization.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_output_bit_depth(
@@ -144,6 +156,7 @@ impl MatrixTransform {
         };
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle =
             unsafe { ocio_sys::ocio_matrix_transform_get_format_metadata(self.handle.as_ptr()) };
@@ -160,6 +173,7 @@ impl MatrixTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_matrix_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
@@ -168,6 +182,8 @@ impl MatrixTransform {
 }
 
 impl MatrixTransform {
+    /// Create a matrix transform that remaps the inclusive range
+    /// `old_min..old_max` into `new_min..new_max`.
     pub fn fit(
         old_min: &[f64; 4],
         old_max: &[f64; 4],
@@ -187,6 +203,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an identity matrix transform.
     pub fn identity() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_identity() };
         NonNull::new(handle)
@@ -194,6 +211,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create a saturation matrix using the provided luma coefficients.
     pub fn sat(sat: f64, luma: &[f64; 3]) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_sat(sat, luma.as_ptr()) };
         NonNull::new(handle)
@@ -201,6 +219,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create a per-channel scale matrix.
     pub fn scale(scale: &[f64; 4]) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_scale(scale.as_ptr()) };
         NonNull::new(handle)
@@ -208,6 +227,7 @@ impl MatrixTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create a matrix that remaps channels according to a canonical OCIO view mask.
     pub fn view(channels: &mut [i32; 4], luma: &[f64; 3]) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_view(channels.as_mut_ptr(), luma.as_ptr())

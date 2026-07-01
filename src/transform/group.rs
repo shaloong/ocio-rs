@@ -16,6 +16,7 @@ pub struct GroupTransform {
 }
 
 impl GroupTransform {
+    /// Create an empty group transform.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_group_transform_create() };
         NonNull::new(handle)
@@ -23,22 +24,26 @@ impl GroupTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the number of child transforms in the group.
     pub fn num_transforms(&self) -> i32 {
         unsafe { ocio_sys::ocio_group_transform_get_num_transforms(self.handle.as_ptr()) }
     }
 
+    /// Append `child` to the end of the group.
     pub fn append_transform(&self, child: &impl TransformHandle) {
         unsafe {
             ocio_sys::ocio_group_transform_append_transform(self.handle.as_ptr(), child.as_ptr());
         }
     }
 
+    /// Insert `child` at the beginning of the group.
     pub fn prepend_transform(&self, child: &impl TransformHandle) {
         unsafe {
             ocio_sys::ocio_group_transform_prepend_transform(self.handle.as_ptr(), child.as_ptr());
         }
     }
 
+    /// Return the child transform at `index`, if present.
     pub fn transform(&self, index: i32) -> Option<Transform> {
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
@@ -55,6 +60,7 @@ impl GroupTransform {
         self.transform(index)
     }
 
+    /// Return the transform direction used when this group is evaluated.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_group_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -63,12 +69,14 @@ impl GroupTransform {
         }
     }
 
+    /// Set the transform direction used when this group is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
         unsafe {
             ocio_sys::ocio_group_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle)
@@ -76,12 +84,14 @@ impl GroupTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Remove the child transform at `index`.
     pub fn remove_transform(&self, index: usize) {
         unsafe {
             ocio_sys::ocio_group_transform_remove_transform(self.handle.as_ptr(), index as u64)
         };
     }
 
+    /// Remove every child transform from the group.
     pub fn clear_transforms(&self) {
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
     }
@@ -116,6 +126,7 @@ impl GroupTransform {
         })
     }
 
+    /// Return format metadata attached to the group, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_format_metadata(self.handle.as_ptr()) };

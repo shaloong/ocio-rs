@@ -121,6 +121,10 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an optimized processor variant for explicit input/output bit depths.
+    ///
+    /// This is mainly useful when matching a specific host application's pixel
+    /// format contract before extracting CPU or GPU execution helpers.
     pub fn optimized_processor_bitdepth(
         &self,
         in_bit_depth: i32,
@@ -224,6 +228,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the number of transforms represented by this processor.
     pub fn num_transforms(&self) -> i32 {
         unsafe { ocio_sys::ocio_processor_get_num_transforms(self.handle.as_ptr() as *mut c_void) }
     }
@@ -240,6 +245,7 @@ impl Processor {
     }
 
     // ── v2.5.1 ──
+    /// Return the top-level format metadata attached to the processor.
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
         let h = unsafe {
             ocio_sys::ocio_processor_get_format_metadata(self.handle.as_ptr() as *mut c_void)
@@ -247,6 +253,7 @@ impl Processor {
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
+    /// Return format metadata for the transform at `index`, when exposed by OCIO.
     pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
         let h = unsafe {
             ocio_sys::ocio_processor_get_transform_format_metadata(self.handle.as_ptr(), index)
@@ -262,6 +269,7 @@ impl Processor {
         NonNull::new(h).map(|h| ProcessorMetadata { handle: h })
     }
 
+    /// Return whether the processor exposes a dynamic property of `prop_type`.
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
         unsafe {
             ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type as i32)
@@ -277,6 +285,7 @@ impl Processor {
         unsafe { ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
     }
 
+    /// Return whether this processor contains any runtime-adjustable properties.
     pub fn is_dynamic(&self) -> bool {
         unsafe { ocio_sys::ocio_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
     }
@@ -335,6 +344,7 @@ impl CPUProcessor {
         }
     }
 
+    /// Apply the processor in place to one RGBA pixel.
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba(
@@ -344,6 +354,7 @@ impl CPUProcessor {
         }
     }
 
+    /// Apply the processor in place to one RGB pixel.
     pub fn apply_rgb(&self, rgb: &mut [f32; 3]) {
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb(
@@ -353,6 +364,9 @@ impl CPUProcessor {
         }
     }
 
+    /// Apply the processor to an RGBA float buffer with an explicit scalar stride.
+    ///
+    /// `stride` is measured in `f32` elements, not bytes.
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
         validate_scalar_buffer_len(
             "CPUProcessor::apply_rgba_pixels",
@@ -370,6 +384,9 @@ impl CPUProcessor {
         }
     }
 
+    /// Apply the processor to an RGB float buffer with an explicit scalar stride.
+    ///
+    /// `stride` is measured in `f32` elements, not bytes.
     pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
         validate_scalar_buffer_len(
             "CPUProcessor::apply_rgb_pixels",
@@ -387,6 +404,7 @@ impl CPUProcessor {
         }
     }
 
+    /// Apply the processor to packed RGBA bytes using an explicit OCIO bit depth.
     pub fn apply_rgba_packed_bit_depth(
         &self,
         rgba: &mut [u8],
@@ -432,6 +450,7 @@ impl CPUProcessor {
         self.apply_rgba_packed_bit_depth(rgba, bit_depth, num_pixels, stride);
     }
 
+    /// Apply the processor to packed RGB bytes using an explicit OCIO bit depth.
     pub fn apply_rgb_packed_bit_depth(
         &self,
         rgb: &mut [u8],
@@ -477,16 +496,19 @@ impl CPUProcessor {
         self.apply_rgb_packed_bit_depth(rgb, bit_depth, num_pixels, stride);
     }
 
+    /// Return whether the CPU path is an identity/no-op transform.
     pub fn is_no_op(&self) -> bool {
         unsafe { ocio_sys::ocio_cpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return whether the CPU path mixes color channels.
     pub fn has_channel_crosstalk(&self) -> bool {
         unsafe {
             ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return OCIO's cache identifier for this CPU processor instance.
     pub fn cache_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_cpu_processor_get_cache_id(
@@ -495,23 +517,27 @@ impl CPUProcessor {
         }
     }
 
+    /// Return the declared input bit depth for this CPU path.
     pub fn input_bit_depth(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return the declared output bit depth for this CPU path.
     pub fn output_bit_depth(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return whether this CPU path is functionally identity.
     pub fn is_identity(&self) -> bool {
         unsafe { ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr() as *mut c_void) }
     }
 
     // ── v2.5.1 ──
+    /// Borrow a runtime-adjustable dynamic property from the CPU processor.
     pub fn dynamic_property(&self, prop_type: DynamicPropertyType) -> Option<DynamicProperty> {
         let h = unsafe {
             ocio_sys::ocio_cpu_processor_get_dynamic_property(
@@ -534,6 +560,7 @@ impl CPUProcessor {
         NonNull::new(h).map(|h| DynamicProperty { handle: h })
     }
 
+    /// Return whether the CPU processor exposes a dynamic property of `prop_type`.
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
         unsafe {
             ocio_sys::ocio_cpu_processor_has_dynamic_property(
@@ -554,6 +581,7 @@ impl CPUProcessor {
         }
     }
 
+    /// Return whether this CPU processor contains any runtime-adjustable properties.
     pub fn is_dynamic(&self) -> bool {
         unsafe { ocio_sys::ocio_cpu_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
     }
@@ -575,16 +603,19 @@ pub struct GPUProcessor {
 }
 
 impl GPUProcessor {
+    /// Return whether the GPU path is an identity/no-op transform.
     pub fn is_no_op(&self) -> bool {
         unsafe { ocio_sys::ocio_gpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return whether the GPU path mixes color channels.
     pub fn has_channel_crosstalk(&self) -> bool {
         unsafe {
             ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return OCIO's cache identifier for this GPU processor instance.
     pub fn cache_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_gpu_processor_get_cache_id(
@@ -593,6 +624,7 @@ impl GPUProcessor {
         }
     }
 
+    /// Fill `shader_desc` with OCIO-generated shader text, uniforms, and textures.
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v1(

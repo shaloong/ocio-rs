@@ -25,7 +25,7 @@ impl BuiltinTransformRegistry {
         }
     }
 
-    /// Return the style identifier at `index`.
+    /// Return the stable OCIO style identifier at `index`.
     pub fn builtin_style(&self, index: i32) -> Option<String> {
         if index < 0 {
             return None;

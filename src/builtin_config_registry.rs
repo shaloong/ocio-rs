@@ -10,6 +10,7 @@ pub struct BuiltinConfigRegistry {
 }
 
 impl BuiltinConfigRegistry {
+    /// Get the process-wide built-in config registry singleton.
     pub fn get() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_builtin_config_registry_get() };
         NonNull::new(handle)
@@ -17,6 +18,7 @@ impl BuiltinConfigRegistry {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Return the number of built-in configs exposed by the linked OCIO build.
     pub fn num_builtin_configs(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_builtin_config_registry_get_num_builtin_configs(self.handle.as_ptr())
@@ -24,6 +26,7 @@ impl BuiltinConfigRegistry {
         }
     }
 
+    /// Return the stable OCIO name for the built-in config at `index`.
     pub fn config_name(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(
@@ -40,6 +43,7 @@ impl BuiltinConfigRegistry {
         self.config_name(index)
     }
 
+    /// Return the user-facing UI name for the built-in config at `index`.
     pub fn config_ui_name(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(
@@ -56,6 +60,7 @@ impl BuiltinConfigRegistry {
         self.config_ui_name(index)
     }
 
+    /// Return whether the built-in config at `index` is marked recommended upstream.
     pub fn is_config_recommended(&self, index: i32) -> bool {
         unsafe {
             ocio_sys::ocio_builtin_config_registry_is_builtin_config_recommended(
@@ -69,6 +74,7 @@ impl BuiltinConfigRegistry {
         self.is_config_recommended(index)
     }
 
+    /// Create a live [`Config`] from the built-in config at `index`.
     pub fn config_by_index(&self, index: i32) -> Option<Config> {
         let name = self.config_name(index)?;
         self.config_by_name(name)
@@ -79,6 +85,7 @@ impl BuiltinConfigRegistry {
         self.config_yaml_by_index(index)
     }
 
+    /// Create a live [`Config`] from the built-in config named `name`.
     pub fn config_by_name(&self, name: impl AsRef<str>) -> Option<Config> {
         let n = cstring(name).ok()?;
         let handle = unsafe { ocio_sys::ocio_config_create_from_builtin_config(n.as_ptr().cast()) };
@@ -90,6 +97,7 @@ impl BuiltinConfigRegistry {
         self.config_yaml_by_name(name)
     }
 
+    /// Return the serialized OCIO YAML/text for the built-in config at `index`.
     pub fn config_yaml_by_index(&self, index: i32) -> Option<String> {
         let handle = unsafe {
             ocio_sys::ocio_builtin_config_registry_get_builtin_config(
@@ -100,6 +108,7 @@ impl BuiltinConfigRegistry {
         unsafe { cstr_from_mut(handle) }
     }
 
+    /// Return the serialized OCIO YAML/text for the built-in config named `name`.
     pub fn config_yaml_by_name(&self, name: impl AsRef<str>) -> Option<String> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
