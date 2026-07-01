@@ -42,7 +42,8 @@ Current release checklist highlights:
   `allocation_transform_behavior`, `baker_behavior`,
   `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_transform_behavior`,
-  `cdl_transform_behavior`, `config_behavior`, `context_behavior`,
+  `cdl_transform_behavior`, `config_behavior`, `config_io_proxy_behavior`,
+  `context_behavior`,
   `file_rules_behavior`, `file_transform_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `exponent_transform_behavior`, `exponent_with_linear_transform_behavior`,
@@ -78,13 +79,14 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirty-eight
+- The current bundled validation path exercises `373` crate tests plus thirty-nine
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  context resolution, file rules, file-transform behavior, dynamic properties,
-  GPU shader descriptors, CPU processor execution, matrix processing behavior, named-transform
-  execution, cdl-transform behavior, color-space-transform behavior,
+  config-IO proxy behavior, context resolution, file rules, file-transform
+  behavior, dynamic properties, GPU shader descriptors, CPU processor
+  execution, matrix processing behavior, named-transform execution,
+  cdl-transform behavior, color-space-transform behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
@@ -112,6 +114,12 @@ Current runtime semantics worth calling out explicitly:
 - `Context::resolve_file_location()` uses the working directory as a fallback
   only when no explicit search paths are configured; once search paths are set,
   resolution follows those paths.
+- `ConfigIOProxy` round-trips embedded config text and LUT payloads in bundled
+  mode, attached proxy objects remain visible through both `Config` and
+  `Context`, missing LUT keys currently surface as empty payload views, and a
+  config created from proxy-backed assets follows real OCIO path resolution:
+  search paths are consulted before a working-directory fallback, including
+  context-variable-expanded entries such as `./$SHOT`.
 - `Baker` round-trips its configured properties in bundled mode and emits real
   LUT text; for a no-crosstalk `raw -> raw` `resolve_cube` bake, upstream OCIO
   emits a 1D LUT (`LUT_1D_SIZE`) rather than forcing a 3D cube.
