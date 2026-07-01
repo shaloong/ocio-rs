@@ -39,10 +39,10 @@ Current release checklist highlights:
 - `cargo build --features bundled --offline` passes from the extracted
   `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
-  `config_behavior`, `context_behavior`, `file_rules_behavior`,
-  `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
-  `cpu_processor_behavior`, and `matrix_op` integration suites in addition to
-  crate unit tests.
+  `baker_behavior`, `builtin_config_registry_behavior`, `config_behavior`,
+  `context_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
+  `gpu_shader_desc_behavior`, `cpu_processor_behavior`, and `matrix_op`
+  integration suites in addition to crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -58,10 +58,11 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus seven
-  dedicated integration suites covering config behavior, context resolution,
-  file rules, dynamic properties, GPU shader descriptors, CPU processor
-  execution, and matrix processing behavior.
+- The current bundled validation path exercises `373` crate tests plus nine
+  dedicated integration suites covering baker output, builtin-config registry
+  enumeration, config behavior, context resolution, file rules, dynamic
+  properties, GPU shader descriptors, CPU processor execution, and matrix
+  processing behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -75,6 +76,9 @@ Current runtime semantics worth calling out explicitly:
 - `Context::resolve_file_location()` uses the working directory as a fallback
   only when no explicit search paths are configured; once search paths are set,
   resolution follows those paths.
+- `Baker` round-trips its configured properties in bundled mode and emits real
+  LUT text; for a no-crosstalk `raw -> raw` `resolve_cube` bake, upstream OCIO
+  emits a 1D LUT (`LUT_1D_SIZE`) rather than forcing a 3D cube.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
