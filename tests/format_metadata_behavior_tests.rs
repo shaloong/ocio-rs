@@ -7,6 +7,7 @@
 mod common;
 use common::*;
 
+use std::ffi::{CStr, CString};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::{FixedFunctionTransform, MatrixTransform};
@@ -210,4 +211,46 @@ fn format_metadata_remains_usable_after_parent_drop() {
         fixed_function_metadata.attribute_value("owner").as_deref(),
         Some("fixed-function")
     );
+}
+
+#[test]
+fn legacy_sys_metadata_handles_remain_usable_after_parent_drop() {
+    let _guard = format_metadata_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let attr_name = CString::new("owner").expect("attr name");
+    let attr_value = CString::new("legacy-fixed-function").expect("attr value");
+
+    unsafe {
+        let transform = ocio_sys::ocio_fixed_function_transform_create_with_params(
+            FixedFunctionStyle::AcesRedMod03 as i32,
+            std::ptr::null(),
+            0,
+        );
+        assert!(!transform.is_null(), "fixed-function transform handle");
+
+        let metadata = ocio_sys::ocio_fixed_function_transform_get_format_metadata_v1(transform);
+        assert!(!metadata.is_null(), "legacy metadata handle");
+
+        ocio_sys::ocio_format_metadata_add_attribute(
+            metadata,
+            attr_name.as_ptr(),
+            attr_value.as_ptr(),
+        );
+        ocio_sys::ocio_fixed_function_transform_destroy(transform);
+
+        let value_ptr =
+            ocio_sys::ocio_format_metadata_get_attribute_value(metadata, attr_name.as_ptr());
+        assert!(!value_ptr.is_null(), "legacy metadata attribute value");
+        assert_eq!(
+            CStr::from_ptr(value_ptr)
+                .to_str()
+                .expect("utf8 attribute value"),
+            "legacy-fixed-function"
+        );
+
+        ocio_sys::ocio_format_metadata_destroy(metadata);
+    }
 }

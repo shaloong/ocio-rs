@@ -8889,37 +8889,15 @@ void ocio_cdl_transform_destroy(void* handle) {
 }
 
 void* ocio_cdl_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_cdl_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_cdl_transform_get_format_metadata(handle);
 }
 
 void* ocio_cdl_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_cdl_transform_get_format_metadata(handle);
 }
 
 bool ocio_cdl_transform_equals(void* handle, void* other) {
@@ -9460,37 +9438,15 @@ void ocio_exponent_transform_destroy(void* handle) {
 }
 
 void* ocio_exponent_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_exponent_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exponent_transform_get_format_metadata(handle);
 }
 
 void* ocio_exponent_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exponent_transform_get_format_metadata(handle);
 }
 
 bool ocio_exponent_transform_equals(void* handle, void* other) {
@@ -9544,37 +9500,15 @@ void ocio_exponent_with_linear_transform_destroy(void* handle) {
 }
 
 void* ocio_exponent_with_linear_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_exponent_with_linear_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exponent_with_linear_transform_get_format_metadata(handle);
 }
 
 void* ocio_exponent_with_linear_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exponent_with_linear_transform_get_format_metadata(handle);
 }
 
 bool ocio_exponent_with_linear_transform_equals(void* handle, void* other) {
@@ -9628,37 +9562,15 @@ void ocio_exposure_contrast_transform_destroy(void* handle) {
 }
 
 void* ocio_exposure_contrast_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_exposure_contrast_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exposure_contrast_transform_get_format_metadata(handle);
 }
 
 void* ocio_exposure_contrast_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_exposure_contrast_transform_get_format_metadata(handle);
 }
 
 bool ocio_exposure_contrast_transform_equals(void* handle, void* other) {
@@ -10123,37 +10035,15 @@ void ocio_fixed_function_transform_destroy(void* handle) {
 }
 
 void* ocio_fixed_function_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_fixed_function_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_fixed_function_transform_get_format_metadata(handle);
 }
 
 void* ocio_fixed_function_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_fixed_function_transform_get_format_metadata(handle);
 }
 
 bool ocio_fixed_function_transform_equals(void* handle, void* other) {
@@ -10318,37 +10208,15 @@ void ocio_grading_primary_transform_destroy(void* handle) {
 }
 
 void* ocio_grading_primary_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_primary_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_primary_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_primary_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_primary_transform_get_format_metadata(handle);
 }
 
 bool ocio_grading_primary_transform_equals(void* handle, void* other) {
@@ -10540,37 +10408,15 @@ void ocio_grading_rgb_curve_transform_destroy(void* handle) {
 }
 
 void* ocio_grading_rgb_curve_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_rgb_curve_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_rgb_curve_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_rgb_curve_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_rgb_curve_transform_get_format_metadata(handle);
 }
 
 bool ocio_grading_rgb_curve_transform_equals(void* handle, void* other) {
@@ -10841,37 +10687,15 @@ void ocio_grading_hue_curve_transform_destroy(void* handle) {
 }
 
 void* ocio_grading_hue_curve_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_hue_curve_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_hue_curve_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_hue_curve_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_hue_curve_transform_get_format_metadata(handle);
 }
 
 bool ocio_grading_hue_curve_transform_equals(void* handle, void* other) {
@@ -11142,37 +10966,15 @@ void ocio_grading_tone_transform_destroy(void* handle) {
 }
 
 void* ocio_grading_tone_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_tone_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_tone_transform_get_format_metadata(handle);
 }
 
 void* ocio_grading_tone_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_grading_tone_transform_get_format_metadata(handle);
 }
 
 bool ocio_grading_tone_transform_equals(void* handle, void* other) {
@@ -11341,37 +11143,15 @@ void ocio_group_transform_destroy(void* handle) {
 }
 
 void* ocio_group_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_group_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_group_transform_get_format_metadata(handle);
 }
 
 void* ocio_group_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_group_transform_get_format_metadata(handle);
 }
 
 void* ocio_group_transform_get_transform(void* handle, int index) {
@@ -11521,37 +11301,15 @@ void ocio_log_affine_transform_destroy(void* handle) {
 }
 
 void* ocio_log_affine_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_affine_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_affine_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_affine_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_affine_transform_get_format_metadata(handle);
 }
 
 bool ocio_log_affine_transform_equals(void* handle, void* other) {
@@ -11621,37 +11379,15 @@ void ocio_log_camera_transform_destroy(void* handle) {
 }
 
 void* ocio_log_camera_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_camera_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_camera_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_camera_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_camera_transform_get_format_metadata(handle);
 }
 
 bool ocio_log_camera_transform_equals(void* handle, void* other) {
@@ -11901,37 +11637,15 @@ void ocio_log_transform_destroy(void* handle) {
 }
 
 void* ocio_log_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_transform_get_format_metadata(handle);
 }
 
 void* ocio_log_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_log_transform_get_format_metadata(handle);
 }
 
 bool ocio_log_transform_equals(void* handle, void* other) {
@@ -12146,15 +11860,7 @@ void ocio_lut1d_transform_destroy(void* handle) {
 }
 
 void* ocio_lut1d_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 int ocio_lut1d_transform_get_file_output_bit_depth(void* handle) {
@@ -12180,25 +11886,11 @@ void ocio_lut1d_transform_set_file_output_bit_depth(void* handle, int bitDepth) 
 }
 
 void* ocio_lut1d_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_lut1d_transform_get_format_metadata(handle);
 }
 
 void* ocio_lut1d_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_lut1d_transform_get_format_metadata(handle);
 }
 
 bool ocio_lut1d_transform_equals(void* handle, void* other) {
@@ -12389,15 +12081,7 @@ void ocio_lut3d_transform_destroy(void* handle) {
 }
 
 void* ocio_lut3d_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 int ocio_lut3d_transform_get_file_output_bit_depth(void* handle) {
@@ -12423,25 +12107,11 @@ void ocio_lut3d_transform_set_file_output_bit_depth(void* handle, int bitDepth) 
 }
 
 void* ocio_lut3d_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_lut3d_transform_get_format_metadata(handle);
 }
 
 void* ocio_lut3d_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_lut3d_transform_get_format_metadata(handle);
 }
 
 bool ocio_lut3d_transform_equals(void* handle, void* other) {
@@ -12571,37 +12241,15 @@ void ocio_matrix_transform_destroy(void* handle) {
 }
 
 void* ocio_matrix_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 void* ocio_matrix_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_matrix_transform_get_format_metadata(handle);
 }
 
 void* ocio_matrix_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_matrix_transform_get_format_metadata(handle);
 }
 
 bool ocio_matrix_transform_equals(void* handle, void* other) {
@@ -12721,15 +12369,7 @@ void ocio_range_transform_destroy(void* handle) {
 }
 
 void* ocio_range_transform_get_format_metadata(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle;
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(
-        &(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_transform_get_format_metadata(handle);
 }
 
 int ocio_range_transform_get_style(void* handle) {
@@ -12755,25 +12395,11 @@ void ocio_range_transform_set_style(void* handle, int style) {
 }
 
 void* ocio_range_transform_get_format_metadata_v1(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_range_transform_get_format_metadata(handle);
 }
 
 void* ocio_range_transform_get_format_metadata_v2(void* handle) {
-#ifdef OCIO_RS_STUB
-  (void)handle; 
-  return nullptr;
-#else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
-#endif
+  return ocio_range_transform_get_format_metadata(handle);
 }
 
 bool ocio_range_transform_equals(void* handle, void* other) {
