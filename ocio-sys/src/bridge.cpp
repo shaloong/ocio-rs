@@ -182,6 +182,7 @@ struct ViewTransformHandle { std::shared_ptr<void> inner; };
 struct NamedTransformHandle { std::shared_ptr<void> inner; };
 struct DynamicPropertyHandle { std::shared_ptr<void> inner; };
 struct BuiltinConfigRegistryHandle { std::shared_ptr<void> inner; };
+struct BuiltinTransformRegistryHandle { std::shared_ptr<void> inner; };
 struct FileRulesHandle { std::shared_ptr<void> inner; };
 struct ColorSpaceSetHandle { std::shared_ptr<void> inner; };
 struct FormatMetadataHandle { std::shared_ptr<void> inner; };
@@ -327,6 +328,12 @@ static std::unique_ptr<LogTransformHandle> make_stub_log_transform() {
 static std::unique_ptr<BuiltinConfigRegistryHandle> make_stub_builtin_config_registry() {
   auto handle = std::make_unique<BuiltinConfigRegistryHandle>();
   handle->inner = std::make_shared<StubBuiltinConfigRegistry>();
+  return handle;
+}
+
+static std::unique_ptr<BuiltinTransformRegistryHandle> make_stub_builtin_transform_registry() {
+  auto handle = std::make_unique<BuiltinTransformRegistryHandle>();
+  handle->inner = std::make_shared<StubBuiltinTransform>();
   return handle;
 }
 
@@ -524,6 +531,9 @@ struct RealLogTransform {
 };
 struct RealBuiltinConfigRegistry {
   const ocio::BuiltinConfigRegistry* registry;
+};
+struct RealBuiltinTransformRegistry {
+  ocio::ConstBuiltinTransformRegistryRcPtr registry;
 };
 struct RealExposureContrastTransform {
   ocio::ExposureContrastTransformRcPtr transform;
@@ -804,6 +814,11 @@ static ocio::DynamicPropertyRcPtr get_real_dynamic_property(void* handle) {
 static const ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::BuiltinConfigRegistryHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealBuiltinConfigRegistry>(h->inner)->registry;
+}
+
+static ocio::ConstBuiltinTransformRegistryRcPtr get_real_builtin_transform_registry(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::BuiltinTransformRegistryHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransformRegistry>(h->inner)->registry;
 }
 
 static ocio::AllocationTransformRcPtr get_real_allocation_transform(void* handle) {
@@ -1385,6 +1400,63 @@ bool ocio_builtin_config_registry_is_builtin_config_recommended(void* handle, si
   try {
     return ocio_rs_bridge::get_real_builtin_config_registry(handle)->isBuiltinConfigRecommended(configIndex);
   } catch (...) { return false; }
+#endif
+}
+
+// --- BuiltinTransformRegistry ---
+void* ocio_builtin_transform_registry_get(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  try {
+    auto registry = ocio::BuiltinTransformRegistry::Get();
+    if (!registry) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::BuiltinTransformRegistryHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransformRegistry>(
+      ocio_rs_bridge::RealBuiltinTransformRegistry{registry});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_builtin_transform_registry_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::BuiltinTransformRegistryHandle*>(handle);
+}
+
+size_t ocio_builtin_transform_registry_get_num_builtins(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_builtin_transform_registry(handle)->getNumBuiltins();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_builtin_transform_registry_get_builtin_style(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    auto registry = ocio_rs_bridge::get_real_builtin_transform_registry(handle);
+    if (!registry || index >= registry->getNumBuiltins()) return nullptr;
+    return registry->getBuiltinStyle(index);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_builtin_transform_registry_get_builtin_description(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    auto registry = ocio_rs_bridge::get_real_builtin_transform_registry(handle);
+    if (!registry || index >= registry->getNumBuiltins()) return nullptr;
+    return registry->getBuiltinDescription(index);
+  } catch (...) { return nullptr; }
 #endif
 }
 

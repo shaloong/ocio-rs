@@ -71,6 +71,13 @@ void* ocio_builtin_config_registry_get_builtin_config(void* handle, size_t confi
 void* ocio_builtin_config_registry_get_builtin_config_by_name(void* handle, const char* configName);
 bool ocio_builtin_config_registry_is_builtin_config_recommended(void* handle, size_t configIndex);
 
+// --- BuiltinTransformRegistry ---
+void* ocio_builtin_transform_registry_get(void);
+void ocio_builtin_transform_registry_destroy(void* handle);
+size_t ocio_builtin_transform_registry_get_num_builtins(void* handle);
+const char* ocio_builtin_transform_registry_get_builtin_style(void* handle, size_t index);
+const char* ocio_builtin_transform_registry_get_builtin_description(void* handle, size_t index);
+
 // --- Config ---
 void* ocio_config_create_raw(void);
 void* ocio_config_create_from_file(const char* path);

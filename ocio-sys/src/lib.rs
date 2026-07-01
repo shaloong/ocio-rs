@@ -74,6 +74,17 @@ unsafe extern "C" {
         handle: *mut c_void,
         configIndex: usize,
     ) -> bool;
+    pub fn ocio_builtin_transform_registry_get() -> *mut c_void;
+    pub fn ocio_builtin_transform_registry_destroy(handle: *mut c_void);
+    pub fn ocio_builtin_transform_registry_get_num_builtins(handle: *mut c_void) -> usize;
+    pub fn ocio_builtin_transform_registry_get_builtin_style(
+        handle: *mut c_void,
+        index: usize,
+    ) -> *const i8;
+    pub fn ocio_builtin_transform_registry_get_builtin_description(
+        handle: *mut c_void,
+        index: usize,
+    ) -> *const i8;
 
     // --- Config ---
     pub fn ocio_config_create_raw() -> *mut c_void;

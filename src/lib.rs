@@ -25,6 +25,7 @@
 
 mod baker;
 mod builtin_config_registry;
+mod builtin_transform_registry;
 mod color_space_set;
 mod colorspace;
 mod config;
@@ -41,6 +42,7 @@ mod view_transform;
 
 pub use baker::Baker;
 pub use builtin_config_registry::BuiltinConfigRegistry;
+pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::ColorSpaceSet;
 pub use colorspace::ColorSpace;
 pub use config::Config;
