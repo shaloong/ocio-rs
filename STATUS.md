@@ -39,7 +39,8 @@ Current release checklist highlights:
 - `cargo build --features bundled --offline` passes from the extracted
   `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
-  `baker_behavior`, `builtin_config_registry_behavior`, `color_space_behavior`,
+  `allocation_transform_behavior`, `baker_behavior`,
+  `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_transform_behavior`,
   `cdl_transform_behavior`, `config_behavior`, `context_behavior`,
   `file_rules_behavior`,
@@ -69,13 +70,14 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty-seven
+- The current bundled validation path exercises `373` crate tests plus twenty-eight
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
   execution, cdl-transform behavior, color-space-transform behavior,
+  allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
   log-affine-transform behavior, log-camera-transform behavior,
@@ -89,6 +91,10 @@ path executes the bundled test suite rather than stopping at `--no-run`.
 
 Current runtime semantics worth calling out explicitly:
 
+- `AllocationTransform` round-trips allocation mode, vars, and direction state
+  in bundled mode; `Uniform` allocation behaves as a fit from the configured
+  range into `[0, 1]`, while `Lg2` performs a real `log2`-then-fit path rather
+  than collapsing to a plain fit or no-op.
 - `DynamicProperty` exposure values set on a `Processor` seed newly created
   `CPUProcessor` instances, while each `CPUProcessor` then owns its own runtime
   dynamic-property state.
