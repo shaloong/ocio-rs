@@ -53,8 +53,9 @@ Current release checklist highlights:
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`,
   `log_affine_transform_behavior`, `log_camera_transform_behavior`,
-  `log_transform_behavior`, and `named_transform_behavior` integration suites
-  in addition to crate unit tests.
+  `log_transform_behavior`, `lut1d_transform_behavior`, and
+  `named_transform_behavior` integration suites in addition to crate unit
+  tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -70,7 +71,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty-eight
+- The current bundled validation path exercises `373` crate tests plus twenty-nine
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -81,7 +82,7 @@ Latest release-audit result:
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
   log-affine-transform behavior, log-camera-transform behavior,
-  log-transform behavior,
+  log-transform behavior, lut1d-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
 
@@ -141,6 +142,10 @@ Current runtime semantics worth calling out explicitly:
   `linearSlope` state in bundled mode; with an explicit slope it exercises both
   the near-black linear segment and the log segment in one processor path,
   instead of degenerating to a plain log-affine curve.
+- `Lut1DTransform` round-trips LUT length, values, interpolation, bit depth,
+  and direction state in bundled mode; a simple monotonic 2-point LUT executes
+  as a real forward/inverse CPU mapping rather than behaving like an identity
+  table or shape-only metadata object.
 - `BuiltinTransformRegistry` and `BuiltinTransform` helper enumeration stay
   coherent in bundled mode, and builtin descriptions may legitimately be empty
   strings for some upstream styles rather than guaranteed human-readable text.
