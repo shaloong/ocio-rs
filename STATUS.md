@@ -13,7 +13,7 @@ OpenColorIO workflow.
 | Safe Rust wrappers | Broad OCIO 2.5 coverage |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, and descriptor configuration round trips |
-| Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU exposure dynamics |
+| Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU dynamic-property semantics across exposure and grading controls |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
 | CI real-OCIO validation | Manual bundled full test job |
@@ -39,9 +39,10 @@ Current release checklist highlights:
 - `cargo build --features bundled --offline` passes from the extracted
   `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
-  `config_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
-  `gpu_shader_desc_behavior`, `cpu_processor_behavior`, and `matrix_op`
-  integration suites in addition to crate unit tests.
+  `config_behavior`, `context_behavior`, `file_rules_behavior`,
+  `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
+  `cpu_processor_behavior`, and `matrix_op` integration suites in addition to
+  crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -57,10 +58,10 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus six
-  dedicated integration suites covering config behavior, file rules, dynamic
-  properties, GPU shader descriptors, CPU processor execution, and matrix
-  processing behavior.
+- The current bundled validation path exercises `373` crate tests plus seven
+  dedicated integration suites covering config behavior, context resolution,
+  file rules, dynamic properties, GPU shader descriptors, CPU processor
+  execution, and matrix processing behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -71,6 +72,9 @@ Current runtime semantics worth calling out explicitly:
 - `DynamicProperty` exposure values set on a `Processor` seed newly created
   `CPUProcessor` instances, while each `CPUProcessor` then owns its own runtime
   dynamic-property state.
+- `Context::resolve_file_location()` uses the working directory as a fallback
+  only when no explicit search paths are configured; once search paths are set,
+  resolution follows those paths.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
