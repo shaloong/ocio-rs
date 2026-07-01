@@ -40,6 +40,14 @@ The script treats the known top-level `cargo package` failure as a warning when
 the registry does not yet contain `ocio-sys 0.2.0`, so it can distinguish
 repository regressions from the expected publish-order blocker.
 
+Current packaging caveat:
+
+- The repository supports `--features bundled` from a recursive checkout.
+- The published `ocio-sys` crate does not yet vendor the upstream OpenColorIO
+  source tree inside the package payload.
+- Until that vendoring work is done, treat bundled mode as a repository
+  workflow rather than a self-contained crates.io feature.
+
 Current audit status:
 
 - `./tools/release_audit.ps1 -IncludeBundled -Offline` passes.

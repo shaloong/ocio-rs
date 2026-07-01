@@ -40,6 +40,10 @@ Current release checklist highlights:
   `config_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
   `gpu_shader_desc_behavior`, `cpu_processor_behavior`, and `matrix_op`
   integration suites in addition to crate unit tests.
+- Bundled real-OCIO builds are validated from a recursive repository checkout.
+  The published `ocio-sys` crate does not yet vendor the upstream OpenColorIO
+  source tree, so crates.io users should currently treat bundled mode as a
+  checkout workflow rather than a self-contained packaged feature.
 
 Latest release-audit result:
 

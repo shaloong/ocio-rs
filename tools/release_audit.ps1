@@ -72,6 +72,52 @@ function Invoke-Check {
     Write-Host "    FAIL" -ForegroundColor Red
 }
 
+function Test-OcioSysBundledPayload {
+    Write-Host ""
+    Write-Host "==> Package payload (ocio-sys bundled source)"
+    Write-Host "    cargo package -p ocio-sys --allow-dirty --list"
+
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+    try {
+        $process = Start-Process `
+            -FilePath "cargo" `
+            -ArgumentList @("package", "-p", "ocio-sys", "--allow-dirty", "--list") `
+            -NoNewWindow `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+        $exitCode = $process.ExitCode
+        $stdout = if (Test-Path $stdoutPath) { Get-Content $stdoutPath -Raw } else { "" }
+        $stderr = if (Test-Path $stderrPath) { Get-Content $stderrPath -Raw } else { "" }
+        $text = @($stdout, $stderr) -join ""
+    }
+    finally {
+        Remove-Item -LiteralPath $stdoutPath -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $stderrPath -ErrorAction SilentlyContinue
+    }
+
+    if ($text.Trim()) {
+        Write-Host $text.TrimEnd()
+    }
+
+    if ($exitCode -ne 0) {
+        $script:Failures += "Package payload (ocio-sys bundled source) failed."
+        Write-Host "    FAIL" -ForegroundColor Red
+        return
+    }
+
+    $hasBundledSource = $text -match 'OpenColorIO[/\\]CMakeLists\.txt' -or $text -match 'third_party[/\\]OpenColorIO'
+    if (-not $hasBundledSource) {
+        $script:Warnings += "Published ocio-sys package does not currently vendor the OpenColorIO source tree; bundled mode remains a recursive-checkout workflow."
+        Write-Host "    WARN: bundled source tree not present in packaged ocio-sys payload" -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "    PASS" -ForegroundColor Green
+}
+
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
 Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--", "-D", "warnings")
 Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features")
@@ -84,6 +130,7 @@ if ($Offline) {
     $ocioSysPackageArgs += "--offline"
 }
 Invoke-Check -Name "Package ocio-sys" -Arguments $ocioSysPackageArgs
+Test-OcioSysBundledPayload
 
 if ($IncludeBundled) {
     Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--features", "bundled")

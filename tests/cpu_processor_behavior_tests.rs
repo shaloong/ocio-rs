@@ -18,7 +18,7 @@ fn cpu_processor_test_lock() -> MutexGuard<'static, ()> {
 }
 
 fn scaled_cpu_processor(scale: [f64; 4]) -> Option<CPUProcessor> {
-    let config = create_test_config()?;
+    let config = ocio_rs::Config::raw().ok()?;
     let transform = MatrixTransform::scale(&scale).ok()?;
     let processor = config
         .processor_from_transform(&transform, TransformDirection::Forward)
@@ -27,7 +27,7 @@ fn scaled_cpu_processor(scale: [f64; 4]) -> Option<CPUProcessor> {
 }
 
 fn scaled_processor(scale: [f64; 4]) -> Option<Processor> {
-    let config = create_test_config()?;
+    let config = ocio_rs::Config::raw().ok()?;
     let transform = MatrixTransform::scale(&scale).ok()?;
     config
         .processor_from_transform(&transform, TransformDirection::Forward)
@@ -159,10 +159,6 @@ fn cpu_rgb_packed_f32_matches_rgb_path_behavior() {
 #[test]
 #[should_panic(expected = "CPUProcessor::apply_rgba_pixels: buffer too small")]
 fn cpu_rgba_pixels_short_buffer_panics() {
-    if is_stub() {
-        return;
-    }
-
     let cpu = scaled_cpu_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled cpu processor");
     let mut rgba = vec![0.0f32; 7];
     cpu.apply_rgba_pixels(&mut rgba, 2, 4);
@@ -171,10 +167,6 @@ fn cpu_rgba_pixels_short_buffer_panics() {
 #[test]
 #[should_panic(expected = "CPUProcessor::apply_rgb_packed_bit_depth: buffer too small")]
 fn cpu_rgb_packed_short_buffer_panics() {
-    if is_stub() {
-        return;
-    }
-
     let cpu = scaled_cpu_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled cpu processor");
     let mut packed_bytes = vec![0u8; 20];
     cpu.apply_rgb_packed_bit_depth(&mut packed_bytes, BitDepth::F32, 2, 3);
@@ -183,10 +175,6 @@ fn cpu_rgb_packed_short_buffer_panics() {
 #[test]
 #[should_panic(expected = "CPUProcessor::apply_rgba_pixels: buffer too small")]
 fn processor_rgba_pixels_short_buffer_panics() {
-    if is_stub() {
-        return;
-    }
-
     let processor = scaled_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled processor");
     let cpu = processor
         .default_cpu_processor()

@@ -16,6 +16,10 @@
 //!
 //! Use `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`, or build with
 //! `--features bundled` from a recursive Git checkout.
+//!
+//! The published crates do not yet vendor the OpenColorIO source tree, so the
+//! bundled feature is currently repository-checkout based rather than fully
+//! self-contained from crates.io alone.
 
 #![allow(
     unused_imports,

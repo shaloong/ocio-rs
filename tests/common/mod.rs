@@ -86,6 +86,7 @@ pub fn assert_f32_vec_close(a: &[f32], b: &[f32], tol: f32) {
 
 /// Construct a minimal built-in config for testing.
 /// Returns None in stub builds (no real OCIO to serve config data).
+#[allow(dead_code)]
 pub fn create_test_config() -> Option<ocio_rs::Config> {
     if is_stub() {
         return None;
