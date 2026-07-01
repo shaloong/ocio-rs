@@ -45,17 +45,24 @@ fn _apply_matrix(matrix: &MatrixTransform, pixels: &mut [[f32; 4]]) {
 // ─── MatrixTransform static factories ───
 
 #[test]
-fn matrix_fit_no_crash() {
+fn matrix_fit_static_values() {
     let result = MatrixTransform::fit(
         &[0.0, 0.0, 0.0, 0.0],
-        &[1.0, 1.0, 1.0, 1.0],
-        &[0.0, 0.0, 0.0, 0.0],
-        &[1.0, 1.0, 1.0, 1.0],
+        &[2.0, 4.0, 8.0, 1.0],
+        &[10.0, 20.0, 30.0, 0.0],
+        &[20.0, 40.0, 50.0, 1.0],
     );
     if let Ok(t) = result {
-        let _dir = t.direction();
-        let _matrix = t.matrix();
-        let _offset = t.offset();
+        let matrix = t.matrix();
+        let offset = t.offset();
+        assert_close(matrix[0], 5.0, 1e-10);
+        assert_close(matrix[5], 5.0, 1e-10);
+        assert_close(matrix[10], 2.5, 1e-10);
+        assert_close(matrix[15], 1.0, 1e-10);
+        assert_close(offset[0], 10.0, 1e-10);
+        assert_close(offset[1], 20.0, 1e-10);
+        assert_close(offset[2], 30.0, 1e-10);
+        assert_close(offset[3], 0.0, 1e-10);
     }
 }
 
@@ -93,11 +100,32 @@ fn matrix_scale_no_crash() {
 }
 
 #[test]
-fn matrix_view_no_crash() {
-    let result = MatrixTransform::view(&mut [0, 1, 2, 3], &[0.2126, 0.7152, 0.0722]);
+fn matrix_view_identity_when_all_channels_hot() {
+    let mut channels = [1, 1, 1, 1];
+    let result = MatrixTransform::view(&mut channels, &[0.2126, 0.7152, 0.0722]);
     if let Ok(t) = result {
-        let _dir = t.direction();
-        let _matrix = t.matrix();
+        let matrix = t.matrix();
+        assert_close(matrix[0], 1.0, 1e-10);
+        assert_close(matrix[5], 1.0, 1e-10);
+        assert_close(matrix[10], 1.0, 1e-10);
+        assert_close(matrix[15], 1.0, 1e-10);
+    }
+}
+
+#[test]
+fn matrix_view_luma_mix_values() {
+    let mut channels = [1, 0, 1, 0];
+    let result = MatrixTransform::view(&mut channels, &[0.2, 0.3, 0.5]);
+    if let Ok(t) = result {
+        let matrix = t.matrix();
+        // Active RGB channels are renormalized before being broadcast to all RGB rows.
+        let expected = [2.0 / 7.0, 0.0, 5.0 / 7.0];
+        for row in 0..3 {
+            assert_close(matrix[row * 4], expected[0], 1e-10);
+            assert_close(matrix[row * 4 + 1], expected[1], 1e-10);
+            assert_close(matrix[row * 4 + 2], expected[2], 1e-10);
+        }
+        assert_close(matrix[15], 1.0, 1e-10);
     }
 }
 
