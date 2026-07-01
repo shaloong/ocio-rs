@@ -342,6 +342,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat overload; prefer default_view_with_color_space()"
@@ -392,6 +393,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat overload; prefer num_views_with_color_space()"
@@ -433,6 +435,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat overload; prefer view_with_color_space()"
@@ -466,6 +469,7 @@ impl Config {
 
     /// # Safety
     /// `first` and `second` must be valid pointers to OCIO view descriptors for the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO view-descriptor entry point; prefer higher-level display/view APIs unless you must interoperate with external OCIO ABI objects"
@@ -2718,6 +2722,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer active_display()")]
     pub fn get_active_display(&self, index: i32) -> Option<String> {
         self.active_display(index)
@@ -2749,6 +2754,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer active_view()")]
     pub fn get_active_view(&self, index: i32) -> Option<String> {
         self.active_view(index)
@@ -2784,6 +2790,7 @@ impl Config {
         unsafe { ocio_sys::ocio_config_get_num_displays_all(self.handle.as_ptr()) }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_displays_all()")]
     pub fn get_num_displays_all(&self) -> i32 {
         self.num_displays_all()
@@ -2798,6 +2805,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer display_all()")]
     pub fn get_display_all(&self, index: i32) -> Option<String> {
         self.display_all(index)
@@ -2816,6 +2824,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer display_all_index()")]
     pub fn get_display_all_by_name(&self, display: impl AsRef<str>) -> i32 {
         self.display_all_index(display)
@@ -2849,6 +2858,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat overload; prefer num_views_by_reference_space()"
@@ -2878,6 +2888,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat overload; prefer view_by_reference_space()"
@@ -2893,6 +2904,7 @@ impl Config {
 
     /// # Safety
     /// The returned pointer is owned by OCIO; `set_viewing_rules` requires a valid OCIO viewing-rules pointer.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO viewing-rules handle; prefer higher-level Config APIs where possible"
@@ -2903,6 +2915,7 @@ impl Config {
 
     /// # Safety
     /// `viewing_rules` must be a valid OCIO viewing-rules pointer for the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO viewing-rules handle; prefer higher-level Config APIs where possible"
@@ -2938,6 +2951,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
@@ -2946,6 +2960,7 @@ impl Config {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer config_io_proxy()")]
     pub fn get_config_io_proxy(&self) -> *mut std::ffi::c_void {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
@@ -2953,6 +2968,7 @@ impl Config {
 
     /// # Safety
     /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
