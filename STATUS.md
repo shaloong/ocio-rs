@@ -41,7 +41,8 @@ Current release checklist highlights:
 - `cargo test --workspace --features bundled` now covers the dedicated
   `baker_behavior`, `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_transform_behavior`,
-  `config_behavior`, `context_behavior`, `file_rules_behavior`,
+  `cdl_transform_behavior`, `config_behavior`, `context_behavior`,
+  `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `exponent_transform_behavior`, `exposure_contrast_transform_behavior`,
   `fixed_function_transform_behavior`,
@@ -66,14 +67,14 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty-two
+- The current bundled validation path exercises `373` crate tests plus twenty-three
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
-  execution, color-space-transform behavior, display-view-transform behavior,
-  look behavior, look-transform behavior, exponent-transform behavior,
+  execution, cdl-transform behavior, color-space-transform behavior,
+  display-view-transform behavior, look behavior, look-transform behavior, exponent-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
 
@@ -103,6 +104,10 @@ Current runtime semantics worth calling out explicitly:
   mode, matches named color-space processors for the same config path, and
   `data_bypass=true` preserves RGB values for data-tagged source spaces where
   the forced path would otherwise apply the configured conversion.
+- `CDLTransform` round-trips SOP, saturation, style, ID, and SOP description
+  state in bundled mode, `CreateFromFile` / `CreateGroupFromFile` load real
+  `.ccc` data from disk, and a no-clamp unit-saturation CDL executes as a real
+  forward/inverse CPU processing pair rather than a no-op.
 - `ExponentTransform` round-trips exponent values, negative-style, and
   direction state in bundled mode, and a `[2, 2, 2, 1]` exponent executes as
   a real forward/inverse CPU processing pair for positive-domain RGB values;
