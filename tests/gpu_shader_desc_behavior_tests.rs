@@ -125,6 +125,7 @@ fn gpu_shader_desc_extraction_structural_behavior() {
     let uniforms = desc.uniforms();
     assert_eq!(desc.num_uniforms() as usize, uniforms.len());
     for (index, uniform) in uniforms.iter().enumerate() {
+        assert!(!uniform.name.trim().is_empty());
         assert_eq!(
             desc.uniform(index as u32).as_ref().map(|u| &u.name),
             Some(&uniform.name)
@@ -155,6 +156,8 @@ fn gpu_shader_desc_extraction_structural_behavior() {
     let textures_2d = desc.textures_2d();
     assert_eq!(desc.num_textures() as usize, textures_2d.len());
     for (index, texture) in textures_2d.iter().enumerate() {
+        assert!(!texture.texture_name.trim().is_empty());
+        assert!(!texture.sampler_name.trim().is_empty());
         assert_eq!(texture.values.len(), texture.expected_value_count());
         assert_eq!(
             desc.texture_value_count(index as u32),
@@ -186,6 +189,8 @@ fn gpu_shader_desc_extraction_structural_behavior() {
     let textures_3d = desc.textures_3d();
     assert_eq!(desc.num_3d_textures() as usize, textures_3d.len());
     for (index, texture) in textures_3d.iter().enumerate() {
+        assert!(!texture.texture_name.trim().is_empty());
+        assert!(!texture.sampler_name.trim().is_empty());
         assert_eq!(texture.values.len(), texture.expected_value_count());
         assert_eq!(
             desc.texture_3d_value_count(index as u32),

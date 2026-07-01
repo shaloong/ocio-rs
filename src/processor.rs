@@ -722,6 +722,15 @@ impl GpuTextureDimensions {
     }
 }
 
+fn required_ocio_string(ptr: *const i8) -> Option<String> {
+    let value = unsafe { cstr_to_opt_string(ptr) }?;
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 /// Uniform value encoding reported by OCIO GPU shader extraction.
@@ -898,9 +907,11 @@ impl GpuShaderDesc {
         if !values_ok && value_count > 0 {
             return None;
         }
+        let texture_name = required_ocio_string(info.texture_name)?;
+        let sampler_name = required_ocio_string(info.sampler_name)?;
         Some(GpuTexture2D {
-            texture_name: unsafe { cstr_to_opt_string(info.texture_name) }.unwrap_or_default(),
-            sampler_name: unsafe { cstr_to_opt_string(info.sampler_name) }.unwrap_or_default(),
+            texture_name,
+            sampler_name,
             width: info.width,
             height: info.height,
             channel: GpuTextureChannel::from_raw(info.channel),
@@ -1497,8 +1508,9 @@ impl GpuShaderDesc {
                 }
             }
         };
+        let name = required_ocio_string(info.name)?;
         Some(GpuUniform {
-            name: unsafe { cstr_to_opt_string(info.name) }.unwrap_or_default(),
+            name,
             uniform_type,
             buffer_offset: info.buffer_offset,
             value_count: info.value_count,
@@ -1637,9 +1649,11 @@ impl GpuShaderDesc {
         if !values_ok && value_count > 0 {
             return None;
         }
+        let texture_name = required_ocio_string(info.texture_name)?;
+        let sampler_name = required_ocio_string(info.sampler_name)?;
         Some(GpuTexture3D {
-            texture_name: unsafe { cstr_to_opt_string(info.texture_name) }.unwrap_or_default(),
-            sampler_name: unsafe { cstr_to_opt_string(info.sampler_name) }.unwrap_or_default(),
+            texture_name,
+            sampler_name,
             edge_len: info.edge_len,
             interpolation: interpolation_from_raw(info.interpolation),
             binding_index: info.binding_index,
