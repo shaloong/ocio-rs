@@ -1838,10 +1838,6 @@ unsafe extern "C" {
 
     pub fn ocio_baker_get_num_formats() -> i32;
 
-    pub fn ocio_baker_get_target_bit_depth(baker: *mut c_void) -> i32;
-
-    pub fn ocio_baker_set_target_bit_depth(baker: *mut c_void, bitDepth: i32) -> ();
-
     pub fn ocio_builtin_transform_get_direction(transform: *mut c_void) -> i32;
 
     pub fn ocio_builtin_transform_get_num_styles() -> i32;
@@ -1917,8 +1913,6 @@ unsafe extern "C" {
         src: *const i8,
         dst: *const i8,
     ) -> *mut c_void;
-
-    pub fn ocio_config_remove_view_transform(config: *mut c_void, name: *const i8) -> ();
 
     pub fn ocio_config_set_default_interpolation(config: *mut c_void, interpolation: i32) -> ();
 

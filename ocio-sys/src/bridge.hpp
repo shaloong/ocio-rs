@@ -185,6 +185,7 @@ void* ocio_config_get_display_view_looks(void* handle, const char* display, cons
 void* ocio_config_get_display_view_rule(void* handle, const char* display, const char* view);
 void* ocio_config_get_display_view_description(void* handle, const char* display, const char* view);
 bool ocio_config_has_view(void* handle, const char* dispName, const char* viewName);
+void ocio_config_add_display(void* handle, const char* display, const char* view, const char* transformName, const char* rule);
 void ocio_config_add_display_view_v1(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks);
 void ocio_config_add_display_view_v2(void* handle, const char* display, const char* view, const char* viewTransformName, const char* colorSpaceName, const char* looks, const char* ruleName, const char* description);
 void ocio_config_add_display_shared_view(void* handle, const char* display, const char* sharedView);
@@ -507,6 +508,10 @@ void ocio_cpu_processor_apply_v1(void* handle, void* imgDesc);
 void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDesc);
 void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
+void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
+void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride);
+void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride);
+void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride);
 
 // --- GPUProcessor ---
 void ocio_gpu_processor_destroy(void* handle);
@@ -548,6 +553,39 @@ void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* t
 void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const float* values);
 void* ocio_gpu_shader_desc_get3d_texture_shader_binding_index(void* handle, void* index);
 void* ocio_gpu_shader_desc_get_shader_text(void* handle);
+int ocio_gpu_shader_desc_get_language(void* handle);
+void ocio_gpu_shader_desc_set_language(void* handle, int language);
+const char* ocio_gpu_shader_desc_get_function_name(void* handle);
+void ocio_gpu_shader_desc_set_function_name(void* handle, const char* name);
+const char* ocio_gpu_shader_desc_get_pixel_name(void* handle);
+void ocio_gpu_shader_desc_set_pixel_name(void* handle, const char* name);
+const char* ocio_gpu_shader_desc_get_resource_prefix(void* handle);
+void ocio_gpu_shader_desc_set_resource_prefix(void* handle, const char* prefix);
+const char* ocio_gpu_shader_desc_get_cache_id(void* handle);
+void ocio_gpu_shader_desc_finalize(void* handle);
+uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index);
+uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index);
+const char* ocio_gpu_shader_desc_get_texture_uid(void* handle, int index);
+
+// --- FormatMetadata ---
+void* ocio_format_metadata_get_child_element(void* metadata, int i);
+void ocio_format_metadata_destroy(void* handle);
+const char* ocio_format_metadata_get_element_name(void* metadata);
+void ocio_format_metadata_set_element_name(void* metadata, const char* name);
+const char* ocio_format_metadata_get_element_value(void* metadata);
+void ocio_format_metadata_set_element_value(void* metadata, const char* value);
+int ocio_format_metadata_get_num_attributes(void* metadata);
+const char* ocio_format_metadata_get_attribute_name(void* metadata, int i);
+const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, int i);
+const char* ocio_format_metadata_get_attribute_value(void* metadata, const char* name);
+void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value);
+int ocio_format_metadata_get_num_children_elements(void* metadata);
+void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value);
+void ocio_format_metadata_clear(void* metadata);
+const char* ocio_format_metadata_get_name(void* metadata);
+void ocio_format_metadata_set_name(void* metadata, const char* name);
+const char* ocio_format_metadata_get_id(void* metadata);
+void ocio_format_metadata_set_id(void* metadata, const char* id);
 
 // --- Baker ---
 void* ocio_baker_create(void);
