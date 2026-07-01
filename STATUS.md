@@ -43,7 +43,8 @@ Current release checklist highlights:
   `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_set_behavior`,
   `color_space_transform_behavior`,
-  `cdl_transform_behavior`, `config_behavior`, `config_io_proxy_behavior`,
+  `cdl_transform_behavior`, `config_behavior`,
+  `config_collection_behavior`, `config_io_proxy_behavior`,
   `context_behavior`,
   `file_rules_behavior`, `file_transform_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
@@ -80,14 +81,15 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus forty
+- The current bundled validation path exercises `373` crate tests plus forty-one
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  color-space-set behavior, config-IO proxy behavior, context resolution, file
-  rules, file-transform behavior, dynamic properties, GPU shader descriptors,
-  CPU processor execution, matrix processing behavior, named-transform
-  execution, cdl-transform behavior, color-space-transform behavior,
+  color-space-set behavior, config collection behavior, config-IO proxy
+  behavior, context resolution, file rules, file-transform behavior, dynamic
+  properties, GPU shader descriptors, CPU processor execution, matrix
+  processing behavior, named-transform execution, cdl-transform behavior,
+  color-space-transform behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
@@ -115,6 +117,13 @@ Current runtime semantics worth calling out explicitly:
 - `Context::resolve_file_location()` uses the working directory as a fallback
   only when no explicit search paths are configured; once search paths are set,
   resolution follows those paths.
+- `Config` now has bundled runtime coverage for collection mutation: added
+  color spaces, looks, named transforms, and view transforms become visible
+  through the corresponding lookup/count APIs, display-view definitions mark
+  referenced color spaces as used, `remove_*` clears object lookup state, and
+  `clear_all()` empties the tracked collection counts even though
+  `display(0)` currently returns an empty-string sentinel once the display list
+  is empty.
 - `ConfigIOProxy` round-trips embedded config text and LUT payloads in bundled
   mode, attached proxy objects remain visible through both `Config` and
   `Context`, missing LUT keys currently surface as empty payload views, and a
