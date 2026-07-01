@@ -27,9 +27,9 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
-  `1004` bridge/lib.rs declarations, `993` bridge-backed safe-wrapper matches,
-  and `822/822` OCIO C++ header methods accounted for, including normalized
-  coverage for static `Create` constructor-style entry points.
+  `1024` bridge/lib.rs declarations, `1013` bridge-backed safe-wrapper
+  matches, and `822/822` OCIO C++ header methods accounted for, including
+  normalized coverage for static `Create` constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
@@ -69,8 +69,8 @@ Current release checklist highlights:
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`,
   `log_affine_transform_behavior`, `log_camera_transform_behavior`,
   `log_transform_behavior`, `lut1d_transform_behavior`,
-  `lut3d_transform_behavior`, and `named_transform_behavior` integration suites
-  in addition to crate unit tests.
+  `lut3d_transform_behavior`, `named_transform_behavior`, and
+  `viewing_rules_behavior` integration suites in addition to crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -86,7 +86,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus forty-five
+- The current bundled validation path exercises `376` crate tests plus forty-six
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -107,6 +107,8 @@ Latest release-audit result:
   log-transform behavior, lut1d-transform behavior, lut3d-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
+  It also now covers safe `ViewingRules` construction, mutation, editable-copy
+  independence, and config attachment behavior in bundled mode.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -169,6 +171,10 @@ Current runtime semantics worth calling out explicitly:
   `color_space_from_filepath_with_rule_index(...)`, including preserving the
   matched rule index for ordered filename-pattern rules and falling back to the
   configured default-rule color space when no explicit rule matches.
+- `ViewingRules` are now exposed as a first-class safe Rust wrapper rather than
+  only raw pointer plumbing on `Config`; bundled coverage validates rule
+  insertion, color-space and encoding selectors, custom key/value mutation,
+  editable-copy independence, and round-trip config attachment.
 - `Baker` round-trips its configured properties in bundled mode and emits real
   LUT text; for a no-crosstalk `raw -> raw` `resolve_cube` bake, upstream OCIO
   emits a 1D LUT (`LUT_1D_SIZE`) rather than forcing a 3D cube.

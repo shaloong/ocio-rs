@@ -45,6 +45,7 @@ mod processor;
 pub mod transform;
 mod types;
 mod view_transform;
+mod viewing_rules;
 
 pub use baker::Baker;
 pub use builtin_config_registry::BuiltinConfigRegistry;
@@ -65,6 +66,7 @@ pub use processor::{
 };
 pub use types::*;
 pub use view_transform::ViewTransform;
+pub use viewing_rules::ViewingRules;
 
 use std::ffi::{c_void, CString};
 use thiserror::Error;

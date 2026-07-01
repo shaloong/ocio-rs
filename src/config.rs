@@ -5,7 +5,7 @@ use crate::transform::TransformHandle;
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, ConfigIOProxy, Context,
     FileRules, Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
-    SearchReferenceSpaceType, TransformDirection, ViewTransform,
+    SearchReferenceSpaceType, TransformDirection, ViewTransform, ViewingRules,
 };
 use ocio_sys;
 
@@ -2995,6 +2995,22 @@ impl Config {
         index: i32,
     ) -> Option<String> {
         self.view_by_reference_space(reference_space, display, index)
+    }
+
+    /// Return the editable viewing-rules object attached to this config, if any.
+    pub fn viewing_rules(&self) -> Option<ViewingRules> {
+        let handle = unsafe { ocio_sys::ocio_config_get_viewing_rules(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|h| ViewingRules { handle: h })
+    }
+
+    /// Attach a viewing-rules object to this config.
+    pub fn set_viewing_rules_object(&self, viewing_rules: &ViewingRules) {
+        unsafe {
+            ocio_sys::ocio_config_set_viewing_rules(
+                self.handle.as_ptr(),
+                viewing_rules.handle.as_ptr(),
+            )
+        };
     }
 
     /// # Safety

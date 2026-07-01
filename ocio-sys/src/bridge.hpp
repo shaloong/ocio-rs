@@ -329,6 +329,28 @@ void ocio_file_rules_increase_rule_priority(void* handle, size_t ruleIndex);
 void ocio_file_rules_decrease_rule_priority(void* handle, size_t ruleIndex);
 bool ocio_file_rules_is_default(void* handle);
 
+// --- ViewingRules ---
+void* ocio_viewing_rules_create(void);
+void* ocio_viewing_rules_create_editable_copy(void* handle);
+void ocio_viewing_rules_destroy(void* handle);
+size_t ocio_viewing_rules_get_num_entries(void* handle);
+size_t ocio_viewing_rules_get_index_for_rule(void* handle, const char* ruleName);
+void* ocio_viewing_rules_get_name(void* handle, size_t ruleIndex);
+size_t ocio_viewing_rules_get_num_color_spaces(void* handle, size_t ruleIndex);
+void* ocio_viewing_rules_get_color_space(void* handle, size_t ruleIndex, size_t colorSpaceIndex);
+void ocio_viewing_rules_add_color_space(void* handle, size_t ruleIndex, const char* colorSpace);
+void ocio_viewing_rules_remove_color_space(void* handle, size_t ruleIndex, size_t colorSpaceIndex);
+size_t ocio_viewing_rules_get_num_encodings(void* handle, size_t ruleIndex);
+void* ocio_viewing_rules_get_encoding(void* handle, size_t ruleIndex, size_t encodingIndex);
+void ocio_viewing_rules_add_encoding(void* handle, size_t ruleIndex, const char* encoding);
+void ocio_viewing_rules_remove_encoding(void* handle, size_t ruleIndex, size_t encodingIndex);
+size_t ocio_viewing_rules_get_num_custom_keys(void* handle, size_t ruleIndex);
+void* ocio_viewing_rules_get_custom_key_name(void* handle, size_t ruleIndex, size_t keyIndex);
+void* ocio_viewing_rules_get_custom_key_value(void* handle, size_t ruleIndex, size_t keyIndex);
+void ocio_viewing_rules_set_custom_key(void* handle, size_t ruleIndex, const char* key, const char* value);
+void ocio_viewing_rules_insert_rule(void* handle, size_t ruleIndex, const char* ruleName);
+void ocio_viewing_rules_remove_rule(void* handle, size_t ruleIndex);
+
 // --- ColorSpace ---
 void* ocio_color_space_create(void);
 void* ocio_color_space_create_editable_copy(void* handle);

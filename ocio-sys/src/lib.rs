@@ -741,6 +741,78 @@ unsafe extern "C" {
     pub fn ocio_file_rules_decrease_rule_priority(handle: *mut c_void, ruleIndex: usize) -> ();
     pub fn ocio_file_rules_is_default(handle: *mut c_void) -> bool;
 
+    // --- ViewingRules ---
+    pub fn ocio_viewing_rules_create() -> *mut c_void;
+    pub fn ocio_viewing_rules_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_viewing_rules_destroy(handle: *mut c_void);
+    pub fn ocio_viewing_rules_get_num_entries(handle: *mut c_void) -> usize;
+    pub fn ocio_viewing_rules_get_index_for_rule(
+        handle: *mut c_void,
+        ruleName: *const i8,
+    ) -> usize;
+    pub fn ocio_viewing_rules_get_name(handle: *mut c_void, ruleIndex: usize) -> *mut c_void;
+    pub fn ocio_viewing_rules_get_num_color_spaces(
+        handle: *mut c_void,
+        ruleIndex: usize,
+    ) -> usize;
+    pub fn ocio_viewing_rules_get_color_space(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        colorSpaceIndex: usize,
+    ) -> *mut c_void;
+    pub fn ocio_viewing_rules_add_color_space(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        colorSpace: *const i8,
+    ) -> ();
+    pub fn ocio_viewing_rules_remove_color_space(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        colorSpaceIndex: usize,
+    ) -> ();
+    pub fn ocio_viewing_rules_get_num_encodings(handle: *mut c_void, ruleIndex: usize) -> usize;
+    pub fn ocio_viewing_rules_get_encoding(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        encodingIndex: usize,
+    ) -> *mut c_void;
+    pub fn ocio_viewing_rules_add_encoding(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        encoding: *const i8,
+    ) -> ();
+    pub fn ocio_viewing_rules_remove_encoding(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        encodingIndex: usize,
+    ) -> ();
+    pub fn ocio_viewing_rules_get_num_custom_keys(
+        handle: *mut c_void,
+        ruleIndex: usize,
+    ) -> usize;
+    pub fn ocio_viewing_rules_get_custom_key_name(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        keyIndex: usize,
+    ) -> *mut c_void;
+    pub fn ocio_viewing_rules_get_custom_key_value(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        keyIndex: usize,
+    ) -> *mut c_void;
+    pub fn ocio_viewing_rules_set_custom_key(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        key: *const i8,
+        value: *const i8,
+    ) -> ();
+    pub fn ocio_viewing_rules_insert_rule(
+        handle: *mut c_void,
+        ruleIndex: usize,
+        ruleName: *const i8,
+    ) -> ();
+    pub fn ocio_viewing_rules_remove_rule(handle: *mut c_void, ruleIndex: usize) -> ();
+
     // --- ColorSpace ---
     pub fn ocio_color_space_create() -> *mut c_void;
     pub fn ocio_color_space_destroy(handle: *mut c_void);

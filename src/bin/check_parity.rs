@@ -110,6 +110,7 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "format_metadata" => Some("FormatMetadata"),
         "builtin_config_registry" => Some("BuiltinConfigRegistry"),
         "config_io_proxy" => Some("ConfigIOProxy"),
+        "viewing_rules" => Some("ViewingRules"),
         _ => None,
     }
 }
@@ -128,6 +129,7 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "fixed_function_transform",
         "color_space_transform",
         "config_io_proxy",
+        "viewing_rules",
         "builtin_config_registry",
         "builtin_transform_registry",
         "color_space_set",
@@ -830,6 +832,7 @@ fn run_l3(
         ("FormatMetadata", "FormatMetadata"),
         ("BuiltinConfigRegistry", "BuiltinConfigRegistry"),
         ("ConfigIOProxy", "ConfigIOProxy"),
+        ("ViewingRules", "ViewingRules"),
     ]
     .iter()
     .cloned()

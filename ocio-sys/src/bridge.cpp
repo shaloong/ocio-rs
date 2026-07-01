@@ -217,6 +217,7 @@ struct StubViewTransform {};
 struct StubLut1DTransform {};
 struct StubColorSpaceTransform {};
 struct StubFileRules {};
+struct StubViewingRules {};
 struct StubGradingPrimaryTransform {};
 struct StubLogTransform {};
 struct StubExposureContrastTransform {};
@@ -312,6 +313,12 @@ static std::unique_ptr<ColorSpaceTransformHandle> make_stub_color_space_transfor
 static std::unique_ptr<FileRulesHandle> make_stub_file_rules() {
   auto handle = std::make_unique<FileRulesHandle>();
   handle->inner = std::make_shared<StubFileRules>();
+  return handle;
+}
+
+static std::unique_ptr<ViewingRulesHandle> make_stub_viewing_rules() {
+  auto handle = std::make_unique<ViewingRulesHandle>();
+  handle->inner = std::make_shared<StubViewingRules>();
   return handle;
 }
 
@@ -828,6 +835,11 @@ static ocio::ConfigRcPtr get_real_config(void* handle) {
 static ocio::FileRulesRcPtr get_real_file_rules(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::FileRulesHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(h->inner)->rules;
+}
+
+static ocio::ViewingRulesRcPtr get_real_viewing_rules(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::ViewingRulesHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealViewingRules>(h->inner)->rules;
 }
 
 static ocio::ColorSpaceRcPtr get_real_color_space(void* handle) {
@@ -4439,6 +4451,228 @@ void* ocio_file_rules_create_editable_copy(void* handle) {
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{result});
     return out_handle.release();
   } catch (...) { return nullptr; }
+#endif
+}
+
+// --- ViewingRules ---
+
+void* ocio_viewing_rules_create(void) {
+#ifdef OCIO_RS_STUB
+  return ocio_rs_bridge::make_stub_viewing_rules().release();
+#else
+  try {
+    auto result = ocio::ViewingRules::Create();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_viewing_rules_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_viewing_rules().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_viewing_rules(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_viewing_rules_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ViewingRulesHandle*>(handle);
+}
+
+size_t ocio_viewing_rules_get_num_entries(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumEntries();
+  } catch (...) { return 0; }
+#endif
+}
+
+size_t ocio_viewing_rules_get_index_for_rule(void* handle, const char* ruleName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleName;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_viewing_rules(handle)->getIndexForRule(ruleName);
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_viewing_rules_get_name(void* handle, size_t ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getName(ruleIndex)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+size_t ocio_viewing_rules_get_num_color_spaces(void* handle, size_t ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumColorSpaces(ruleIndex);
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_viewing_rules_get_color_space(void* handle, size_t ruleIndex, size_t colorSpaceIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)colorSpaceIndex;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getColorSpace(ruleIndex, colorSpaceIndex)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_viewing_rules_add_color_space(void* handle, size_t ruleIndex, const char* colorSpace) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)colorSpace;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->addColorSpace(ruleIndex, colorSpace);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_viewing_rules_remove_color_space(void* handle, size_t ruleIndex, size_t colorSpaceIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)colorSpaceIndex;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->removeColorSpace(ruleIndex, colorSpaceIndex);
+  } catch (...) { return; }
+#endif
+}
+
+size_t ocio_viewing_rules_get_num_encodings(void* handle, size_t ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumEncodings(ruleIndex);
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_viewing_rules_get_encoding(void* handle, size_t ruleIndex, size_t encodingIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)encodingIndex;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getEncoding(ruleIndex, encodingIndex)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_viewing_rules_add_encoding(void* handle, size_t ruleIndex, const char* encoding) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)encoding;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->addEncoding(ruleIndex, encoding);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_viewing_rules_remove_encoding(void* handle, size_t ruleIndex, size_t encodingIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)encodingIndex;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->removeEncoding(ruleIndex, encodingIndex);
+  } catch (...) { return; }
+#endif
+}
+
+size_t ocio_viewing_rules_get_num_custom_keys(void* handle, size_t ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumCustomKeys(ruleIndex);
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_viewing_rules_get_custom_key_name(void* handle, size_t ruleIndex, size_t keyIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)keyIndex;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getCustomKeyName(ruleIndex, keyIndex)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_viewing_rules_get_custom_key_value(void* handle, size_t ruleIndex, size_t keyIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)keyIndex;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getCustomKeyValue(ruleIndex, keyIndex)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_viewing_rules_set_custom_key(void* handle, size_t ruleIndex, const char* key, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)key; (void)value;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->setCustomKey(ruleIndex, key, value);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_viewing_rules_insert_rule(void* handle, size_t ruleIndex, const char* ruleName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex; (void)ruleName;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->insertRule(ruleIndex, ruleName);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_viewing_rules_remove_rule(void* handle, size_t ruleIndex) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)ruleIndex;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_viewing_rules(handle)->removeRule(ruleIndex);
+  } catch (...) { return; }
 #endif
 }
 
