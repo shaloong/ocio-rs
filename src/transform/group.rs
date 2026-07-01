@@ -2,7 +2,9 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use super::{transform_from_raw_handle, Transform, TransformHandle};
-use crate::{cstr_from_mut, cstring, Config, OcioError, Result, TransformDirection};
+use crate::{
+    cstr_from_mut, cstr_to_opt_string, cstring, Config, OcioError, Result, TransformDirection,
+};
 use ocio_sys;
 
 /// An ordered list of transforms evaluated as one transform.
@@ -128,6 +130,27 @@ impl GroupTransform {
     pub fn format_metadata_v2(&self) -> Option<crate::FormatMetadata> {
         self.format_metadata()
     }
+
+    /// Return the number of serialization formats supported by `write_to_string`.
+    pub fn num_write_formats() -> i32 {
+        unsafe { ocio_sys::ocio_group_transform_get_num_write_formats() }
+    }
+
+    /// Return the writer format name at `index`.
+    pub fn format_name_by_index(index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_name_by_index(
+                index,
+            ))
+        }
+    }
+
+    /// Return the writer format extension at `index`, without a leading dot.
+    pub fn format_extension_by_index(index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_extension_by_index(index))
+        }
+    }
 }
 
 impl Drop for GroupTransform {
@@ -239,5 +262,25 @@ mod tests {
         if crate::is_stub_build() {
             assert!(written.unwrap().is_none());
         }
+    }
+
+    #[test]
+    fn static_write_format_queries_no_crash() {
+        let count = GroupTransform::num_write_formats();
+        assert!(count >= 0);
+        let _ = GroupTransform::format_name_by_index(0);
+        let _ = GroupTransform::format_extension_by_index(0);
+    }
+
+    #[test]
+    fn static_write_format_queries_real_behavior() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let count = GroupTransform::num_write_formats();
+        assert!(count > 0);
+        assert!(GroupTransform::format_name_by_index(0).is_some());
+        assert!(GroupTransform::format_extension_by_index(0).is_some());
     }
 }

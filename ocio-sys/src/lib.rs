@@ -1284,6 +1284,10 @@ unsafe extern "C" {
     pub fn ocio_file_transform_set_cdl_style(handle: *mut c_void, arg0: i32) -> ();
     pub fn ocio_file_transform_get_interpolation(handle: *mut c_void) -> i32;
     pub fn ocio_file_transform_set_interpolation(handle: *mut c_void, interp: i32) -> ();
+    pub fn ocio_file_transform_get_num_formats() -> i32;
+    pub fn ocio_file_transform_get_format_name_by_index(index: i32) -> *const i8;
+    pub fn ocio_file_transform_get_format_extension_by_index(index: i32) -> *const i8;
+    pub fn ocio_file_transform_is_format_extension_supported(extension: *const i8) -> bool;
 
     // --- FixedFunctionTransform ---
     pub fn ocio_fixed_function_transform_create() -> *mut c_void;
@@ -1520,6 +1524,9 @@ unsafe extern "C" {
         config: *mut c_void,
         formatName: *const i8,
     ) -> *mut c_void;
+    pub fn ocio_group_transform_get_num_write_formats() -> i32;
+    pub fn ocio_group_transform_get_format_name_by_index(index: i32) -> *const i8;
+    pub fn ocio_group_transform_get_format_extension_by_index(index: i32) -> *const i8;
 
     // --- LogAffineTransform ---
     pub fn ocio_log_affine_transform_create() -> *mut c_void;

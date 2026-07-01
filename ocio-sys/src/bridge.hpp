@@ -706,6 +706,10 @@ int ocio_file_transform_get_cdl_style(void* handle);
 void ocio_file_transform_set_cdl_style(void* handle, int arg0);
 int ocio_file_transform_get_interpolation(void* handle);
 void ocio_file_transform_set_interpolation(void* handle, int interp);
+int ocio_file_transform_get_num_formats(void);
+const char* ocio_file_transform_get_format_name_by_index(int index);
+const char* ocio_file_transform_get_format_extension_by_index(int index);
+bool ocio_file_transform_is_format_extension_supported(const char* extension);
 
 // --- FixedFunctionTransform ---
 void* ocio_fixed_function_transform_create(void);
@@ -826,6 +830,9 @@ void ocio_group_transform_append_transform(void* handle, void* transform);
 void ocio_group_transform_prepend_transform(void* handle, void* transform);
 void ocio_group_transform_write(void* handle, void* config, const char* formatName, void* os);
 void* ocio_group_transform_write_to_string(void* handle, void* config, const char* formatName);
+int ocio_group_transform_get_num_write_formats(void);
+const char* ocio_group_transform_get_format_name_by_index(int index);
+const char* ocio_group_transform_get_format_extension_by_index(int index);
 
 // --- LogAffineTransform ---
 void* ocio_log_affine_transform_create(void);

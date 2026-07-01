@@ -8615,6 +8615,49 @@ void ocio_fixed_function_transform_set_direction(void* handle, int dir) {
 #endif
 }
 
+int ocio_file_transform_get_num_formats(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    return ocio::FileTransform::GetNumFormats();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_file_transform_get_format_name_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try {
+    return ocio::FileTransform::GetFormatNameByIndex(index);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_file_transform_get_format_extension_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try {
+    return ocio::FileTransform::GetFormatExtensionByIndex(index);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_file_transform_is_format_extension_supported(const char* extension) {
+#ifdef OCIO_RS_STUB
+  (void)extension;
+  return false;
+#else
+  try {
+    return ocio::FileTransform::IsFormatExtensionSupported(extension);
+  } catch (...) { return false; }
+#endif
+}
+
 int ocio_fixed_function_transform_get_style(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -9790,6 +9833,38 @@ void* ocio_group_transform_write_to_string(void* handle, void* config, const cha
     ocio_rs_bridge::get_real_group_transform(handle)->write(config_ptr, formatName, stream);
     ocio_rs_bridge::g_serialized_text = stream.str();
     return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_group_transform_get_num_write_formats(void) {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    return ocio::GroupTransform::GetNumWriteFormats();
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_group_transform_get_format_name_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try {
+    return ocio::GroupTransform::GetFormatNameByIndex(index);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_group_transform_get_format_extension_by_index(int index) {
+#ifdef OCIO_RS_STUB
+  (void)index;
+  return nullptr;
+#else
+  try {
+    return ocio::GroupTransform::GetFormatExtensionByIndex(index);
   } catch (...) { return nullptr; }
 #endif
 }

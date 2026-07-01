@@ -111,6 +111,40 @@ impl FileTransform {
     pub fn validate(&self) {
         unsafe { ocio_sys::ocio_file_transform_validate(self.handle.as_ptr()) };
     }
+
+    /// Return the number of reader formats supported by `FileTransform`.
+    pub fn num_formats() -> i32 {
+        unsafe { ocio_sys::ocio_file_transform_get_num_formats() }
+    }
+
+    /// Return the reader format name at `index`.
+    pub fn format_name_by_index(index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_file_transform_get_format_name_by_index(
+                index,
+            ))
+        }
+    }
+
+    /// Return the reader format extension at `index`, without a leading dot.
+    pub fn format_extension_by_index(index: i32) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_file_transform_get_format_extension_by_index(
+                index,
+            ))
+        }
+    }
+
+    /// Return whether `extension` is recognized by the upstream file readers.
+    pub fn is_format_extension_supported(extension: impl AsRef<str>) -> bool {
+        let extension = match cstring(extension) {
+            Ok(value) => value,
+            Err(_) => return false,
+        };
+        unsafe {
+            ocio_sys::ocio_file_transform_is_format_extension_supported(extension.as_ptr().cast())
+        }
+    }
 }
 
 impl Drop for FileTransform {
@@ -172,5 +206,31 @@ mod tests {
     fn validate_no_crash() {
         let ft = FileTransform::create().unwrap();
         ft.validate();
+    }
+
+    #[test]
+    fn static_format_queries_no_crash() {
+        let count = FileTransform::num_formats();
+        assert!(count >= 0);
+        let _ = FileTransform::format_name_by_index(0);
+        let _ = FileTransform::format_extension_by_index(0);
+        let _ = FileTransform::is_format_extension_supported("clf");
+    }
+
+    #[test]
+    fn static_format_queries_real_behavior() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let count = FileTransform::num_formats();
+        assert!(count > 0);
+        assert!(FileTransform::format_name_by_index(0).is_some());
+        assert!(FileTransform::format_extension_by_index(0).is_some());
+        assert!(FileTransform::is_format_extension_supported("clf"));
+        assert!(FileTransform::is_format_extension_supported(".clf"));
+        assert!(!FileTransform::is_format_extension_supported(
+            "definitely_not_a_lut_ext"
+        ));
     }
 }
