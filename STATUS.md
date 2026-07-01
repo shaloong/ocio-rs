@@ -44,7 +44,8 @@ Current release checklist highlights:
   `color_space_set_behavior`,
   `color_space_transform_behavior`,
   `cdl_transform_behavior`, `config_behavior`,
-  `config_collection_behavior`, `config_io_proxy_behavior`,
+  `config_collection_behavior`, `config_core_behavior`,
+  `config_io_proxy_behavior`,
   `config_runtime_settings_behavior`,
   `config_display_management_behavior`,
   `context_behavior`,
@@ -84,14 +85,15 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus forty-four
+- The current bundled validation path exercises `373` crate tests plus forty-five
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  color-space-set behavior, config collection behavior, config display-
-  management behavior, config-IO proxy behavior, config runtime-settings
-  behavior, context resolution, file rules, file-transform behavior, dynamic
-  properties, GPU shader descriptors, CPU processor execution, matrix
+  color-space-set behavior, config collection behavior, config core behavior,
+  config display-management behavior, config-IO proxy behavior, config
+  runtime-settings behavior, context resolution, file rules, file-transform
+  behavior, dynamic properties, GPU shader descriptors, CPU processor
+  execution, matrix
   processing behavior, named-transform execution, cdl-transform behavior,
   color-space-transform behavior, runtime-helper behavior,
   allocation-transform behavior,
@@ -135,6 +137,13 @@ Current runtime semantics worth calling out explicitly:
   `ENABLED | SHARE_DYN_PROPERTIES` rather than just `ENABLED`. The crate-level
   `current_config()` / `set_current_config()` / `processor_cache_flags()`
   helpers follow the installed config's real runtime state.
+- `Config` core loading and metadata helpers now have bundled coverage:
+  `from_file`, `from_env`, and `from_stream` all load the same `context_test1`
+  schema/display/role metadata; config search-path aggregation currently joins
+  entries with `:` on this runtime; strict-parsing and default-luma settings
+  round-trip; config cache IDs change after metadata/search-path mutation; and
+  serialized YAML reflects the authored name, description, roles, and search
+  paths.
 - `Config` display-management helpers now have bundled lifecycle coverage:
   shared views attach to displays, survive re-attachment, and disappear from
   display lookup when either the display-view link or the shared view itself is
