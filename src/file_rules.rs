@@ -31,7 +31,7 @@ impl FileRules {
     /// Look up the index for a rule name.
     ///
     /// This returns the raw OCIO result and may use implementation-defined
-    /// fallback values when the rule is absent. Prefer [`rule_index`] for a
+    /// fallback values when the rule is absent. Prefer [`Self::rule_index`] for a
     /// Rust-level presence check.
     pub fn index_for_rule(&self, rule_name: impl AsRef<str>) -> u64 {
         let rule_name = match cstring(&rule_name) {

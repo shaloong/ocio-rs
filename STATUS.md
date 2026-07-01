@@ -27,9 +27,11 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
-  `1061` bridge/lib.rs declarations, `1050` bridge-backed safe-wrapper
-  matches, and `822/822` OCIO C++ header methods accounted for, including
-  normalized coverage for static `Create` constructor-style entry points.
+  `1066` bridge.hpp functions, `1067` `lib.rs` declarations (with
+  `ocio_error_get_last` as the remaining compatibility extra), `1050`
+  bridge-backed safe-wrapper matches, and `822/822` OCIO C++ header methods
+  accounted for, including normalized coverage for static `Create`
+  constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
@@ -87,7 +89,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `378` crate tests plus forty-seven
+- The current bundled validation path exercises `379` crate tests plus forty-seven
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -261,7 +263,9 @@ Current runtime semantics worth calling out explicitly:
   `add_to_*` helpers plus `create_shader_text(...)`, and manual 1D/2D/3D
   texture insertion with OCIO-reported binding indices and payload round-trips.
   Manual scalar, bool, float3, and vector uniform insertion is also covered,
-  including duplicate-name rejection and typed payload round-trips. In real
+  including duplicate-name rejection and typed payload round-trips. Legacy
+  compatibility getters for 2D/3D texture names and value pointers are now
+  wired to real OCIO outputs instead of discarding the fetched data. In real
   OCIO builds, descriptor-side dynamic properties remain mutable after
   extraction but do not currently alias the source `Processor` property object.
 - `ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of

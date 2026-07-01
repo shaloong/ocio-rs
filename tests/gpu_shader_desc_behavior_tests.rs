@@ -432,8 +432,8 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
     let texture3d_name = CString::new("legacyTex3D").expect("3d texture name");
     let sampler3d_name = CString::new("legacySampler3D").expect("3d sampler name");
     let texture3d_values = [
-        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
-        0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+        1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
     ];
 
     unsafe {
@@ -552,7 +552,10 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             std::ptr::null_mut(),
             (&mut raw_texture3d_values as *mut *const f32).cast::<c_void>(),
         );
-        assert!(!raw_texture3d_values.is_null(), "legacy 3d texture values ptr");
+        assert!(
+            !raw_texture3d_values.is_null(),
+            "legacy 3d texture values ptr"
+        );
         assert_eq!(
             std::slice::from_raw_parts(raw_texture3d_values, texture3d_values.len()),
             texture3d_values
