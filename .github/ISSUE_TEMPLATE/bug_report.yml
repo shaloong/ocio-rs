@@ -1,34 +1,63 @@
 name: Bug report
-description: Report incorrect behavior in ocio-rs
-title: "[bug]: "
-labels: ["bug"]
+description: Report a reproducible problem in the Rust bindings, bridge, build, or docs.
+title: "[bug] "
+labels:
+  - bug
 body:
   - type: textarea
     id: summary
     attributes:
       label: Summary
-      description: What happened?
+      description: What went wrong?
     validations:
       required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Affected mode
+      options:
+        - Stub mode
+        - Real installed OCIO
+        - Bundled OCIO
+        - Packaging / release flow
+        - Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Crate version, branch, or commit SHA
+      placeholder: 0.2.0-dev / main / abc1234
+
   - type: textarea
     id: repro
     attributes:
       label: Reproduction
-      description: Minimal code, config, or command that reproduces the issue.
+      description: Include commands, config snippets, and test cases if possible.
+      render: text
     validations:
       required: true
-  - type: dropdown
-    id: build_mode
+
+  - type: textarea
+    id: expected
     attributes:
-      label: Build mode
-      options:
-        - stub
-        - OCIO_RS_ENABLE_REAL
-        - bundled
+      label: Expected behavior
     validations:
       required: true
-  - type: input
-    id: platform
+
+  - type: textarea
+    id: actual
     attributes:
-      label: Platform
-      placeholder: "OS, Rust version, compiler/toolchain"
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust toolchain, OCIO version, and anything else relevant.
+      render: text

@@ -1,14 +1,36 @@
 # Security Policy
 
-ocio-rs is experimental. Please do not assume it has been audited for hostile
-inputs or sandbox boundaries.
+## Supported Versions
 
-Report security issues privately through GitHub Security Advisories if available,
-or by contacting the maintainers listed on crates.io. Please include:
+`ocio-rs` is still experimental, so security fixes are handled on a best-effort
+basis for the latest development line.
 
-- Affected version or commit.
-- Platform and build mode (`stub`, `OCIO_RS_ENABLE_REAL`, or `bundled`).
-- A minimal reproducer or description of the unsafe behavior.
+| Version | Supported |
+| --- | --- |
+| `main` / current development branch | Yes |
+| `0.2.x` | Planned release line |
+| `0.1.x` | No |
 
-Public issues are welcome for ordinary bugs, but please avoid posting exploit
-details publicly until maintainers have had a chance to respond.
+## Reporting a Vulnerability
+
+Please avoid posting full exploit details in a public issue.
+
+Preferred reporting path:
+
+1. Use GitHub's private vulnerability reporting flow for this repository, if it
+   is enabled.
+2. If private reporting is not available, open a minimal public issue such as
+   `Security contact requested` without proof-of-concept details, and note that
+   you have a security report to share privately.
+
+Please include:
+
+- Affected crate version or commit
+- Whether the issue affects stub mode, installed real-OCIO mode, bundled mode,
+  or packaging
+- Reproduction steps
+- Impact assessment
+- Any suggested fix or mitigation
+
+We will try to acknowledge reports promptly and coordinate a fix before
+requesting full public disclosure.

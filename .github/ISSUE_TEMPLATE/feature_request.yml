@@ -1,22 +1,48 @@
 name: Feature request
-description: Request API coverage or wrapper improvements
-title: "[feature]: "
-labels: ["enhancement"]
+description: Suggest an OCIO 2.5 binding, bridge, test, packaging, or documentation improvement.
+title: "[feature] "
+labels:
+  - enhancement
 body:
   - type: textarea
-    id: use_case
+    id: problem
     attributes:
-      label: Use case
-      description: What OCIO workflow should this enable?
+      label: Problem or gap
+      description: What is missing today?
     validations:
       required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the API, bridge, test, or documentation change you want.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Safe Rust wrapper
+        - FFI / bridge
+        - Stub mode
+        - Real installed OCIO
+        - Bundled OCIO
+        - Tests
+        - CI / packaging
+        - Documentation
+    validations:
+      required: true
+
   - type: textarea
     id: upstream
     attributes:
-      label: Upstream OCIO API
-      description: Link or name the OpenColorIO C++ API if known.
+      label: Upstream OCIO reference
+      description: Link or describe the upstream OCIO API if applicable.
+
   - type: textarea
-    id: proposed
+    id: extra
     attributes:
-      label: Proposed Rust API
-      description: Sketch the Rust API you would like to use.
+      label: Additional context
