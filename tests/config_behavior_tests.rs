@@ -72,6 +72,84 @@ fn config_processor_from_configs_with_contexts_identity_behavior() {
 }
 
 #[test]
+fn config_processor_from_configs_to_display_identity_behavior() {
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("driver raw config");
+    let src_config = create_test_config().expect("src raw config");
+    let dst_config = create_test_config().expect("dst raw config");
+    dst_config
+        .add_display("UnitDisplay", "UnitView", "raw", "")
+        .expect("add_display");
+
+    let processor = config
+        .processor_from_configs_to_display(
+            &src_config,
+            "raw",
+            &dst_config,
+            "UnitDisplay",
+            "UnitView",
+            ocio_rs::TransformDirection::Forward,
+        )
+        .expect("processor_from_configs_to_display");
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+        .expect("optimized_cpu_processor");
+
+    let mut pixel = [0.6f32, 0.3, 0.1, 1.0];
+    let original = pixel;
+    cpu.apply_rgba(&mut pixel);
+
+    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
+    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
+    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
+    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+}
+
+#[test]
+fn config_processor_from_configs_to_display_with_contexts_identity_behavior() {
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("driver raw config");
+    let src_config = create_test_config().expect("src raw config");
+    let dst_config = create_test_config().expect("dst raw config");
+    let src_ctx = src_config.current_context().expect("src current_context");
+    let dst_ctx = dst_config.current_context().expect("dst current_context");
+    dst_config
+        .add_display("UnitDisplay", "UnitView", "raw", "")
+        .expect("add_display");
+
+    let processor = config
+        .processor_from_configs_to_display_with_contexts(
+            &src_ctx,
+            &src_config,
+            "raw",
+            &dst_ctx,
+            &dst_config,
+            "UnitDisplay",
+            "UnitView",
+            ocio_rs::TransformDirection::Forward,
+        )
+        .expect("processor_from_configs_to_display_with_contexts");
+    let cpu = processor
+        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
+        .expect("optimized_cpu_processor");
+
+    let mut pixel = [0.2f32, 0.4, 0.8, 1.0];
+    let original = pixel;
+    cpu.apply_rgba(&mut pixel);
+
+    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
+    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
+    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
+    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+}
+
+#[test]
 fn config_display_view_metadata_round_trip_behavior() {
     if is_stub() {
         return;
