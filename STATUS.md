@@ -39,11 +39,11 @@ Current release checklist highlights:
 - `cargo build --features bundled --offline` passes from the extracted
   `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
-  `baker_behavior`, `builtin_config_registry_behavior`, `config_behavior`,
-  `context_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
-  `gpu_shader_desc_behavior`, `cpu_processor_behavior`, `matrix_op`, and
-  `named_transform_behavior` integration suites in addition to crate unit
-  tests.
+  `baker_behavior`, `builtin_config_registry_behavior`, `color_space_behavior`,
+  `config_behavior`, `context_behavior`, `file_rules_behavior`,
+  `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
+  `cpu_processor_behavior`, `matrix_op`, and `named_transform_behavior`
+  integration suites in addition to crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -59,11 +59,12 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus ten
+- The current bundled validation path exercises `373` crate tests plus eleven
   dedicated integration suites covering baker output, builtin-config registry
-  enumeration, config behavior, context resolution, file rules, dynamic
-  properties, GPU shader descriptors, CPU processor execution, matrix
-  processing behavior, and named-transform execution.
+  enumeration, color-space metadata and processor behavior, config behavior,
+  context resolution, file rules, dynamic properties, GPU shader descriptors,
+  CPU processor execution, matrix processing behavior, and named-transform
+  execution.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -83,6 +84,10 @@ Current runtime semantics worth calling out explicitly:
 - `NamedTransform` round-trips aliases, categories, and attached forward /
   inverse transforms in bundled mode, and both object-based and name-based
   processor creation execute the expected transform direction.
+- `ColorSpace` round-trips aliases, categories, interchange metadata, and
+  attached transforms in bundled mode; when validating processors across
+  custom color spaces, distinct `equality_group` values matter because equal
+  groups may let OCIO optimize the conversion path away.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
