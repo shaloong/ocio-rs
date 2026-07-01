@@ -572,6 +572,10 @@ size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index
 bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len);
 bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
 size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);
+unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
+void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
+void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);
+bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type);
 unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
 size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);

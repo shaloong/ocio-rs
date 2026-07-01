@@ -1134,6 +1134,15 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(handle: *mut c_void) -> usize;
+    pub fn ocio_gpu_shader_desc_get_num_dynamic_properties_u32(handle: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_desc_get_dynamic_property_by_index(
+        handle: *mut c_void,
+        index: u32,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_desc_get_dynamic_property(handle: *mut c_void, type_param: i32)
+        -> *mut c_void;
+    pub fn ocio_gpu_shader_desc_has_dynamic_property(handle: *mut c_void, type_param: i32)
+        -> bool;
     pub fn ocio_gpu_shader_desc_get_num_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_texture_info(
         handle: *mut c_void,

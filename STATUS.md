@@ -12,8 +12,8 @@ OpenColorIO workflow.
 | Bundled OCIO build | Available, continuously validated |
 | Safe Rust wrappers | Broad OCIO 2.5 coverage |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
-| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, and descriptor configuration round trips |
-| Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU dynamic-property semantics across exposure and grading controls |
+| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, and descriptor-side dynamic-property access |
+| Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
 | CI real-OCIO validation | Manual bundled full test job |
@@ -253,6 +253,11 @@ Current runtime semantics worth calling out explicitly:
   round-tripped back into an equivalent processor path. The deprecated legacy
   GPU helper also emits real shader text in bundled mode, even when the
   extracted descriptor does not expose additional uniform or texture resources.
+- `GpuShaderDesc` now has bundled runtime coverage for inherited
+  `GpuShaderCreator` settings such as unique IDs, descriptor-set binding
+  offsets, 1D-texture preferences, and extracted dynamic-property access.
+  In real OCIO builds, descriptor-side dynamic properties remain mutable after
+  extraction but do not currently alias the source `Processor` property object.
 - `ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of
   being conflated with `FormatMetadata`; bundled coverage validates standalone
   file/look mutation plus metadata extraction from a real processor.
@@ -316,8 +321,9 @@ Current runtime semantics worth calling out explicitly:
   `RgbToHsv` executes as a real forward/inverse processor pair, and callers
   should not assume `set_style(...)` clears previously stored parameter slots.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
-  language, function name, pixel name, and resource prefix, but extracted
-  shader payloads are not guaranteed to be copied into the clone.
+  language, function name, pixel name, resource prefix, and descriptor-set
+  settings, but lower-level 1D texture knobs may fall back to OCIO defaults and
+  extracted shader payloads are not guaranteed to be copied into the clone.
 - `CPUProcessor::apply_rgb(a)_pixels` respects caller-provided stride values and
   leaves padding lanes untouched in the bundled validation path.
 

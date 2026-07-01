@@ -12,9 +12,10 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{
-    GpuLanguage, GpuShaderDesc, GpuTextureChannel, GpuTextureDimensions, GpuUniformType,
-    GpuUniformValue, TransformDirection,
+    DynamicPropertyType, ExposureContrastStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
+    GpuTextureDimensions, GpuUniformType, GpuUniformValue, TransformDirection,
 };
+use ocio_rs::transform::ExposureContrastTransform;
 
 fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -39,6 +40,25 @@ fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
     let mut desc = desc;
     gpu.extract_shader_info(&mut desc);
     Some(desc)
+}
+
+fn extracted_dynamic_gpu_shader_desc() -> Option<(ocio_rs::Processor, GpuShaderDesc)> {
+    let config = create_test_config()?;
+    let transform = ExposureContrastTransform::create().ok()?;
+    transform.set_style(ExposureContrastStyle::Linear);
+    transform.set_exposure(0.0);
+    transform.set_contrast(1.0);
+    transform.set_gamma(1.0);
+    transform.make_exposure_dynamic();
+
+    let processor = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()?;
+    let gpu = processor.default_gpu_processor().ok()?;
+    let desc = GpuShaderDesc::create().ok()?;
+    let mut desc = desc;
+    gpu.extract_shader_info(&mut desc);
+    Some((processor, desc))
 }
 
 #[test]
@@ -183,4 +203,42 @@ fn gpu_shader_desc_extraction_structural_behavior() {
     assert_eq!(cloned.function_name().as_deref(), Some("ocio_test_main"));
     assert_eq!(cloned.pixel_name().as_deref(), Some("ocio_test_pixel"));
     assert_eq!(cloned.resource_prefix().as_deref(), Some("ocio_test_"));
+}
+
+#[test]
+fn gpu_shader_desc_dynamic_property_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let (processor, desc) = extracted_dynamic_gpu_shader_desc().expect("dynamic gpu shader desc");
+    assert!(processor.is_dynamic());
+    assert!(desc.has_dynamic_property_kind(DynamicPropertyType::Exposure));
+    assert!(desc.num_dynamic_properties() >= 1);
+
+    let desc_prop = desc
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .expect("desc dynamic exposure property");
+    assert_eq!(desc_prop.property_type(), DynamicPropertyType::Exposure);
+    assert_close(desc_prop.double_value(), 0.0, 1e-8);
+
+    let indexed_types: Vec<_> = (0..desc.num_dynamic_properties())
+        .filter_map(|index| desc.dynamic_property_by_index(index))
+        .map(|prop| prop.property_type())
+        .collect();
+    assert!(indexed_types.contains(&DynamicPropertyType::Exposure));
+
+    let processor_prop = processor
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .expect("processor dynamic exposure property");
+    processor_prop.set_double_value(1.0);
+    assert_close(desc_prop.double_value(), 0.0, 1e-8);
+
+    desc_prop.set_double_value(-1.0);
+    assert_close(processor_prop.double_value(), 1.0, 1e-8);
+    let desc_prop_after = desc
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .expect("desc dynamic exposure property after update");
+    assert_close(desc_prop_after.double_value(), -1.0, 1e-8);
 }

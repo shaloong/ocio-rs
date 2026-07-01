@@ -672,6 +672,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("grading_hue_curve_get_slope", "grading_hue_curve_slope"),
         // ColorSpaceSet: get_color_space_by_name -> color_space (by name variant)
         ("get_color_space_by_name", "get_color_space"),
+        ("has_dynamic_property", "has_dynamic_property_kind"),
         // DVT/LookTransform
         ("get_looks_bypass", "looks_bypass"),
         ("get_data_bypass", "data_bypass"),
@@ -682,6 +683,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         // GpuShaderDesc: get_texture -> texture_info (returns struct, not raw fields)
         ("get_texture", "texture_info"),
         ("set_texture_max_width_u32", "set_texture_max_width"),
+        ("get_num_dynamic_properties_u32", "num_dynamic_properties"),
+        ("get_dynamic_property_by_index", "dynamic_property_by_index"),
         // FormatMetadata: get_num_children_elements -> num_children
         ("get_num_children_elements", "num_children"),
         // MatrixTransform: static factories differ

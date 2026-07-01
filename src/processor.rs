@@ -1124,6 +1124,40 @@ impl GpuShaderDesc {
         self.uniform_buffer_size()
     }
 
+    /// Returns the number of dynamic properties attached to the descriptor.
+    pub fn num_dynamic_properties(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_dynamic_properties_u32(self.handle.as_ptr()) }
+    }
+
+    /// Returns a dynamic property by ordinal index, if present.
+    pub fn dynamic_property_by_index(&self, index: u32) -> Option<DynamicProperty> {
+        let handle = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_dynamic_property_by_index(self.handle.as_ptr(), index)
+        };
+        NonNull::new(handle).map(|handle| DynamicProperty { handle })
+    }
+
+    /// Returns the dynamic property associated with the given OCIO property kind, if present.
+    pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Option<DynamicProperty> {
+        let handle = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_dynamic_property(
+                self.handle.as_ptr(),
+                property_type as i32,
+            )
+        };
+        NonNull::new(handle).map(|handle| DynamicProperty { handle })
+    }
+
+    /// Returns whether the descriptor exposes the given OCIO dynamic property kind.
+    pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_has_dynamic_property(
+                self.handle.as_ptr(),
+                prop_type as i32,
+            )
+        }
+    }
+
     /// Returns a structured uniform record with Rust-owned payload values.
     pub fn uniform(&self, index: u32) -> Option<GpuUniform> {
         let mut info = ocio_sys::OcioGpuUniformInfo {

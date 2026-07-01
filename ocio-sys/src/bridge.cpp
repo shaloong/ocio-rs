@@ -7038,6 +7038,62 @@ size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle) {
 #endif
 }
 
+unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumDynamicProperties();
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getDynamicProperty(index);
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(
+        ocio_rs_bridge::RealDynamicProperty{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)type;
+  return nullptr;
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getDynamicProperty(
+        static_cast<ocio::DynamicPropertyType>(type));
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(
+        ocio_rs_bridge::RealDynamicProperty{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)type;
+  return false;
+#else
+  try {
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->hasDynamicProperty(
+        static_cast<ocio::DynamicPropertyType>(type));
+  } catch (...) { return false; }
+#endif
+}
+
 unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

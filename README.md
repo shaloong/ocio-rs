@@ -18,9 +18,10 @@ several high-use runtime paths, including:
 - `Config` multi-config/display-view behavior and virtual/shared-view metadata
 - `FileRules` insertion, regex/custom-key round trips, and config attachment
 - `ViewingRules` safe wrapper behavior, editable-copy independence, and config attachment
-- `DynamicProperty` runtime behavior across `Processor` and `CPUProcessor`
-- `GpuShaderDesc` extraction structure, resource metadata, and configuration
-  round trips
+- `DynamicProperty` runtime behavior across `Processor`, `CPUProcessor`, and
+  extracted GPU descriptors
+- `GpuShaderDesc` extraction structure, resource metadata, creator settings,
+  and descriptor-side dynamic-property access
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 
