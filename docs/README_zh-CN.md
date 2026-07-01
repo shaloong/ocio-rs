@@ -7,16 +7,19 @@
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-当前版本面向 OpenColorIO v2.5.2。OCIO 2.5 的主要 safe wrapper 与 bundled
-real-OCIO 构建链路已经基本到位，但发布加固与长尾行为验证仍在继续。
+当前版本面向 OpenColorIO v2.5.2。OCIO 2.5 的主要 safe wrapper、bundled
+real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但发布加固与长尾
+行为验证仍在继续。
 
 目前 bundled 验证已经不只是链接或 smoke test，下面这些高频运行时路径也有了
 真实行为覆盖：
 
 - `Config` 的 multi-config/display-view 行为，以及 virtual/shared view 元数据
 - `FileRules` 的插入、regex/custom key 往返和挂载到 `Config`
-- `DynamicProperty` 在 `Processor` 与 `CPUProcessor` 间的运行时语义
-- `GpuShaderDesc` 的提取结构、资源元数据与配置往返
+- `DynamicProperty` 在 `Processor`、`CPUProcessor` 与提取后的 GPU descriptor
+  之间的运行时语义
+- `GpuShaderDesc` 的提取结构、资源元数据、配置往返，以及手工 shader 片段 /
+  texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
 
 > [English](../README.md)

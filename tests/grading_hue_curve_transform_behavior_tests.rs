@@ -58,7 +58,7 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
     assert_eq!(round_trip.lum_sat, value.lum_sat);
     assert_eq!(transform.num_control_points(HueCurveType::HueHue), 3);
     let (hue_x, hue_y) = transform.control_point(HueCurveType::HueHue, 1);
-    assert_close(hue_x as f64, (1.0 / 6.0) as f64, 1e-6);
+    assert_close(hue_x as f64, 1.0 / 6.0, 1e-6);
     assert_close(hue_y as f64, 0.2, 1e-6);
     assert_close(transform.slope(HueCurveType::HueHue, 1) as f64, 0.5, 1e-6);
     assert!(!transform.slopes_are_default(HueCurveType::HueHue));

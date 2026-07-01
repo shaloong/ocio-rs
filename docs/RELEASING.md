@@ -28,6 +28,7 @@ From a recursive checkout, also run:
 
 ```bash
 cargo test --workspace --features bundled
+cargo build --features bundled --offline
 ```
 
 You can run the same repository-side audit with the helper script:
@@ -58,8 +59,9 @@ Current audit status:
   expected warning that `ocio-sys 0.2.0` must exist in the registry before the
   top-level crate can be fully packaged.
 
-The repository also exposes the same flow as a manual GitHub Actions workflow:
+The repository also exposes the same flow as manual GitHub Actions workflows:
 
+- `CI` (workflow_dispatch bundled job)
 - `Release Audit`
 
 ## Publish order

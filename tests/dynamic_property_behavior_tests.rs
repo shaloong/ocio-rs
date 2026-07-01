@@ -410,7 +410,7 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
         points.len() as i32
     );
     let (x, y) = processor_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
-    assert_close(x as f64, (1.0 / 6.0) as f64, 1e-6);
+    assert_close(x as f64, 1.0 / 6.0, 1e-6);
     assert_close(y as f64, 0.2, 1e-6);
     assert_close(
         processor_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
@@ -430,7 +430,7 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
         points.len() as i32
     );
     let (cpu_x, cpu_y) = cpu_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
-    assert_close(cpu_x as f64, (1.0 / 6.0) as f64, 1e-6);
+    assert_close(cpu_x as f64, 1.0 / 6.0, 1e-6);
     assert_close(cpu_y as f64, 0.2, 1e-6);
     assert_close(
         cpu_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,

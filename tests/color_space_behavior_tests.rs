@@ -175,8 +175,8 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
     config.add_color_space(&dst_cs);
 
     assert_eq!(config.num_color_spaces(), initial_count + 2);
-    assert_eq!(config.color_space("UnitColorSpaceA").is_some(), true);
-    assert_eq!(config.color_space("UnitColorSpaceB").is_some(), true);
+    assert!(config.color_space("UnitColorSpaceA").is_some());
+    assert!(config.color_space("UnitColorSpaceB").is_some());
     assert_eq!(
         config.canonical_name("unit_cs_a").as_deref(),
         Some("UnitColorSpaceA")

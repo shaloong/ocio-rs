@@ -33,9 +33,14 @@ cargo build --features bundled
 # Pre-installed OCIO
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
-# OCIO source tree
-OCIO_RS_ENABLE_REAL=1 OCIO_SOURCE_DIR=/path/to/ocio cargo build
+# OCIO source tree override for the bundled build path
+OCIO_RS_ENABLE_REAL=1 OCIO_SOURCE_DIR=/path/to/ocio cargo build --features bundled
 ```
+
+`OCIO_SOURCE_DIR` is not a standalone switch into real-OCIO mode. It is only
+consumed by the bundled build path, so use it together with
+`OCIO_RS_ENABLE_REAL=1` and `--features bundled` when overriding the vendored
+OpenColorIO source tree.
 
 Static linking (Windows) requires: OpenColorIO, expat, yaml-cpp, Imath, pystring, minizip-ng, zlib, plus system libs (gdi32, user32, etc.). With `--features bundled`, OCIO's cmake fetches and builds all transitive dependencies automatically.
 
@@ -112,9 +117,10 @@ Current CI (`ci.yml`) runs:
 - `cargo doc --workspace --no-deps --no-default-features`
 - `cargo package -p ocio-sys --allow-dirty`
 
-Bundled real-OCIO validation is kept as a manual GitHub Actions job and runs:
+Bundled real-OCIO validation is kept on manual GitHub Actions workflows and runs:
 
 - `cargo test --workspace --features bundled`
+- `pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline`
 
 Recommended full CI pipeline:
 
@@ -130,4 +136,5 @@ steps:
 
 Real-OCIO tests require a built OCIO library, which adds significant build
 time. Stub-mode tests cover most wrapper and API-shape regressions, while the
-manual bundled job is the release-facing check for bridge correctness.
+manual bundled workflows are the release-facing checks for bridge correctness,
+packaging, and offline bundled viability.

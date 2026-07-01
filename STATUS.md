@@ -16,7 +16,7 @@ OpenColorIO workflow.
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
-| CI real-OCIO validation | Manual bundled full test job |
+| CI real-OCIO validation | Manual bundled and release-audit workflows |
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
@@ -27,7 +27,7 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
-  `1032` bridge/lib.rs declarations, `1021` bridge-backed safe-wrapper
+  `1061` bridge/lib.rs declarations, `1050` bridge-backed safe-wrapper
   matches, and `822/822` OCIO C++ header methods accounted for, including
   normalized coverage for static `Create` constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
@@ -112,9 +112,10 @@ Latest release-audit result:
   independence, and config attachment behavior in bundled mode, plus
   standalone and processor-extracted `ProcessorMetadata` behavior.
 
-The GitHub Actions workflow keeps bundled validation as a manual job because it
-requires a recursive checkout and a slower native OCIO build, but the manual
-path executes the bundled test suite rather than stopping at `--no-run`.
+GitHub Actions keeps bundled validation on manual workflows because it requires
+a recursive checkout and a slower native OCIO build. The manual paths now cover
+both the dedicated bundled test job in `ci.yml` and the broader `Release Audit`
+workflow, which also validates packaging and offline bundled compilation.
 
 Current runtime semantics worth calling out explicitly:
 

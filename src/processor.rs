@@ -1131,6 +1131,7 @@ impl GpuShaderDesc {
     }
 
     /// Adds a manual 1D/2D texture resource to the descriptor and returns its OCIO binding index.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_texture_2d(
         &self,
         texture_name: impl AsRef<str>,
@@ -1289,7 +1290,11 @@ impl GpuShaderDesc {
     pub fn add_uniform_f64(&self, name: impl AsRef<str>, value: f64) -> Result<bool> {
         let name = cstring(name)?;
         Ok(unsafe {
-            ocio_sys::ocio_gpu_shader_desc_add_uniform_double(self.handle.as_ptr(), name.as_ptr(), value)
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_double(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                value,
+            )
         })
     }
 
@@ -1297,7 +1302,11 @@ impl GpuShaderDesc {
     pub fn add_uniform_bool(&self, name: impl AsRef<str>, value: bool) -> Result<bool> {
         let name = cstring(name)?;
         Ok(unsafe {
-            ocio_sys::ocio_gpu_shader_desc_add_uniform_bool(self.handle.as_ptr(), name.as_ptr(), value)
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_bool(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                value,
+            )
         })
     }
 
@@ -1369,13 +1378,18 @@ impl GpuShaderDesc {
 
     /// Returns the number of dynamic properties attached to the descriptor.
     pub fn num_dynamic_properties(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_dynamic_properties_u32(self.handle.as_ptr()) }
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_num_dynamic_properties_u32(self.handle.as_ptr())
+        }
     }
 
     /// Returns a dynamic property by ordinal index, if present.
     pub fn dynamic_property_by_index(&self, index: u32) -> Option<DynamicProperty> {
         let handle = unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get_dynamic_property_by_index(self.handle.as_ptr(), index)
+            ocio_sys::ocio_gpu_shader_desc_get_dynamic_property_by_index(
+                self.handle.as_ptr(),
+                index,
+            )
         };
         NonNull::new(handle).map(|handle| DynamicProperty { handle })
     }

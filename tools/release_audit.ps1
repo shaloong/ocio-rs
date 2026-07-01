@@ -20,6 +20,7 @@ function Invoke-Check {
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
         [string]$WorkingDirectory = $repoRoot,
+        [hashtable]$Environment = @{},
         [switch]$AllowKnownTopLevelPackageBlocker
     )
 
@@ -30,15 +31,21 @@ function Invoke-Check {
     $stdoutPath = [System.IO.Path]::GetTempFileName()
     $stderrPath = [System.IO.Path]::GetTempFileName()
     try {
-        $process = Start-Process `
-            -FilePath "cargo" `
-            -ArgumentList $Arguments `
-            -WorkingDirectory $WorkingDirectory `
-            -NoNewWindow `
-            -Wait `
-            -PassThru `
-            -RedirectStandardOutput $stdoutPath `
-            -RedirectStandardError $stderrPath
+        $startProcessParams = @{
+            FilePath = "cargo"
+            ArgumentList = $Arguments
+            WorkingDirectory = $WorkingDirectory
+            NoNewWindow = $true
+            Wait = $true
+            PassThru = $true
+            RedirectStandardOutput = $stdoutPath
+            RedirectStandardError = $stderrPath
+        }
+        if ($Environment.Count -gt 0) {
+            $startProcessParams["Environment"] = $Environment
+        }
+
+        $process = Start-Process @startProcessParams
         $exitCode = $process.ExitCode
         $stdout = if (Test-Path $stdoutPath) { Get-Content $stdoutPath -Raw } else { "" }
         $stderr = if (Test-Path $stderrPath) { Get-Content $stderrPath -Raw } else { "" }
@@ -121,15 +128,73 @@ function Test-OcioSysBundledPayload {
 }
 
 function Get-OcioSysPackageDir {
-    $packageRoot = Join-Path $repoRoot "target/package"
-    if (-not (Test-Path -LiteralPath $packageRoot)) {
-        return $null
+    $packageRoots = @()
+
+    if ($script:OcioSysPackageTargetDir) {
+        $packageRoots += (Join-Path $script:OcioSysPackageTargetDir "package")
     }
 
-    Get-ChildItem -LiteralPath $packageRoot -Directory |
-        Where-Object { $_.Name -like "ocio-sys-*" } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
+    $packageRoots += (Join-Path $repoRoot "target/package")
+
+    foreach ($packageRoot in $packageRoots) {
+        if (-not (Test-Path -LiteralPath $packageRoot)) {
+            continue
+        }
+
+        $match = Get-ChildItem -LiteralPath $packageRoot -Directory |
+            Where-Object { $_.Name -like "ocio-sys-*" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+
+        if ($match) {
+            return $match
+        }
+    }
+
+    return $null
+}
+
+function Clear-PackageArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CrateName
+    )
+
+    $packageRoot = Join-Path $repoRoot "target/package"
+    if (-not (Test-Path -LiteralPath $packageRoot)) {
+        return
+    }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $packageRoot).Path
+    $expectedPrefix = [System.IO.Path]::GetFullPath($resolvedRoot + [System.IO.Path]::DirectorySeparatorChar)
+
+    Get-ChildItem -LiteralPath $packageRoot -Force |
+        Where-Object {
+            $_.Name -eq "$CrateName.crate" -or
+            $_.Name -like "$CrateName-*"
+        } |
+        ForEach-Object {
+            $targetPath = $_.FullName
+            $resolvedTarget = [System.IO.Path]::GetFullPath($targetPath)
+            if (-not $resolvedTarget.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to remove package artifact outside target/package: $resolvedTarget"
+            }
+
+            Remove-Item -LiteralPath $resolvedTarget -Recurse -Force -ErrorAction SilentlyContinue
+        }
+}
+
+function New-PackageTargetDir {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CrateName
+    )
+
+    $root = [System.IO.Path]::GetPathRoot($repoRoot)
+    if ([string]::IsNullOrWhiteSpace($root)) {
+        $root = $env:SystemDrive
+    }
+    Join-Path $root ("ot-" + $CrateName)
 }
 
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
@@ -139,11 +204,20 @@ Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-de
 Invoke-Check -Name "Docs (stub)" -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features")
 Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet")
 
+Clear-PackageArtifacts -CrateName "ocio-sys"
 $ocioSysPackageArgs = @("package", "-p", "ocio-sys", "--allow-dirty")
 if ($Offline) {
     $ocioSysPackageArgs += "--offline"
 }
-Invoke-Check -Name "Package ocio-sys" -Arguments $ocioSysPackageArgs
+$ocioSysPackageTargetDir = New-PackageTargetDir -CrateName "ocio-sys"
+$script:OcioSysPackageTargetDir = $ocioSysPackageTargetDir
+if (Test-Path -LiteralPath $ocioSysPackageTargetDir) {
+    Remove-Item -LiteralPath $ocioSysPackageTargetDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+Invoke-Check `
+    -Name "Package ocio-sys" `
+    -Arguments $ocioSysPackageArgs `
+    -Environment @{ CARGO_TARGET_DIR = $ocioSysPackageTargetDir }
 Test-OcioSysBundledPayload
 
 $ocioSysPackageDir = Get-OcioSysPackageDir
@@ -168,13 +242,19 @@ if ($IncludeBundled) {
 }
 
 if ($IncludeTopLevelPackage) {
+    Clear-PackageArtifacts -CrateName "ocio-rs"
     $topLevelPackageArgs = @("package", "--allow-dirty")
     if ($Offline) {
         $topLevelPackageArgs += "--offline"
     }
+    $ocioRsPackageTargetDir = New-PackageTargetDir -CrateName "ocio-rs"
+    if (Test-Path -LiteralPath $ocioRsPackageTargetDir) {
+        Remove-Item -LiteralPath $ocioRsPackageTargetDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Invoke-Check `
         -Name "Package ocio-rs" `
         -Arguments $topLevelPackageArgs `
+        -Environment @{ CARGO_TARGET_DIR = $ocioRsPackageTargetDir } `
         -AllowKnownTopLevelPackageBlocker
 }
 

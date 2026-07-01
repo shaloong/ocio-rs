@@ -53,13 +53,15 @@ fn processor_group_transform_and_metadata_behavior() {
 
     assert!(!processor.is_no_op());
     assert!(!processor.has_channel_crosstalk());
-    assert!(processor.is_dynamic() == false);
+    assert!(!processor.is_dynamic());
     assert!(processor.num_transforms() > 0);
 
     let cache_id = processor.cache_id().expect("processor cache_id");
     assert!(!cache_id.trim().is_empty());
 
-    let format_metadata = processor.format_metadata().expect("processor format metadata");
+    let format_metadata = processor
+        .format_metadata()
+        .expect("processor format metadata");
     assert!(format_metadata.num_children() >= 0);
     let processor_metadata = processor
         .processor_metadata()
@@ -79,7 +81,10 @@ fn processor_group_transform_and_metadata_behavior() {
 
     let first = group.transform(0).expect("first group transform");
     assert!(
-        matches!(first, Transform::Matrix(_) | Transform::Range(_) | Transform::Allocation(_)),
+        matches!(
+            first,
+            Transform::Matrix(_) | Transform::Range(_) | Transform::Allocation(_)
+        ),
         "unexpected first transform kind from processor group: {:?}",
         std::mem::discriminant(&first)
     );
@@ -91,7 +96,9 @@ fn processor_group_transform_and_metadata_behavior() {
     let group_cpu = group_processor
         .default_cpu_processor()
         .expect("group cpu processor");
-    let direct_cpu = processor.default_cpu_processor().expect("direct cpu processor");
+    let direct_cpu = processor
+        .default_cpu_processor()
+        .expect("direct cpu processor");
 
     let mut direct_pixel = [0.25f32, 0.5, 0.75, 1.0];
     let mut group_pixel = direct_pixel;
@@ -122,22 +129,24 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     assert!(!optimized_cpu.has_channel_crosstalk());
     assert!(!default_cpu.is_identity());
     assert!(!optimized_cpu.is_identity());
-    assert_eq!(default_cpu.input_bit_depth(), optimized_cpu.input_bit_depth());
-    assert_eq!(default_cpu.output_bit_depth(), optimized_cpu.output_bit_depth());
-    assert!(
-        !default_cpu
-            .cache_id()
-            .expect("default cpu cache id")
-            .trim()
-            .is_empty()
+    assert_eq!(
+        default_cpu.input_bit_depth(),
+        optimized_cpu.input_bit_depth()
     );
-    assert!(
-        !optimized_cpu
-            .cache_id()
-            .expect("optimized cpu cache id")
-            .trim()
-            .is_empty()
+    assert_eq!(
+        default_cpu.output_bit_depth(),
+        optimized_cpu.output_bit_depth()
     );
+    assert!(!default_cpu
+        .cache_id()
+        .expect("default cpu cache id")
+        .trim()
+        .is_empty());
+    assert!(!optimized_cpu
+        .cache_id()
+        .expect("optimized cpu cache id")
+        .trim()
+        .is_empty());
 
     let original = [0.25f32, 0.5, 0.75, 0.6];
     let mut via_default = original;
@@ -161,24 +170,23 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     assert!(!optimized_gpu.is_no_op());
     assert!(!default_gpu.has_channel_crosstalk());
     assert!(!optimized_gpu.has_channel_crosstalk());
-    assert!(
-        !default_gpu
-            .cache_id()
-            .expect("default gpu cache id")
-            .trim()
-            .is_empty()
-    );
-    assert!(
-        !optimized_gpu
-            .cache_id()
-            .expect("optimized gpu cache id")
-            .trim()
-            .is_empty()
-    );
+    assert!(!default_gpu
+        .cache_id()
+        .expect("default gpu cache id")
+        .trim()
+        .is_empty());
+    assert!(!optimized_gpu
+        .cache_id()
+        .expect("optimized gpu cache id")
+        .trim()
+        .is_empty());
 
-    let default_desc =
-        extract_shader_text(&default_gpu, "ocio_default_gpu_main", "ocio_default_gpu_pixel")
-            .expect("default gpu shader desc");
+    let default_desc = extract_shader_text(
+        &default_gpu,
+        "ocio_default_gpu_main",
+        "ocio_default_gpu_pixel",
+    )
+    .expect("default gpu shader desc");
     let optimized_desc = extract_shader_text(
         &optimized_gpu,
         "ocio_optimized_gpu_main",
@@ -194,7 +202,10 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     assert!(optimized_shader.contains("ocio_optimized_gpu_main"));
     assert_eq!(default_desc.num_uniforms(), optimized_desc.num_uniforms());
     assert_eq!(default_desc.num_textures(), optimized_desc.num_textures());
-    assert_eq!(default_desc.num_3d_textures(), optimized_desc.num_3d_textures());
+    assert_eq!(
+        default_desc.num_3d_textures(),
+        optimized_desc.num_3d_textures()
+    );
 }
 
 #[allow(deprecated)]
@@ -212,24 +223,21 @@ fn processor_legacy_gpu_helper_emits_real_shader_behavior() {
 
     assert!(!legacy_gpu.is_no_op());
     assert!(!legacy_gpu.has_channel_crosstalk());
-    assert!(
-        !legacy_gpu
-            .cache_id()
-            .expect("legacy gpu cache id")
-            .trim()
-            .is_empty()
-    );
+    assert!(!legacy_gpu
+        .cache_id()
+        .expect("legacy gpu cache id")
+        .trim()
+        .is_empty());
 
-    let desc = extract_shader_text(
-        &legacy_gpu,
-        "ocio_legacy_gpu_main",
-        "ocio_legacy_gpu_pixel",
-    )
-    .expect("legacy gpu shader desc");
+    let desc = extract_shader_text(&legacy_gpu, "ocio_legacy_gpu_main", "ocio_legacy_gpu_pixel")
+        .expect("legacy gpu shader desc");
     let shader = desc.shader_text().expect("legacy shader text");
 
     assert!(!shader.trim().is_empty());
     assert!(shader.contains("ocio_legacy_gpu_main"));
-    assert_eq!(desc.function_name().as_deref(), Some("ocio_legacy_gpu_main"));
+    assert_eq!(
+        desc.function_name().as_deref(),
+        Some("ocio_legacy_gpu_main")
+    );
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_legacy_gpu_pixel"));
 }
