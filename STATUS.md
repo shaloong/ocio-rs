@@ -11,9 +11,9 @@ OpenColorIO workflow.
 | Real OCIO build via installed OCIO | Available |
 | Bundled OCIO build | Available, continuously validated |
 | Safe Rust wrappers | Broad OCIO 2.5 coverage |
-| CPU processing | Wrapped and tested |
-| GPU shader extraction | Wrapped and smoke-tested |
-| Dynamic properties | Wrapped |
+| CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
+| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, and descriptor configuration round trips |
+| Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU exposure dynamics |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
 | CI real-OCIO validation | Manual bundled full test job |
@@ -35,6 +35,10 @@ Current release checklist highlights:
   passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
 - `cargo package -p ocio-sys --allow-dirty --offline` passes.
+- `cargo test --workspace --features bundled` now covers the dedicated
+  `config_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
+  `gpu_shader_desc_behavior`, `cpu_processor_behavior`, and `matrix_op`
+  integration suites in addition to crate unit tests.
 
 Latest release-audit result:
 
@@ -42,12 +46,25 @@ Latest release-audit result:
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
   repository-side checks and reports only the known registry sequencing warning
   for top-level `cargo package`.
-- The current test matrix exercises `356` crate tests plus the `matrix_op`
-  integration suite in both stub and bundled validation paths.
+- The current bundled validation path exercises `357` crate tests plus six
+  dedicated integration suites covering config behavior, file rules, dynamic
+  properties, GPU shader descriptors, CPU processor execution, and matrix
+  processing behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
 path executes the bundled test suite rather than stopping at `--no-run`.
+
+Current runtime semantics worth calling out explicitly:
+
+- `DynamicProperty` exposure values set on a `Processor` seed newly created
+  `CPUProcessor` instances, while each `CPUProcessor` then owns its own runtime
+  dynamic-property state.
+- `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
+  language, function name, pixel name, and resource prefix, but extracted
+  shader payloads are not guaranteed to be copied into the clone.
+- `CPUProcessor::apply_rgb(a)_pixels` respects caller-provided stride values and
+  leaves padding lanes untouched in the bundled validation path.
 
 Release note: `ocio-sys` must be published before `ocio-rs` for matching
 versions because the top-level crate depends on the registry version of

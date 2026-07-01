@@ -12,6 +12,17 @@ largely in place, including bundled real-OCIO builds and broad safe-wrapper
 coverage, while release hardening and long-tail behavioral validation are still
 ongoing.
 
+Recent bundled validation now covers more than linkability and smoke tests for
+several high-use runtime paths, including:
+
+- `Config` multi-config/display-view behavior and virtual/shared-view metadata
+- `FileRules` insertion, regex/custom-key round trips, and config attachment
+- `DynamicProperty` runtime behavior across `Processor` and `CPUProcessor`
+- `GpuShaderDesc` extraction structure, resource metadata, and configuration
+  round trips
+- `CPUProcessor` packed/pixel execution paths, including stride-preserving
+  behavior for `RGB(A)` buffers
+
 > [中文文档](docs/README_zh-CN.md)
 
 > Breaking API updates are tracked in [docs/MIGRATION.md](docs/MIGRATION.md).

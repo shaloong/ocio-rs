@@ -16,6 +16,16 @@
 
 The old pointer-shaped GPU descriptor methods were not reliable in real OCIO mode and should not be used by application code.
 
+Bundled runtime validation now also exercises real shader extraction. In the
+current Rust wrapper semantics:
+
+- descriptor configuration such as language, function name, pixel name, and
+  resource prefix round-trips through the safe API surface;
+- extracted shader text, uniforms, and textures are validated through the
+  structured accessors;
+- `clone_desc()` preserves descriptor configuration, but it should not be
+  treated as a guaranteed deep copy of already-extracted shader payloads.
+
 ### View transforms
 
 `ViewTransform` is now modeled as OpenColorIO defines it:
@@ -118,6 +128,20 @@ Crate-level and utility entry points are following the same pattern. Prefer `cur
 `GpuShaderDesc` is receiving the same treatment around lightweight value accessors. Prefer `uniform_value_count()`, `uniform_values_f32()`, `uniform_values_i32()`, `texture_value_count()`, `texture_3d_value_count()`, `texture_3d_values()`, and `texture_3d_shader_binding_index()` over the remaining `get_*` / `copy*` compatibility helpers when migrating `0.2` call sites.
 
 Dynamic-property discovery is being normalized toward typed enums as well. Prefer `Processor::has_dynamic_property_kind()` and `CPUProcessor::has_dynamic_property_kind()` with `DynamicPropertyType` over raw integer-based checks when updating `0.2` call sites.
+
+Bundled runtime validation now covers the common exposure path as well:
+
+- `Processor::dynamic_property(DynamicPropertyType::Exposure)` exposes the
+  dynamic value used to seed new `CPUProcessor` instances;
+- each created `CPUProcessor` owns its own runtime dynamic-property state after
+  creation and can drive actual CPU pixel results through
+  `CPUProcessor::dynamic_property(...)`.
+
+CPU execution helpers are now covered beyond smoke tests in bundled mode.
+`CPUProcessor::apply_rgb(a)_pixels` and
+`CPUProcessor::apply_rgb(a)_packed_bit_depth(..., BitDepth::F32, ...)` are
+validated against real matrix processors, including stride-preserving behavior
+for padded RGB/RGBA buffers.
 
 Display/view metadata helpers are following the same path. Prefer `display_view_rule()`, `display_view_description()`, `default_view_transform_name()`, `virtual_display_view_transform_name()`, `virtual_display_view_color_space_name()`, `virtual_display_view_looks()`, `virtual_display_view_rule()`, and `virtual_display_view_description()` over the corresponding `get_*` forms.
 
