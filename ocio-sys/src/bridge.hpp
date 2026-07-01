@@ -572,6 +572,21 @@ size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index
 bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len);
 bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
 size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);
+bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value);
+bool ocio_gpu_shader_desc_add_uniform_bool(void* handle, const char* name, bool value);
+bool ocio_gpu_shader_desc_add_uniform_float3(void* handle, const char* name, float x, float y, float z);
+bool ocio_gpu_shader_desc_add_uniform_vector_float(
+    void* handle,
+    const char* name,
+    const float* values,
+    size_t len,
+    uint32_t maxSize);
+bool ocio_gpu_shader_desc_add_uniform_vector_int(
+    void* handle,
+    const char* name,
+    const int* values,
+    size_t len,
+    uint32_t maxSize);
 unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
 void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
 void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);

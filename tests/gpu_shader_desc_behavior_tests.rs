@@ -352,3 +352,57 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(tex3d.binding_index, 6);
     assert_eq!(tex3d.values, values_3d);
 }
+
+#[test]
+fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    assert!(desc.add_uniform_f64("uExposure", 1.25).expect("add uniform f64"));
+    assert!(desc.add_uniform_bool("uEnabled", true).expect("add uniform bool"));
+    assert!(desc
+        .add_uniform_float3("uTint", [0.1, 0.2, 0.3])
+        .expect("add uniform float3"));
+    assert!(desc
+        .add_uniform_f32_array("uCurve", &[0.0, 0.5, 1.0], 4)
+        .expect("add uniform f32 array"));
+    assert!(desc
+        .add_uniform_i32_array("uIndices", &[1, 3, 5], 4)
+        .expect("add uniform i32 array"));
+    assert!(!desc
+        .add_uniform_f64("uExposure", 2.0)
+        .expect("duplicate uniform returns false"));
+
+    assert_eq!(desc.num_uniforms(), 5);
+    assert!(desc.uniform_buffer_size() > 0);
+
+    let exposure = desc.uniform(0).expect("uniform 0");
+    assert_eq!(exposure.name, "uExposure");
+    assert_eq!(exposure.uniform_type, GpuUniformType::Double);
+    assert_eq!(desc.uniform_values_f32(0), vec![1.25]);
+
+    let enabled = desc.uniform(1).expect("uniform 1");
+    assert_eq!(enabled.name, "uEnabled");
+    assert_eq!(enabled.uniform_type, GpuUniformType::Bool);
+    assert_eq!(desc.uniform_values_f32(1), vec![1.0]);
+
+    let tint = desc.uniform(2).expect("uniform 2");
+    assert_eq!(tint.name, "uTint");
+    assert_eq!(tint.uniform_type, GpuUniformType::Float3);
+    assert_eq!(desc.uniform_values_f32(2), vec![0.1, 0.2, 0.3]);
+
+    let curve = desc.uniform(3).expect("uniform 3");
+    assert_eq!(curve.name, "uCurve");
+    assert_eq!(curve.uniform_type, GpuUniformType::VectorFloat);
+    assert_eq!(curve.value_count, 3);
+    assert_eq!(desc.uniform_values_f32(3), vec![0.0, 0.5, 1.0]);
+
+    let indices = desc.uniform(4).expect("uniform 4");
+    assert_eq!(indices.name, "uIndices");
+    assert_eq!(indices.uniform_type, GpuUniformType::VectorInt);
+    assert_eq!(indices.value_count, 3);
+    assert_eq!(desc.uniform_values_i32(4), vec![1, 3, 5]);
+}

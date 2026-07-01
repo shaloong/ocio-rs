@@ -22,7 +22,7 @@ several high-use runtime paths, including:
   extracted GPU descriptors
 - `GpuShaderDesc` extraction structure, resource metadata, creator settings,
   descriptor-side dynamic-property access, manual shader-text assembly, and
-  manual texture insertion
+  manual texture and uniform insertion
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 

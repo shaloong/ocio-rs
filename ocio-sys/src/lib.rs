@@ -1134,6 +1134,37 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(handle: *mut c_void) -> usize;
+    pub fn ocio_gpu_shader_desc_add_uniform_double(
+        handle: *mut c_void,
+        name: *const i8,
+        value: f64,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_bool(
+        handle: *mut c_void,
+        name: *const i8,
+        value: bool,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_float3(
+        handle: *mut c_void,
+        name: *const i8,
+        x: f32,
+        y: f32,
+        z: f32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_float(
+        handle: *mut c_void,
+        name: *const i8,
+        values: *const f32,
+        len: usize,
+        max_size: u32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_int(
+        handle: *mut c_void,
+        name: *const i8,
+        values: *const i32,
+        len: usize,
+        max_size: u32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_dynamic_properties_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_dynamic_property_by_index(
         handle: *mut c_void,

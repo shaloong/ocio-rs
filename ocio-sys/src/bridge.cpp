@@ -7038,6 +7038,97 @@ size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle) {
 #endif
 }
 
+bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)value;
+  return false;
+#else
+  try {
+    auto owned = std::make_shared<double>(value);
+    ocio::GpuShaderCreator::DoubleGetter getter = [owned]() { return *owned; };
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
+      name,
+      getter);
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_bool(void* handle, const char* name, bool value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)value;
+  return false;
+#else
+  try {
+    auto owned = std::make_shared<bool>(value);
+    ocio::GpuShaderCreator::BoolGetter getter = [owned]() { return *owned; };
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
+      name,
+      getter);
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_float3(void* handle, const char* name, float x, float y, float z) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)x; (void)y; (void)z;
+  return false;
+#else
+  try {
+    auto owned = std::make_shared<ocio::Float3>();
+    (*owned)[0] = x;
+    (*owned)[1] = y;
+    (*owned)[2] = z;
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
+      name,
+      [owned]() -> const ocio::Float3& { return *owned; });
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_vector_float(
+    void* handle,
+    const char* name,
+    const float* values,
+    size_t len,
+    uint32_t maxSize) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)values; (void)len; (void)maxSize;
+  return false;
+#else
+  try {
+    if ((!values && len > 0) || maxSize < len) return false;
+    auto owned = std::make_shared<std::vector<float>>(values, values + len);
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
+      name,
+      [owned]() { return static_cast<int>(owned->size()); },
+      [owned]() { return owned->empty() ? nullptr : owned->data(); },
+      maxSize);
+  } catch (...) { return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_vector_int(
+    void* handle,
+    const char* name,
+    const int* values,
+    size_t len,
+    uint32_t maxSize) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)values; (void)len; (void)maxSize;
+  return false;
+#else
+  try {
+    if ((!values && len > 0) || maxSize < len) return false;
+    auto owned = std::make_shared<std::vector<int>>(values, values + len);
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
+      name,
+      [owned]() { return static_cast<int>(owned->size()); },
+      [owned]() { return owned->empty() ? nullptr : owned->data(); },
+      maxSize);
+  } catch (...) { return false; }
+#endif
+}
+
 unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

@@ -1285,6 +1285,88 @@ impl GpuShaderDesc {
         self.uniform_buffer_size()
     }
 
+    /// Adds a scalar floating-point uniform and returns `false` when the name already exists.
+    pub fn add_uniform_f64(&self, name: impl AsRef<str>, value: f64) -> Result<bool> {
+        let name = cstring(name)?;
+        Ok(unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_double(self.handle.as_ptr(), name.as_ptr(), value)
+        })
+    }
+
+    /// Adds a boolean uniform and returns `false` when the name already exists.
+    pub fn add_uniform_bool(&self, name: impl AsRef<str>, value: bool) -> Result<bool> {
+        let name = cstring(name)?;
+        Ok(unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_bool(self.handle.as_ptr(), name.as_ptr(), value)
+        })
+    }
+
+    /// Adds a three-component floating-point uniform and returns `false` when the name already exists.
+    pub fn add_uniform_float3(&self, name: impl AsRef<str>, value: [f32; 3]) -> Result<bool> {
+        let name = cstring(name)?;
+        Ok(unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_float3(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                value[0],
+                value[1],
+                value[2],
+            )
+        })
+    }
+
+    /// Adds a floating-point array uniform and returns `false` when the name already exists.
+    pub fn add_uniform_f32_array(
+        &self,
+        name: impl AsRef<str>,
+        values: &[f32],
+        max_size: u32,
+    ) -> Result<bool> {
+        if max_size < values.len() as u32 {
+            return Err(OcioError::ValidationFailed(format!(
+                "gpu uniform max_size {} is smaller than value count {}",
+                max_size,
+                values.len()
+            )));
+        }
+        let name = cstring(name)?;
+        Ok(unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_float(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                values.as_ptr(),
+                values.len(),
+                max_size,
+            )
+        })
+    }
+
+    /// Adds an integer array uniform and returns `false` when the name already exists.
+    pub fn add_uniform_i32_array(
+        &self,
+        name: impl AsRef<str>,
+        values: &[i32],
+        max_size: u32,
+    ) -> Result<bool> {
+        if max_size < values.len() as u32 {
+            return Err(OcioError::ValidationFailed(format!(
+                "gpu uniform max_size {} is smaller than value count {}",
+                max_size,
+                values.len()
+            )));
+        }
+        let name = cstring(name)?;
+        Ok(unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_int(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                values.as_ptr(),
+                values.len(),
+                max_size,
+            )
+        })
+    }
+
     /// Returns the number of dynamic properties attached to the descriptor.
     pub fn num_dynamic_properties(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_dynamic_properties_u32(self.handle.as_ptr()) }

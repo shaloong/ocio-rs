@@ -12,7 +12,7 @@ OpenColorIO workflow.
 | Bundled OCIO build | Available, continuously validated |
 | Safe Rust wrappers | Broad OCIO 2.5 coverage |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
-| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture insertion |
+| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture/uniform insertion |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
@@ -259,7 +259,9 @@ Current runtime semantics worth calling out explicitly:
   index allocation, manual shader-text assembly through the section-based
   `add_to_*` helpers plus `create_shader_text(...)`, and manual 1D/2D/3D
   texture insertion with OCIO-reported binding indices and payload round-trips.
-  In real OCIO builds, descriptor-side dynamic properties remain mutable after
+  Manual scalar, bool, float3, and vector uniform insertion is also covered,
+  including duplicate-name rejection and typed payload round-trips. In real
+  OCIO builds, descriptor-side dynamic properties remain mutable after
   extraction but do not currently alias the source `Processor` property object.
 - `ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of
   being conflated with `FormatMetadata`; bundled coverage validates standalone
