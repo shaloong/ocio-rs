@@ -8,19 +8,20 @@
 mod common;
 use common::*;
 
+use std::ffi::{CStr, CString};
+use std::os::raw::c_void;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
+use ocio_rs::transform::ExposureContrastTransform;
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{
     DynamicPropertyType, ExposureContrastStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, GpuUniformValue, Interpolation, TransformDirection,
 };
-use ocio_rs::transform::ExposureContrastTransform;
 
 fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK
-        .get_or_init(|| Mutex::new(()))
+    LOCK.get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
@@ -74,8 +75,7 @@ fn gpu_shader_desc_config_round_trip_behavior() {
         .expect("set_function_name");
     desc.set_pixel_name("ocio_test_pixel")
         .expect("set_pixel_name");
-    desc.set_unique_id("ocio-test-uid")
-        .expect("set_unique_id");
+    desc.set_unique_id("ocio-test-uid").expect("set_unique_id");
     desc.set_resource_prefix("ocio_test_")
         .expect("set_resource_prefix");
     desc.set_descriptor_set_index(3, 7);
@@ -291,7 +291,9 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     )
     .expect("create_shader_text");
 
-    let rebuilt = desc.shader_text().expect("shader_text after explicit build");
+    let rebuilt = desc
+        .shader_text()
+        .expect("shader_text after explicit build");
     assert!(rebuilt.contains("uniform float uManual;"));
     assert!(rebuilt.contains("uniform sampler2D texManual;"));
     assert!(rebuilt.contains("helperFn"));
@@ -335,8 +337,8 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(tex2d.values, values_2d);
 
     let values_3d = vec![
-        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0,
-        0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+        1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
     ];
     let binding_3d = desc
         .add_texture_3d(
@@ -366,8 +368,12 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     }
 
     let desc = GpuShaderDesc::create().expect("gpu shader desc create");
-    assert!(desc.add_uniform_f64("uExposure", 1.25).expect("add uniform f64"));
-    assert!(desc.add_uniform_bool("uEnabled", true).expect("add uniform bool"));
+    assert!(desc
+        .add_uniform_f64("uExposure", 1.25)
+        .expect("add uniform f64"));
+    assert!(desc
+        .add_uniform_bool("uEnabled", true)
+        .expect("add uniform bool"));
     assert!(desc
         .add_uniform_float3("uTint", [0.1, 0.2, 0.3])
         .expect("add uniform float3"));
@@ -410,4 +416,148 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     assert_eq!(indices.uniform_type, GpuUniformType::VectorInt);
     assert_eq!(indices.value_count, 3);
     assert_eq!(desc.uniform_values_i32(4), vec![1, 3, 5]);
+}
+
+#[test]
+fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let texture_name = CString::new("legacyTex2D").expect("texture name");
+    let sampler_name = CString::new("legacySampler2D").expect("sampler name");
+    let texture_values = [0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
+
+    let texture3d_name = CString::new("legacyTex3D").expect("3d texture name");
+    let sampler3d_name = CString::new("legacySampler3D").expect("3d sampler name");
+    let texture3d_values = [
+        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0,
+        0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    ];
+
+    unsafe {
+        let desc = ocio_sys::ocio_gpu_shader_desc_create();
+        assert!(!desc.is_null(), "gpu shader desc handle");
+
+        let binding_2d = ocio_sys::ocio_gpu_shader_desc_add_texture(
+            desc,
+            texture_name.as_ptr(),
+            sampler_name.as_ptr(),
+            2,
+            1,
+            GpuTextureChannel::Rgb as i32,
+            GpuTextureDimensions::Texture1D as i32,
+            Interpolation::Linear as i32,
+            texture_values.as_ptr(),
+            texture_values.len(),
+        );
+        assert!(binding_2d > 0);
+
+        let binding_3d = ocio_sys::ocio_gpu_shader_desc_add3d_texture(
+            desc,
+            texture3d_name.as_ptr(),
+            sampler3d_name.as_ptr(),
+            2,
+            Interpolation::Nearest as i32,
+            texture3d_values.as_ptr(),
+            texture3d_values.len(),
+        );
+        assert_eq!(binding_3d, binding_2d + 1);
+
+        let mut raw_texture_name: *const i8 = std::ptr::null();
+        let mut raw_sampler_name: *const i8 = std::ptr::null();
+        let mut width = 0u32;
+        let mut height = 0u32;
+        let mut channel = -1i32;
+        let mut dimensions = 0u8;
+        let mut interpolation = -1i32;
+        ocio_sys::ocio_gpu_shader_desc_get_texture(
+            desc,
+            std::ptr::null_mut(),
+            (&mut raw_texture_name as *mut *const i8).cast(),
+            (&mut raw_sampler_name as *mut *const i8).cast(),
+            (&mut width as *mut u32).cast::<c_void>(),
+            (&mut height as *mut u32).cast::<c_void>(),
+            (&mut channel as *mut i32).cast::<c_void>(),
+            (&mut dimensions as *mut u8).cast::<c_void>(),
+            (&mut interpolation as *mut i32).cast::<c_void>(),
+        );
+
+        assert!(!raw_texture_name.is_null(), "legacy texture name ptr");
+        assert!(!raw_sampler_name.is_null(), "legacy sampler name ptr");
+        assert_eq!(
+            CStr::from_ptr(raw_texture_name)
+                .to_str()
+                .expect("utf8 texture name"),
+            "legacyTex2D"
+        );
+        assert_eq!(
+            CStr::from_ptr(raw_sampler_name)
+                .to_str()
+                .expect("utf8 sampler name"),
+            "legacySampler2D"
+        );
+        assert_eq!(width, 2);
+        assert_eq!(height, 1);
+        assert_eq!(channel, GpuTextureChannel::Rgb as i32);
+        assert_eq!(dimensions, GpuTextureDimensions::Texture1D as u8);
+        assert_eq!(interpolation, Interpolation::Linear as i32);
+
+        let mut raw_texture_values: *const f32 = std::ptr::null();
+        ocio_sys::ocio_gpu_shader_desc_get_texture_values(
+            desc,
+            std::ptr::null_mut(),
+            (&mut raw_texture_values as *mut *const f32).cast::<c_void>(),
+        );
+        assert!(!raw_texture_values.is_null(), "legacy texture values ptr");
+        assert_eq!(
+            std::slice::from_raw_parts(raw_texture_values, texture_values.len()),
+            texture_values
+        );
+
+        let mut raw_texture3d_name: *const i8 = std::ptr::null();
+        let mut raw_sampler3d_name: *const i8 = std::ptr::null();
+        let mut edge_len = 0u32;
+        let mut interpolation3d = -1i32;
+        ocio_sys::ocio_gpu_shader_desc_get3d_texture(
+            desc,
+            std::ptr::null_mut(),
+            (&mut raw_texture3d_name as *mut *const i8).cast(),
+            (&mut raw_sampler3d_name as *mut *const i8).cast(),
+            (&mut edge_len as *mut u32).cast::<c_void>(),
+            (&mut interpolation3d as *mut i32).cast::<c_void>(),
+        );
+
+        assert!(!raw_texture3d_name.is_null(), "legacy 3d texture name ptr");
+        assert!(!raw_sampler3d_name.is_null(), "legacy 3d sampler name ptr");
+        assert_eq!(
+            CStr::from_ptr(raw_texture3d_name)
+                .to_str()
+                .expect("utf8 3d texture name"),
+            "legacyTex3D"
+        );
+        assert_eq!(
+            CStr::from_ptr(raw_sampler3d_name)
+                .to_str()
+                .expect("utf8 3d sampler name"),
+            "legacySampler3D"
+        );
+        assert_eq!(edge_len, 2);
+        assert_eq!(interpolation3d, Interpolation::Nearest as i32);
+
+        let mut raw_texture3d_values: *const f32 = std::ptr::null();
+        ocio_sys::ocio_gpu_shader_desc_get3d_texture_values(
+            desc,
+            std::ptr::null_mut(),
+            (&mut raw_texture3d_values as *mut *const f32).cast::<c_void>(),
+        );
+        assert!(!raw_texture3d_values.is_null(), "legacy 3d texture values ptr");
+        assert_eq!(
+            std::slice::from_raw_parts(raw_texture3d_values, texture3d_values.len()),
+            texture3d_values
+        );
+
+        ocio_sys::ocio_gpu_shader_desc_destroy(desc);
+    }
 }

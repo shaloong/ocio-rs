@@ -7576,6 +7576,7 @@ void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char* tex
   return;
 #else
   try {
+    if (!width || !height || !channel || !dimensions || !interpolation) return;
     const char* localTextureName = nullptr;
     const char* localSamplerName = nullptr;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTexture(
@@ -7587,8 +7588,12 @@ void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char* tex
         *static_cast<ocio::GpuShaderDesc::TextureType*>(channel),
         *static_cast<ocio::GpuShaderDesc::TextureDimensions*>(dimensions),
         *static_cast<ocio::Interpolation*>(interpolation));
-    (void)textureName;
-    (void)samplerName;
+    if (textureName) {
+      *reinterpret_cast<const char**>(const_cast<char*>(textureName)) = localTextureName;
+    }
+    if (samplerName) {
+      *reinterpret_cast<const char**>(const_cast<char*>(samplerName)) = localSamplerName;
+    }
   } catch (...) { return ; }
 #endif
 }
@@ -7602,7 +7607,9 @@ void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const fl
     const float* localValues = nullptr;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureValues(
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)), localValues);
-    (void)values;
+    if (values) {
+      *reinterpret_cast<const float**>(const_cast<float*>(values)) = localValues;
+    }
   } catch (...) { return ; }
 #endif
 }
@@ -7638,6 +7645,7 @@ void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* t
   return;
 #else
   try {
+    if (!edgelen || !interpolation) return;
     const char* localTextureName = nullptr;
     const char* localSamplerName = nullptr;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTexture(
@@ -7646,8 +7654,12 @@ void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* t
         localSamplerName,
         *static_cast<unsigned*>(edgelen),
         *static_cast<ocio::Interpolation*>(interpolation));
-    (void)textureName;
-    (void)samplerName;
+    if (textureName) {
+      *reinterpret_cast<const char**>(const_cast<char*>(textureName)) = localTextureName;
+    }
+    if (samplerName) {
+      *reinterpret_cast<const char**>(const_cast<char*>(samplerName)) = localSamplerName;
+    }
   } catch (...) { return ; }
 #endif
 }
@@ -7661,7 +7673,9 @@ void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const 
     const float* localValues = nullptr;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->get3DTextureValues(
         static_cast<unsigned>(reinterpret_cast<uintptr_t>(index)), localValues);
-    (void)values;
+    if (values) {
+      *reinterpret_cast<const float**>(const_cast<float*>(values)) = localValues;
+    }
   } catch (...) { return ; }
 #endif
 }
