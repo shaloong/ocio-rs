@@ -10,7 +10,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{BitDepth, CPUProcessor, TransformDirection};
+use ocio_rs::{BitDepth, CPUProcessor, Processor, TransformDirection};
 
 fn cpu_processor_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -24,6 +24,14 @@ fn scaled_cpu_processor(scale: [f64; 4]) -> Option<CPUProcessor> {
         .processor_from_transform(&transform, TransformDirection::Forward)
         .ok()?;
     processor.default_cpu_processor().ok()
+}
+
+fn scaled_processor(scale: [f64; 4]) -> Option<Processor> {
+    let config = create_test_config()?;
+    let transform = MatrixTransform::scale(&scale).ok()?;
+    config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()
 }
 
 fn f32s_to_bytes(values: &[f32]) -> Vec<u8> {
@@ -146,4 +154,40 @@ fn cpu_rgb_packed_f32_matches_rgb_path_behavior() {
     assert_close(packed_output[3] as f64, 0.8, 1e-6);
     assert_close(packed_output[4] as f64, 0.2, 1e-6);
     assert_close(packed_output[5] as f64, 0.4, 1e-6);
+}
+
+#[test]
+#[should_panic(expected = "CPUProcessor::apply_rgba_pixels: buffer too small")]
+fn cpu_rgba_pixels_short_buffer_panics() {
+    if is_stub() {
+        return;
+    }
+
+    let cpu = scaled_cpu_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled cpu processor");
+    let mut rgba = vec![0.0f32; 7];
+    cpu.apply_rgba_pixels(&mut rgba, 2, 4);
+}
+
+#[test]
+#[should_panic(expected = "CPUProcessor::apply_rgb_packed_bit_depth: buffer too small")]
+fn cpu_rgb_packed_short_buffer_panics() {
+    if is_stub() {
+        return;
+    }
+
+    let cpu = scaled_cpu_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled cpu processor");
+    let mut packed_bytes = vec![0u8; 20];
+    cpu.apply_rgb_packed_bit_depth(&mut packed_bytes, BitDepth::F32, 2, 3);
+}
+
+#[test]
+#[should_panic(expected = "Processor::apply_rgba_pixels: buffer too small")]
+fn processor_rgba_pixels_short_buffer_panics() {
+    if is_stub() {
+        return;
+    }
+
+    let processor = scaled_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled processor");
+    let mut rgba = vec![0.0f32; 7];
+    processor.apply_rgba_pixels(&mut rgba, 2, 4);
 }

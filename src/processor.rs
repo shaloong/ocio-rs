@@ -8,6 +8,55 @@ use crate::{
 };
 use ocio_sys;
 
+fn required_scalar_len(api: &str, num_pixels: i64, stride: i64) -> usize {
+    let num_pixels = usize::try_from(num_pixels)
+        .unwrap_or_else(|_| panic!("{api}: num_pixels must be non-negative"));
+    let stride =
+        usize::try_from(stride).unwrap_or_else(|_| panic!("{api}: stride must be non-negative"));
+    num_pixels
+        .checked_mul(stride)
+        .unwrap_or_else(|| panic!("{api}: num_pixels * stride overflowed"))
+}
+
+fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> usize {
+    match bit_depth {
+        BitDepth::Uint8 => 1,
+        BitDepth::Uint10
+        | BitDepth::Uint12
+        | BitDepth::Uint14
+        | BitDepth::Uint16
+        | BitDepth::F16 => 2,
+        BitDepth::Uint32 | BitDepth::F32 => 4,
+        BitDepth::Unknown => panic!("{api}: BitDepth::Unknown is not valid for packed pixel IO"),
+    }
+}
+
+fn validate_scalar_buffer_len(api: &str, actual_len: usize, num_pixels: i64, stride: i64) {
+    let required_len = required_scalar_len(api, num_pixels, stride);
+    assert!(
+        actual_len >= required_len,
+        "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}; required at least {required_len} scalars, got {actual_len}"
+    );
+}
+
+fn validate_packed_buffer_len(
+    api: &str,
+    actual_len: usize,
+    bit_depth: BitDepth,
+    num_pixels: i64,
+    stride: i64,
+) {
+    let required_scalars = required_scalar_len(api, num_pixels, stride);
+    let bytes_per_channel = bit_depth_bytes_per_channel(api, bit_depth);
+    let required_len = required_scalars
+        .checked_mul(bytes_per_channel)
+        .unwrap_or_else(|| panic!("{api}: required packed buffer size overflowed"));
+    assert!(
+        actual_len >= required_len,
+        "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}, bit_depth={bit_depth:?}; required at least {required_len} bytes, got {actual_len}"
+    );
+}
+
 /// An immutable color-processing pipeline produced from a `Config`.
 ///
 /// Use `default_cpu_processor` or `default_gpu_processor` to execute or extract
@@ -31,6 +80,12 @@ impl Processor {
 
     /// Apply the processor to packed RGBA pixel data in place.
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
+        validate_scalar_buffer_len(
+            "Processor::apply_rgba_pixels",
+            rgba.len(),
+            num_pixels,
+            stride,
+        );
         unsafe {
             ocio_sys::ocio_processor_apply_rgba_pixels(
                 self.handle.as_ptr(),
@@ -349,6 +404,12 @@ impl CPUProcessor {
     }
 
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
+        validate_scalar_buffer_len(
+            "CPUProcessor::apply_rgba_pixels",
+            rgba.len(),
+            num_pixels,
+            stride,
+        );
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_pixels(
                 self.handle.as_ptr(),
@@ -360,6 +421,12 @@ impl CPUProcessor {
     }
 
     pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
+        validate_scalar_buffer_len(
+            "CPUProcessor::apply_rgb_pixels",
+            rgb.len(),
+            num_pixels,
+            stride,
+        );
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
                 self.handle.as_ptr(),
@@ -377,6 +444,13 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) {
+        validate_packed_buffer_len(
+            "CPUProcessor::apply_rgba_packed_bit_depth",
+            rgba.len(),
+            bit_depth,
+            num_pixels,
+            stride,
+        );
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
                 self.handle.as_ptr(),
@@ -414,6 +488,13 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) {
+        validate_packed_buffer_len(
+            "CPUProcessor::apply_rgb_packed_bit_depth",
+            rgb.len(),
+            bit_depth,
+            num_pixels,
+            stride,
+        );
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_packed(
                 self.handle.as_ptr(),
@@ -1814,10 +1895,10 @@ mod tests {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(cpu) = proc.default_cpu_processor() {
-            let mut rgba = vec![0u8; 32]; // packed rgba bytes
-            cpu.apply_rgba_packed_bit_depth(&mut rgba, BitDepth::F32, 8, 4);
-            let mut rgb = vec![0u8; 24]; // packed rgb bytes
-            cpu.apply_rgb_packed_bit_depth(&mut rgb, BitDepth::F32, 8, 3);
+            let mut rgba = vec![0u8; 32]; // 2 RGBA pixels as packed f32 bytes
+            cpu.apply_rgba_packed_bit_depth(&mut rgba, BitDepth::F32, 2, 4);
+            let mut rgb = vec![0u8; 24]; // 2 RGB pixels as packed f32 bytes
+            cpu.apply_rgb_packed_bit_depth(&mut rgb, BitDepth::F32, 2, 3);
         }
     }
 
