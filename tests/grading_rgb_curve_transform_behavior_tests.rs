@@ -101,3 +101,50 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
     assert_eq!(transform.value(), baseline_lin.value());
     assert!(transform.bypass_lin_to_log());
 }
+
+#[test]
+#[allow(deprecated)]
+fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
+    let _guard = grading_rgb_curve_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let seeded = sample_rgb_curve_value();
+    let wrapper =
+        GradingRGBCurveTransform::create(GradingStyle::Log).expect("wrapper grading rgb curve");
+    wrapper.set_value(&seeded);
+
+    unsafe {
+        let handle = wrapper.raw_value_handle();
+        assert!(!handle.is_null(), "raw grading rgb curve handle");
+        drop(wrapper);
+
+        let target =
+            ocio_sys::ocio_grading_rgb_curve_transform_create_with_style(GradingStyle::Log as i32);
+        assert!(!target.is_null(), "target grading rgb curve transform");
+        ocio_sys::ocio_grading_rgb_curve_transform_set_value(target, handle);
+
+        assert_eq!(
+            ocio_sys::ocio_grading_rgb_curve_transform_get_num_control_points(
+                target,
+                RGBCurveType::Red as i32
+            ),
+            3
+        );
+        let mut x = 0.0f32;
+        let mut y = 0.0f32;
+        ocio_sys::ocio_grading_rgb_curve_transform_get_control_point(
+            target,
+            RGBCurveType::Red as i32,
+            1,
+            &mut x,
+            &mut y,
+        );
+        assert_close(x as f64, 0.5, 1e-6);
+        assert_close(y as f64, 0.6, 1e-6);
+
+        ocio_sys::ocio_grading_rgb_curve_destroy(handle);
+        ocio_sys::ocio_grading_rgb_curve_transform_destroy(target);
+    }
+}

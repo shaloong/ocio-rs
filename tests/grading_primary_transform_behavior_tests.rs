@@ -139,3 +139,63 @@ fn grading_primary_linear_processor_forward_inverse_behavior() {
     assert_close(restored[2] as f64, original[2] as f64, 5e-5);
     assert_close(restored[3] as f64, original[3] as f64, 5e-5);
 }
+
+#[test]
+fn grading_primary_legacy_value_handle_survives_parent_drop() {
+    let _guard = grading_primary_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    unsafe {
+        let source =
+            ocio_sys::ocio_grading_primary_transform_create_with_style(GradingStyle::Lin as i32);
+        assert!(!source.is_null(), "source grading primary transform");
+
+        let mut seeded_flat = [0.0f64; 34];
+        seeded_flat[4] = 1.0;
+        seeded_flat[5] = 1.0;
+        seeded_flat[6] = 1.0;
+        seeded_flat[7] = 1.0;
+        seeded_flat[8] = 1.0;
+        seeded_flat[9] = 1.0;
+        seeded_flat[10] = 1.0;
+        seeded_flat[11] = 1.0;
+        seeded_flat[12] = 0.125;
+        seeded_flat[24] = 1.0;
+        seeded_flat[25] = 1.0;
+        seeded_flat[26] = 1.0;
+        seeded_flat[27] = 1.0;
+        seeded_flat[28] = 1.0;
+        seeded_flat[29] = 0.18;
+        seeded_flat[30] = 0.0;
+        seeded_flat[31] = 1.0;
+        seeded_flat[32] = GradingPrimary::no_clamp_black();
+        seeded_flat[33] = GradingPrimary::no_clamp_white();
+        assert!(ocio_sys::ocio_grading_primary_transform_set_value_from_f64(
+            source,
+            seeded_flat.as_ptr(),
+            seeded_flat.len()
+        ));
+
+        let value_handle = ocio_sys::ocio_grading_primary_transform_get_value(source);
+        assert!(!value_handle.is_null(), "grading primary value handle");
+        ocio_sys::ocio_grading_primary_transform_destroy(source);
+
+        let target =
+            ocio_sys::ocio_grading_primary_transform_create_with_style(GradingStyle::Lin as i32);
+        assert!(!target.is_null(), "target grading primary transform");
+        ocio_sys::ocio_grading_primary_transform_set_value(target, value_handle);
+
+        let mut flat = [0.0f64; 34];
+        assert!(ocio_sys::ocio_grading_primary_transform_copy_value(
+            target,
+            flat.as_mut_ptr(),
+            flat.len()
+        ));
+        assert_close(flat[12], 0.125, 1e-10);
+
+        ocio_sys::ocio_grading_primary_value_destroy(value_handle);
+        ocio_sys::ocio_grading_primary_transform_destroy(target);
+    }
+}

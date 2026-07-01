@@ -1570,6 +1570,7 @@ unsafe extern "C" {
     pub fn ocio_grading_primary_transform_get_value(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_primary_transform_set_value(handle: *mut c_void, values: *mut c_void)
         -> ();
+    pub fn ocio_grading_primary_value_destroy(handle: *mut c_void) -> ();
     pub fn ocio_grading_primary_transform_copy_value(
         handle: *mut c_void,
         values: *mut f64,
@@ -1607,6 +1608,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         values: *mut c_void,
     ) -> ();
+    pub fn ocio_grading_rgb_curve_destroy(handle: *mut c_void) -> ();
     pub fn ocio_grading_rgb_curve_transform_get_num_control_points(
         handle: *mut c_void,
         c: i32,
@@ -1675,6 +1677,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         value: *mut c_void,
     ) -> ();
+    pub fn ocio_grading_hue_curve_destroy(handle: *mut c_void) -> ();
     pub fn ocio_grading_hue_curve_transform_get_num_control_points(
         handle: *mut c_void,
         c: i32,
@@ -1729,6 +1732,7 @@ unsafe extern "C" {
     pub fn ocio_grading_tone_transform_set_style(handle: *mut c_void, style: i32) -> ();
     pub fn ocio_grading_tone_transform_get_value(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_tone_transform_set_value(handle: *mut c_void, values: *mut c_void) -> ();
+    pub fn ocio_grading_tone_value_destroy(handle: *mut c_void) -> ();
     pub fn ocio_grading_tone_transform_copy_value(
         handle: *mut c_void,
         values: *mut f64,

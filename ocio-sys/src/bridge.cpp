@@ -226,8 +226,10 @@ struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
 struct ConfigIOProxyHandle { std::shared_ptr<void> inner; };
 struct ViewingRulesHandle { std::shared_ptr<void> inner; };
 struct GpuShaderCreatorHandle { std::shared_ptr<void> inner; };
+struct GradingPrimaryValueHandle { std::shared_ptr<void> inner; };
 struct GradingRGBCurveHandle { std::shared_ptr<void> inner; };
 struct GradingHueCurveHandle { std::shared_ptr<void> inner; };
+struct GradingToneValueHandle { std::shared_ptr<void> inner; };
 struct MixingSliderHandle { std::shared_ptr<void> inner; };
 #ifdef OCIO_RS_STUB
 
@@ -572,6 +574,9 @@ struct RealFileRules {
 struct RealGradingPrimaryTransform {
   ocio::GradingPrimaryTransformRcPtr transform;
 };
+struct RealGradingPrimaryValue {
+  std::shared_ptr<ocio::GradingPrimary> value;
+};
 struct RealLogTransform {
   ocio::LogTransformRcPtr transform;
 };
@@ -631,6 +636,9 @@ struct RealBaker {
 };
 struct RealGradingToneTransform {
   ocio::GradingToneTransformRcPtr transform;
+};
+struct RealGradingToneValue {
+  std::shared_ptr<ocio::GradingTone> value;
 };
 struct RealGPUProcessor {
   ocio::GPUProcessorRcPtr gpu;
@@ -944,6 +952,11 @@ static ocio::DynamicPropertyRcPtr get_real_dynamic_property(void* handle) {
   return std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(h->inner)->prop;
 }
 
+static std::shared_ptr<ocio::GradingPrimary> get_real_grading_primary_value(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::GradingPrimaryValueHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealGradingPrimaryValue>(h->inner)->value;
+}
+
 static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
   return h ? static_cast<ocio::FormatMetadata*>(h->metadata) : nullptr;
@@ -960,6 +973,11 @@ static void* make_format_metadata_handle(std::shared_ptr<void> owner, const ocio
 static const ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::BuiltinConfigRegistryHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealBuiltinConfigRegistry>(h->inner)->registry;
+}
+
+static std::shared_ptr<ocio::GradingTone> get_real_grading_tone_value(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::GradingToneValueHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealGradingToneValue>(h->inner)->value;
 }
 
 static ocio::ConstBuiltinTransformRegistryRcPtr get_real_builtin_transform_registry(void* handle) {
@@ -10258,7 +10276,12 @@ void* ocio_grading_primary_transform_get_value(void* handle) {
   return nullptr;
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getValue())));
+    auto out_handle = std::make_unique<ocio_rs_bridge::GradingPrimaryValueHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealGradingPrimaryValue>(
+        ocio_rs_bridge::RealGradingPrimaryValue{
+            std::make_shared<ocio::GradingPrimary>(
+                ocio_rs_bridge::get_real_grading_primary_transform(handle)->getValue())});
+    return out_handle.release();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -10269,9 +10292,14 @@ void ocio_grading_primary_transform_set_value(void* handle, void* values) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_grading_primary_transform(handle)->setValue(*static_cast<const ocio::GradingPrimary*>(values));
+    ocio_rs_bridge::get_real_grading_primary_transform(handle)->setValue(
+        *ocio_rs_bridge::get_real_grading_primary_value(values));
   } catch (...) { return ; }
 #endif
+}
+
+void ocio_grading_primary_value_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingPrimaryValueHandle*>(handle);
 }
 
 bool ocio_grading_primary_transform_copy_value(void* handle, double* values, size_t len) {
@@ -10501,6 +10529,10 @@ void ocio_grading_rgb_curve_transform_set_value(void* handle, void* values) {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setValue(values_ptr);
   } catch (...) { return ; }
 #endif
+}
+
+void ocio_grading_rgb_curve_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingRGBCurveHandle*>(handle);
 }
 
 int ocio_grading_rgb_curve_transform_get_num_control_points(void* handle, int c) {
@@ -10782,6 +10814,10 @@ void ocio_grading_hue_curve_transform_set_value(void* handle, void* value) {
 #endif
 }
 
+void ocio_grading_hue_curve_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingHueCurveHandle*>(handle);
+}
+
 int ocio_grading_hue_curve_transform_get_num_control_points(void* handle, int c) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)c;
@@ -11016,7 +11052,12 @@ void* ocio_grading_tone_transform_get_value(void* handle) {
   return nullptr;
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getValue())));
+    auto out_handle = std::make_unique<ocio_rs_bridge::GradingToneValueHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealGradingToneValue>(
+        ocio_rs_bridge::RealGradingToneValue{
+            std::make_shared<ocio::GradingTone>(
+                ocio_rs_bridge::get_real_grading_tone_transform(handle)->getValue())});
+    return out_handle.release();
   } catch (...) { return nullptr; }
 #endif
 }
@@ -11027,9 +11068,14 @@ void ocio_grading_tone_transform_set_value(void* handle, void* values) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_grading_tone_transform(handle)->setValue(*static_cast<const ocio::GradingTone*>(values));
+    ocio_rs_bridge::get_real_grading_tone_transform(handle)->setValue(
+        *ocio_rs_bridge::get_real_grading_tone_value(values));
   } catch (...) { return ; }
 #endif
+}
+
+void ocio_grading_tone_value_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::GradingToneValueHandle*>(handle);
 }
 
 bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t len) {

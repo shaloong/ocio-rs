@@ -78,3 +78,73 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
     assert_eq!(transform.style(), GradingStyle::Video);
     assert_eq!(reset, expected);
 }
+
+#[test]
+fn grading_tone_legacy_value_handle_survives_parent_drop() {
+    let _guard = grading_tone_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    unsafe {
+        let source =
+            ocio_sys::ocio_grading_tone_transform_create_with_style(GradingStyle::Lin as i32);
+        assert!(!source.is_null(), "source grading tone transform");
+
+        let mut seeded_flat = [0.0f64; 31];
+        seeded_flat[0] = 1.0;
+        seeded_flat[1] = 1.0;
+        seeded_flat[2] = 1.0;
+        seeded_flat[3] = 1.0;
+        seeded_flat[5] = 4.0;
+        seeded_flat[6] = 1.0;
+        seeded_flat[7] = 1.0;
+        seeded_flat[8] = 1.0;
+        seeded_flat[9] = 1.0;
+        seeded_flat[10] = 2.0;
+        seeded_flat[11] = -7.0;
+        seeded_flat[12] = 1.0;
+        seeded_flat[13] = 1.0;
+        seeded_flat[14] = 1.0;
+        seeded_flat[15] = 1.0;
+        seeded_flat[16] = 1.5;
+        seeded_flat[17] = 8.0;
+        seeded_flat[18] = 1.0;
+        seeded_flat[19] = 1.0;
+        seeded_flat[20] = 1.0;
+        seeded_flat[21] = 1.0;
+        seeded_flat[22] = -2.0;
+        seeded_flat[23] = 9.0;
+        seeded_flat[24] = 1.0;
+        seeded_flat[25] = 1.0;
+        seeded_flat[26] = 1.0;
+        seeded_flat[27] = 1.0;
+        seeded_flat[29] = 8.0;
+        seeded_flat[30] = 1.0;
+        assert!(ocio_sys::ocio_grading_tone_transform_set_value_from_f64(
+            source,
+            seeded_flat.as_ptr(),
+            seeded_flat.len()
+        ));
+
+        let value_handle = ocio_sys::ocio_grading_tone_transform_get_value(source);
+        assert!(!value_handle.is_null(), "grading tone value handle");
+        ocio_sys::ocio_grading_tone_transform_destroy(source);
+
+        let target =
+            ocio_sys::ocio_grading_tone_transform_create_with_style(GradingStyle::Lin as i32);
+        assert!(!target.is_null(), "target grading tone transform");
+        ocio_sys::ocio_grading_tone_transform_set_value(target, value_handle);
+
+        let mut flat = [0.0f64; 31];
+        assert!(ocio_sys::ocio_grading_tone_transform_copy_value(
+            target,
+            flat.as_mut_ptr(),
+            flat.len()
+        ));
+        assert_close(flat[16], 1.5, 1e-10);
+
+        ocio_sys::ocio_grading_tone_value_destroy(value_handle);
+        ocio_sys::ocio_grading_tone_transform_destroy(target);
+    }
+}
