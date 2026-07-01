@@ -670,18 +670,28 @@ impl GpuUniformType {
 #[derive(Debug, Clone)]
 /// Texture payload and metadata for a 1D/2D GPU LUT resource.
 pub struct GpuTexture2D {
+    /// OCIO-generated texture symbol name used in emitted shader code.
     pub texture_name: String,
+    /// Sampler symbol name paired with `texture_name` in the emitted shader.
     pub sampler_name: String,
+    /// Logical texture width in texels.
     pub width: u32,
+    /// Logical texture height in texels.
     pub height: u32,
+    /// Channel packing used by the texture values.
     pub channel: GpuTextureChannel,
+    /// Whether the resource is logically treated as 1D or 2D.
     pub dimensions: GpuTextureDimensions,
+    /// Interpolation mode OCIO expects the texture to use.
     pub interpolation: Interpolation,
+    /// API-facing binding slot reported by OCIO for this texture.
     pub binding_index: u32,
+    /// Flattened texel payload in row-major order.
     pub values: Vec<f32>,
 }
 
 impl GpuTexture2D {
+    /// Returns the number of `f32` values implied by the current metadata.
     pub fn expected_value_count(&self) -> usize {
         self.width as usize * self.height as usize * self.channel.channel_count()
     }
@@ -690,15 +700,22 @@ impl GpuTexture2D {
 #[derive(Debug, Clone)]
 /// Texture payload and metadata for a 3D GPU LUT resource.
 pub struct GpuTexture3D {
+    /// OCIO-generated texture symbol name used in emitted shader code.
     pub texture_name: String,
+    /// Sampler symbol name paired with `texture_name` in the emitted shader.
     pub sampler_name: String,
+    /// Cube edge length in texels.
     pub edge_len: u32,
+    /// Interpolation mode OCIO expects the 3D LUT to use.
     pub interpolation: Interpolation,
+    /// API-facing binding slot reported by OCIO for this texture.
     pub binding_index: u32,
+    /// Flattened texel payload in OCIO's native 3D LUT ordering.
     pub values: Vec<f32>,
 }
 
 impl GpuTexture3D {
+    /// Returns the number of `f32` values implied by the current metadata.
     pub fn expected_value_count(&self) -> usize {
         let edge = self.edge_len as usize;
         edge * edge * edge * 3
@@ -708,22 +725,32 @@ impl GpuTexture3D {
 #[derive(Debug, Clone)]
 /// Typed value payload for a GPU uniform extracted from OCIO.
 pub enum GpuUniformValue {
+    /// Floating-point uniform payload.
     F32(Vec<f32>),
+    /// Integer uniform payload.
     I32(Vec<i32>),
+    /// Uniform payload could not be represented through the current Rust helper.
     Unsupported,
 }
 
 #[derive(Debug, Clone)]
 /// GPU uniform metadata and current value payload extracted from OCIO.
 pub struct GpuUniform {
+    /// Uniform symbol name used in the emitted shader.
     pub name: String,
+    /// OCIO-reported uniform value encoding.
     pub uniform_type: GpuUniformType,
+    /// Byte offset into the packed uniform buffer layout, when applicable.
     pub buffer_offset: usize,
+    /// Logical scalar count for the current uniform payload.
     pub value_count: usize,
+    /// Typed uniform payload copied into Rust-owned memory.
     pub value: GpuUniformValue,
 }
 
 impl GpuShaderDesc {
+    /// Creates an empty OCIO GPU shader descriptor that can be configured and
+    /// passed to `GPUProcessor::extract_shader_info`.
     pub fn create() -> Result<Self> {
         let handle = unsafe { ocio_sys::ocio_gpu_shader_desc_create() };
         NonNull::new(handle)
@@ -731,6 +758,7 @@ impl GpuShaderDesc {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Returns the extracted shader source text, if any.
     pub fn shader_text(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_gpu_shader_desc_get_shader_text(
@@ -739,10 +767,12 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Returns the number of reported 1D/2D texture resources.
     pub fn num_textures(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(self.handle.as_ptr()) }
     }
 
+    /// Returns lightweight legacy metadata for a 1D/2D texture resource.
     pub fn texture_info(&self, index: u32) -> Option<TextureInfo> {
         self.texture_2d(index).map(|texture| TextureInfo {
             texture_name: texture.texture_name,
@@ -755,6 +785,7 @@ impl GpuShaderDesc {
         })
     }
 
+    /// Returns a structured 1D/2D texture resource and copied texel payload.
     pub fn texture_2d(&self, index: u32) -> Option<GpuTexture2D> {
         let mut info = ocio_sys::OcioGpuTexture2DInfo {
             texture_name: std::ptr::null(),
@@ -800,12 +831,14 @@ impl GpuShaderDesc {
         })
     }
 
+    /// Returns all structured 1D/2D texture resources currently reported by OCIO.
     pub fn textures_2d(&self) -> Vec<GpuTexture2D> {
         (0..self.num_textures())
             .filter_map(|index| self.texture_2d(index))
             .collect()
     }
 
+    /// Returns the shader language currently configured on the descriptor.
     pub fn language(&self) -> GpuLanguage {
         let l = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr() as *mut c_void)
@@ -825,12 +858,14 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Sets the shader language OCIO should target during extraction.
     pub fn set_language(&self, language: GpuLanguage) {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_language(self.handle.as_ptr(), language as i32);
         }
     }
 
+    /// Returns the configured shader entry-point name, if any.
     pub fn function_name(&self) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(
@@ -839,6 +874,7 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Sets the shader entry-point name used during extraction.
     pub fn set_function_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         unsafe {
@@ -850,6 +886,7 @@ impl GpuShaderDesc {
         Ok(())
     }
 
+    /// Returns the configured pixel variable name, if any.
     pub fn pixel_name(&self) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(
@@ -858,6 +895,7 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Sets the pixel variable name used in emitted shader code.
     pub fn set_pixel_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         unsafe {
@@ -866,6 +904,7 @@ impl GpuShaderDesc {
         Ok(())
     }
 
+    /// Returns the configured resource-name prefix, if any.
     pub fn resource_prefix(&self) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(
@@ -874,6 +913,7 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Sets the prefix OCIO uses for generated resource names.
     pub fn set_resource_prefix(&self, prefix: impl AsRef<str>) -> Result<()> {
         let p = cstring(prefix)?;
         unsafe {
@@ -885,28 +925,33 @@ impl GpuShaderDesc {
         Ok(())
     }
 
+    /// Returns the copied texel payload for a 1D/2D texture resource.
     pub fn texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_2d(index)
             .map(|texture| texture.values)
             .unwrap_or_default()
     }
 
+    /// Finalizes descriptor configuration before extraction when OCIO requires it.
     pub fn finalize(&self) {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr() as *mut c_void);
         }
     }
 
+    /// Returns the maximum width OCIO would like to use for the given texture.
     pub fn texture_max_width(&self, index: i32) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_max_width(self.handle.as_ptr(), index) }
     }
 
+    /// Returns the maximum height OCIO would like to use for the given texture.
     pub fn texture_max_height(&self, index: i32) -> u32 {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_texture_max_height(self.handle.as_ptr(), index)
         }
     }
 
+    /// Returns OCIO's cache identifier for the current descriptor configuration.
     pub fn cache_id(&self) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(
@@ -915,6 +960,7 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Returns the OCIO texture UID associated with a 1D/2D resource, if any.
     pub fn texture_uid(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(
@@ -942,6 +988,7 @@ impl GpuShaderDesc {
         self.clone_desc()
     }
 
+    /// Returns the number of reported uniforms.
     pub fn num_uniforms(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
     }
@@ -951,6 +998,7 @@ impl GpuShaderDesc {
         self.num_uniforms()
     }
 
+    /// Returns the size in bytes of OCIO's packed uniform buffer layout.
     pub fn uniform_buffer_size(&self) -> usize {
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(self.handle.as_ptr())
@@ -962,6 +1010,7 @@ impl GpuShaderDesc {
         self.uniform_buffer_size()
     }
 
+    /// Returns a structured uniform record with Rust-owned payload values.
     pub fn uniform(&self, index: u32) -> Option<GpuUniform> {
         let mut info = ocio_sys::OcioGpuUniformInfo {
             name: std::ptr::null(),
@@ -1025,6 +1074,7 @@ impl GpuShaderDesc {
         self.uniform(index)
     }
 
+    /// Returns the scalar value count for a uniform, or `0` when absent.
     pub fn uniform_value_count(&self, index: u32) -> usize {
         self.uniform(index)
             .map(|uniform| uniform.value_count)
@@ -1036,6 +1086,7 @@ impl GpuShaderDesc {
         self.uniform_value_count(index)
     }
 
+    /// Returns copied floating-point uniform values when the uniform uses an `f32` payload.
     pub fn uniform_values_f32(&self, index: u32) -> Vec<f32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::F32(values)) => values,
@@ -1051,6 +1102,7 @@ impl GpuShaderDesc {
         self.uniform_values_f32(index)
     }
 
+    /// Returns copied integer uniform values when the uniform uses an `i32` payload.
     pub fn uniform_values_i32(&self, index: u32) -> Vec<i32> {
         match self.uniform(index).map(|uniform| uniform.value) {
             Some(GpuUniformValue::I32(values)) => values,
@@ -1066,12 +1118,14 @@ impl GpuShaderDesc {
         self.uniform_values_i32(index)
     }
 
+    /// Returns all structured uniform records currently reported by OCIO.
     pub fn uniforms(&self) -> Vec<GpuUniform> {
         (0..self.num_uniforms())
             .filter_map(|index| self.uniform(index))
             .collect()
     }
 
+    /// Returns the number of reported 3D texture resources.
     pub fn num_3d_textures(&self) -> u32 {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
     }
@@ -1081,6 +1135,7 @@ impl GpuShaderDesc {
         self.num_textures()
     }
 
+    /// Returns the copied scalar count for a 1D/2D texture resource.
     pub fn texture_value_count(&self, index: u32) -> usize {
         self.texture_values(index).len()
     }
@@ -1103,6 +1158,7 @@ impl GpuShaderDesc {
         self.num_3d_textures()
     }
 
+    /// Returns a structured 3D texture resource and copied texel payload.
     pub fn texture_3d(&self, index: u32) -> Option<GpuTexture3D> {
         let mut info = ocio_sys::OcioGpuTexture3DInfo {
             texture_name: std::ptr::null(),
@@ -1151,6 +1207,7 @@ impl GpuShaderDesc {
         self.texture_3d(index)
     }
 
+    /// Returns the copied scalar count for a 3D texture resource.
     pub fn texture_3d_value_count(&self, index: u32) -> usize {
         self.texture_3d(index)
             .map(|texture| texture.values.len())
@@ -1165,6 +1222,7 @@ impl GpuShaderDesc {
         self.texture_3d_value_count(index)
     }
 
+    /// Returns the copied texel payload for a 3D texture resource.
     pub fn texture_3d_values(&self, index: u32) -> Vec<f32> {
         self.texture_3d(index)
             .map(|texture| texture.values)
@@ -1176,6 +1234,7 @@ impl GpuShaderDesc {
         self.texture_3d_values(index)
     }
 
+    /// Returns all structured 3D texture resources currently reported by OCIO.
     pub fn textures_3d(&self) -> Vec<GpuTexture3D> {
         (0..self.num_3d_textures())
             .filter_map(|index| self.texture_3d(index))
@@ -1197,6 +1256,7 @@ impl GpuShaderDesc {
         self.texture_3d_values(index)
     }
 
+    /// Returns the binding index for a 3D texture resource, if present.
     pub fn texture_3d_shader_binding_index(&self, index: u32) -> Option<u32> {
         self.texture_3d(index).map(|texture| texture.binding_index)
     }
@@ -1209,10 +1269,12 @@ impl GpuShaderDesc {
         self.texture_3d_shader_binding_index(index)
     }
 
+    /// Returns the binding index for a 1D/2D texture resource, if present.
     pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
         self.texture_2d(index).map(|texture| texture.binding_index)
     }
 
+    /// Returns the uniform symbol name for the given index, if present.
     pub fn uniform_name(&self, index: u32) -> Option<String> {
         self.uniform(index).map(|uniform| uniform.name)
     }
