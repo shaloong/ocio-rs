@@ -40,6 +40,7 @@ Current release checklist highlights:
   `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
   `baker_behavior`, `builtin_config_registry_behavior`, `color_space_behavior`,
+  `color_space_transform_behavior`,
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
@@ -62,14 +63,15 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus seventeen
+- The current bundled validation path exercises `373` crate tests plus eighteen
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
-  execution, display-view-transform behavior, look behavior,
-  look-transform behavior, and view-transform display-pipeline behavior.
+  execution, color-space-transform behavior, display-view-transform behavior,
+  look behavior, look-transform behavior, and view-transform display-pipeline
+  behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -93,6 +95,10 @@ Current runtime semantics worth calling out explicitly:
   attached transforms in bundled mode; when validating processors across
   custom color spaces, distinct `equality_group` values matter because equal
   groups may let OCIO optimize the conversion path away.
+- `ColorSpaceTransform` round-trips src/dst strings and copy state in bundled
+  mode, matches named color-space processors for the same config path, and
+  `data_bypass=true` preserves RGB values for data-tagged source spaces where
+  the forced path would otherwise apply the configured conversion.
 - `BuiltinTransformRegistry` and `BuiltinTransform` helper enumeration stay
   coherent in bundled mode, and builtin descriptions may legitimately be empty
   strings for some upstream styles rather than guaranteed human-readable text.
