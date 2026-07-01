@@ -10,12 +10,21 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::transform::ExposureContrastTransform;
-use ocio_rs::{DynamicPropertyType, ExposureContrastStyle, TransformDirection};
+use ocio_rs::grading::GradingCurvePoint;
+use ocio_rs::transform::{
+    ExposureContrastTransform, GradingHueCurveTransform, GradingPrimaryTransform,
+    GradingRGBCurveTransform, GradingToneTransform,
+};
+use ocio_rs::{
+    DynamicPropertyType, ExposureContrastStyle, GradingStyle, HueCurveType, RGBCurveType,
+    TransformDirection,
+};
 
 fn dynamic_property_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn dynamic_exposure_processor() -> Option<ocio_rs::Processor> {
@@ -31,6 +40,42 @@ fn dynamic_exposure_processor() -> Option<ocio_rs::Processor> {
         .processor_from_transform(&transform, TransformDirection::Forward)
         .ok()?;
     Some(processor)
+}
+
+fn dynamic_grading_primary_processor() -> Option<ocio_rs::Processor> {
+    let config = create_test_config()?;
+    let transform = GradingPrimaryTransform::create(GradingStyle::Log).ok()?;
+    transform.make_dynamic();
+    config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()
+}
+
+fn dynamic_grading_tone_processor() -> Option<ocio_rs::Processor> {
+    let config = create_test_config()?;
+    let transform = GradingToneTransform::create(GradingStyle::Log).ok()?;
+    transform.make_dynamic();
+    config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()
+}
+
+fn dynamic_grading_rgb_curve_processor() -> Option<ocio_rs::Processor> {
+    let config = create_test_config()?;
+    let transform = GradingRGBCurveTransform::create(GradingStyle::Log).ok()?;
+    transform.make_dynamic();
+    config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()
+}
+
+fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
+    let config = create_test_config()?;
+    let transform = GradingHueCurveTransform::create(GradingStyle::Log).ok()?;
+    transform.make_dynamic();
+    config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .ok()
 }
 
 #[test]
@@ -108,4 +153,300 @@ fn dynamic_exposure_cpu_property_round_trip_and_output_behavior() {
     assert_close(darkened[1] as f64, 0.25, 1e-6);
     assert_close(darkened[2] as f64, 0.0625, 1e-6);
     assert_close(darkened[3] as f64, 1.0, 1e-6);
+}
+
+#[test]
+fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = dynamic_grading_primary_processor().expect("dynamic grading primary processor");
+    assert!(processor.is_dynamic());
+    assert!(processor.has_dynamic_property_kind(DynamicPropertyType::GradingPrimary));
+
+    let processor_prop = processor
+        .dynamic_property(DynamicPropertyType::GradingPrimary)
+        .expect("processor grading primary property");
+    assert_eq!(
+        processor_prop.property_type(),
+        DynamicPropertyType::GradingPrimary
+    );
+
+    let mut value = processor_prop
+        .grading_primary_value()
+        .expect("grading primary value");
+    value.brightness.red = 0.125;
+    value.contrast.master = 1.15;
+    value.gain.blue = 1.25;
+    value.saturation = 0.9;
+    processor_prop.set_grading_primary_value(&value);
+
+    let round_trip = processor_prop
+        .grading_primary_value()
+        .expect("processor grading primary round trip");
+    assert_close(round_trip.brightness.red, 0.125, 1e-8);
+    assert_close(round_trip.contrast.master, 1.15, 1e-8);
+    assert_close(round_trip.gain.blue, 1.25, 1e-8);
+    assert_close(round_trip.saturation, 0.9, 1e-8);
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default cpu processor");
+    assert!(cpu.is_dynamic());
+    assert!(cpu.has_dynamic_property_kind(DynamicPropertyType::GradingPrimary));
+
+    let cpu_prop = cpu
+        .dynamic_property(DynamicPropertyType::GradingPrimary)
+        .expect("cpu grading primary property");
+    let cpu_value = cpu_prop
+        .grading_primary_value()
+        .expect("cpu grading primary value");
+    assert_close(cpu_value.brightness.red, 0.125, 1e-8);
+    assert_close(cpu_value.contrast.master, 1.15, 1e-8);
+    assert_close(cpu_value.gain.blue, 1.25, 1e-8);
+    assert_close(cpu_value.saturation, 0.9, 1e-8);
+
+    let mut cpu_update = cpu_value.clone();
+    cpu_update.offset.green = -0.05;
+    cpu_prop.set_grading_primary_value(&cpu_update);
+    let cpu_after_update = cpu_prop
+        .grading_primary_value()
+        .expect("cpu grading primary after cpu update");
+    assert_close(cpu_after_update.offset.green, -0.05, 1e-8);
+    let processor_after_cpu = processor_prop
+        .grading_primary_value()
+        .expect("processor grading primary after cpu update");
+    assert_close(processor_after_cpu.offset.green, 0.0, 1e-8);
+}
+
+#[test]
+fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = dynamic_grading_tone_processor().expect("dynamic grading tone processor");
+    assert!(processor.is_dynamic());
+    assert!(processor.has_dynamic_property_kind(DynamicPropertyType::GradingTone));
+
+    let processor_prop = processor
+        .dynamic_property(DynamicPropertyType::GradingTone)
+        .expect("processor grading tone property");
+    assert_eq!(
+        processor_prop.property_type(),
+        DynamicPropertyType::GradingTone
+    );
+
+    let mut value = processor_prop
+        .grading_tone_value()
+        .expect("grading tone value");
+    value.blacks.red = 0.95;
+    value.midtones.master = 1.1;
+    value.highlights.width = 0.8;
+    value.scontrast = 1.2;
+    processor_prop.set_grading_tone_value(&value);
+
+    let round_trip = processor_prop
+        .grading_tone_value()
+        .expect("processor grading tone round trip");
+    assert_close(round_trip.blacks.red, 0.95, 1e-8);
+    assert_close(round_trip.midtones.master, 1.1, 1e-8);
+    assert_close(round_trip.highlights.width, 0.8, 1e-8);
+    assert_close(round_trip.scontrast, 1.2, 1e-8);
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default cpu processor");
+    let cpu_prop = cpu
+        .dynamic_property(DynamicPropertyType::GradingTone)
+        .expect("cpu grading tone property");
+    let cpu_value = cpu_prop
+        .grading_tone_value()
+        .expect("cpu grading tone value");
+    assert_close(cpu_value.blacks.red, 0.95, 1e-8);
+    assert_close(cpu_value.midtones.master, 1.1, 1e-8);
+    assert_close(cpu_value.highlights.width, 0.8, 1e-8);
+    assert_close(cpu_value.scontrast, 1.2, 1e-8);
+
+    let mut cpu_update = cpu_value.clone();
+    cpu_update.whites.start = 0.65;
+    cpu_prop.set_grading_tone_value(&cpu_update);
+    let cpu_after_update = cpu_prop
+        .grading_tone_value()
+        .expect("cpu grading tone after cpu update");
+    assert_close(cpu_after_update.whites.start, 0.65, 1e-8);
+    let processor_after_cpu = processor_prop
+        .grading_tone_value()
+        .expect("processor grading tone after cpu update");
+    assert_close(processor_after_cpu.whites.start, 0.4, 1e-8);
+}
+
+#[test]
+fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor =
+        dynamic_grading_rgb_curve_processor().expect("dynamic grading rgb curve processor");
+    assert!(processor.is_dynamic());
+    assert!(processor.has_dynamic_property_kind(DynamicPropertyType::GradingRgbCurve));
+
+    let processor_prop = processor
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .expect("processor grading rgb curve property");
+    assert_eq!(
+        processor_prop.property_type(),
+        DynamicPropertyType::GradingRgbCurve
+    );
+
+    let points = [
+        GradingCurvePoint::new(0.0, 0.0, 1.0),
+        GradingCurvePoint::new(0.5, 0.6, 0.8),
+        GradingCurvePoint::new(1.0, 1.0, 1.0),
+    ];
+    processor_prop.grading_rgb_curve_set_num_control_points(RGBCurveType::Red, points.len() as i32);
+    for (index, point) in points.iter().enumerate() {
+        let index = index as i32;
+        processor_prop.grading_rgb_curve_set_control_point(
+            RGBCurveType::Red,
+            index,
+            point.x,
+            point.y,
+        );
+        processor_prop.grading_rgb_curve_set_slope(RGBCurveType::Red, index, point.slope);
+    }
+
+    assert_eq!(
+        processor_prop.grading_rgb_curve_num_control_points(RGBCurveType::Red),
+        points.len() as i32
+    );
+    let (x, y) = processor_prop.grading_rgb_curve_control_point(RGBCurveType::Red, 1);
+    assert_close(x as f64, 0.5, 1e-6);
+    assert_close(y as f64, 0.6, 1e-6);
+    assert_close(
+        processor_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        0.8,
+        1e-6,
+    );
+    assert!(!processor_prop.grading_rgb_curve_slopes_are_default(RGBCurveType::Red));
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default cpu processor");
+    let cpu_prop = cpu
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .expect("cpu grading rgb curve property");
+    assert_eq!(
+        cpu_prop.grading_rgb_curve_num_control_points(RGBCurveType::Red),
+        points.len() as i32
+    );
+    let (cpu_x, cpu_y) = cpu_prop.grading_rgb_curve_control_point(RGBCurveType::Red, 1);
+    assert_close(cpu_x as f64, 0.5, 1e-6);
+    assert_close(cpu_y as f64, 0.6, 1e-6);
+    assert_close(
+        cpu_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        0.8,
+        1e-6,
+    );
+
+    cpu_prop.grading_rgb_curve_set_slope(RGBCurveType::Red, 1, 0.33);
+    assert_close(
+        cpu_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        0.33,
+        1e-6,
+    );
+    assert_close(
+        processor_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        0.8,
+        1e-6,
+    );
+}
+
+#[test]
+fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor =
+        dynamic_grading_hue_curve_processor().expect("dynamic grading hue curve processor");
+    assert!(processor.is_dynamic());
+    assert!(processor.has_dynamic_property_kind(DynamicPropertyType::GradingHueCurve));
+
+    let processor_prop = processor
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .expect("processor grading hue curve property");
+    assert_eq!(
+        processor_prop.property_type(),
+        DynamicPropertyType::GradingHueCurve
+    );
+
+    let points = [
+        GradingCurvePoint::new(0.0, 0.0, 1.0),
+        GradingCurvePoint::new(1.0 / 6.0, 0.2, 0.5),
+        GradingCurvePoint::new(1.0 / 3.0, 0.0, 1.0),
+    ];
+    processor_prop
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, points.len() as i32);
+    for (index, point) in points.iter().enumerate() {
+        let index = index as i32;
+        processor_prop.grading_hue_curve_set_control_point(
+            HueCurveType::HueHue,
+            index,
+            point.x,
+            point.y,
+        );
+        processor_prop.grading_hue_curve_set_slope(HueCurveType::HueHue, index, point.slope);
+    }
+
+    assert_eq!(
+        processor_prop.grading_hue_curve_num_control_points(HueCurveType::HueHue),
+        points.len() as i32
+    );
+    let (x, y) = processor_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
+    assert_close(x as f64, (1.0 / 6.0) as f64, 1e-6);
+    assert_close(y as f64, 0.2, 1e-6);
+    assert_close(
+        processor_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        0.5,
+        1e-6,
+    );
+    assert!(!processor_prop.grading_hue_curve_slopes_are_default(HueCurveType::HueHue));
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default cpu processor");
+    let cpu_prop = cpu
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .expect("cpu grading hue curve property");
+    assert_eq!(
+        cpu_prop.grading_hue_curve_num_control_points(HueCurveType::HueHue),
+        points.len() as i32
+    );
+    let (cpu_x, cpu_y) = cpu_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
+    assert_close(cpu_x as f64, (1.0 / 6.0) as f64, 1e-6);
+    assert_close(cpu_y as f64, 0.2, 1e-6);
+    assert_close(
+        cpu_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        0.5,
+        1e-6,
+    );
+
+    cpu_prop.grading_hue_curve_set_slope(HueCurveType::HueHue, 1, 0.25);
+    assert_close(
+        cpu_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        0.25,
+        1e-6,
+    );
+    assert_close(
+        processor_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        0.5,
+        1e-6,
+    );
 }
