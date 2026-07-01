@@ -44,8 +44,9 @@ Current release checklist highlights:
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
-  `view_transform_behavior`, and `named_transform_behavior` integration suites
-  in addition to crate unit tests.
+  `view_transform_behavior`, `look_behavior`, and
+  `named_transform_behavior` integration suites in addition to crate unit
+  tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -61,14 +62,14 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus fifteen
+- The current bundled validation path exercises `373` crate tests plus sixteen
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
-  execution, display-view-transform behavior, and view-transform
-  display-pipeline behavior.
+  execution, display-view-transform behavior, look behavior, and
+  view-transform display-pipeline behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -108,6 +109,11 @@ Current runtime semantics worth calling out explicitly:
   display pipeline, and `data_bypass=true` preserves RGB values for data color
   spaces where the forced pipeline path would otherwise apply the view
   transform.
+- `Look` round-trips metadata, interchange attributes, and attached
+  forward/inverse transforms in bundled mode, and display pipelines using a
+  named look apply the look through both `Config::processor_display(...)` and
+  `DisplayViewTransform`, while `looks_bypass=true` suppresses that look
+  application.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
