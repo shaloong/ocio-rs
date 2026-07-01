@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use crate::{cstr_from_mut, cstring, EnvironmentMode, OcioError, Result};
+use crate::{cstr_from_mut, cstring, ConfigIOProxy, EnvironmentMode, OcioError, Result};
 use ocio_sys;
 
 /// Resolves search paths, environment variables, and working context for file-based operations.
@@ -206,6 +206,17 @@ impl Context {
         unsafe { ocio_sys::ocio_context_load_environment(self.handle.as_ptr()) };
     }
 
+    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) {
+        unsafe {
+            ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
+        };
+    }
+
+    pub fn config_io_proxy_object(&self) -> Option<ConfigIOProxy> {
+        let handle = unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) };
+        NonNull::new(handle).map(|handle| ConfigIOProxy { handle })
+    }
+
     /// # Safety
     /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
     #[deprecated(
@@ -289,5 +300,22 @@ mod tests {
     fn context_config_io_proxy_compat_alias_no_crash() {
         let ctx = Context::create().unwrap();
         let _ = ctx.get_config_io_proxy();
+    }
+
+    #[test]
+    fn context_config_io_proxy_object_no_crash() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let ctx = Context::create().unwrap();
+        let proxy = ConfigIOProxy::create().unwrap();
+        proxy
+            .set_config_data(
+                "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
+            )
+            .unwrap();
+        ctx.set_config_io_proxy_object(&proxy);
+        let _ = ctx.config_io_proxy_object();
     }
 }

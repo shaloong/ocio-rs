@@ -85,6 +85,31 @@ unsafe extern "C" {
         handle: *mut c_void,
         index: usize,
     ) -> *const i8;
+    pub fn ocio_config_io_proxy_create() -> *mut c_void;
+    pub fn ocio_config_io_proxy_destroy(handle: *mut c_void);
+    pub fn ocio_config_io_proxy_set_config_data(handle: *mut c_void, data: *const i8) -> ();
+    pub fn ocio_config_io_proxy_get_config_data(handle: *mut c_void) -> *const i8;
+    pub fn ocio_config_io_proxy_set_lut_data(
+        handle: *mut c_void,
+        filepath: *const i8,
+        data: *const u8,
+        len: usize,
+        fastHash: *const i8,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_get_lut_data_size(
+        handle: *mut c_void,
+        filepath: *const i8,
+    ) -> usize;
+    pub fn ocio_config_io_proxy_copy_lut_data(
+        handle: *mut c_void,
+        filepath: *const i8,
+        data: *mut u8,
+        len: usize,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_get_fast_lut_file_hash(
+        handle: *mut c_void,
+        filepath: *const i8,
+    ) -> *const i8;
 
     // --- Config ---
     pub fn ocio_config_create_raw() -> *mut c_void;
@@ -92,6 +117,7 @@ unsafe extern "C" {
     pub fn ocio_config_create_from_builtin_config(configName: *const i8) -> *mut c_void;
     pub fn ocio_config_create_from_env() -> *mut c_void;
     pub fn ocio_config_create_from_stream(text: *const i8) -> *mut c_void;
+    pub fn ocio_config_create_from_config_io_proxy(ciop: *mut c_void) -> *mut c_void;
     pub fn ocio_config_destroy(handle: *mut c_void);
     pub fn ocio_config_get_major_version(handle: *mut c_void) -> i32;
     pub fn ocio_config_set_major_version(handle: *mut c_void, major: u32) -> ();

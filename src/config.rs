@@ -3,8 +3,8 @@ use std::ptr::NonNull;
 
 use crate::transform::TransformHandle;
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, Context, FileRules,
-    Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
+    cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, ConfigIOProxy, Context,
+    FileRules, Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
     SearchReferenceSpaceType, TransformDirection, ViewTransform,
 };
 use ocio_sys;
@@ -66,6 +66,15 @@ impl Config {
     pub fn from_stream(text: impl AsRef<str>) -> Result<Self> {
         let text = cstring(text)?;
         let handle = unsafe { ocio_sys::ocio_config_create_from_stream(text.as_ptr().cast()) };
+        NonNull::new(handle)
+            .map(|handle| Self { handle })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    /// Create a config from an in-memory `ConfigIOProxy`.
+    pub fn from_config_io_proxy(proxy: &ConfigIOProxy) -> Result<Self> {
+        let handle =
+            unsafe { ocio_sys::ocio_config_create_from_config_io_proxy(proxy.handle.as_ptr()) };
         NonNull::new(handle)
             .map(|handle| Self { handle })
             .ok_or(OcioError::AllocationFailed)
@@ -3013,6 +3022,21 @@ impl Config {
         }
     }
 
+    /// Return the attached typed config IO proxy when it originated from a Rust-managed proxy.
+    pub fn config_io_proxy_object(&self) -> Option<ConfigIOProxy> {
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void)
+        };
+        NonNull::new(handle).map(|handle| ConfigIOProxy { handle })
+    }
+
+    /// Attach a typed config IO proxy used to serve the config and LUT assets.
+    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) {
+        unsafe {
+            ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
+        };
+    }
+
     pub fn default_family_separator(&self) -> char {
         unsafe {
             ocio_sys::ocio_config_get_default_family_separator(self.handle.as_ptr() as *mut c_void)
@@ -3847,6 +3871,52 @@ mod tests {
         let config = Config::raw().unwrap();
         unsafe { config.set_config_io_proxy(std::ptr::null_mut()) };
         let _ = config.config_io_proxy();
+    }
+
+    #[test]
+    fn config_io_proxy_object_no_crash() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let config = Config::raw().unwrap();
+        let proxy = ConfigIOProxy::create().unwrap();
+        proxy.set_config_data("ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n").unwrap();
+        config.set_config_io_proxy_object(&proxy);
+        let _ = config.config_io_proxy_object();
+    }
+
+    #[test]
+    fn create_from_config_io_proxy_real_behavior() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let proxy = ConfigIOProxy::create().expect("config io proxy");
+        let config_text = std::fs::read_to_string("tests/data/configs/context_test1/config.ocio")
+            .expect("config text");
+        let lut = std::fs::read("tests/data/configs/context_test1/lut1.clf").expect("lut");
+        proxy
+            .set_config_data(&config_text)
+            .expect("set config data");
+        proxy
+            .set_lut_data("E:/virtual/context/lut1.clf", &lut, "lut1-hash")
+            .expect("set lut data");
+
+        let config = Config::from_config_io_proxy(&proxy).expect("config from proxy");
+        config
+            .set_working_dir("E:/virtual/context")
+            .expect("working dir");
+
+        let processor = config
+            .processor("plain_lut1_cs", "reference")
+            .expect("processor");
+        let cpu = processor.optimized_cpu_processor(0).expect("cpu processor");
+        let mut pixel = [1.0f32, 1.0, 1.0, 1.0];
+        cpu.apply_rgba(&mut pixel);
+        assert!((pixel[0] - 5.0).abs() < 1e-5);
+        assert!((pixel[1] - 5.0).abs() < 1e-5);
+        assert!((pixel[2] - 5.0).abs() < 1e-5);
     }
 
     #[test]

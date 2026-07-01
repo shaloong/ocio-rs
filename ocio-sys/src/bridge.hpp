@@ -78,12 +78,32 @@ size_t ocio_builtin_transform_registry_get_num_builtins(void* handle);
 const char* ocio_builtin_transform_registry_get_builtin_style(void* handle, size_t index);
 const char* ocio_builtin_transform_registry_get_builtin_description(void* handle, size_t index);
 
+// --- ConfigIOProxy ---
+void* ocio_config_io_proxy_create(void);
+void ocio_config_io_proxy_destroy(void* handle);
+void ocio_config_io_proxy_set_config_data(void* handle, const char* data);
+const char* ocio_config_io_proxy_get_config_data(void* handle);
+bool ocio_config_io_proxy_set_lut_data(
+  void* handle,
+  const char* filepath,
+  const unsigned char* data,
+  size_t len,
+  const char* fastHash);
+size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath);
+bool ocio_config_io_proxy_copy_lut_data(
+  void* handle,
+  const char* filepath,
+  unsigned char* data,
+  size_t len);
+const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char* filepath);
+
 // --- Config ---
 void* ocio_config_create_raw(void);
 void* ocio_config_create_from_file(const char* path);
 void* ocio_config_create_from_builtin_config(const char* configName);
 void* ocio_config_create_from_env(void);
 void* ocio_config_create_from_stream(const char* text);
+void* ocio_config_create_from_config_io_proxy(void* ciop);
 void ocio_config_destroy(void* handle);
 
 int ocio_config_get_major_version(void* handle);

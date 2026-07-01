@@ -8,6 +8,8 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
+#include <vector>
 
 #ifndef OCIO_RS_STUB
 #include <OpenColorIO/OpenColorIO.h>
@@ -613,6 +615,7 @@ struct RealTransform {
 };
 struct RealConfigIOProxy {
   ocio::ConfigIOProxyRcPtr proxy;
+  std::shared_ptr<void> owner;
 };
 struct RealViewingRules {
   ocio::ViewingRulesRcPtr rules;
@@ -632,6 +635,64 @@ struct RealGradingHueCurve {
 struct RealMixingSlider {
   ocio::MixingSlider* slider;
 };
+
+#ifndef OCIO_RS_STUB
+class RustConfigIOProxy : public ocio::ConfigIOProxy
+{
+public:
+  std::string configData;
+  std::unordered_map<std::string, std::vector<uint8_t>> lutData;
+  std::unordered_map<std::string, std::string> fastHashes;
+
+  static std::string normalizePath(const char* filepath, char separator)
+  {
+    if (!filepath) return {};
+    std::string path(filepath);
+    for (char& ch : path) {
+      if (ch == '/' || ch == '\\') ch = separator;
+    }
+    return path;
+  }
+
+  const std::vector<uint8_t>* findLutData(const char* filepath) const
+  {
+    if (!filepath) return nullptr;
+    if (auto it = lutData.find(filepath); it != lutData.end()) return &it->second;
+    const auto slash = normalizePath(filepath, '/');
+    if (auto it = lutData.find(slash); it != lutData.end()) return &it->second;
+    const auto backslash = normalizePath(filepath, '\\');
+    if (auto it = lutData.find(backslash); it != lutData.end()) return &it->second;
+    return nullptr;
+  }
+
+  std::string findFastHash(const char* filepath) const
+  {
+    if (!filepath) return {};
+    if (auto it = fastHashes.find(filepath); it != fastHashes.end()) return it->second;
+    const auto slash = normalizePath(filepath, '/');
+    if (auto it = fastHashes.find(slash); it != fastHashes.end()) return it->second;
+    const auto backslash = normalizePath(filepath, '\\');
+    if (auto it = fastHashes.find(backslash); it != fastHashes.end()) return it->second;
+    return {};
+  }
+
+  std::vector<uint8_t> getLutData(const char* filepath) const override
+  {
+    const auto* data = findLutData(filepath);
+    return data ? *data : std::vector<uint8_t>{};
+  }
+
+  std::string getConfigData() const override
+  {
+    return configData;
+  }
+
+  std::string getFastLutFileHash(const char* filepath) const override
+  {
+    return findFastHash(filepath);
+  }
+};
+#endif
 
 // --- TransformHandleBase out-of-line ---
 int TransformHandle::get_transform_type_tag() const {
@@ -819,6 +880,11 @@ static const ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void*
 static ocio::ConstBuiltinTransformRegistryRcPtr get_real_builtin_transform_registry(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::BuiltinTransformRegistryHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealBuiltinTransformRegistry>(h->inner)->registry;
+}
+
+static std::shared_ptr<ocio_rs_bridge::RealConfigIOProxy> get_real_config_io_proxy_handle(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(h->inner);
 }
 
 static ocio::AllocationTransformRcPtr get_real_allocation_transform(void* handle) {
@@ -1460,6 +1526,146 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
 #endif
 }
 
+// --- ConfigIOProxy ---
+void* ocio_config_io_proxy_create(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  try {
+    auto rustProxy = std::make_shared<ocio_rs_bridge::RustConfigIOProxy>();
+    ocio::ConfigIOProxyRcPtr proxy = rustProxy;
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
+      ocio_rs_bridge::RealConfigIOProxy{proxy, rustProxy});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_config_io_proxy_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(handle);
+}
+
+void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)data;
+  return;
+#else
+  try {
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy) return;
+    rustProxy->configData = data ? data : "";
+  } catch (...) { return; }
+#endif
+}
+
+const char* ocio_config_io_proxy_get_config_data(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy) return nullptr;
+    ocio_rs_bridge::g_serialized_text = rustProxy->configData;
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+bool ocio_config_io_proxy_set_lut_data(
+  void* handle,
+  const char* filepath,
+  const unsigned char* data,
+  size_t len,
+  const char* fastHash) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath; (void)data; (void)len; (void)fastHash;
+  return false;
+#else
+  try {
+    if (!filepath) return false;
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy) return false;
+    std::vector<uint8_t> bytes;
+    if (data && len > 0) {
+      bytes.assign(data, data + len);
+    }
+    rustProxy->lutData[filepath] = std::move(bytes);
+    rustProxy->fastHashes[filepath] = fastHash ? fastHash : "";
+    rustProxy->lutData[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/')] =
+      rustProxy->lutData[filepath];
+    rustProxy->lutData[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '\\')] =
+      rustProxy->lutData[filepath];
+    rustProxy->fastHashes[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/')] =
+      rustProxy->fastHashes[filepath];
+    rustProxy->fastHashes[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '\\')] =
+      rustProxy->fastHashes[filepath];
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath;
+  return 0;
+#else
+  try {
+    if (!filepath) return 0;
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy) return 0;
+    const auto* data = rustProxy->findLutData(filepath);
+    return data ? data->size() : 0;
+  } catch (...) { return 0; }
+#endif
+}
+
+bool ocio_config_io_proxy_copy_lut_data(
+  void* handle,
+  const char* filepath,
+  unsigned char* data,
+  size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath; (void)data; (void)len;
+  return false;
+#else
+  try {
+    if (!filepath || !data) return false;
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy) return false;
+    const auto* bytes = rustProxy->findLutData(filepath);
+    if (!bytes || len < bytes->size()) return false;
+    if (!bytes->empty()) {
+      std::memcpy(data, bytes->data(), bytes->size());
+    }
+    return true;
+  } catch (...) { return false; }
+#endif
+}
+
+const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char* filepath) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath;
+  return nullptr;
+#else
+  try {
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!rustProxy || !filepath) return nullptr;
+    ocio_rs_bridge::g_serialized_text = rustProxy->getFastLutFileHash(filepath);
+    return ocio_rs_bridge::g_serialized_text.empty()
+      ? nullptr
+      : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 
 // --- Config ---
 void* ocio_config_create_raw(void) {
@@ -1529,6 +1735,25 @@ void* ocio_config_create_from_stream(const char* text) {
     if (!text) return nullptr;
     std::istringstream stream(text);
     auto result = ocio::Config::CreateFromStream(stream);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
+      ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_create_from_config_io_proxy(void* ciop) {
+#ifdef OCIO_RS_STUB
+  (void)ciop;
+  return nullptr;
+#else
+  try {
+    if (!ciop) return nullptr;
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(ciop);
+    if (!real || !real->proxy) return nullptr;
+    auto result = ocio::Config::CreateFromConfigIOProxy(real->proxy);
     if (!result) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(

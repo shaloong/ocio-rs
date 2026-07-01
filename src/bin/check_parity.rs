@@ -108,6 +108,7 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "dynamic_property" => Some("DynamicProperty"),
         "format_metadata" => Some("FormatMetadata"),
         "builtin_config_registry" => Some("BuiltinConfigRegistry"),
+        "config_io_proxy" => Some("ConfigIOProxy"),
         _ => None,
     }
 }
@@ -125,6 +126,7 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "display_view_transform",
         "fixed_function_transform",
         "color_space_transform",
+        "config_io_proxy",
         "builtin_config_registry",
         "builtin_transform_registry",
         "color_space_set",
@@ -479,6 +481,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         "LogCameraTransform",
         "FormatMetadata",
         "BuiltinConfigRegistry",
+        "ConfigIOProxy",
     ];
 
     let entries: Vec<_> = fs::read_dir(include_dir)
@@ -600,6 +603,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("create_from_file", "from_file"),
         ("create_from_env", "from_env"),
         ("create_from_stream", "from_stream"),
+        ("create_from_config_io_proxy", "from_config_io_proxy"),
         // Processor naming differences
         ("get_cache_id_n", "cache_id_with_context"),
         ("get_processor_transform", "processor_from_transform"),
@@ -799,6 +803,7 @@ fn run_l3(
         ("LogCameraTransform", "LogCameraTransform"),
         ("FormatMetadata", "FormatMetadata"),
         ("BuiltinConfigRegistry", "BuiltinConfigRegistry"),
+        ("ConfigIOProxy", "ConfigIOProxy"),
     ]
     .iter()
     .cloned()
