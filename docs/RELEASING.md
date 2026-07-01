@@ -45,13 +45,15 @@ Current packaging caveat:
 - The repository supports `--features bundled` from a recursive checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree inside the package payload.
-- Packaged bundled builds are still not fully offline/self-contained because
-  upstream OpenColorIO downloads several transitive dependency sources during
-  the bundled configure/build path.
+- The published `ocio-sys` crate also vendors the transitive dependency sources
+  needed by the current bundled build configuration, and the extracted package
+  is now validated with `cargo build --features bundled --offline`.
 
 Current audit status:
 
 - `./tools/release_audit.ps1 -IncludeBundled -Offline` passes.
+- The same audit now verifies the extracted `ocio-sys` package with
+  `cargo build --features bundled --offline`.
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` reports only the
   expected warning that `ocio-sys 0.2.0` must exist in the registry before the
   top-level crate can be fully packaged.

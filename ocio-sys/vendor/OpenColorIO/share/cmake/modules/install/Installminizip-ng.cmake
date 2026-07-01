@@ -55,6 +55,13 @@ if(NOT minizip-ng_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_P
     set(minizip-ng_LIBRARY
         "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_LIBDIR}/${_minizip-ng_LIB_PREFIX}minizip-ng${_minizip-ng_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_minizip-ng_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/minizip-ng/CMakeLists.txt")
+        set(_minizip-ng_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/minizip-ng")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/minizip-ng/CMakeLists.txt")
+        set(_minizip-ng_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/minizip-ng")
+    endif()
+
     if(_minizip-ng_TARGET_CREATE)
         set(minizip-ng_CMAKE_ARGS
             ${minizip-ng_CMAKE_ARGS}
@@ -116,23 +123,42 @@ if(NOT minizip-ng_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_P
     # Hack to let imported target be built from ExternalProject_Add
     file(MAKE_DIRECTORY ${minizip-ng_INCLUDE_DIR})
 
-    ExternalProject_Add(minizip-ng_install
-        GIT_REPOSITORY "https://github.com/zlib-ng/minizip-ng.git"
-        GIT_TAG "${minizip-ng_VERSION}"
-        GIT_CONFIG advice.detachedHead=false
-        GIT_SHALLOW TRUE
-        PREFIX "${_EXT_BUILD_ROOT}/libminizip-ng"
-        BUILD_BYPRODUCTS ${minizip-ng_LIBRARY}
-        CMAKE_ARGS ${minizip-ng_CMAKE_ARGS}
-        EXCLUDE_FROM_ALL TRUE
-        BUILD_COMMAND ""
-        INSTALL_COMMAND
-            ${CMAKE_COMMAND} --build .
-                            --config ${CMAKE_BUILD_TYPE}
-                            --target install
-                            --parallel
-        DEPENDS ZLIB::ZLIB        # minizip-ng depends on zlib
-    )
+    if(_minizip-ng_LOCAL_SOURCE_DIR)
+        ExternalProject_Add(minizip-ng_install
+            SOURCE_DIR "${_minizip-ng_LOCAL_SOURCE_DIR}"
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            PREFIX "${_EXT_BUILD_ROOT}/libminizip-ng"
+            BUILD_BYPRODUCTS ${minizip-ng_LIBRARY}
+            CMAKE_ARGS ${minizip-ng_CMAKE_ARGS}
+            EXCLUDE_FROM_ALL TRUE
+            BUILD_COMMAND ""
+            INSTALL_COMMAND
+                ${CMAKE_COMMAND} --build .
+                                --config ${CMAKE_BUILD_TYPE}
+                                --target install
+                                --parallel
+            DEPENDS ZLIB::ZLIB
+        )
+    else()
+        ExternalProject_Add(minizip-ng_install
+            GIT_REPOSITORY "https://github.com/zlib-ng/minizip-ng.git"
+            GIT_TAG "${minizip-ng_VERSION}"
+            GIT_CONFIG advice.detachedHead=false
+            GIT_SHALLOW TRUE
+            PREFIX "${_EXT_BUILD_ROOT}/libminizip-ng"
+            BUILD_BYPRODUCTS ${minizip-ng_LIBRARY}
+            CMAKE_ARGS ${minizip-ng_CMAKE_ARGS}
+            EXCLUDE_FROM_ALL TRUE
+            BUILD_COMMAND ""
+            INSTALL_COMMAND
+                ${CMAKE_COMMAND} --build .
+                                --config ${CMAKE_BUILD_TYPE}
+                                --target install
+                                --parallel
+            DEPENDS ZLIB::ZLIB
+        )
+    endif()
 
     add_dependencies(MINIZIP::minizip-ng minizip-ng_install)
     if(OCIO_VERBOSE)

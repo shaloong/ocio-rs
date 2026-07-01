@@ -18,9 +18,9 @@
 //! `--features bundled`.
 //!
 //! The published `ocio-sys` crate vendors the upstream OpenColorIO source tree
-//! used by bundled builds. However, the upstream bundled CMake flow still
-//! downloads several transitive dependency sources during configure/build, so
-//! packaged bundled builds are not yet fully offline/self-contained.
+//! plus the transitive dependency sources used by the current bundled build
+//! configuration, so the packaged `ocio-sys` crate can be validated with
+//! `cargo build --features bundled --offline`.
 
 #![allow(
     unused_imports,

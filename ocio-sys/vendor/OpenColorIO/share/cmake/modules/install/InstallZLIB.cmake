@@ -65,6 +65,13 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
     set(ZLIB_LIBRARIES
         "${_EXT_DIST_ROOT}/${_ZLIB_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${_ZLIB_STATIC_LIB_NAME}${_ZLIB_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_ZLIB_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/zlib/CMakeLists.txt")
+        set(_ZLIB_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/zlib")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/zlib/CMakeLists.txt")
+        set(_ZLIB_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/zlib")
+    endif()
+
     if(_ZLIB_TARGET_CREATE)
         set(ZLIB_CMAKE_ARGS
             ${ZLIB_CMAKE_ARGS}
@@ -82,6 +89,7 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
             -DCMAKE_INSTALL_MESSAGE=${CMAKE_INSTALL_MESSAGE}
             -DCMAKE_INSTALL_PREFIX=${_EXT_DIST_ROOT}
             -DCMAKE_OBJECT_PATH_MAX=${CMAKE_OBJECT_PATH_MAX}
+            -DZLIB_BUILD_EXAMPLES=OFF
         )
 
         if(CMAKE_TOOLCHAIN_FILE)
@@ -111,23 +119,42 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
     # Hack to let imported target be built from ExternalProject_Add
     file(MAKE_DIRECTORY ${ZLIB_INCLUDE_DIRS})
     
-    ExternalProject_Add(ZLIB_install
-        GIT_REPOSITORY "https://github.com/madler/zlib.git"
-        GIT_TAG "v${ZLIB_VERSION}"
-        GIT_CONFIG advice.detachedHead=false
-        GIT_SHALLOW TRUE
-        PREFIX "${_EXT_BUILD_ROOT}/zlib"
-        BUILD_BYPRODUCTS 
-            ${ZLIB_LIBRARIES}
-        CMAKE_ARGS ${ZLIB_CMAKE_ARGS}
-        EXCLUDE_FROM_ALL TRUE
-        BUILD_COMMAND ""
-        INSTALL_COMMAND
-            ${CMAKE_COMMAND} --build .
-                             --config ${CMAKE_BUILD_TYPE}
-                             --target install
-                             --parallel
-    )
+    if(_ZLIB_LOCAL_SOURCE_DIR)
+        ExternalProject_Add(ZLIB_install
+            SOURCE_DIR "${_ZLIB_LOCAL_SOURCE_DIR}"
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            PREFIX "${_EXT_BUILD_ROOT}/zlib"
+            BUILD_BYPRODUCTS
+                ${ZLIB_LIBRARIES}
+            CMAKE_ARGS ${ZLIB_CMAKE_ARGS}
+            EXCLUDE_FROM_ALL TRUE
+            BUILD_COMMAND ""
+            INSTALL_COMMAND
+                ${CMAKE_COMMAND} --build .
+                                 --config ${CMAKE_BUILD_TYPE}
+                                 --target install
+                                 --parallel
+        )
+    else()
+        ExternalProject_Add(ZLIB_install
+            GIT_REPOSITORY "https://github.com/madler/zlib.git"
+            GIT_TAG "v${ZLIB_VERSION}"
+            GIT_CONFIG advice.detachedHead=false
+            GIT_SHALLOW TRUE
+            PREFIX "${_EXT_BUILD_ROOT}/zlib"
+            BUILD_BYPRODUCTS 
+                ${ZLIB_LIBRARIES}
+            CMAKE_ARGS ${ZLIB_CMAKE_ARGS}
+            EXCLUDE_FROM_ALL TRUE
+            BUILD_COMMAND ""
+            INSTALL_COMMAND
+                ${CMAKE_COMMAND} --build .
+                                 --config ${CMAKE_BUILD_TYPE}
+                                 --target install
+                                 --parallel
+        )
+    endif()
 
     ExternalProject_Add_Step(
         ZLIB_install zlib_remove_dll

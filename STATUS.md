@@ -36,6 +36,8 @@ Current release checklist highlights:
   passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
 - `cargo package -p ocio-sys --allow-dirty --offline` passes.
+- `cargo build --features bundled --offline` passes from the extracted
+  `target/package/ocio-sys-0.2.0` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
   `config_behavior`, `file_rules_behavior`, `dynamic_property_behavior`,
   `gpu_shader_desc_behavior`, `cpu_processor_behavior`, and `matrix_op`
@@ -43,9 +45,9 @@ Current release checklist highlights:
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
-- Packaged bundled builds are still not fully offline/self-contained because
-  upstream OpenColorIO currently downloads several transitive dependency
-  sources during the bundled configure/build path.
+- The published `ocio-sys` crate also vendors the transitive dependency
+  sources used by the current bundled build configuration, and the extracted
+  package now passes offline bundled compilation in release audit.
 
 Latest release-audit result:
 
@@ -53,6 +55,8 @@ Latest release-audit result:
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
   repository-side checks and reports only the known registry sequencing warning
   for top-level `cargo package`.
+- The release audit now validates the extracted `ocio-sys` package with
+  `cargo build --features bundled --offline` in addition to repository builds.
 - The current bundled validation path exercises `373` crate tests plus six
   dedicated integration suites covering config behavior, file rules, dynamic
   properties, GPU shader descriptors, CPU processor execution, and matrix

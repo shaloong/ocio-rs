@@ -43,6 +43,13 @@ if(NOT pystring_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PAC
     set(pystring_LIBRARY 
         "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}pystring${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_pystring_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/pystring/pystring.cpp")
+        set(_pystring_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/pystring")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/pystring/pystring.cpp")
+        set(_pystring_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/pystring")
+    endif()
+
     if(_pystring_TARGET_CREATE)
         if(MSVC)
             set(pystring_CXX_FLAGS "${pystring_CXX_FLAGS} /EHsc")
@@ -93,26 +100,48 @@ if(NOT pystring_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PAC
         # Hack to let imported target be built from ExternalProject_Add
         file(MAKE_DIRECTORY ${pystring_INCLUDE_DIR})
 
-        ExternalProject_Add(pystring_install
-            GIT_REPOSITORY "https://github.com/imageworks/pystring.git"
-            GIT_TAG "v${pystring_VERSION}"
-            GIT_CONFIG advice.detachedHead=false
-            GIT_SHALLOW TRUE
-            PREFIX "${_EXT_BUILD_ROOT}/pystring"
-            BUILD_BYPRODUCTS ${pystring_LIBRARY}
-            CMAKE_ARGS ${pystring_CMAKE_ARGS}
-            EXCLUDE_FROM_ALL TRUE
-            PATCH_COMMAND
-                ${CMAKE_COMMAND} -E copy
-                "${PROJECT_SOURCE_DIR}/share/cmake/projects/Buildpystring.cmake"
-                "CMakeLists.txt"
-            BUILD_COMMAND ""
-            INSTALL_COMMAND
-                ${CMAKE_COMMAND} --build .
-                                 --config ${CMAKE_BUILD_TYPE}
-                                 --target install
-                                 --parallel
-        )
+        if(_pystring_LOCAL_SOURCE_DIR)
+            ExternalProject_Add(pystring_install
+                SOURCE_DIR "${_pystring_LOCAL_SOURCE_DIR}"
+                DOWNLOAD_COMMAND ""
+                UPDATE_COMMAND ""
+                PREFIX "${_EXT_BUILD_ROOT}/pystring"
+                BUILD_BYPRODUCTS ${pystring_LIBRARY}
+                CMAKE_ARGS ${pystring_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                PATCH_COMMAND
+                    ${CMAKE_COMMAND} -E copy
+                    "${PROJECT_SOURCE_DIR}/share/cmake/projects/Buildpystring.cmake"
+                    "CMakeLists.txt"
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        else()
+            ExternalProject_Add(pystring_install
+                GIT_REPOSITORY "https://github.com/imageworks/pystring.git"
+                GIT_TAG "v${pystring_VERSION}"
+                GIT_CONFIG advice.detachedHead=false
+                GIT_SHALLOW TRUE
+                PREFIX "${_EXT_BUILD_ROOT}/pystring"
+                BUILD_BYPRODUCTS ${pystring_LIBRARY}
+                CMAKE_ARGS ${pystring_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                PATCH_COMMAND
+                    ${CMAKE_COMMAND} -E copy
+                    "${PROJECT_SOURCE_DIR}/share/cmake/projects/Buildpystring.cmake"
+                    "CMakeLists.txt"
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        endif()
 
         add_dependencies(pystring::pystring pystring_install)
         if(OCIO_VERBOSE)

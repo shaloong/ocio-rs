@@ -58,10 +58,9 @@ OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 it by itself does not enable real OCIO mode.
 
 The published `ocio-sys` crate now vendors the upstream OpenColorIO source tree
-needed for `--features bundled`. However, OpenColorIO still downloads several
-transitive build dependencies (`expat`, `yaml-cpp`, `Imath`, `pystring`,
-`minizip-ng`, `ZLIB`) during the bundled configure/build step, so packaged
-bundled builds are not yet fully offline/self-contained.
+plus the transitive dependency sources used by the current bundled build
+configuration. The packaged `ocio-sys` crate is validated with
+`cargo build --features bundled --offline` during release hardening.
 
 ## Architecture
 

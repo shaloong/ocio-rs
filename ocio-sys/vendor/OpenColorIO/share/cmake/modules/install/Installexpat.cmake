@@ -60,6 +60,13 @@ if(NOT expat_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAG
     set(expat_LIBRARY
         "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_LIBDIR}/${_expat_LIB_PREFIX}expat${_expat_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_expat_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/expat/expat/CMakeLists.txt")
+        set(_expat_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/expat")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/expat/expat/CMakeLists.txt")
+        set(_expat_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/expat")
+    endif()
+
     if(_expat_TARGET_CREATE)
         if(MSVC)
             set(EXPAT_C_FLAGS "${EXPAT_C_FLAGS} /EHsc")
@@ -127,23 +134,42 @@ if(NOT expat_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAG
         list(GET VERSION_LIST 1 expat_VERSION_MINOR)
         list(GET VERSION_LIST 2 expat_VERSION_PATCH)
 
-        ExternalProject_Add(expat_install
-            GIT_REPOSITORY "https://github.com/libexpat/libexpat.git"
-            GIT_TAG "R_${expat_VERSION_MAJOR}_${expat_VERSION_MINOR}_${expat_VERSION_PATCH}"
-            GIT_CONFIG advice.detachedHead=false
-            GIT_SHALLOW TRUE
-            PREFIX "${_EXT_BUILD_ROOT}/libexpat"
-            BUILD_BYPRODUCTS ${expat_LIBRARY}
-            SOURCE_SUBDIR expat
-            CMAKE_ARGS ${EXPAT_CMAKE_ARGS}
-            EXCLUDE_FROM_ALL TRUE
-            BUILD_COMMAND ""
-            INSTALL_COMMAND
-                ${CMAKE_COMMAND} --build .
-                                 --config ${CMAKE_BUILD_TYPE}
-                                 --target install
-                                 --parallel
-        )
+        if(_expat_LOCAL_SOURCE_DIR)
+            ExternalProject_Add(expat_install
+                SOURCE_DIR "${_expat_LOCAL_SOURCE_DIR}"
+                DOWNLOAD_COMMAND ""
+                UPDATE_COMMAND ""
+                PREFIX "${_EXT_BUILD_ROOT}/libexpat"
+                BUILD_BYPRODUCTS ${expat_LIBRARY}
+                SOURCE_SUBDIR expat
+                CMAKE_ARGS ${EXPAT_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        else()
+            ExternalProject_Add(expat_install
+                GIT_REPOSITORY "https://github.com/libexpat/libexpat.git"
+                GIT_TAG "R_${expat_VERSION_MAJOR}_${expat_VERSION_MINOR}_${expat_VERSION_PATCH}"
+                GIT_CONFIG advice.detachedHead=false
+                GIT_SHALLOW TRUE
+                PREFIX "${_EXT_BUILD_ROOT}/libexpat"
+                BUILD_BYPRODUCTS ${expat_LIBRARY}
+                SOURCE_SUBDIR expat
+                CMAKE_ARGS ${EXPAT_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        endif()
 
         add_dependencies(expat::expat expat_install)
         if(OCIO_VERBOSE)

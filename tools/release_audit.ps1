@@ -19,6 +19,7 @@ function Invoke-Check {
         [string]$Name,
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
+        [string]$WorkingDirectory = $repoRoot,
         [switch]$AllowKnownTopLevelPackageBlocker
     )
 
@@ -32,6 +33,7 @@ function Invoke-Check {
         $process = Start-Process `
             -FilePath "cargo" `
             -ArgumentList $Arguments `
+            -WorkingDirectory $WorkingDirectory `
             -NoNewWindow `
             -Wait `
             -PassThru `
@@ -115,9 +117,19 @@ function Test-OcioSysBundledPayload {
         return
     }
 
-    $script:Warnings += "Published ocio-sys package vendors the OpenColorIO source tree, but packaged bundled builds are not yet fully offline because upstream OpenColorIO still downloads transitive dependency sources during configure/build."
-    Write-Host "    WARN: packaged bundled builds still depend on upstream transitive source downloads" -ForegroundColor Yellow
     Write-Host "    PASS" -ForegroundColor Green
+}
+
+function Get-OcioSysPackageDir {
+    $packageRoot = Join-Path $repoRoot "target/package"
+    if (-not (Test-Path -LiteralPath $packageRoot)) {
+        return $null
+    }
+
+    Get-ChildItem -LiteralPath $packageRoot -Directory |
+        Where-Object { $_.Name -like "ocio-sys-*" } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1 -ExpandProperty FullName
 }
 
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
@@ -133,6 +145,23 @@ if ($Offline) {
 }
 Invoke-Check -Name "Package ocio-sys" -Arguments $ocioSysPackageArgs
 Test-OcioSysBundledPayload
+
+$ocioSysPackageDir = Get-OcioSysPackageDir
+if ($ocioSysPackageDir) {
+    $ocioSysBundledBuildArgs = @("build", "--features", "bundled")
+    if ($Offline) {
+        $ocioSysBundledBuildArgs += "--offline"
+    }
+    Invoke-Check `
+        -Name "Packaged bundled build (ocio-sys)" `
+        -Arguments $ocioSysBundledBuildArgs `
+        -WorkingDirectory $ocioSysPackageDir
+} else {
+    $script:Failures += "Packaged bundled build (ocio-sys) could not locate extracted package directory."
+    Write-Host ""
+    Write-Host "==> Packaged bundled build (ocio-sys)"
+    Write-Host "    FAIL" -ForegroundColor Red
+}
 
 if ($IncludeBundled) {
     Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--features", "bundled")

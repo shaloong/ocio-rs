@@ -56,6 +56,13 @@ if(NOT Imath_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAG
     set(Imath_LIBRARY
         "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}Imath-${_Imath_LIB_VER}${_Imath_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_Imath_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/Imath/CMakeLists.txt")
+        set(_Imath_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/Imath")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/Imath/CMakeLists.txt")
+        set(_Imath_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/Imath")
+    endif()
+
     if(_Imath_TARGET_CREATE)
         if(MSVC)
             set(Imath_CXX_FLAGS "${Imath_CXX_FLAGS} /EHsc")
@@ -111,22 +118,40 @@ if(NOT Imath_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAG
         # Hack to let imported target be built from ExternalProject_Add
         file(MAKE_DIRECTORY ${Imath_INCLUDE_DIR})
 
-        ExternalProject_Add(imath_install
-            GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/Imath.git"
-            GIT_TAG "v${Imath_VERSION}"
-            GIT_CONFIG advice.detachedHead=false
-            GIT_SHALLOW TRUE
-            PREFIX "${_EXT_BUILD_ROOT}/Imath"
-            BUILD_BYPRODUCTS ${Imath_LIBRARY}
-            CMAKE_ARGS ${Imath_CMAKE_ARGS}
-            EXCLUDE_FROM_ALL TRUE
-            BUILD_COMMAND ""
-            INSTALL_COMMAND
-                ${CMAKE_COMMAND} --build .
-                                 --config ${CMAKE_BUILD_TYPE}
-                                 --target install
-                                 --parallel
-        )
+        if(_Imath_LOCAL_SOURCE_DIR)
+            ExternalProject_Add(imath_install
+                SOURCE_DIR "${_Imath_LOCAL_SOURCE_DIR}"
+                DOWNLOAD_COMMAND ""
+                UPDATE_COMMAND ""
+                PREFIX "${_EXT_BUILD_ROOT}/Imath"
+                BUILD_BYPRODUCTS ${Imath_LIBRARY}
+                CMAKE_ARGS ${Imath_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        else()
+            ExternalProject_Add(imath_install
+                GIT_REPOSITORY "https://github.com/AcademySoftwareFoundation/Imath.git"
+                GIT_TAG "v${Imath_VERSION}"
+                GIT_CONFIG advice.detachedHead=false
+                GIT_SHALLOW TRUE
+                PREFIX "${_EXT_BUILD_ROOT}/Imath"
+                BUILD_BYPRODUCTS ${Imath_LIBRARY}
+                CMAKE_ARGS ${Imath_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        endif()
 
         add_dependencies(Imath::Imath imath_install)
 

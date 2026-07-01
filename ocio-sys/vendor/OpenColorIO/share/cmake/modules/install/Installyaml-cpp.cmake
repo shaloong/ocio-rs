@@ -50,6 +50,13 @@ if(NOT yaml-cpp_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PAC
     set(yaml-cpp_LIBRARY
         "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}yaml-cpp${_yaml-cpp_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
+    set(_yaml-cpp_LOCAL_SOURCE_DIR "")
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/yaml-cpp/CMakeLists.txt")
+        set(_yaml-cpp_LOCAL_SOURCE_DIR "${OCIO_RS_LOCAL_DEPS_DIR}/yaml-cpp")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/yaml-cpp/CMakeLists.txt")
+        set(_yaml-cpp_LOCAL_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/yaml-cpp")
+    endif()
+
     if(_yaml-cpp_TARGET_CREATE)
         if(MSVC)
             set(yaml-cpp_CXX_FLAGS "${yaml-cpp_CXX_FLAGS} /EHsc")
@@ -119,22 +126,40 @@ if(NOT yaml-cpp_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PAC
         # Hack to let imported target be built from ExternalProject_Add
         file(MAKE_DIRECTORY ${yaml-cpp_INCLUDE_DIR})
 
-        ExternalProject_Add(yaml-cpp_install
-            GIT_REPOSITORY "https://github.com/jbeder/yaml-cpp.git"
-            GIT_TAG ${yaml-cpp_GIT_TAG}
-            GIT_CONFIG advice.detachedHead=false
-            GIT_SHALLOW TRUE
-            PREFIX "${_EXT_BUILD_ROOT}/yaml-cpp"
-            BUILD_BYPRODUCTS ${yaml-cpp_LIBRARY}
-            CMAKE_ARGS ${yaml-cpp_CMAKE_ARGS}
-            EXCLUDE_FROM_ALL TRUE
-            BUILD_COMMAND ""
-            INSTALL_COMMAND
-                ${CMAKE_COMMAND} --build .
-                                 --config ${CMAKE_BUILD_TYPE}
-                                 --target install
-                                 --parallel
-        )
+        if(_yaml-cpp_LOCAL_SOURCE_DIR)
+            ExternalProject_Add(yaml-cpp_install
+                SOURCE_DIR "${_yaml-cpp_LOCAL_SOURCE_DIR}"
+                DOWNLOAD_COMMAND ""
+                UPDATE_COMMAND ""
+                PREFIX "${_EXT_BUILD_ROOT}/yaml-cpp"
+                BUILD_BYPRODUCTS ${yaml-cpp_LIBRARY}
+                CMAKE_ARGS ${yaml-cpp_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        else()
+            ExternalProject_Add(yaml-cpp_install
+                GIT_REPOSITORY "https://github.com/jbeder/yaml-cpp.git"
+                GIT_TAG ${yaml-cpp_GIT_TAG}
+                GIT_CONFIG advice.detachedHead=false
+                GIT_SHALLOW TRUE
+                PREFIX "${_EXT_BUILD_ROOT}/yaml-cpp"
+                BUILD_BYPRODUCTS ${yaml-cpp_LIBRARY}
+                CMAKE_ARGS ${yaml-cpp_CMAKE_ARGS}
+                EXCLUDE_FROM_ALL TRUE
+                BUILD_COMMAND ""
+                INSTALL_COMMAND
+                    ${CMAKE_COMMAND} --build .
+                                     --config ${CMAKE_BUILD_TYPE}
+                                     --target install
+                                     --parallel
+            )
+        endif()
 
         add_dependencies(yaml-cpp::yaml-cpp yaml-cpp_install)
         if(OCIO_VERBOSE)
