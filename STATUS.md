@@ -43,7 +43,7 @@ Current release checklist highlights:
   `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_transform_behavior`,
   `cdl_transform_behavior`, `config_behavior`, `context_behavior`,
-  `file_rules_behavior`,
+  `file_rules_behavior`, `file_transform_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `exponent_transform_behavior`, `exponent_with_linear_transform_behavior`,
   `exposure_contrast_transform_behavior`,
@@ -78,12 +78,12 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirty-seven
+- The current bundled validation path exercises `373` crate tests plus thirty-eight
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  context resolution, file rules, dynamic properties, GPU shader descriptors,
-  CPU processor execution, matrix processing behavior, named-transform
+  context resolution, file rules, file-transform behavior, dynamic properties,
+  GPU shader descriptors, CPU processor execution, matrix processing behavior, named-transform
   execution, cdl-transform behavior, color-space-transform behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
@@ -130,6 +130,12 @@ Current runtime semantics worth calling out explicitly:
   state in bundled mode, `CreateFromFile` / `CreateGroupFromFile` load real
   `.ccc` data from disk, and a no-clamp unit-saturation CDL executes as a real
   forward/inverse CPU processing pair rather than a no-op.
+- `FileTransform` round-trips source path, CCC ID, interpolation, CDL style,
+  and direction state in bundled mode; editable copies keep those properties
+  independent, CLF execution follows the file's real bit-depth-normalized OCIO
+  semantics instead of behaving like a bare float matrix, and `.ccc` loading
+  honors both `ccc_id` selection and the transform's default direction when
+  building processors.
 - `ExponentTransform` round-trips exponent values, negative-style, and
   direction state in bundled mode, and a `[2, 2, 2, 1]` exponent executes as
   a real forward/inverse CPU processing pair for positive-domain RGB values;
