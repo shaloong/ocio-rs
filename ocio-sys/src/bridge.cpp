@@ -228,6 +228,7 @@ struct StubLookTransform {};
 struct StubGradingHueCurveTransform {};
 struct StubRangeTransform {};
 struct StubDynamicProperty {};
+struct StubProcessorMetadata {};
 struct StubCPUProcessor {};
 struct StubExponentTransform {};
 struct StubDisplayViewTransform {};
@@ -319,6 +320,12 @@ static std::unique_ptr<FileRulesHandle> make_stub_file_rules() {
 static std::unique_ptr<ViewingRulesHandle> make_stub_viewing_rules() {
   auto handle = std::make_unique<ViewingRulesHandle>();
   handle->inner = std::make_shared<StubViewingRules>();
+  return handle;
+}
+
+static std::unique_ptr<ProcessorMetadataHandle> make_stub_processor_metadata() {
+  auto handle = std::make_unique<ProcessorMetadataHandle>();
+  handle->inner = std::make_shared<StubProcessorMetadata>();
   return handle;
 }
 
@@ -840,6 +847,11 @@ static ocio::FileRulesRcPtr get_real_file_rules(void* handle) {
 static ocio::ViewingRulesRcPtr get_real_viewing_rules(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::ViewingRulesHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealViewingRules>(h->inner)->rules;
+}
+
+static ocio::ProcessorMetadataRcPtr get_real_processor_metadata(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::ProcessorMetadataHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::RealProcessorMetadata>(h->inner)->metadata;
 }
 
 static ocio::ColorSpaceRcPtr get_real_color_space(void* handle) {
@@ -6455,6 +6467,92 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealCPUProcessor>(ocio_rs_bridge::RealCPUProcessor{result_unconst});
     return out_handle.release();
   } catch (...) { return nullptr; }
+#endif
+}
+
+// --- ProcessorMetadata ---
+
+void* ocio_processor_metadata_create(void) {
+#ifdef OCIO_RS_STUB
+  return ocio_rs_bridge::make_stub_processor_metadata().release();
+#else
+  try {
+    auto result = ocio::ProcessorMetadata::Create();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorMetadataHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_processor_metadata_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::ProcessorMetadataHandle*>(handle);
+}
+
+int ocio_processor_metadata_get_num_files(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_processor_metadata(handle)->getNumFiles();
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_processor_metadata_get_file(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_processor_metadata(handle)->getFile(index)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_processor_metadata_get_num_looks(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_processor_metadata(handle)->getNumLooks();
+  } catch (...) { return 0; }
+#endif
+}
+
+void* ocio_processor_metadata_get_look(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_processor_metadata(handle)->getLook(index)));
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_processor_metadata_add_file(void* handle, const char* fileName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)fileName;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_processor_metadata(handle)->addFile(fileName);
+  } catch (...) { return; }
+#endif
+}
+
+void ocio_processor_metadata_add_look(void* handle, const char* look) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)look;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_processor_metadata(handle)->addLook(look);
+  } catch (...) { return; }
 #endif
 }
 

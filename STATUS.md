@@ -27,7 +27,7 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
-  `1024` bridge/lib.rs declarations, `1013` bridge-backed safe-wrapper
+  `1032` bridge/lib.rs declarations, `1021` bridge-backed safe-wrapper
   matches, and `822/822` OCIO C++ header methods accounted for, including
   normalized coverage for static `Create` constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
@@ -61,6 +61,7 @@ Current release checklist highlights:
   `grading_hue_curve_transform_behavior`,
   `format_metadata_behavior`,
   `group_transform_behavior`,
+  `processor_metadata_behavior`,
   `processor_behavior`,
   `range_transform_behavior`,
   `runtime_helpers_behavior`,
@@ -86,7 +87,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `376` crate tests plus forty-six
+- The current bundled validation path exercises `378` crate tests plus forty-seven
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -108,7 +109,8 @@ Latest release-audit result:
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
   It also now covers safe `ViewingRules` construction, mutation, editable-copy
-  independence, and config attachment behavior in bundled mode.
+  independence, and config attachment behavior in bundled mode, plus
+  standalone and processor-extracted `ProcessorMetadata` behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -251,6 +253,9 @@ Current runtime semantics worth calling out explicitly:
   round-tripped back into an equivalent processor path. The deprecated legacy
   GPU helper also emits real shader text in bundled mode, even when the
   extracted descriptor does not expose additional uniform or texture resources.
+- `ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of
+  being conflated with `FormatMetadata`; bundled coverage validates standalone
+  file/look mutation plus metadata extraction from a real processor.
 - `LogTransform` round-trips base and direction state in bundled mode, uses
   the documented default base of `2.0`, executes the expected `log(color,
   base)` CPU path on positive inputs, and leaves alpha numerically unchanged

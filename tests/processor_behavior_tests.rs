@@ -64,7 +64,8 @@ fn processor_group_transform_and_metadata_behavior() {
     let processor_metadata = processor
         .processor_metadata()
         .expect("processor metadata handle");
-    assert!(processor_metadata.num_children() >= 0);
+    assert!(processor_metadata.num_files() >= 0);
+    assert!(processor_metadata.num_looks() >= 0);
     assert!(
         processor.transform_format_metadata(0).is_some(),
         "expected transform metadata for first op"

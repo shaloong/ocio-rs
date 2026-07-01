@@ -1057,6 +1057,16 @@ unsafe extern "C" {
         oFlags: i32,
     ) -> *mut c_void;
 
+    // --- ProcessorMetadata ---
+    pub fn ocio_processor_metadata_create() -> *mut c_void;
+    pub fn ocio_processor_metadata_destroy(handle: *mut c_void);
+    pub fn ocio_processor_metadata_get_num_files(handle: *mut c_void) -> i32;
+    pub fn ocio_processor_metadata_get_file(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_processor_metadata_get_num_looks(handle: *mut c_void) -> i32;
+    pub fn ocio_processor_metadata_get_look(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_processor_metadata_add_file(handle: *mut c_void, fileName: *const i8) -> ();
+    pub fn ocio_processor_metadata_add_look(handle: *mut c_void, look: *const i8) -> ();
+
     // --- CPUProcessor ---
     pub fn ocio_cpu_processor_destroy(handle: *mut c_void);
     pub fn ocio_cpu_processor_is_no_op(handle: *mut c_void) -> bool;

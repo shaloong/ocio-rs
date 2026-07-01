@@ -518,6 +518,16 @@ void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags
 void* ocio_processor_get_default_cpu_processor(void* handle);
 void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags);
 
+// --- ProcessorMetadata ---
+void* ocio_processor_metadata_create(void);
+void ocio_processor_metadata_destroy(void* handle);
+int ocio_processor_metadata_get_num_files(void* handle);
+void* ocio_processor_metadata_get_file(void* handle, int index);
+int ocio_processor_metadata_get_num_looks(void* handle);
+void* ocio_processor_metadata_get_look(void* handle, int index);
+void ocio_processor_metadata_add_file(void* handle, const char* fileName);
+void ocio_processor_metadata_add_look(void* handle, const char* look);
+
 // --- CPUProcessor ---
 void ocio_cpu_processor_destroy(void* handle);
 

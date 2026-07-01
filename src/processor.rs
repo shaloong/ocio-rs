@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
-    GpuLanguage, HueCurveType, Interpolation, OcioError, RGBCurveType, Result,
+    GpuLanguage, HueCurveType, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -254,11 +254,12 @@ impl Processor {
         NonNull::new(h).map(|h| FormatMetadata { handle: h })
     }
 
-    pub fn processor_metadata(&self) -> Option<FormatMetadata> {
+    /// Return technical processor metadata such as contributing files and looks.
+    pub fn processor_metadata(&self) -> Option<ProcessorMetadata> {
         let h = unsafe {
             ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+        NonNull::new(h).map(|h| ProcessorMetadata { handle: h })
     }
 
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {

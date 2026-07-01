@@ -141,7 +141,8 @@ fn processor_transform_format_metadata_access_behavior() {
         .transform_format_metadata(0)
         .expect("transform metadata handle");
 
-    assert!(processor_metadata.num_children() >= 0);
+    assert!(processor_metadata.num_files() >= 0);
+    assert!(processor_metadata.num_looks() >= 0);
     assert_eq!(transform_metadata.element_name().as_deref(), Some("ROOT"));
     assert_eq!(
         transform_metadata.attribute_value("test_attr").as_deref(),

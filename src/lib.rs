@@ -42,6 +42,7 @@ pub mod grading;
 mod look;
 mod named_transform;
 mod processor;
+mod processor_metadata;
 pub mod transform;
 mod types;
 mod view_transform;
@@ -64,6 +65,7 @@ pub use processor::{
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
     Processor, TextureInfo,
 };
+pub use processor_metadata::ProcessorMetadata;
 pub use types::*;
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
