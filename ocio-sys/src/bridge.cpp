@@ -12605,6 +12605,8 @@ void ocio_group_transform_remove_transform(void* transform, uint64_t index) {
     auto* handle = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
     auto obj = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(handle->inner);
     auto replacement = ocio::GroupTransform::Create();
+    replacement->setDirection(obj->transform->getDirection());
+    replacement->getFormatMetadata() = obj->transform->getFormatMetadata();
     const int remove_index = static_cast<int>(index);
     for (int i = 0; i < obj->transform->getNumTransforms(); ++i) {
       if (i == remove_index) continue;
@@ -12623,7 +12625,10 @@ void ocio_group_transform_clear_transforms(void* transform) {
   try {
     auto* handle = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
     auto obj = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(handle->inner);
-    obj->transform = ocio::GroupTransform::Create();
+    auto replacement = ocio::GroupTransform::Create();
+    replacement->setDirection(obj->transform->getDirection());
+    replacement->getFormatMetadata() = obj->transform->getFormatMetadata();
+    obj->transform = replacement;
   } catch (...) { return; }
 #else
   (void)transform;
