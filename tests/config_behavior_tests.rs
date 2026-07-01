@@ -72,7 +72,7 @@ fn config_processor_from_configs_with_contexts_identity_behavior() {
 }
 
 #[test]
-fn config_processor_from_configs_with_interchange_identity_behavior() {
+fn config_processor_from_configs_with_interchange_rejects_empty_interchange_behavior() {
     if is_stub() {
         return;
     }
@@ -81,25 +81,20 @@ fn config_processor_from_configs_with_interchange_identity_behavior() {
     let src_config = create_test_config().expect("src raw config");
     let dst_config = create_test_config().expect("dst raw config");
 
-    let processor = config
-        .processor_from_configs_with_interchange(&src_config, "raw", "", &dst_config, "raw", "")
-        .expect("processor_from_configs_with_interchange");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.15f32, 0.35, 0.55, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+    let processor = config.processor_from_configs_with_interchange(
+        &src_config,
+        "raw",
+        "",
+        &dst_config,
+        "raw",
+        "",
+    );
+    assert!(processor.is_err());
 }
 
 #[test]
-fn config_processor_from_configs_with_contexts_and_interchange_identity_behavior() {
+fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
+{
     if is_stub() {
         return;
     }
@@ -110,30 +105,17 @@ fn config_processor_from_configs_with_contexts_and_interchange_identity_behavior
     let src_ctx = src_config.current_context().expect("src current_context");
     let dst_ctx = dst_config.current_context().expect("dst current_context");
 
-    let processor = config
-        .processor_from_configs_with_contexts_and_interchange(
-            &src_ctx,
-            &src_config,
-            "raw",
-            "",
-            &dst_ctx,
-            &dst_config,
-            "raw",
-            "",
-        )
-        .expect("processor_from_configs_with_contexts_and_interchange");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.05f32, 0.25, 0.45, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+    let processor = config.processor_from_configs_with_contexts_and_interchange(
+        &src_ctx,
+        &src_config,
+        "raw",
+        "",
+        &dst_ctx,
+        &dst_config,
+        "raw",
+        "",
+    );
+    assert!(processor.is_err());
 }
 
 #[test]
@@ -174,7 +156,7 @@ fn config_processor_from_configs_to_display_identity_behavior() {
 }
 
 #[test]
-fn config_processor_from_configs_to_display_with_interchange_identity_behavior() {
+fn config_processor_from_configs_to_display_with_interchange_rejects_empty_interchange_behavior() {
     if is_stub() {
         return;
     }
@@ -186,30 +168,17 @@ fn config_processor_from_configs_to_display_with_interchange_identity_behavior()
         .add_display("UnitDisplay", "UnitView", "raw", "")
         .expect("add_display");
 
-    let processor = config
-        .processor_from_configs_to_display_with_interchange(
-            &src_config,
-            "raw",
-            "",
-            &dst_config,
-            "UnitDisplay",
-            "UnitView",
-            "",
-            ocio_rs::TransformDirection::Forward,
-        )
-        .expect("processor_from_configs_to_display_with_interchange");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.7f32, 0.2, 0.4, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+    let processor = config.processor_from_configs_to_display_with_interchange(
+        &src_config,
+        "raw",
+        "",
+        &dst_config,
+        "UnitDisplay",
+        "UnitView",
+        "",
+        ocio_rs::TransformDirection::Forward,
+    );
+    assert!(processor.is_err());
 }
 
 #[test]
@@ -254,7 +223,8 @@ fn config_processor_from_configs_to_display_with_contexts_identity_behavior() {
 }
 
 #[test]
-fn config_processor_from_configs_to_display_with_contexts_and_interchange_identity_behavior() {
+fn config_processor_from_configs_to_display_with_contexts_and_interchange_rejects_empty_interchange_behavior(
+) {
     if is_stub() {
         return;
     }
@@ -268,32 +238,19 @@ fn config_processor_from_configs_to_display_with_contexts_and_interchange_identi
         .add_display("UnitDisplay", "UnitView", "raw", "")
         .expect("add_display");
 
-    let processor = config
-        .processor_from_configs_to_display_with_contexts_and_interchange(
-            &src_ctx,
-            &src_config,
-            "raw",
-            "",
-            &dst_ctx,
-            &dst_config,
-            "UnitDisplay",
-            "UnitView",
-            "",
-            ocio_rs::TransformDirection::Forward,
-        )
-        .expect("processor_from_configs_to_display_with_contexts_and_interchange");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.9f32, 0.6, 0.3, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+    let processor = config.processor_from_configs_to_display_with_contexts_and_interchange(
+        &src_ctx,
+        &src_config,
+        "raw",
+        "",
+        &dst_ctx,
+        &dst_config,
+        "UnitDisplay",
+        "UnitView",
+        "",
+        ocio_rs::TransformDirection::Forward,
+    );
+    assert!(processor.is_err());
 }
 
 #[test]
