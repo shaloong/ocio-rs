@@ -595,6 +595,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         // Constructor/static factory variants
         ("create_raw", "raw"),
         ("create_from_file", "from_file"),
+        ("create_from_env", "from_env"),
+        ("create_from_stream", "from_stream"),
         // Processor naming differences
         ("get_cache_id_n", "cache_id_with_context"),
         ("get_processor_transform", "processor_from_transform"),

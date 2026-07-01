@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -1419,6 +1420,43 @@ void* ocio_config_create_from_builtin_config(const char* configName) {
 #else
   try {
     auto result = ocio::Config::CreateFromBuiltinConfig(configName);
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
+      ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_create_from_env(void) {
+#ifdef OCIO_RS_STUB
+  const char* ocio_env = std::getenv("OCIO");
+  if (!ocio_env || !*ocio_env) return nullptr;
+  std::ifstream file(ocio_env);
+  if (!file.good()) return nullptr;
+  return ocio_rs_bridge::make_stub_config().release();
+#else
+  try {
+    auto result = ocio::Config::CreateFromEnv();
+    if (!result) return nullptr;
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
+      ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
+    return handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_config_create_from_stream(const char* text) {
+#ifdef OCIO_RS_STUB
+  if (!text || !*text) return nullptr;
+  return ocio_rs_bridge::make_stub_config().release();
+#else
+  try {
+    if (!text) return nullptr;
+    std::istringstream stream(text);
+    auto result = ocio::Config::CreateFromStream(stream);
     if (!result) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(

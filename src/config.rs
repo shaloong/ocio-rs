@@ -49,6 +49,28 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Load a config from the `OCIO` environment variable.
+    ///
+    /// In real OCIO mode this mirrors `OCIO::Config::CreateFromEnv`.
+    pub fn from_env() -> Result<Self> {
+        let handle = unsafe { ocio_sys::ocio_config_create_from_env() };
+        NonNull::new(handle)
+            .map(|handle| Self { handle })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    /// Parse a config from in-memory OCIO text.
+    ///
+    /// This is useful for tests, generated configs, or editor tooling that
+    /// wants to validate config text before writing it to disk.
+    pub fn from_stream(text: impl AsRef<str>) -> Result<Self> {
+        let text = cstring(text)?;
+        let handle = unsafe { ocio_sys::ocio_config_create_from_stream(text.as_ptr().cast()) };
+        NonNull::new(handle)
+            .map(|handle| Self { handle })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
     // --- Name & metadata ---
 
     pub fn name(&self) -> Option<String> {
@@ -3064,11 +3086,53 @@ impl Drop for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
 
     #[test]
     fn create_raw_config() {
         let cfg = Config::raw();
         assert!(cfg.is_ok());
+    }
+
+    #[test]
+    fn create_config_from_env_no_crash() {
+        let _guard = env_lock();
+        let path = "tests/data/configs/context_test1/config.ocio";
+        let prev = std::env::var_os("OCIO");
+        unsafe {
+            std::env::set_var("OCIO", path);
+        }
+
+        let cfg = Config::from_env();
+
+        match prev {
+            Some(value) => unsafe { std::env::set_var("OCIO", value) },
+            None => unsafe { std::env::remove_var("OCIO") },
+        }
+
+        if crate::is_stub_build() {
+            let _ = cfg;
+        } else {
+            assert!(cfg.is_ok());
+        }
+    }
+
+    #[test]
+    fn create_config_from_stream_no_crash() {
+        let text =
+            fs::read_to_string("tests/data/configs/context_test1/config.ocio").expect("read ocio");
+        let cfg = Config::from_stream(text);
+        if crate::is_stub_build() {
+            let _ = cfg;
+        } else {
+            assert!(cfg.is_ok());
+        }
     }
 
     #[test]

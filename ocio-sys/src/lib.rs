@@ -79,6 +79,8 @@ unsafe extern "C" {
     pub fn ocio_config_create_raw() -> *mut c_void;
     pub fn ocio_config_create_from_file(path: *const i8) -> *mut c_void;
     pub fn ocio_config_create_from_builtin_config(configName: *const i8) -> *mut c_void;
+    pub fn ocio_config_create_from_env() -> *mut c_void;
+    pub fn ocio_config_create_from_stream(text: *const i8) -> *mut c_void;
     pub fn ocio_config_destroy(handle: *mut c_void);
     pub fn ocio_config_get_major_version(handle: *mut c_void) -> i32;
     pub fn ocio_config_set_major_version(handle: *mut c_void, major: u32) -> ();

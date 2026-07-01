@@ -75,6 +75,8 @@ bool ocio_builtin_config_registry_is_builtin_config_recommended(void* handle, si
 void* ocio_config_create_raw(void);
 void* ocio_config_create_from_file(const char* path);
 void* ocio_config_create_from_builtin_config(const char* configName);
+void* ocio_config_create_from_env(void);
+void* ocio_config_create_from_stream(const char* text);
 void ocio_config_destroy(void* handle);
 
 int ocio_config_get_major_version(void* handle);
