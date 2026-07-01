@@ -51,9 +51,9 @@ Current release checklist highlights:
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`,
-  `log_affine_transform_behavior`, `log_transform_behavior`, and
-  `named_transform_behavior` integration suites in addition to crate unit
-  tests.
+  `log_affine_transform_behavior`, `log_camera_transform_behavior`,
+  `log_transform_behavior`, and `named_transform_behavior` integration suites
+  in addition to crate unit tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -69,7 +69,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty-six
+- The current bundled validation path exercises `373` crate tests plus twenty-seven
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -78,7 +78,8 @@ Latest release-audit result:
   execution, cdl-transform behavior, color-space-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
-  log-affine-transform behavior, log-transform behavior,
+  log-affine-transform behavior, log-camera-transform behavior,
+  log-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
 
@@ -130,6 +131,10 @@ Current runtime semantics worth calling out explicitly:
   offset state in bundled mode, and with custom affine parameters executes the
   documented `logSideSlope * log(linSideSlope * color + linSideOffset, base) +
   logSideOffset` CPU path rather than behaving like a plain log or no-op.
+- `LogCameraTransform` round-trips base, lin-side break, and optional
+  `linearSlope` state in bundled mode; with an explicit slope it exercises both
+  the near-black linear segment and the log segment in one processor path,
+  instead of degenerating to a plain log-affine curve.
 - `BuiltinTransformRegistry` and `BuiltinTransform` helper enumeration stay
   coherent in bundled mode, and builtin descriptions may legitimately be empty
   strings for some upstream styles rather than guaranteed human-readable text.
