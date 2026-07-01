@@ -44,6 +44,7 @@ Current release checklist highlights:
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `exposure_contrast_transform_behavior`,
+  `range_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`, and
@@ -64,7 +65,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus nineteen
+- The current bundled validation path exercises `373` crate tests plus twenty
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -72,7 +73,8 @@ Latest release-audit result:
   CPU processor execution, matrix processing behavior, named-transform
   execution, color-space-transform behavior, display-view-transform behavior,
   look behavior, look-transform behavior, exposure-contrast-transform
-  behavior, and view-transform display-pipeline behavior.
+  behavior, range-transform behavior, and view-transform display-pipeline
+  behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -131,6 +133,10 @@ Current runtime semantics worth calling out explicitly:
   one-stop gain (`x2`) in forward processing with the inverse processor
   restoring the input. Its `equals` helper should not currently be treated as a
   normal value-semantic equality contract.
+- `RangeTransform` round-trips its range endpoints and unset/has flags in
+  bundled mode. In the current validation path it remaps and clamps RGB lanes
+  as expected while leaving alpha unchanged, and inverse processing restores
+  the forward-mapped RGB values for the configured no-clamp case.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
