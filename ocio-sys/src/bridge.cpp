@@ -4439,6 +4439,22 @@ void* ocio_color_space_create(void) {
 #endif
 }
 
+void* ocio_color_space_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_color_space().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_color_space(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    out_handle->inner =
+        std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void ocio_color_space_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ColorSpaceHandle*>(handle);
 }
@@ -5084,6 +5100,21 @@ void* ocio_look_create(void) {
   auto handle = ocio_rs_bridge::make_real_look();
   if (!handle) return nullptr;
   return handle.release();
+#endif
+}
+
+void* ocio_look_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_look().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_look(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::LookHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
 #endif
 }
 

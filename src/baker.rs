@@ -223,6 +223,16 @@ mod tests {
     }
 
     #[test]
+    fn create_editable_copy_round_trip() {
+        let baker = Baker::create().unwrap();
+        let _ = baker.set_format("resolve_cube");
+        let copy = baker.create_editable_copy().unwrap();
+        if !crate::is_stub_build() {
+            assert_eq!(copy.format().as_deref(), Some("resolve_cube"));
+        }
+    }
+
+    #[test]
     fn bake_to_string_no_crash() {
         let baker = Baker::create().unwrap();
         if !crate::is_stub_build() {

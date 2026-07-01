@@ -291,11 +291,13 @@ void ocio_config_clear_processor_cache(void* handle);
 void ocio_config_set_config_io_proxy(void* handle, void* ciop);
 void* ocio_config_get_config_io_proxy(void* handle);
 bool ocio_config_is_archivable(void* handle);
+void* ocio_config_create_editable_copy(void* handle);
 void ocio_config_archive(void* handle, void* ostream);
 void* ocio_config_archive_to_string(void* handle);
 
 // --- FileRules ---
 void* ocio_file_rules_create(void);
+void* ocio_file_rules_create_editable_copy(void* handle);
 void ocio_file_rules_destroy(void* handle);
 
 size_t ocio_file_rules_get_num_entries(void* handle);
@@ -324,6 +326,7 @@ bool ocio_file_rules_is_default(void* handle);
 
 // --- ColorSpace ---
 void* ocio_color_space_create(void);
+void* ocio_color_space_create_editable_copy(void* handle);
 void ocio_color_space_destroy(void* handle);
 
 void* ocio_color_space_get_name(void* handle);
@@ -370,6 +373,7 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---
 void* ocio_color_space_set_create(void);
+void* ocio_color_space_set_create_editable_copy(void* handle);
 void ocio_color_space_set_destroy(void* handle);
 
 int ocio_color_space_set_get_num_color_spaces(void* handle);
@@ -386,6 +390,7 @@ void ocio_color_space_set_clear_color_spaces(void* handle);
 
 // --- Look ---
 void* ocio_look_create(void);
+void* ocio_look_create_editable_copy(void* handle);
 void ocio_look_destroy(void* handle);
 
 void* ocio_look_get_name(void* handle);
@@ -406,6 +411,7 @@ const char* ocio_look_get_interchange_attribute_value_by_index(void* handle, int
 
 // --- NamedTransform ---
 void* ocio_named_transform_create(void);
+void* ocio_named_transform_create_editable_copy(void* handle);
 void ocio_named_transform_destroy(void* handle);
 
 void* ocio_named_transform_get_name(void* handle);
@@ -545,6 +551,7 @@ void* ocio_gpu_shader_desc_get_shader_text(void* handle);
 
 // --- Baker ---
 void* ocio_baker_create(void);
+void* ocio_baker_create_editable_copy(void* handle);
 void ocio_baker_destroy(void* handle);
 
 void* ocio_baker_get_config(void* handle);
@@ -570,9 +577,13 @@ int ocio_baker_get_cube_size(void* handle);
 void ocio_baker_set_cube_size(void* handle, int cubesize);
 void ocio_baker_bake(void* handle, void* os);
 void* ocio_baker_bake_to_string(void* handle);
+int ocio_baker_get_num_formats(void);
+const char* ocio_baker_get_format_name_by_index(int index);
+const char* ocio_baker_get_format_extension_by_index(int index);
 
 // --- Context ---
 void* ocio_context_create(void);
+void* ocio_context_create_editable_copy(void* handle);
 void ocio_context_destroy(void* handle);
 
 void* ocio_context_get_cache_id(void* handle);

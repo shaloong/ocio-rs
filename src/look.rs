@@ -185,6 +185,16 @@ mod tests {
     }
 
     #[test]
+    fn create_editable_copy_round_trip() {
+        let look = Look::create().unwrap();
+        assert!(look.set_name("EditableLook").is_ok());
+        let copy = look.create_editable_copy().unwrap();
+        if !crate::is_stub_build() {
+            assert_eq!(copy.name().as_deref(), Some("EditableLook"));
+        }
+    }
+
+    #[test]
     fn interchange_attribute_no_crash() {
         let look = Look::create().unwrap();
         assert!(look

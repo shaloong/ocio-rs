@@ -417,6 +417,16 @@ mod tests {
     }
 
     #[test]
+    fn create_editable_copy_round_trip() {
+        let cs = ColorSpace::create().unwrap();
+        assert!(cs.set_name("EditableColorSpace").is_ok());
+        let copy = cs.create_editable_copy().unwrap();
+        if !crate::is_stub_build() {
+            assert_eq!(copy.name().as_deref(), Some("EditableColorSpace"));
+        }
+    }
+
+    #[test]
     fn interchange_attribute_no_crash() {
         let cs = ColorSpace::create().unwrap();
         assert!(cs
