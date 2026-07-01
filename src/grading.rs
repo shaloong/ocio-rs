@@ -314,7 +314,7 @@ impl GradingTone {
                     green: 1.0,
                     blue: 1.0,
                     master: 1.0,
-                    start: 0.5,
+                    start: 0.6,
                     width: 0.0,
                 },
                 GradingRGBMSW {
