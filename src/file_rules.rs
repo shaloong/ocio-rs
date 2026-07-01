@@ -30,6 +30,11 @@ impl FileRules {
         unsafe { ocio_sys::ocio_file_rules_get_num_entries(self.handle.as_ptr()) as u64 }
     }
 
+    /// Look up the index for a rule name.
+    ///
+    /// This returns the raw OCIO result and may use implementation-defined
+    /// fallback values when the rule is absent. Prefer [`rule_index`] for a
+    /// Rust-level presence check.
     pub fn index_for_rule(&self, rule_name: impl AsRef<str>) -> u64 {
         let rule_name = match cstring(&rule_name) {
             Ok(c) => c,
@@ -40,6 +45,19 @@ impl FileRules {
                 self.handle.as_ptr(),
                 rule_name.as_ptr().cast(),
             ) as u64
+        }
+    }
+
+    /// Look up the index for a rule name.
+    ///
+    /// Returns `None` when the rule is absent or the rule name is not a valid
+    /// C string for the OCIO ABI.
+    pub fn rule_index(&self, rule_name: impl AsRef<str>) -> Option<u64> {
+        let rule_name = rule_name.as_ref();
+        let index = self.index_for_rule(rule_name);
+        match self.name(index) {
+            Some(found_name) if found_name == rule_name => Some(index),
+            _ => None,
         }
     }
 

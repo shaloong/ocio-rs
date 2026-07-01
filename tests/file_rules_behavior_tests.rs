@@ -36,6 +36,9 @@ fn file_rules_insert_rule_round_trip_behavior() {
     assert_eq!(rules.pattern(0).as_deref(), Some("*.exr"));
     assert_eq!(rules.extension(0).as_deref(), Some("exr"));
     assert_eq!(rules.index_for_rule("UnitRule"), 0);
+    assert_eq!(rules.rule_index("UnitRule"), Some(0));
+    assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
+    assert_eq!(rules.rule_index("bad\0rule"), None);
 }
 
 #[test]
@@ -124,15 +127,21 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
         Some(1)
     );
     assert_eq!(
-        config.color_space_from_filepath("plate_main.exr").as_deref(),
+        config
+            .color_space_from_filepath("plate_main.exr")
+            .as_deref(),
         Some("raw")
     );
     assert_eq!(
-        config.color_space_from_filepath("clip_proxy.mov").as_deref(),
+        config
+            .color_space_from_filepath("clip_proxy.mov")
+            .as_deref(),
         Some("raw")
     );
     assert_eq!(
-        config.color_space_from_filepath("fallback.unknown").as_deref(),
+        config
+            .color_space_from_filepath("fallback.unknown")
+            .as_deref(),
         Some("raw")
     );
 }

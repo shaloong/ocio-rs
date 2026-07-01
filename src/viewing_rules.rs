@@ -24,7 +24,8 @@ impl ViewingRules {
 
     /// Create an editable clone of the viewing rules.
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_viewing_rules_create_editable_copy(self.handle.as_ptr()) };
+        let handle =
+            unsafe { ocio_sys::ocio_viewing_rules_create_editable_copy(self.handle.as_ptr()) };
         NonNull::new(handle)
             .map(|h| Self { handle: h })
             .ok_or(OcioError::AllocationFailed)
@@ -36,6 +37,10 @@ impl ViewingRules {
     }
 
     /// Look up the index for a rule name.
+    ///
+    /// This returns the raw OCIO result and may use implementation-defined
+    /// fallback values when the rule is absent. Prefer [`rule_index`] for a
+    /// Rust-level presence check.
     pub fn index_for_rule(&self, rule_name: impl AsRef<str>) -> u64 {
         let rule_name = match cstring(rule_name) {
             Ok(value) => value,
@@ -46,6 +51,19 @@ impl ViewingRules {
                 self.handle.as_ptr(),
                 rule_name.as_ptr().cast(),
             ) as u64
+        }
+    }
+
+    /// Look up the index for a rule name.
+    ///
+    /// Returns `None` when the rule is absent or the rule name is not a valid
+    /// C string for the OCIO ABI.
+    pub fn rule_index(&self, rule_name: impl AsRef<str>) -> Option<u64> {
+        let rule_name = rule_name.as_ref();
+        let index = self.index_for_rule(rule_name);
+        match self.name(index) {
+            Some(found_name) if found_name == rule_name => Some(index),
+            _ => None,
         }
     }
 
@@ -62,8 +80,10 @@ impl ViewingRules {
     /// Return the number of color spaces attached to a rule.
     pub fn num_color_spaces(&self, rule_index: u64) -> u64 {
         unsafe {
-            ocio_sys::ocio_viewing_rules_get_num_color_spaces(self.handle.as_ptr(), rule_index as usize)
-                as u64
+            ocio_sys::ocio_viewing_rules_get_num_color_spaces(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ) as u64
         }
     }
 
@@ -105,8 +125,10 @@ impl ViewingRules {
     /// Return the number of encodings attached to a rule.
     pub fn num_encodings(&self, rule_index: u64) -> u64 {
         unsafe {
-            ocio_sys::ocio_viewing_rules_get_num_encodings(self.handle.as_ptr(), rule_index as usize)
-                as u64
+            ocio_sys::ocio_viewing_rules_get_num_encodings(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ) as u64
         }
     }
 
@@ -148,8 +170,10 @@ impl ViewingRules {
     /// Return the number of custom keys attached to a rule.
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
         unsafe {
-            ocio_sys::ocio_viewing_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize)
-                as u64
+            ocio_sys::ocio_viewing_rules_get_num_custom_keys(
+                self.handle.as_ptr(),
+                rule_index as usize,
+            ) as u64
         }
     }
 
@@ -210,7 +234,9 @@ impl ViewingRules {
 
     /// Remove a viewing rule by index.
     pub fn remove_rule(&self, rule_index: u64) {
-        unsafe { ocio_sys::ocio_viewing_rules_remove_rule(self.handle.as_ptr(), rule_index as usize) };
+        unsafe {
+            ocio_sys::ocio_viewing_rules_remove_rule(self.handle.as_ptr(), rule_index as usize)
+        };
     }
 }
 

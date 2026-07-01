@@ -31,6 +31,9 @@ fn viewing_rules_round_trip_and_copy_behavior() {
     rules.insert_rule(0, "SceneRule").expect("insert rule");
     assert_eq!(rules.num_entries(), 1);
     assert_eq!(rules.index_for_rule("SceneRule"), 0);
+    assert_eq!(rules.rule_index("SceneRule"), Some(0));
+    assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
+    assert_eq!(rules.rule_index("bad\0rule"), None);
     assert_eq!(rules.name(0).as_deref(), Some("SceneRule"));
 
     rules.add_color_space(0, "raw").expect("add color space");
@@ -45,9 +48,9 @@ fn viewing_rules_round_trip_and_copy_behavior() {
     assert_eq!(rules.custom_key_value(0, 0).as_deref(), Some("A001"));
 
     let copy = rules.create_editable_copy().expect("editable copy");
-    copy.insert_rule(1, "EncodingRule").expect("insert copy rule");
-    copy.add_encoding(1, "scene-linear")
-        .expect("add encoding");
+    copy.insert_rule(1, "EncodingRule")
+        .expect("insert copy rule");
+    copy.add_encoding(1, "scene-linear").expect("add encoding");
 
     assert_eq!(copy.num_entries(), 2);
     assert_eq!(copy.name(1).as_deref(), Some("EncodingRule"));
