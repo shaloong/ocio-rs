@@ -19,7 +19,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 cargo test --workspace --no-default-features
 cargo test --examples --no-default-features
-cargo doc --workspace --no-deps --no-default-features
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features
 cargo run --bin check_parity --quiet
 cargo package -p ocio-sys --allow-dirty
 ```

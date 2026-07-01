@@ -22,6 +22,7 @@
 //! configuration, so the packaged `ocio-sys` crate can be validated with
 //! `cargo build --features bundled --offline`.
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(
     unused_imports,
     clippy::single_component_path_imports,
@@ -77,6 +78,11 @@ use thiserror::Error;
 pub use ocio_sys;
 
 #[derive(Debug, Error)]
+/// Unified error type for safe `ocio-rs` operations.
+///
+/// Most bridge failures arrive here either as a propagated OpenColorIO runtime
+/// error string or as an input/ownership validation error detected on the Rust
+/// side before the C++ bridge is called.
 pub enum OcioError {
     #[error("OpenColorIO error: {0}")]
     Ocio(String),
@@ -90,12 +96,22 @@ pub enum OcioError {
     AllocationFailed,
 }
 
+/// Crate-local result alias used by the safe wrapper layer.
 pub type Result<T> = std::result::Result<T, OcioError>;
 
+/// Returns `true` when the crate was built in stub mode instead of linking a
+/// real OpenColorIO implementation.
+///
+/// Stub mode is useful for API-shape validation and lightweight CI, but it
+/// does not perform real color processing.
 pub fn is_stub_build() -> bool {
     unsafe { ocio_sys::ocio_runtime_is_stub() }
 }
 
+/// Returns the process-global current OCIO config, if one is installed.
+///
+/// The returned handle follows OCIO's shared ownership semantics and can be
+/// queried or copied like any other `Config`.
 pub fn current_config() -> Option<Config> {
     let handle = unsafe { ocio_sys::ocio_get_current_config() };
     if handle.is_null() {
@@ -112,22 +128,30 @@ pub fn get_current_config() -> Option<Config> {
     current_config()
 }
 
+/// Installs `config` as the process-global current OCIO config.
 pub fn set_current_config(config: &Config) {
     unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
 }
 
+/// Clears OCIO's process-global caches.
+///
+/// This is mainly useful in tests and tooling that intentionally mutate config
+/// state and want subsequent processor creation to observe the new values.
 pub fn clear_all_caches() {
     unsafe { ocio_sys::ocio_clear_all_caches() };
 }
 
+/// Returns the linked OpenColorIO version string, if available.
 pub fn version() -> Option<String> {
     unsafe { cstr_to_opt_string(ocio_sys::ocio_get_version()) }
 }
 
+/// Returns the linked OpenColorIO version as an integer hex constant.
 pub fn version_hex() -> i32 {
     unsafe { ocio_sys::ocio_get_version_hex() }
 }
 
+/// Returns the current OCIO global logging level.
 pub fn logging_level() -> crate::LoggingLevel {
     let l = unsafe { ocio_sys::ocio_get_logging_level() };
     match l {
@@ -140,20 +164,26 @@ pub fn logging_level() -> crate::LoggingLevel {
     }
 }
 
+/// Sets the OCIO global logging level.
 pub fn set_logging_level(level: crate::LoggingLevel) {
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
 }
 
+/// Compatibility alias for overriding the OCIO global logging level.
 pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
 }
 
+/// Returns the processor cache flags from the current global config.
+///
+/// If no current config is installed, this returns an empty flag set.
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
     current_config()
         .map(|config| crate::ProcessorCacheFlags(config.processor_cache_flags() as u32))
         .unwrap_or(crate::ProcessorCacheFlags(0))
 }
 
+/// Updates the processor cache flags on the current global config, if any.
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
     if let Some(config) = current_config() {
         config.set_processor_cache_flags(flags.0 as i32);

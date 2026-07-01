@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(
     non_snake_case,
     unused_variables,

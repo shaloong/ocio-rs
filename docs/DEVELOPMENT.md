@@ -114,7 +114,7 @@ Current CI (`ci.yml`) runs:
 - `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
 - `cargo test --workspace --no-default-features`
 - `cargo test --examples --no-default-features`
-- `cargo doc --workspace --no-deps --no-default-features`
+- `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features`
 - `cargo package -p ocio-sys --allow-dirty`
 
 Bundled real-OCIO validation is kept on manual GitHub Actions workflows and runs:
@@ -130,7 +130,7 @@ steps:
   - cargo clippy --workspace --all-targets --no-default-features -- -D warnings
   - cargo test --workspace --no-default-features
   - cargo test --examples --no-default-features
-  - cargo doc --workspace --no-deps --no-default-features
+  - RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features
   - cargo package -p ocio-sys --allow-dirty
 ```
 

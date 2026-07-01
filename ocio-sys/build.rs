@@ -38,7 +38,8 @@ fn main() {
     } else if is_bundled {
         if let Some(ocio_source) = resolve_ocio_source_dir() {
             let dst = std::panic::catch_unwind(|| {
-                cmake::Config::new(&ocio_source)
+                let mut config = cmake::Config::new(&ocio_source);
+                config
                     .profile("Release")
                     .define("BUILD_SHARED_LIBS", "OFF")
                     .define("OCIO_BUILD_APPS", "OFF")
@@ -50,8 +51,80 @@ fn main() {
                     .define("OCIO_BUILD_TESTS", "OFF")
                     .define("OCIO_BUILD_GPU_TESTS", "OFF")
                     .define("OCIO_INSTALL_EXT_PACKAGES", "ALL")
-                    .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON")
-                    .build()
+                    .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
+
+                #[cfg(target_os = "windows")]
+                {
+                    if env::var_os("CMAKE_GENERATOR").is_none() {
+                        if let Some(ninja_path) = find_windows_ninja() {
+                            let mut extra_path_entries = Vec::new();
+                            if let Some(ninja_dir) = ninja_path.parent() {
+                                extra_path_entries.push(ninja_dir.as_os_str().to_owned());
+                            }
+                            if let Some(msvc_cl) = find_msvc_compiler() {
+                                config
+                                    .env("CC", msvc_cl.as_os_str())
+                                    .env("CXX", msvc_cl.as_os_str())
+                                    .env("ASM", msvc_cl.as_os_str());
+                                if let Some(msvc_dir) = msvc_cl.parent() {
+                                    extra_path_entries.push(msvc_dir.as_os_str().to_owned());
+                                }
+                            }
+                            if let Some(rc_path) = find_windows_sdk_tool("rc.exe") {
+                                config.define("CMAKE_RC_COMPILER", cmake_path(&rc_path));
+                                if let Some(rc_dir) = rc_path.parent() {
+                                    extra_path_entries.push(rc_dir.as_os_str().to_owned());
+                                }
+                            }
+                            if let Some(mt_path) = find_windows_sdk_tool("mt.exe") {
+                                config.define("CMAKE_MT", cmake_path(&mt_path));
+                                if let Some(mt_dir) = mt_path.parent() {
+                                    extra_path_entries.push(mt_dir.as_os_str().to_owned());
+                                }
+                            }
+                            if let Some(path_env) = env::var_os("PATH") {
+                                let mut path = std::ffi::OsString::new();
+                                for entry in extra_path_entries {
+                                    if !path.is_empty() {
+                                        path.push(";");
+                                    }
+                                    path.push(entry);
+                                }
+                                if !path.is_empty() {
+                                    path.push(";");
+                                }
+                                path.push(path_env);
+                                config.env("PATH", path);
+                            }
+
+                            config
+                                .generator("Ninja")
+                                .define("CMAKE_MAKE_PROGRAM", cmake_path(&ninja_path));
+                        }
+                    }
+
+                    let configured_generator = env::var("CMAKE_GENERATOR").ok();
+                    let using_ninja = configured_generator
+                        .as_deref()
+                        .map(|value| value.eq_ignore_ascii_case("ninja"))
+                        .unwrap_or(false)
+                        || (configured_generator.is_none() && find_windows_ninja().is_some());
+
+                    if !using_ninja {
+                        // Visual Studio builds of bundled OCIO have shown
+                        // intermittent tracked-file log failures when the
+                        // generated solution is built with Cargo's default
+                        // parallel job count. Force the CMake/MSBuild layer to
+                        // serialize project execution for reliability.
+                        unsafe {
+                            env::set_var("NUM_JOBS", "1");
+                            env::set_var("CMAKE_BUILD_PARALLEL_LEVEL", "1");
+                        }
+                        config.build_arg("/m:1");
+                    }
+                }
+
+                config.build()
             });
 
             match dst {
@@ -259,6 +332,22 @@ fn resolve_ocio_source_dir() -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "windows")]
+fn find_windows_ninja() -> Option<PathBuf> {
+    let candidates = [
+        r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
+        r"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
+        r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
+    ];
+
+    candidates
+        .into_iter()
+        .map(PathBuf::from)
+        .find(|path| path.exists())
+}
+
 fn find_msvc_include() -> Option<PathBuf> {
     // Probe well-known VS 2022 / 2019 MSVC include directories.
     let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
@@ -273,6 +362,35 @@ fn find_msvc_include() -> Option<PathBuf> {
             for entry in entries.flatten() {
                 let candidate = entry.path().join("include");
                 if candidate.join("vcruntime.h").exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn find_msvc_compiler() -> Option<PathBuf> {
+    let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
+    for year in &["2022", "2019"] {
+        let vc_dir = base
+            .join(year)
+            .join("BuildTools")
+            .join("VC")
+            .join("Tools")
+            .join("MSVC");
+        if let Ok(entries) = std::fs::read_dir(&vc_dir) {
+            let mut entries: Vec<_> = entries.flatten().collect();
+            entries.sort_by_key(|entry| std::cmp::Reverse(entry.file_name()));
+            for entry in entries {
+                let candidate = entry
+                    .path()
+                    .join("bin")
+                    .join("Hostx64")
+                    .join("x64")
+                    .join("cl.exe");
+                if candidate.exists() {
                     return Some(candidate);
                 }
             }
@@ -302,4 +420,25 @@ fn find_windows_sdk_includes() -> Vec<PathBuf> {
         }
     }
     dirs
+}
+
+#[cfg(target_os = "windows")]
+fn find_windows_sdk_tool(tool_name: &str) -> Option<PathBuf> {
+    let kits = std::path::Path::new("C:/Program Files (x86)/Windows Kits/10/bin");
+    let mut versions = std::fs::read_dir(kits).ok()?.flatten().collect::<Vec<_>>();
+    versions.sort_by_key(|entry| std::cmp::Reverse(entry.file_name()));
+
+    for entry in versions {
+        let candidate = entry.path().join("x64").join(tool_name);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn cmake_path(path: &std::path::Path) -> String {
+    path.display().to_string().replace('\\', "/")
 }

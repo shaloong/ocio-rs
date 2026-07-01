@@ -21,6 +21,7 @@ bundled = ["ocio-sys/bundled"]
 
 [package.metadata.docs.rs]
 no-default-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 criterion = "0.5"

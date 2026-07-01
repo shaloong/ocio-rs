@@ -190,18 +190,37 @@ function New-PackageTargetDir {
         [string]$CrateName
     )
 
-    $root = [System.IO.Path]::GetPathRoot($repoRoot)
-    if ([string]::IsNullOrWhiteSpace($root)) {
-        $root = $env:SystemDrive
+    $auditRoot = Join-Path $repoRoot "t\ra"
+    Join-Path $auditRoot $CrateName
+}
+
+function Ensure-StandalonePackageManifest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageDir
+    )
+
+    $manifestPath = Join-Path $PackageDir "Cargo.toml"
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        return
     }
-    Join-Path $root ("ot-" + $CrateName)
+
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw
+    if ($manifest -match '(?m)^\[workspace\]\s*$') {
+        return
+    }
+
+    Add-Content -LiteralPath $manifestPath -Value "`r`n[workspace]`r`n"
 }
 
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
 Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--", "-D", "warnings")
 Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features")
 Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-default-features")
-Invoke-Check -Name "Docs (stub)" -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features")
+Invoke-Check `
+    -Name "Docs (stub)" `
+    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features") `
+    -Environment @{ RUSTDOCFLAGS = "-D warnings" }
 Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet")
 
 Clear-PackageArtifacts -CrateName "ocio-sys"
@@ -222,6 +241,7 @@ Test-OcioSysBundledPayload
 
 $ocioSysPackageDir = Get-OcioSysPackageDir
 if ($ocioSysPackageDir) {
+    Ensure-StandalonePackageManifest -PackageDir $ocioSysPackageDir
     $ocioSysBundledBuildArgs = @("build", "--features", "bundled")
     if ($Offline) {
         $ocioSysBundledBuildArgs += "--offline"
