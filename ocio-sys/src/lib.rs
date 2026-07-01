@@ -2235,9 +2235,44 @@ unsafe extern "C" {
 
     pub fn ocio_format_metadata_set_name(metadata: *mut c_void, name: *const i8) -> ();
 
-    pub fn ocio_gpu_shader_desc_finalize(shader_desc: *mut c_void) -> ();
-
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_begin(shader_desc: *mut c_void, uid: *const i8) -> ();
+    pub fn ocio_gpu_shader_desc_end(shader_desc: *mut c_void) -> ();
+    pub fn ocio_gpu_shader_desc_get_next_resource_index(shader_desc: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_add_to_texture_declare_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_add_to_helper_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_add_to_function_header_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_add_to_function_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_add_to_function_footer_shader_code(
+        shader_desc: *mut c_void,
+        shader_code: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_create_shader_text(
+        shader_desc: *mut c_void,
+        shader_parameter_declarations: *const i8,
+        shader_texture_declarations: *const i8,
+        shader_helper_methods: *const i8,
+        shader_function_header: *const i8,
+        shader_function_body: *const i8,
+        shader_function_footer: *const i8,
+    ) -> ();
+    pub fn ocio_gpu_shader_desc_finalize(shader_desc: *mut c_void) -> ();
 
     pub fn ocio_gpu_shader_desc_get_function_name(shader_desc: *mut c_void) -> *const i8;
 

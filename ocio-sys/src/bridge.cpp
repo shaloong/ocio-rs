@@ -7554,6 +7554,112 @@ const char* ocio_gpu_shader_desc_get_cache_id(void* handle) {
 #endif
 }
 
+void ocio_gpu_shader_desc_begin(void* handle, const char* uid) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)uid;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->begin(uid); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_end(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->end(); }
+  catch (...) {}
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNextResourceIndex(); }
+  catch (...) { return 0; }
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToParameterDeclareShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_texture_declare_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToTextureDeclareShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_helper_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToHelperShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_function_header_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToFunctionHeaderShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_function_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToFunctionShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_add_to_function_footer_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addToFunctionFooterShaderCode(shaderCode); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_create_shader_text(
+    void* handle,
+    const char* shaderParameterDeclarations,
+    const char* shaderTextureDeclarations,
+    const char* shaderHelperMethods,
+    const char* shaderFunctionHeader,
+    const char* shaderFunctionBody,
+    const char* shaderFunctionFooter) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderParameterDeclarations; (void)shaderTextureDeclarations;
+  (void)shaderHelperMethods; (void)shaderFunctionHeader; (void)shaderFunctionBody; (void)shaderFunctionFooter;
+#else
+  try {
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->createShaderText(
+      shaderParameterDeclarations,
+      shaderTextureDeclarations,
+      shaderHelperMethods,
+      shaderFunctionHeader,
+      shaderFunctionBody,
+      shaderFunctionFooter);
+  } catch (...) {}
+#endif
+}
+
 void ocio_gpu_shader_desc_finalize(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

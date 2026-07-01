@@ -613,6 +613,23 @@ void ocio_gpu_shader_desc_set_texture_max_width_u32(void* handle, uint32_t maxWi
 void ocio_gpu_shader_desc_set_allow_texture_1d(void* handle, bool allowed);
 bool ocio_gpu_shader_desc_get_allow_texture_1d(void* handle);
 const char* ocio_gpu_shader_desc_get_cache_id(void* handle);
+void ocio_gpu_shader_desc_begin(void* handle, const char* uid);
+void ocio_gpu_shader_desc_end(void* handle);
+uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle);
+void ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_add_to_texture_declare_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_add_to_helper_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_add_to_function_header_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_add_to_function_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_add_to_function_footer_shader_code(void* handle, const char* shaderCode);
+void ocio_gpu_shader_desc_create_shader_text(
+    void* handle,
+    const char* shaderParameterDeclarations,
+    const char* shaderTextureDeclarations,
+    const char* shaderHelperMethods,
+    const char* shaderFunctionHeader,
+    const char* shaderFunctionBody,
+    const char* shaderFunctionFooter);
 void ocio_gpu_shader_desc_finalize(void* handle);
 uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index);
 uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index);

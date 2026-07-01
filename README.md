@@ -21,7 +21,7 @@ several high-use runtime paths, including:
 - `DynamicProperty` runtime behavior across `Processor`, `CPUProcessor`, and
   extracted GPU descriptors
 - `GpuShaderDesc` extraction structure, resource metadata, creator settings,
-  and descriptor-side dynamic-property access
+  descriptor-side dynamic-property access, and manual shader-text assembly
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 

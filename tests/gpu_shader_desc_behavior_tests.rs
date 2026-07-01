@@ -242,3 +242,53 @@ fn gpu_shader_desc_dynamic_property_behavior() {
         .expect("desc dynamic exposure property after update");
     assert_close(desc_prop_after.double_value(), -1.0, 1e-8);
 }
+
+#[test]
+fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    desc.begin("manual_uid").expect("begin");
+    assert_eq!(desc.next_resource_index(), 0);
+    assert_eq!(desc.next_resource_index(), 1);
+    desc.end();
+
+    desc.add_to_parameter_declare_shader_code("uniform float uGain;\n")
+        .expect("parameter declarations");
+    desc.add_to_texture_declare_shader_code("uniform sampler3D texLut;\n")
+        .expect("texture declarations");
+    desc.add_to_helper_shader_code("vec3 passthrough(vec3 c) { return c; }\n")
+        .expect("helper methods");
+    desc.add_to_function_header_shader_code("vec4 ManualMain(vec4 inPixel) {\n")
+        .expect("function header");
+    desc.add_to_function_shader_code("  return vec4(passthrough(inPixel.rgb), inPixel.a);\n")
+        .expect("function body");
+    desc.add_to_function_footer_shader_code("}\n")
+        .expect("function footer");
+    desc.finalize();
+
+    let shader_text = desc.shader_text().expect("shader_text after finalize");
+    assert!(shader_text.contains("uniform float uGain;"));
+    assert!(shader_text.contains("uniform sampler3D texLut;"));
+    assert!(shader_text.contains("vec3 passthrough"));
+    assert!(shader_text.contains("ManualMain"));
+
+    desc.create_shader_text(
+        "uniform float uManual;\n",
+        "uniform sampler2D texManual;\n",
+        "float helperFn(float x) { return x; }\n",
+        "vec4 ExplicitMain(vec4 inPixel) {\n",
+        "  return vec4(helperFn(inPixel.r), inPixel.g, inPixel.b, inPixel.a);\n",
+        "}\n",
+    )
+    .expect("create_shader_text");
+
+    let rebuilt = desc.shader_text().expect("shader_text after explicit build");
+    assert!(rebuilt.contains("uniform float uManual;"));
+    assert!(rebuilt.contains("uniform sampler2D texManual;"));
+    assert!(rebuilt.contains("helperFn"));
+    assert!(rebuilt.contains("ExplicitMain"));
+}

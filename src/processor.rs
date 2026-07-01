@@ -1034,11 +1034,130 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_allow_texture_1d(self.handle.as_ptr()) }
     }
 
+    /// Marks the beginning of shader-data collection with the provided OCIO resource UID.
+    pub fn begin(&self, uid: impl AsRef<str>) -> Result<()> {
+        let uid = cstring(uid)?;
+        unsafe { ocio_sys::ocio_gpu_shader_desc_begin(self.handle.as_ptr(), uid.as_ptr()) };
+        Ok(())
+    }
+
+    /// Marks the end of shader-data collection.
+    pub fn end(&self) {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_end(self.handle.as_ptr()) };
+    }
+
+    /// Returns the next OCIO-managed resource index and advances the internal counter.
+    pub fn next_resource_index(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_next_resource_index(self.handle.as_ptr()) }
+    }
+
+    /// Appends text to the shader's parameter-declaration section.
+    pub fn add_to_parameter_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Appends text to the shader's texture-declaration section.
+    pub fn add_to_texture_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_texture_declare_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Appends text to the shader's helper-method section.
+    pub fn add_to_helper_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_helper_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Appends text to the shader function's header section.
+    pub fn add_to_function_header_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_function_header_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Appends text to the shader function's body section.
+    pub fn add_to_function_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_function_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
+    /// Appends text to the shader function's footer section.
+    pub fn add_to_function_footer_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_function_footer_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            );
+        }
+        Ok(())
+    }
+
     /// Returns the copied texel payload for a 1D/2D texture resource.
     pub fn texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_2d(index)
             .map(|texture| texture.values)
             .unwrap_or_default()
+    }
+
+    /// Rebuilds the full shader text from the provided OCIO shader sections.
+    pub fn create_shader_text(
+        &self,
+        shader_parameter_declarations: impl AsRef<str>,
+        shader_texture_declarations: impl AsRef<str>,
+        shader_helper_methods: impl AsRef<str>,
+        shader_function_header: impl AsRef<str>,
+        shader_function_body: impl AsRef<str>,
+        shader_function_footer: impl AsRef<str>,
+    ) -> Result<()> {
+        let shader_parameter_declarations = cstring(shader_parameter_declarations)?;
+        let shader_texture_declarations = cstring(shader_texture_declarations)?;
+        let shader_helper_methods = cstring(shader_helper_methods)?;
+        let shader_function_header = cstring(shader_function_header)?;
+        let shader_function_body = cstring(shader_function_body)?;
+        let shader_function_footer = cstring(shader_function_footer)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_create_shader_text(
+                self.handle.as_ptr(),
+                shader_parameter_declarations.as_ptr(),
+                shader_texture_declarations.as_ptr(),
+                shader_helper_methods.as_ptr(),
+                shader_function_header.as_ptr(),
+                shader_function_body.as_ptr(),
+                shader_function_footer.as_ptr(),
+            );
+        }
+        Ok(())
     }
 
     /// Finalizes descriptor configuration before extraction when OCIO requires it.
