@@ -241,7 +241,9 @@ Current runtime semantics worth calling out explicitly:
   coverage for non-no-op matrix pipelines: default and optimized CPU helpers
   produce the same scaled RGBA output, default and optimized GPU helpers both
   emit non-empty shader text, and `Processor::create_group_transform()` can be
-  round-tripped back into an equivalent processor path.
+  round-tripped back into an equivalent processor path. The deprecated legacy
+  GPU helper also emits real shader text in bundled mode, even when the
+  extracted descriptor does not expose additional uniform or texture resources.
 - `LogTransform` round-trips base and direction state in bundled mode, uses
   the documented default base of `2.0`, executes the expected `log(color,
   base)` CPU path on positive inputs, and leaves alpha numerically unchanged

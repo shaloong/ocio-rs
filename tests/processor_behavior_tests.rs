@@ -195,3 +195,40 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     assert_eq!(default_desc.num_textures(), optimized_desc.num_textures());
     assert_eq!(default_desc.num_3d_textures(), optimized_desc.num_3d_textures());
 }
+
+#[allow(deprecated)]
+#[test]
+fn processor_legacy_gpu_helper_emits_real_shader_behavior() {
+    let _guard = processor_behavior_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = scaled_matrix_processor().expect("scaled processor");
+    let legacy_gpu = processor
+        .optimized_legacy_gpu_processor(0, 16)
+        .expect("legacy gpu");
+
+    assert!(!legacy_gpu.is_no_op());
+    assert!(!legacy_gpu.has_channel_crosstalk());
+    assert!(
+        !legacy_gpu
+            .cache_id()
+            .expect("legacy gpu cache id")
+            .trim()
+            .is_empty()
+    );
+
+    let desc = extract_shader_text(
+        &legacy_gpu,
+        "ocio_legacy_gpu_main",
+        "ocio_legacy_gpu_pixel",
+    )
+    .expect("legacy gpu shader desc");
+    let shader = desc.shader_text().expect("legacy shader text");
+
+    assert!(!shader.trim().is_empty());
+    assert!(shader.contains("ocio_legacy_gpu_main"));
+    assert_eq!(desc.function_name().as_deref(), Some("ocio_legacy_gpu_main"));
+    assert_eq!(desc.pixel_name().as_deref(), Some("ocio_legacy_gpu_pixel"));
+}
