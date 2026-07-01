@@ -133,6 +133,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer optimized_processor_bitdepth or optimized_cpu/gpu_processor helpers"
@@ -165,6 +166,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer optimized_processor_bitdepth()"
@@ -197,6 +199,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "legacy OCIO GPU optimization path; prefer optimized_gpu_processor or default_gpu_processor"
@@ -246,6 +249,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer optimized_cpu_processor_bitdepth()"
@@ -332,6 +336,7 @@ impl Processor {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
@@ -363,6 +368,7 @@ pub struct CPUProcessor {
 impl CPUProcessor {
     /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor compatible with the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
@@ -375,6 +381,7 @@ impl CPUProcessor {
 
     /// # Safety
     /// `src_img_desc` and `dst_img_desc` must point to valid OCIO image descriptors.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
@@ -462,6 +469,7 @@ impl CPUProcessor {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer apply_rgba_packed_bit_depth with the BitDepth enum"
@@ -506,6 +514,7 @@ impl CPUProcessor {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer apply_rgb_packed_bit_depth with the BitDepth enum"
@@ -570,6 +579,7 @@ impl CPUProcessor {
         NonNull::new(h).map(|h| DynamicProperty { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer dynamic_property with DynamicPropertyType"
@@ -590,6 +600,7 @@ impl CPUProcessor {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
@@ -648,6 +659,7 @@ impl GPUProcessor {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
     pub fn extract_gpu_shader_info_v1(&self, shader_desc: &mut GpuShaderDesc) {
         self.extract_shader_info(shader_desc);
@@ -655,6 +667,7 @@ impl GPUProcessor {
 
     /// # Safety
     /// `shader_creator` must point to a valid OCIO shader creator object for the active ABI.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO shader-creator entry point; prefer extract_shader_info with GpuShaderDesc for Rust callers"
@@ -1063,6 +1076,7 @@ impl GpuShaderDesc {
         NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer clone_desc()")]
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Option<GpuShaderDesc> {
@@ -1074,6 +1088,7 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_uniforms()")]
     pub fn get_num_uniforms_u32(&self) -> u32 {
         self.num_uniforms()
@@ -1086,6 +1101,7 @@ impl GpuShaderDesc {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_buffer_size()")]
     pub fn get_uniform_buffer_size_bytes(&self) -> usize {
         self.uniform_buffer_size()
@@ -1150,6 +1166,7 @@ impl GpuShaderDesc {
         })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform()")]
     pub fn get_uniform_info(&self, index: u32) -> Option<GpuUniform> {
         self.uniform(index)
@@ -1162,6 +1179,7 @@ impl GpuShaderDesc {
             .unwrap_or(0)
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_value_count()")]
     pub fn get_uniform_value_count(&self, index: u32) -> usize {
         self.uniform_value_count(index)
@@ -1175,6 +1193,7 @@ impl GpuShaderDesc {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer uniform_values_f32() or uniform()"
@@ -1191,6 +1210,7 @@ impl GpuShaderDesc {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer uniform_values_i32() or uniform()"
@@ -1211,6 +1231,7 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_textures()")]
     pub fn get_num_textures_u32(&self) -> u32 {
         self.num_textures()
@@ -1221,11 +1242,13 @@ impl GpuShaderDesc {
         self.texture_values(index).len()
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_value_count()")]
     pub fn get_texture_value_count(&self, index: u32) -> usize {
         self.texture_value_count(index)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer texture_2d() or textures_2d()"
@@ -1234,6 +1257,7 @@ impl GpuShaderDesc {
         self.texture_values(index)
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_3d_textures()")]
     pub fn get_num3d_textures_u32(&self) -> u32 {
         self.num_3d_textures()
@@ -1283,6 +1307,7 @@ impl GpuShaderDesc {
         })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d()")]
     pub fn get3d_texture_info(&self, index: u32) -> Option<GpuTexture3D> {
         self.texture_3d(index)
@@ -1295,6 +1320,7 @@ impl GpuShaderDesc {
             .unwrap_or(0)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer texture_3d_value_count()"
@@ -1310,6 +1336,7 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d_values()")]
     pub fn copy3d_texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_3d_values(index)
@@ -1322,16 +1349,19 @@ impl GpuShaderDesc {
             .collect()
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_3d_textures()")]
     pub fn get_num3d_textures(&self) -> u32 {
         self.num_3d_textures()
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d()")]
     pub fn get3d_texture(&self, index: u32) -> Option<GpuTexture3D> {
         self.texture_3d(index)
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer texture_3d_values()")]
     pub fn get3d_texture_values(&self, index: u32) -> Vec<f32> {
         self.texture_3d_values(index)
@@ -1342,6 +1372,7 @@ impl GpuShaderDesc {
         self.texture_3d(index).map(|texture| texture.binding_index)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer texture_3d_shader_binding_index()"
@@ -1367,6 +1398,7 @@ impl Drop for GpuShaderDesc {
     }
 }
 
+#[doc(hidden)]
 /// Lightweight texture metadata used by legacy GPU descriptor accessors.
 pub struct TextureInfo {
     pub texture_name: String,
