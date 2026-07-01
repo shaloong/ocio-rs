@@ -1856,24 +1856,9 @@ unsafe extern "C" {
 
     pub fn ocio_color_space_create_editable_copy(colorSpace: *mut c_void) -> *mut c_void;
 
-    pub fn ocio_color_space_get_cache_id(colorSpace: *mut c_void) -> *const i8;
-
-    pub fn ocio_color_space_get_visibility(colorSpace: *mut c_void) -> i32;
-
-    pub fn ocio_color_space_is_inactive(colorSpace: *mut c_void) -> bool;
-
     pub fn ocio_color_space_is_transform_defined(colorSpace: *mut c_void, direction: i32) -> bool;
 
     pub fn ocio_color_space_set_create_editable_copy(set: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_color_space_set_inactive(colorSpace: *mut c_void, inactive: bool) -> ();
-
-    pub fn ocio_color_space_set_reference_space_type(
-        colorSpace: *mut c_void,
-        referenceSpace: i32,
-    ) -> ();
-
-    pub fn ocio_color_space_set_visibility(colorSpace: *mut c_void, visibility: i32) -> ();
 
     pub fn ocio_config_add_display(
         config: *mut c_void,
@@ -2258,25 +2243,7 @@ unsafe extern "C" {
 
     pub fn ocio_log_transform_set_direction(transform: *mut c_void, direction: i32) -> ();
 
-    pub fn ocio_look_add_alias(look: *mut c_void, alias: *const i8) -> ();
-
-    pub fn ocio_look_clear_aliases(look: *mut c_void) -> ();
-
     pub fn ocio_look_create_editable_copy(look: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_look_get_alias(look: *mut c_void, index: i32) -> *const i8;
-
-    pub fn ocio_look_get_direction(look: *mut c_void) -> i32;
-
-    pub fn ocio_look_get_num_aliases(look: *mut c_void) -> i32;
-
-    pub fn ocio_look_is_inactive(look: *mut c_void) -> bool;
-
-    pub fn ocio_look_remove_alias(look: *mut c_void, alias: *const i8) -> ();
-
-    pub fn ocio_look_set_direction(look: *mut c_void, direction: i32) -> ();
-
-    pub fn ocio_look_set_inactive(look: *mut c_void, inactive: bool) -> ();
 
     pub fn ocio_lut1d_transform_get_direction(transform: *mut c_void) -> i32;
 
@@ -2361,60 +2328,4 @@ unsafe extern "C" {
     pub fn ocio_range_transform_set_direction(transform: *mut c_void, direction: i32) -> ();
 
     pub fn ocio_transform_get_format_metadata(transform: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_view_transform_add_alias(viewTransform: *mut c_void, alias: *const i8) -> ();
-
-    pub fn ocio_view_transform_clear_aliases(viewTransform: *mut c_void) -> ();
-
-    pub fn ocio_view_transform_get_alias(viewTransform: *mut c_void, index: i32) -> *const i8;
-
-    pub fn ocio_view_transform_get_direction(viewTransform: *mut c_void) -> i32;
-
-    pub fn ocio_view_transform_get_display(viewTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_view_transform_get_encoding(viewTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_view_transform_get_inverse_transform(viewTransform: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_view_transform_get_looks_bypass(viewTransform: *mut c_void) -> bool;
-
-    pub fn ocio_view_transform_get_num_aliases(viewTransform: *mut c_void) -> i32;
-
-    pub fn ocio_view_transform_get_rule(viewTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_view_transform_get_src(viewTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_view_transform_get_view(viewTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_view_transform_is_inactive(viewTransform: *mut c_void) -> bool;
-
-    pub fn ocio_view_transform_remove_alias(viewTransform: *mut c_void, alias: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_category(viewTransform: *mut c_void, category: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_direction(viewTransform: *mut c_void, direction: i32) -> ();
-
-    pub fn ocio_view_transform_set_display(viewTransform: *mut c_void, display: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_encoding(viewTransform: *mut c_void, encoding: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_inactive(viewTransform: *mut c_void, inactive: bool) -> ();
-
-    pub fn ocio_view_transform_set_inverse_transform(
-        viewTransform: *mut c_void,
-        transform: *const c_void,
-    ) -> ();
-
-    pub fn ocio_view_transform_set_looks_bypass(viewTransform: *mut c_void, bypass: bool) -> ();
-
-    pub fn ocio_view_transform_set_reference_space_type(
-        viewTransform: *mut c_void,
-        refType: i32,
-    ) -> ();
-
-    pub fn ocio_view_transform_set_rule(viewTransform: *mut c_void, rule: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_src(viewTransform: *mut c_void, src: *const i8) -> ();
-
-    pub fn ocio_view_transform_set_view(viewTransform: *mut c_void, view: *const i8) -> ();
 }
