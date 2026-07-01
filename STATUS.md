@@ -60,6 +60,7 @@ Current release checklist highlights:
   `group_transform_behavior`,
   `processor_behavior`,
   `range_transform_behavior`,
+  `runtime_helpers_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`,
@@ -82,7 +83,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus forty-two
+- The current bundled validation path exercises `373` crate tests plus forty-three
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -90,7 +91,8 @@ Latest release-audit result:
   behavior, config runtime-settings behavior, context resolution, file rules,
   file-transform behavior, dynamic properties, GPU shader descriptors, CPU
   processor execution, matrix processing behavior, named-transform execution,
-  cdl-transform behavior, color-space-transform behavior,
+  cdl-transform behavior, color-space-transform behavior, runtime-helper
+  behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
@@ -132,6 +134,12 @@ Current runtime semantics worth calling out explicitly:
   `ENABLED | SHARE_DYN_PROPERTIES` rather than just `ENABLED`. The crate-level
   `current_config()` / `set_current_config()` / `processor_cache_flags()`
   helpers follow the installed config's real runtime state.
+- The top-level runtime helpers now have bundled coverage: `version()` reports
+  a real `2.5.x` OCIO runtime string, logging level changes round-trip through
+  the global getter/setter pair, and `Config::raw()` currently starts at schema
+  version `2.0`; mutating version fields round-trips, while
+  `upgrade_to_latest_version()` does not promote that raw config's minor
+  version to `2.5`.
 - `ConfigIOProxy` round-trips embedded config text and LUT payloads in bundled
   mode, attached proxy objects remain visible through both `Config` and
   `Context`, missing LUT keys currently surface as empty payload views, and a
