@@ -12,19 +12,17 @@ pub struct ColorSpaceSet {
 impl ColorSpaceSet {
     /// Create an empty color-space set.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_color_space_set_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an editable copy that is independent from the original set.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_color_space_set_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the number of color spaces currently in the set.

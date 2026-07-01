@@ -12,7 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::Config;
+use ocio_rs::{Config, OcioError};
 
 fn config_core_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -50,7 +50,10 @@ fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.search_path_by_index(1).as_deref(), Some("shot1"));
     assert_eq!(config.search_path_by_index(2).as_deref(), Some("shot2"));
     assert_eq!(config.search_path_by_index(3).as_deref(), Some("shot3"));
-    assert_eq!(config.search_path_by_index(4).as_deref(), Some("shot3/subdir"));
+    assert_eq!(
+        config.search_path_by_index(4).as_deref(),
+        Some("shot3/subdir")
+    );
     assert_eq!(config.search_path_by_index(5).as_deref(), Some("."));
 
     config.validate().expect("validate config");
@@ -157,9 +160,25 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
     assert_close(round_trip[2], custom_luma[2], 1e-12);
 
     config.set_name("CacheMutation").expect("set name");
-    config.add_search_path("cache/path").expect("add search path");
+    config
+        .add_search_path("cache/path")
+        .expect("add search path");
 
     let mutated_cache_id = config.cache_id().expect("mutated cache id");
 
     assert_ne!(mutated_cache_id, initial_cache_id);
+}
+
+#[test]
+fn config_from_file_reports_real_ocio_errors() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let missing = test_data_path("configs/does-not-exist.ocio");
+    match Config::from_file(missing.to_string_lossy()) {
+        Ok(_) => panic!("missing config should fail"),
+        Err(err) => assert!(matches!(err, OcioError::Ocio(_))),
+    }
 }

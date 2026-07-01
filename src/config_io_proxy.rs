@@ -15,10 +15,9 @@ pub struct ConfigIOProxy {
 impl ConfigIOProxy {
     /// Create an empty in-memory config/LUT provider.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_io_proxy_create() };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Replace the primary OCIO config text payload.

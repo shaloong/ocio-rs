@@ -12,18 +12,16 @@ pub struct Context {
 impl Context {
     /// Create a new OCIO context with default search-path and environment behavior.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_context_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an editable copy that is independent from the original context.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_context_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return OCIO's cache identifier for the current context state.

@@ -16,18 +16,16 @@ pub struct ColorSpace {
 
 impl ColorSpace {
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_color_space_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_color_space_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn name(&self) -> Option<String> {

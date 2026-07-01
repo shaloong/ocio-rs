@@ -21,12 +21,11 @@ impl ViewTransform {
     }
 
     pub fn create(reference_space: ReferenceSpaceType) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_view_transform_create_with_reference_space(reference_space as i32)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn name(&self) -> Option<String> {

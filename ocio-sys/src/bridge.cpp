@@ -1319,7 +1319,10 @@ static std::unique_ptr<ConfigHandle> make_real_config_raw() {
     config->config = std::const_pointer_cast<ocio::Config>(ocio::Config::CreateRaw());
     handle->inner = config;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    capture_current_exception();
+    return nullptr;
+  }
 }
 
 static std::unique_ptr<ConfigHandle> make_real_config_from_file(const char* path) {
@@ -1330,7 +1333,10 @@ static std::unique_ptr<ConfigHandle> make_real_config_from_file(const char* path
     if (!config->config) return nullptr;
     handle->inner = config;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    capture_current_exception();
+    return nullptr;
+  }
 }
 
 template <typename HandleT, typename RealT, typename TransformT>
@@ -1746,8 +1752,10 @@ void* ocio_config_from_file(const char* path) {
 
 void* ocio_config_create_raw(void) {
 #ifdef OCIO_RS_STUB
+  ocio_rs_bridge::clear_last_error();
   return ocio_rs_bridge::make_stub_config().release();
 #else
+  ocio_rs_bridge::clear_last_error();
   auto handle = ocio_rs_bridge::make_real_config_raw();
   if (!handle) return nullptr;
   return handle.release();
@@ -1756,11 +1764,13 @@ void* ocio_config_create_raw(void) {
 
 void* ocio_config_create_from_file(const char* path) {
 #ifdef OCIO_RS_STUB
+  ocio_rs_bridge::clear_last_error();
   if (!path) return nullptr;
   std::ifstream file(path);
   if (!file.good()) return nullptr;
   return ocio_rs_bridge::make_stub_config().release();
 #else
+  ocio_rs_bridge::clear_last_error();
   auto handle = ocio_rs_bridge::make_real_config_from_file(path);
   if (!handle) return nullptr;
   return handle.release();
@@ -1770,8 +1780,10 @@ void* ocio_config_create_from_file(const char* path) {
 void* ocio_config_create_from_builtin_config(const char* configName) {
 #ifdef OCIO_RS_STUB
   (void)configName;
+  ocio_rs_bridge::clear_last_error();
   return nullptr;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     auto result = ocio::Config::CreateFromBuiltinConfig(configName);
     if (!result) return nullptr;
@@ -1779,18 +1791,23 @@ void* ocio_config_create_from_builtin_config(const char* configName) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
       ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return nullptr;
+  }
 #endif
 }
 
 void* ocio_config_create_from_env(void) {
 #ifdef OCIO_RS_STUB
+  ocio_rs_bridge::clear_last_error();
   const char* ocio_env = std::getenv("OCIO");
   if (!ocio_env || !*ocio_env) return nullptr;
   std::ifstream file(ocio_env);
   if (!file.good()) return nullptr;
   return ocio_rs_bridge::make_stub_config().release();
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     auto result = ocio::Config::CreateFromEnv();
     if (!result) return nullptr;
@@ -1798,15 +1815,20 @@ void* ocio_config_create_from_env(void) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
       ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return nullptr;
+  }
 #endif
 }
 
 void* ocio_config_create_from_stream(const char* text) {
 #ifdef OCIO_RS_STUB
+  ocio_rs_bridge::clear_last_error();
   if (!text || !*text) return nullptr;
   return ocio_rs_bridge::make_stub_config().release();
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!text) return nullptr;
     std::istringstream stream(text);
@@ -1816,15 +1838,20 @@ void* ocio_config_create_from_stream(const char* text) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
       ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return nullptr;
+  }
 #endif
 }
 
 void* ocio_config_create_from_config_io_proxy(void* ciop) {
 #ifdef OCIO_RS_STUB
   (void)ciop;
+  ocio_rs_bridge::clear_last_error();
   return nullptr;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!ciop) return nullptr;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(ciop);
@@ -1835,7 +1862,10 @@ void* ocio_config_create_from_config_io_proxy(void* ciop) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
       ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(result)});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return nullptr;
+  }
 #endif
 }
 

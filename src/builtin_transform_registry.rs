@@ -12,10 +12,9 @@ pub struct BuiltinTransformRegistry {
 impl BuiltinTransformRegistry {
     /// Get the process-wide built-in transform registry singleton.
     pub fn get() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_builtin_transform_registry_get() };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the number of registered built-in styles.

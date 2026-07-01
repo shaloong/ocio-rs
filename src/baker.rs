@@ -14,17 +14,15 @@ pub struct Baker {
 
 impl Baker {
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_baker_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_baker_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn set_config(&self, config: &Config) {
@@ -34,10 +32,9 @@ impl Baker {
     }
 
     pub fn config(&self) -> Result<Config> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_baker_get_config(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Config { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Config { handle })
     }
 
     pub fn format(&self) -> Option<String> {
