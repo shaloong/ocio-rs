@@ -41,6 +41,7 @@ Current release checklist highlights:
 - `cargo test --workspace --features bundled` now covers the dedicated
   `allocation_transform_behavior`, `baker_behavior`,
   `builtin_config_registry_behavior`, `color_space_behavior`,
+  `color_space_set_behavior`,
   `color_space_transform_behavior`,
   `cdl_transform_behavior`, `config_behavior`, `config_io_proxy_behavior`,
   `context_behavior`,
@@ -79,14 +80,14 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirty-nine
+- The current bundled validation path exercises `373` crate tests plus forty
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  config-IO proxy behavior, context resolution, file rules, file-transform
-  behavior, dynamic properties, GPU shader descriptors, CPU processor
-  execution, matrix processing behavior, named-transform execution,
-  cdl-transform behavior, color-space-transform behavior,
+  color-space-set behavior, config-IO proxy behavior, context resolution, file
+  rules, file-transform behavior, dynamic properties, GPU shader descriptors,
+  CPU processor execution, matrix processing behavior, named-transform
+  execution, cdl-transform behavior, color-space-transform behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
@@ -130,6 +131,11 @@ Current runtime semantics worth calling out explicitly:
   attached transforms in bundled mode; when validating processors across
   custom color spaces, distinct `equality_group` values matter because equal
   groups may let OCIO optimize the conversion path away.
+- `ColorSpaceSet` now has bundled runtime coverage for both manual and
+  config-derived sets: editable copies mutate independently, `add/remove`
+  set-style operations preserve membership as expected, and
+  `Config::color_space_set(Some(category))` follows real OCIO category
+  filtering rather than name or substring matching.
 - `ColorSpaceTransform` round-trips src/dst strings and copy state in bundled
   mode, matches named color-space processors for the same config path, and
   `data_bypass=true` preserves RGB values for data-tagged source spaces where
