@@ -1,5 +1,7 @@
+use std::collections::hash_map::DefaultHasher;
 use std::env;
-use std::path::PathBuf;
+use std::hash::{Hash, Hasher};
+use std::path::{Path, PathBuf};
 
 fn main() {
     let mut include_paths = Vec::<PathBuf>::new();
@@ -52,6 +54,10 @@ fn main() {
                     .define("OCIO_BUILD_GPU_TESTS", "OFF")
                     .define("OCIO_INSTALL_EXT_PACKAGES", "ALL")
                     .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
+
+                let mut bundled_out_dir = env::var_os("OUT_DIR")
+                    .map(PathBuf::from)
+                    .expect("OUT_DIR is always set by Cargo");
 
                 #[cfg(target_os = "windows")]
                 {
@@ -110,6 +116,16 @@ fn main() {
                         .unwrap_or(false)
                         || (configured_generator.is_none() && find_windows_ninja().is_some());
 
+                    bundled_out_dir = bundled_cmake_out_dir(
+                        &bundled_out_dir,
+                        &ocio_source,
+                        if using_ninja {
+                            "cmake-ninja"
+                        } else {
+                            "cmake-vs"
+                        },
+                    );
+
                     if !using_ninja {
                         // Visual Studio builds of bundled OCIO have shown
                         // intermittent tracked-file log failures when the
@@ -124,6 +140,10 @@ fn main() {
                     }
                 }
 
+                #[cfg(not(target_os = "windows"))]
+                bundled_out_dir.push("cmake");
+
+                config.out_dir(&bundled_out_dir);
                 config.build()
             });
 
@@ -441,4 +461,19 @@ fn find_windows_sdk_tool(tool_name: &str) -> Option<PathBuf> {
 #[cfg(target_os = "windows")]
 fn cmake_path(path: &std::path::Path) -> String {
     path.display().to_string().replace('\\', "/")
+}
+
+#[cfg(target_os = "windows")]
+fn bundled_cmake_out_dir(out_dir: &Path, ocio_source: &Path, generator_tag: &str) -> PathBuf {
+    let mut hasher = DefaultHasher::new();
+    out_dir.hash(&mut hasher);
+    ocio_source.hash(&mut hasher);
+    env::var_os("TARGET").hash(&mut hasher);
+    generator_tag.hash(&mut hasher);
+
+    let mut short_dir = env::temp_dir();
+    short_dir.push("ocrs");
+    short_dir.push(format!("{:016x}", hasher.finish()));
+    short_dir.push(generator_tag);
+    short_dir
 }

@@ -7,10 +7,11 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This project targets OpenColorIO v2.5.2. The OCIO 2.5 wrapper surface is now
-largely in place, including bundled real-OCIO builds and broad safe-wrapper
-coverage, while release hardening and long-tail behavioral validation are still
-ongoing.
+This project targets OpenColorIO v2.5.2. The core OCIO 2.5 Rust wrapper
+surface is now broadly in place, including bundled real-OCIO builds, bridge
+parity across the exposed API surface, and broad safe-wrapper coverage. The
+remaining work is mostly release hardening and longer-tail behavioral
+validation rather than missing core binding coverage.
 
 Recent bundled validation now covers more than linkability and smoke tests for
 several high-use runtime paths, including:
@@ -39,7 +40,8 @@ ocio-rs = "0.2"
 
 **Stub mode** (default): compiles and tests run without an OCIO installation.
 APIs return safe defaults for API-shape testing and CI, but do not perform real
-color management.
+color management. Real application use should rely on installed or bundled OCIO
+mode.
 
 ```bash
 cargo build
@@ -86,8 +88,8 @@ ocio-rs/
 
 OCIO upgrade workflow: update submodule -> run code generator -> fix compile errors -> release.
 
-See [STATUS.md](STATUS.md) for the current validation matrix and remaining
-release caveats before relying on a particular API area in production.
+See [STATUS.md](STATUS.md) for the current validation matrix and the remaining
+release caveats for specific runtime paths.
 
 ## License
 

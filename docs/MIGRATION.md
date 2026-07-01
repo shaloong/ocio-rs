@@ -2,7 +2,10 @@
 
 ## 0.2.0
 
-`0.2.0` is an alpha-stage breaking cleanup that aligns the safe Rust layer with OpenColorIO 2.5.2 rather than preserving previously generated compatibility shims.
+`0.2.0` is the first broadly usable OCIO 2.5 cleanup release for `ocio-rs`.
+It aligns the safe Rust layer with OpenColorIO 2.5.2 instead of preserving
+previously generated compatibility shims that did not reflect real upstream
+behavior.
 
 ### GPU shader descriptors
 

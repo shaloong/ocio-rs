@@ -1,8 +1,10 @@
 # Project Status
 
-ocio-rs targets broad OCIO 2.5 coverage, but it is still a binding project
-under active release hardening rather than a drop-in replacement for every C++
-OpenColorIO workflow.
+ocio-rs now provides broad OCIO 2.5 Rust coverage and is approaching a
+practical "early-usable" release line for application developers. It is still
+under active release hardening and is not yet claiming to be a drop-in
+replacement for every C++ OpenColorIO workflow or every edge-case production
+environment.
 
 | Area | Status |
 |---|---|
@@ -10,7 +12,7 @@ OpenColorIO workflow.
 | Stub mode | Available |
 | Real OCIO build via installed OCIO | Available |
 | Bundled OCIO build | Available, continuously validated |
-| Safe Rust wrappers | Broad OCIO 2.5 coverage |
+| Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture/uniform insertion |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
@@ -20,10 +22,14 @@ OpenColorIO workflow.
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
-remaining surface with bundled and no-default-features test coverage.
+remaining surface with bundled and no-default-features test coverage so the
+crate can be treated as substantially complete for core OCIO 2.5 usage.
 
 Current release checklist highlights:
 
+- The crate is now aiming at a practical `0.2.0` bar: core OCIO 2.5 Rust
+  bindings are broadly present, bridge-backed, and usable for early adopters,
+  while deeper edge-case reliability work continues into follow-up releases.
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
