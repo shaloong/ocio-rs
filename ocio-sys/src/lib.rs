@@ -2236,7 +2236,15 @@ unsafe extern "C" {
 
     pub fn ocio_gpu_shader_desc_get_pixel_name(shader_desc: *mut c_void) -> *const i8;
 
+    pub fn ocio_gpu_shader_desc_get_unique_id(shader_desc: *mut c_void) -> *const i8;
+
     pub fn ocio_gpu_shader_desc_get_resource_prefix(shader_desc: *mut c_void) -> *const i8;
+
+    pub fn ocio_gpu_shader_desc_get_descriptor_set_index(shader_desc: *mut c_void) -> u32;
+
+    pub fn ocio_gpu_shader_desc_get_texture_binding_start(shader_desc: *mut c_void) -> u32;
+
+    pub fn ocio_gpu_shader_desc_get_allow_texture_1d(shader_desc: *mut c_void) -> bool;
 
     pub fn ocio_gpu_shader_desc_get_texture_max_height(desc: *mut c_void, index: i32) -> u32;
 
@@ -2250,9 +2258,27 @@ unsafe extern "C" {
 
     pub fn ocio_gpu_shader_desc_set_pixel_name(shader_desc: *mut c_void, name: *const i8) -> ();
 
+    pub fn ocio_gpu_shader_desc_set_unique_id(shader_desc: *mut c_void, uid: *const i8) -> ();
+
     pub fn ocio_gpu_shader_desc_set_resource_prefix(
         shader_desc: *mut c_void,
         prefix: *const i8,
+    ) -> ();
+
+    pub fn ocio_gpu_shader_desc_set_descriptor_set_index(
+        shader_desc: *mut c_void,
+        index: u32,
+        texture_binding_start: u32,
+    ) -> ();
+
+    pub fn ocio_gpu_shader_desc_set_texture_max_width_u32(
+        shader_desc: *mut c_void,
+        max_width: u32,
+    ) -> ();
+
+    pub fn ocio_gpu_shader_desc_set_allow_texture_1d(
+        shader_desc: *mut c_void,
+        allowed: bool,
     ) -> ();
 
     pub fn ocio_grading_primary_transform_get_direction(transform: *mut c_void) -> i32;

@@ -681,6 +681,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ),
         // GpuShaderDesc: get_texture -> texture_info (returns struct, not raw fields)
         ("get_texture", "texture_info"),
+        ("set_texture_max_width_u32", "set_texture_max_width"),
         // FormatMetadata: get_num_children_elements -> num_children
         ("get_num_children_elements", "num_children"),
         // MatrixTransform: static factories differ

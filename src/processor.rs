@@ -952,6 +952,24 @@ impl GpuShaderDesc {
         Ok(())
     }
 
+    /// Returns the explicit unique identifier configured for shader extraction, if any.
+    pub fn unique_id(&self) -> Option<String> {
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_unique_id(
+                self.handle.as_ptr() as *mut c_void,
+            ))
+        }
+    }
+
+    /// Sets the unique identifier OCIO should use for generated shader resources.
+    pub fn set_unique_id(&self, uid: impl AsRef<str>) -> Result<()> {
+        let uid = cstring(uid)?;
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_unique_id(self.handle.as_ptr(), uid.as_ptr().cast());
+        }
+        Ok(())
+    }
+
     /// Returns the configured resource-name prefix, if any.
     pub fn resource_prefix(&self) -> Option<String> {
         unsafe {
@@ -971,6 +989,49 @@ impl GpuShaderDesc {
             );
         }
         Ok(())
+    }
+
+    /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
+    pub fn set_descriptor_set_index(&self, index: u32, texture_binding_start: u32) {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_descriptor_set_index(
+                self.handle.as_ptr(),
+                index,
+                texture_binding_start,
+            );
+        }
+    }
+
+    /// Returns the configured descriptor-set index.
+    pub fn descriptor_set_index(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_descriptor_set_index(self.handle.as_ptr()) }
+    }
+
+    /// Returns the configured starting binding slot for extracted textures.
+    pub fn texture_binding_start(&self) -> u32 {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_binding_start(self.handle.as_ptr()) }
+    }
+
+    /// Sets the maximum width OCIO may use when laying out extracted 1D textures.
+    pub fn set_texture_max_width(&self, max_width: u32) {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_texture_max_width_u32(
+                self.handle.as_ptr(),
+                max_width,
+            );
+        }
+    }
+
+    /// Controls whether OCIO may use native 1D textures instead of always promoting to 2D.
+    pub fn set_allow_texture_1d(&self, allowed: bool) {
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_allow_texture_1d(self.handle.as_ptr(), allowed);
+        }
+    }
+
+    /// Returns whether OCIO may use native 1D textures during extraction.
+    pub fn allow_texture_1d(&self) -> bool {
+        unsafe { ocio_sys::ocio_gpu_shader_desc_get_allow_texture_1d(self.handle.as_ptr()) }
     }
 
     /// Returns the copied texel payload for a 1D/2D texture resource.
@@ -1022,8 +1083,10 @@ impl GpuShaderDesc {
     /// Clone the descriptor configuration.
     ///
     /// In real OCIO builds this preserves descriptor settings such as language,
-    /// function name, pixel name, and resource prefix. Extracted shader payloads
-    /// are not guaranteed to be copied into the clone.
+    /// function name, pixel name, resource prefix, and descriptor-set settings.
+    /// Lower-level creator implementation knobs such as 1D texture width and
+    /// `allow_texture_1d` may fall back to OCIO defaults on clone, and
+    /// extracted shader payloads are not guaranteed to be copied into the clone.
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
         let h =
             unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };

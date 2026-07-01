@@ -18,7 +18,10 @@ use ocio_rs::{
 
 fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
@@ -51,19 +54,34 @@ fn gpu_shader_desc_config_round_trip_behavior() {
         .expect("set_function_name");
     desc.set_pixel_name("ocio_test_pixel")
         .expect("set_pixel_name");
+    desc.set_unique_id("ocio-test-uid")
+        .expect("set_unique_id");
     desc.set_resource_prefix("ocio_test_")
         .expect("set_resource_prefix");
+    desc.set_descriptor_set_index(3, 7);
+    desc.set_texture_max_width(64);
+    desc.set_allow_texture_1d(false);
 
     assert_eq!(desc.language(), GpuLanguage::Glsl4_0);
     assert_eq!(desc.function_name().as_deref(), Some("ocio_test_main"));
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_test_pixel"));
+    assert_eq!(desc.unique_id().as_deref(), Some("ocio-test-uid"));
     assert_eq!(desc.resource_prefix().as_deref(), Some("ocio_test_"));
+    assert_eq!(desc.descriptor_set_index(), 3);
+    assert_eq!(desc.texture_binding_start(), 7);
+    assert_eq!(desc.texture_max_width(0), 64);
+    assert!(!desc.allow_texture_1d());
 
     let cloned = desc.clone_desc().expect("clone_desc");
     assert_eq!(cloned.language(), GpuLanguage::Glsl4_0);
     assert_eq!(cloned.function_name().as_deref(), Some("ocio_test_main"));
     assert_eq!(cloned.pixel_name().as_deref(), Some("ocio_test_pixel"));
+    assert_eq!(cloned.unique_id().as_deref(), Some("ocio-test-uid"));
     assert_eq!(cloned.resource_prefix().as_deref(), Some("ocio_test_"));
+    assert_eq!(cloned.descriptor_set_index(), 3);
+    assert_eq!(cloned.texture_binding_start(), 7);
+    assert_eq!(cloned.texture_max_width(0), 4096);
+    assert!(cloned.allow_texture_1d());
 }
 
 #[test]

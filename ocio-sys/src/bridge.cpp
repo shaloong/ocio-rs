@@ -7393,6 +7393,25 @@ void ocio_gpu_shader_desc_set_pixel_name(void* handle, const char* name) {
 #endif
 }
 
+const char* ocio_gpu_shader_desc_get_unique_id(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniqueID(); }
+  catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_unique_id(void* handle, const char* uid) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)uid;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setUniqueID(uid); }
+  catch (...) {}
+#endif
+}
+
 const char* ocio_gpu_shader_desc_get_resource_prefix(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -7409,6 +7428,63 @@ void ocio_gpu_shader_desc_set_resource_prefix(void* handle, const char* prefix) 
 #else
   try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setResourcePrefix(prefix); }
   catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index, uint32_t textureBindingStart) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)textureBindingStart;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setDescriptorSetIndex(index, textureBindingStart); }
+  catch (...) {}
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_get_descriptor_set_index(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getDescriptorSetIndex(); }
+  catch (...) { return 0; }
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_get_texture_binding_start(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureBindingStart(); }
+  catch (...) { return 0; }
+#endif
+}
+
+void ocio_gpu_shader_desc_set_texture_max_width_u32(void* handle, uint32_t maxWidth) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)maxWidth;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setTextureMaxWidth(maxWidth); }
+  catch (...) {}
+#endif
+}
+
+void ocio_gpu_shader_desc_set_allow_texture_1d(void* handle, bool allowed) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)allowed;
+#else
+  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setAllowTexture1D(allowed); }
+  catch (...) {}
+#endif
+}
+
+bool ocio_gpu_shader_desc_get_allow_texture_1d(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return false;
+#else
+  try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getAllowTexture1D(); }
+  catch (...) { return false; }
 #endif
 }
 
