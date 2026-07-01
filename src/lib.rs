@@ -15,11 +15,12 @@
 //! # Real OCIO mode
 //!
 //! Use `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`, or build with
-//! `--features bundled` from a recursive Git checkout.
+//! `--features bundled`.
 //!
-//! The published crates do not yet vendor the OpenColorIO source tree, so the
-//! bundled feature is currently repository-checkout based rather than fully
-//! self-contained from crates.io alone.
+//! The published `ocio-sys` crate vendors the upstream OpenColorIO source tree
+//! used by bundled builds. However, the upstream bundled CMake flow still
+//! downloads several transitive dependency sources during configure/build, so
+//! packaged bundled builds are not yet fully offline/self-contained.
 
 #![allow(
     unused_imports,

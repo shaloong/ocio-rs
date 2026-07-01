@@ -110,11 +110,13 @@ function Test-OcioSysBundledPayload {
 
     $hasBundledSource = $text -match 'OpenColorIO[/\\]CMakeLists\.txt' -or $text -match 'third_party[/\\]OpenColorIO'
     if (-not $hasBundledSource) {
-        $script:Warnings += "Published ocio-sys package does not currently vendor the OpenColorIO source tree; bundled mode remains a recursive-checkout workflow."
+        $script:Warnings += "Published ocio-sys package does not currently vendor the OpenColorIO source tree."
         Write-Host "    WARN: bundled source tree not present in packaged ocio-sys payload" -ForegroundColor Yellow
         return
     }
 
+    $script:Warnings += "Published ocio-sys package vendors the OpenColorIO source tree, but packaged bundled builds are not yet fully offline because upstream OpenColorIO still downloads transitive dependency sources during configure/build."
+    Write-Host "    WARN: packaged bundled builds still depend on upstream transitive source downloads" -ForegroundColor Yellow
     Write-Host "    PASS" -ForegroundColor Green
 }
 

@@ -243,6 +243,11 @@ fn resolve_ocio_source_dir() -> Option<PathBuf> {
     }
 
     let manifest_dir = env::var_os("CARGO_MANIFEST_DIR").map(PathBuf::from)?;
+    let packaged_vendor = manifest_dir.join("vendor").join("OpenColorIO");
+    if packaged_vendor.join("CMakeLists.txt").exists() {
+        return Some(packaged_vendor);
+    }
+
     let candidate = manifest_dir
         .parent()?
         .join("third_party")

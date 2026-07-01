@@ -43,10 +43,11 @@ repository regressions from the expected publish-order blocker.
 Current packaging caveat:
 
 - The repository supports `--features bundled` from a recursive checkout.
-- The published `ocio-sys` crate does not yet vendor the upstream OpenColorIO
-  source tree inside the package payload.
-- Until that vendoring work is done, treat bundled mode as a repository
-  workflow rather than a self-contained crates.io feature.
+- The published `ocio-sys` crate now vendors the upstream OpenColorIO source
+  tree inside the package payload.
+- Packaged bundled builds are still not fully offline/self-contained because
+  upstream OpenColorIO downloads several transitive dependency sources during
+  the bundled configure/build path.
 
 Current audit status:
 

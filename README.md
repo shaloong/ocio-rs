@@ -57,9 +57,11 @@ OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
 
-At the moment, `--features bundled` is supported from a recursive repository
-checkout. The published crates do not yet embed the OpenColorIO source tree, so
-bundled builds from crates.io packages are not currently self-contained.
+The published `ocio-sys` crate now vendors the upstream OpenColorIO source tree
+needed for `--features bundled`. However, OpenColorIO still downloads several
+transitive build dependencies (`expat`, `yaml-cpp`, `Imath`, `pystring`,
+`minizip-ng`, `ZLIB`) during the bundled configure/build step, so packaged
+bundled builds are not yet fully offline/self-contained.
 
 ## Architecture
 
