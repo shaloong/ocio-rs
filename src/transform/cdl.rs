@@ -2,7 +2,8 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, CDLStyle, OcioError, Result, TransformDirection,
+    cstr_from_mut, cstr_to_opt_string, cstring, transform::GroupTransform, CDLStyle, OcioError,
+    Result, TransformDirection,
 };
 use ocio_sys;
 
@@ -30,6 +31,28 @@ impl CDLTransform {
         };
         NonNull::new(handle)
             .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer create_from_file()")]
+    pub fn from_file(src: impl AsRef<str>, ccc_id: impl AsRef<str>) -> Result<Self> {
+        let src = cstring(src)?;
+        let ccc_id = cstring(ccc_id)?;
+        let handle = unsafe {
+            ocio_sys::ocio_cdl_transform_from_file(src.as_ptr().cast(), ccc_id.as_ptr().cast())
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
+    }
+
+    pub fn create_group_from_file(src: impl AsRef<str>) -> Result<GroupTransform> {
+        let src = cstring(src)?;
+        let handle =
+            unsafe { ocio_sys::ocio_cdl_transform_create_group_from_file(src.as_ptr().cast()) };
+        NonNull::new(handle)
+            .map(|h| GroupTransform { handle: h })
             .ok_or(OcioError::AllocationFailed)
     }
 
@@ -192,7 +215,8 @@ impl CDLTransform {
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
-        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
+        let handle =
+            unsafe { ocio_sys::ocio_cdl_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 

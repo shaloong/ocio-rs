@@ -107,7 +107,9 @@ impl DisplayViewTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
-        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        let handle = unsafe {
+            ocio_sys::ocio_display_view_transform_create_editable_copy(self.handle.as_ptr())
+        };
         NonNull::new(handle)
             .map(|h| Self { handle: h })
             .ok_or(OcioError::AllocationFailed)

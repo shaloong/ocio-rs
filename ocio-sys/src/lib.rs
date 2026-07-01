@@ -112,6 +112,8 @@ unsafe extern "C" {
     ) -> *const i8;
 
     // --- Config ---
+    pub fn ocio_config_raw() -> *mut c_void;
+    pub fn ocio_config_from_file(path: *const i8) -> *mut c_void;
     pub fn ocio_config_create_raw() -> *mut c_void;
     pub fn ocio_config_create_from_file(path: *const i8) -> *mut c_void;
     pub fn ocio_config_create_from_builtin_config(configName: *const i8) -> *mut c_void;
@@ -222,6 +224,11 @@ unsafe extern "C" {
     pub fn ocio_config_get_num_roles(handle: *mut c_void) -> i32;
     pub fn ocio_config_has_role(handle: *mut c_void, role: *const i8) -> bool;
     pub fn ocio_config_get_role_name(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_config_get_role_color_space(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_config_get_role_color_space_v1(
+        handle: *mut c_void,
+        roleName: *const i8,
+    ) -> *mut c_void;
     pub fn ocio_config_get_role_color_space_by_index(
         handle: *mut c_void,
         index: i32,
@@ -961,6 +968,7 @@ unsafe extern "C" {
         outBD: i32,
         oFlags: i32,
     ) -> *mut c_void;
+    pub fn ocio_processor_optimized_processor(handle: *mut c_void, oFlags: i32) -> *mut c_void;
     pub fn ocio_processor_get_default_gpu_processor(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_processor_get_optimized_gpu_processor(
         handle: *mut c_void,
@@ -974,12 +982,6 @@ unsafe extern "C" {
     pub fn ocio_processor_get_default_cpu_processor(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_processor_get_optimized_cpu_processor(
         handle: *mut c_void,
-        oFlags: i32,
-    ) -> *mut c_void;
-    pub fn ocio_processor_get_optimized_cpu_processor_v1(
-        handle: *mut c_void,
-        inBitDepth: i32,
-        outBitDepth: i32,
         oFlags: i32,
     ) -> *mut c_void;
 
@@ -997,6 +999,7 @@ unsafe extern "C" {
     ) -> *mut c_void;
     pub fn ocio_cpu_processor_has_dynamic_property(handle: *mut c_void, type_param: i32) -> bool;
     pub fn ocio_cpu_processor_is_dynamic(handle: *mut c_void) -> bool;
+    pub fn ocio_cpu_processor_apply(handle: *mut c_void, imgDesc: *mut c_void) -> ();
     pub fn ocio_cpu_processor_apply_v1(handle: *mut c_void, imgDesc: *mut c_void) -> ();
     pub fn ocio_cpu_processor_apply_v2(
         handle: *mut c_void,
@@ -1011,6 +1014,10 @@ unsafe extern "C" {
     pub fn ocio_gpu_processor_is_no_op(handle: *mut c_void) -> bool;
     pub fn ocio_gpu_processor_has_channel_crosstalk(handle: *mut c_void) -> bool;
     pub fn ocio_gpu_processor_get_cache_id(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_gpu_shader_info(
+        handle: *mut c_void,
+        shaderDesc: *mut c_void,
+    ) -> ();
     pub fn ocio_gpu_processor_extract_gpu_shader_info_v1(
         handle: *mut c_void,
         shaderDesc: *mut c_void,
@@ -1021,6 +1028,7 @@ unsafe extern "C" {
     ) -> ();
 
     // --- GpuShaderDesc ---
+    pub fn ocio_gpu_shader_desc_create_shader_desc() -> *mut c_void;
     pub fn ocio_gpu_shader_desc_create() -> *mut c_void;
     pub fn ocio_gpu_shader_desc_destroy(handle: *mut c_void);
     pub fn ocio_gpu_shader_desc_clone(handle: *mut c_void) -> *mut c_void;
@@ -1200,6 +1208,7 @@ unsafe extern "C" {
     // --- AllocationTransform ---
     pub fn ocio_allocation_transform_create() -> *mut c_void;
     pub fn ocio_allocation_transform_destroy(handle: *mut c_void);
+    pub fn ocio_allocation_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_allocation_transform_get_direction(handle: *mut c_void) -> i32;
     pub fn ocio_allocation_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
     pub fn ocio_allocation_transform_validate(handle: *mut c_void) -> ();
@@ -1223,6 +1232,9 @@ unsafe extern "C" {
     // --- CDLTransform ---
     pub fn ocio_cdl_transform_create() -> *mut c_void;
     pub fn ocio_cdl_transform_destroy(handle: *mut c_void);
+    pub fn ocio_cdl_transform_from_file(src: *const i8, cccId: *const i8) -> *mut c_void;
+    pub fn ocio_cdl_transform_create_group_from_file(src: *const i8) -> *mut c_void;
+    pub fn ocio_cdl_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_cdl_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_cdl_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_cdl_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1250,6 +1262,7 @@ unsafe extern "C" {
     // --- ColorSpaceTransform ---
     pub fn ocio_color_space_transform_create() -> *mut c_void;
     pub fn ocio_color_space_transform_destroy(handle: *mut c_void);
+    pub fn ocio_color_space_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_transform_get_direction(handle: *mut c_void) -> i32;
     pub fn ocio_color_space_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
     pub fn ocio_color_space_transform_validate(handle: *mut c_void) -> ();
@@ -1263,6 +1276,7 @@ unsafe extern "C" {
     // --- DisplayViewTransform ---
     pub fn ocio_display_view_transform_create() -> *mut c_void;
     pub fn ocio_display_view_transform_destroy(handle: *mut c_void);
+    pub fn ocio_display_view_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_display_view_transform_get_direction(handle: *mut c_void) -> i32;
     pub fn ocio_display_view_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
     pub fn ocio_display_view_transform_validate(handle: *mut c_void) -> ();
@@ -1280,6 +1294,7 @@ unsafe extern "C" {
     // --- ExponentTransform ---
     pub fn ocio_exponent_transform_create() -> *mut c_void;
     pub fn ocio_exponent_transform_destroy(handle: *mut c_void);
+    pub fn ocio_exponent_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_exponent_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_exponent_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_exponent_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1289,6 +1304,9 @@ unsafe extern "C" {
     // --- ExponentWithLinearTransform ---
     pub fn ocio_exponent_with_linear_transform_create() -> *mut c_void;
     pub fn ocio_exponent_with_linear_transform_destroy(handle: *mut c_void);
+    pub fn ocio_exponent_with_linear_transform_get_format_metadata(
+        handle: *mut c_void,
+    ) -> *mut c_void;
     pub fn ocio_exponent_with_linear_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1308,6 +1326,8 @@ unsafe extern "C" {
     // --- ExposureContrastTransform ---
     pub fn ocio_exposure_contrast_transform_create() -> *mut c_void;
     pub fn ocio_exposure_contrast_transform_destroy(handle: *mut c_void);
+    pub fn ocio_exposure_contrast_transform_get_format_metadata(handle: *mut c_void)
+        -> *mut c_void;
     pub fn ocio_exposure_contrast_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1349,6 +1369,7 @@ unsafe extern "C" {
     // --- FileTransform ---
     pub fn ocio_file_transform_create() -> *mut c_void;
     pub fn ocio_file_transform_destroy(handle: *mut c_void);
+    pub fn ocio_file_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_file_transform_get_direction(handle: *mut c_void) -> i32;
     pub fn ocio_file_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
     pub fn ocio_file_transform_validate(handle: *mut c_void) -> ();
@@ -1373,6 +1394,7 @@ unsafe extern "C" {
         num: usize,
     ) -> *mut c_void;
     pub fn ocio_fixed_function_transform_destroy(handle: *mut c_void);
+    pub fn ocio_fixed_function_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_fixed_function_transform_get_format_metadata_v1(handle: *mut c_void)
         -> *mut c_void;
     pub fn ocio_fixed_function_transform_get_format_metadata_v2(handle: *mut c_void)
@@ -1395,6 +1417,7 @@ unsafe extern "C" {
     pub fn ocio_grading_primary_transform_create() -> *mut c_void;
     pub fn ocio_grading_primary_transform_create_with_style(style: i32) -> *mut c_void;
     pub fn ocio_grading_primary_transform_destroy(handle: *mut c_void);
+    pub fn ocio_grading_primary_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_primary_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1425,6 +1448,8 @@ unsafe extern "C" {
     pub fn ocio_grading_rgb_curve_transform_create() -> *mut c_void;
     pub fn ocio_grading_rgb_curve_transform_create_with_style(style: i32) -> *mut c_void;
     pub fn ocio_grading_rgb_curve_transform_destroy(handle: *mut c_void);
+    pub fn ocio_grading_rgb_curve_transform_get_format_metadata(handle: *mut c_void)
+        -> *mut c_void;
     pub fn ocio_grading_rgb_curve_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1491,6 +1516,8 @@ unsafe extern "C" {
     pub fn ocio_grading_hue_curve_transform_create() -> *mut c_void;
     pub fn ocio_grading_hue_curve_transform_create_with_style(style: i32) -> *mut c_void;
     pub fn ocio_grading_hue_curve_transform_destroy(handle: *mut c_void);
+    pub fn ocio_grading_hue_curve_transform_get_format_metadata(handle: *mut c_void)
+        -> *mut c_void;
     pub fn ocio_grading_hue_curve_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1554,6 +1581,7 @@ unsafe extern "C" {
     pub fn ocio_grading_tone_transform_create() -> *mut c_void;
     pub fn ocio_grading_tone_transform_create_with_style(style: i32) -> *mut c_void;
     pub fn ocio_grading_tone_transform_destroy(handle: *mut c_void);
+    pub fn ocio_grading_tone_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_tone_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_tone_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_grading_tone_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1578,6 +1606,7 @@ unsafe extern "C" {
     // --- GroupTransform ---
     pub fn ocio_group_transform_create() -> *mut c_void;
     pub fn ocio_group_transform_destroy(handle: *mut c_void);
+    pub fn ocio_group_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_transform(handle: *mut c_void, index: i32) -> *mut c_void;
@@ -1607,6 +1636,7 @@ unsafe extern "C" {
     // --- LogAffineTransform ---
     pub fn ocio_log_affine_transform_create() -> *mut c_void;
     pub fn ocio_log_affine_transform_destroy(handle: *mut c_void);
+    pub fn ocio_log_affine_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_affine_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_affine_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_affine_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1617,6 +1647,7 @@ unsafe extern "C" {
     pub fn ocio_log_camera_transform_create() -> *mut c_void;
     pub fn ocio_log_camera_transform_create_with_lin_side_break(values: *const f64) -> *mut c_void;
     pub fn ocio_log_camera_transform_destroy(handle: *mut c_void);
+    pub fn ocio_log_camera_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_camera_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_camera_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_camera_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1677,6 +1708,7 @@ unsafe extern "C" {
     // --- LogTransform ---
     pub fn ocio_log_transform_create() -> *mut c_void;
     pub fn ocio_log_transform_destroy(handle: *mut c_void);
+    pub fn ocio_log_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_log_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1686,6 +1718,7 @@ unsafe extern "C" {
     // --- LookTransform ---
     pub fn ocio_look_transform_create() -> *mut c_void;
     pub fn ocio_look_transform_destroy(handle: *mut c_void);
+    pub fn ocio_look_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_look_transform_get_direction(handle: *mut c_void) -> i32;
     pub fn ocio_look_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
     pub fn ocio_look_transform_validate(handle: *mut c_void) -> ();
@@ -1707,6 +1740,7 @@ unsafe extern "C" {
     pub fn ocio_lut1d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut1d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)
         -> ();
+    pub fn ocio_lut1d_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut1d_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut1d_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut1d_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1746,6 +1780,7 @@ unsafe extern "C" {
     pub fn ocio_lut3d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut3d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)
         -> ();
+    pub fn ocio_lut3d_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut3d_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut3d_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_lut3d_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1777,6 +1812,7 @@ unsafe extern "C" {
     // --- MatrixTransform ---
     pub fn ocio_matrix_transform_create() -> *mut c_void;
     pub fn ocio_matrix_transform_destroy(handle: *mut c_void);
+    pub fn ocio_matrix_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_matrix_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_matrix_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_matrix_transform_equals(handle: *mut c_void, other: *mut c_void) -> bool;
@@ -1796,6 +1832,7 @@ unsafe extern "C" {
     // --- RangeTransform ---
     pub fn ocio_range_transform_create() -> *mut c_void;
     pub fn ocio_range_transform_destroy(handle: *mut c_void);
+    pub fn ocio_range_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_range_transform_get_style(handle: *mut c_void) -> i32;
     pub fn ocio_range_transform_set_style(handle: *mut c_void, style: i32) -> ();
     pub fn ocio_range_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
@@ -1869,37 +1906,6 @@ unsafe extern "C" {
     ) -> ();
 
     pub fn ocio_config_create_editable_copy(config: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_config_get_color_space_by_ref_type(
-        _c: *mut c_void,
-        _n: *const i8,
-        _r: i32,
-    ) -> *mut c_void;
-
-    pub fn ocio_config_get_default_interpolation(config: *mut c_void) -> i32;
-
-    pub fn ocio_config_get_processor_display(
-        config: *mut c_void,
-        src: *const i8,
-        display: *const i8,
-        view: *const i8,
-        direction: i32,
-    ) -> *mut c_void;
-
-    pub fn ocio_config_get_processor_transform(
-        config: *mut c_void,
-        transform: *mut c_void,
-        direction: i32,
-    ) -> *mut c_void;
-
-    pub fn ocio_config_get_processor_with_context(
-        config: *mut c_void,
-        context: *mut c_void,
-        src: *const i8,
-        dst: *const i8,
-    ) -> *mut c_void;
-
-    pub fn ocio_config_set_default_interpolation(config: *mut c_void, interpolation: i32) -> ();
 
     pub fn ocio_context_create_editable_copy(context: *mut c_void) -> *mut c_void;
 
@@ -2138,8 +2144,6 @@ unsafe extern "C" {
 
     pub fn ocio_format_metadata_set_name(metadata: *mut c_void, name: *const i8) -> ();
 
-    pub fn ocio_gpu_processor_extract_shader_info(_gpu: *mut c_void, _shaderDesc: *mut c_void);
-
     pub fn ocio_gpu_shader_desc_finalize(shader_desc: *mut c_void) -> ();
 
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
@@ -2167,13 +2171,6 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_set_resource_prefix(
         shader_desc: *mut c_void,
         prefix: *const i8,
-    ) -> ();
-
-    pub fn ocio_grading_hue_curve_transform_get_bypass_lin_to_log(transform: *mut c_void) -> bool;
-
-    pub fn ocio_grading_hue_curve_transform_set_bypass_lin_to_log(
-        transform: *mut c_void,
-        bypass: bool,
     ) -> ();
 
     pub fn ocio_grading_primary_transform_get_direction(transform: *mut c_void) -> i32;
@@ -2270,6 +2267,8 @@ unsafe extern "C" {
 
     pub fn ocio_matrix_transform_create_identity() -> *mut c_void;
 
+    pub fn ocio_matrix_transform_identity(m44: *mut f64, offset4: *mut f64) -> ();
+
     pub fn ocio_matrix_transform_create_sat(sat: f64, luma: *const f64) -> *mut c_void;
 
     pub fn ocio_matrix_transform_create_scale(scale: *const f64) -> *mut c_void;
@@ -2281,47 +2280,6 @@ unsafe extern "C" {
     pub fn ocio_matrix_transform_set_direction(transform: *mut c_void, direction: i32) -> ();
 
     pub fn ocio_named_transform_create_editable_copy(namedTransform: *mut c_void) -> *mut c_void;
-
-    pub fn ocio_named_transform_get_cache_id(namedTransform: *mut c_void) -> *const i8;
-
-    pub fn ocio_named_transform_is_inactive(namedTransform: *mut c_void) -> bool;
-
-    pub fn ocio_named_transform_set_inactive(namedTransform: *mut c_void, inactive: bool) -> ();
-
-    pub fn ocio_processor_apply_rgba_pixels(
-        processor: *mut c_void,
-        rgba: *mut f32,
-        numPixels: i64,
-        stride: i64,
-    ) -> ();
-
-    pub fn ocio_processor_apply_rgba(processor: *mut c_void, rgba: *mut f32, len: usize) -> ();
-
-    pub fn ocio_processor_get_default_cpu_processor_bitdepth(
-        processor: *mut c_void,
-        inBitDepth: i32,
-        outBitDepth: i32,
-    ) -> *mut c_void;
-
-    pub fn ocio_processor_get_default_gpu_processor_bitdepth(
-        processor: *mut c_void,
-        inBitDepth: i32,
-        outBitDepth: i32,
-    ) -> *mut c_void;
-
-    pub fn ocio_processor_get_optimized_cpu_processor_bitdepth(
-        processor: *mut c_void,
-        inBitDepth: i32,
-        outBitDepth: i32,
-        flags: u64,
-    ) -> *mut c_void;
-
-    pub fn ocio_processor_get_optimized_gpu_processor_bitdepth(
-        processor: *mut c_void,
-        inBitDepth: i32,
-        outBitDepth: i32,
-        flags: u64,
-    ) -> *mut c_void;
 
     pub fn ocio_range_transform_get_direction(transform: *mut c_void) -> i32;
 

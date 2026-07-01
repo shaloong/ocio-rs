@@ -26,8 +26,9 @@ Current release checklist highlights:
 
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
-- The parity checker currently reports `801` bridge-backed safe-wrapper matches
-  against the exposed OCIO 2.5 surface.
+- The parity checker currently reports clean results across all three layers:
+  `1004` bridge/lib.rs declarations, `993` bridge-backed safe-wrapper matches,
+  and `788/822` OCIO C++ header methods accounted for by the bridge policy.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.
@@ -46,7 +47,7 @@ Latest release-audit result:
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
   repository-side checks and reports only the known registry sequencing warning
   for top-level `cargo package`.
-- The current bundled validation path exercises `357` crate tests plus six
+- The current bundled validation path exercises `373` crate tests plus six
   dedicated integration suites covering config behavior, file rules, dynamic
   properties, GPU shader descriptors, CPU processor execution, and matrix
   processing behavior.

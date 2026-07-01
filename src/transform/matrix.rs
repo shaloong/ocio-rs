@@ -145,9 +145,8 @@ impl MatrixTransform {
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
-        let handle = unsafe {
-            ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr() as *mut c_void)
-        };
+        let handle =
+            unsafe { ocio_sys::ocio_matrix_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 

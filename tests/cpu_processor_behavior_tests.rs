@@ -181,13 +181,16 @@ fn cpu_rgb_packed_short_buffer_panics() {
 }
 
 #[test]
-#[should_panic(expected = "Processor::apply_rgba_pixels: buffer too small")]
+#[should_panic(expected = "CPUProcessor::apply_rgba_pixels: buffer too small")]
 fn processor_rgba_pixels_short_buffer_panics() {
     if is_stub() {
         return;
     }
 
     let processor = scaled_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled processor");
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default cpu processor");
     let mut rgba = vec![0.0f32; 7];
-    processor.apply_rgba_pixels(&mut rgba, 2, 4);
+    cpu.apply_rgba_pixels(&mut rgba, 2, 4);
 }

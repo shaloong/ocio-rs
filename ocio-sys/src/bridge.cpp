@@ -1686,6 +1686,14 @@ const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char
 
 
 // --- Config ---
+void* ocio_config_raw(void) {
+  return ocio_config_create_raw();
+}
+
+void* ocio_config_from_file(const char* path) {
+  return ocio_config_create_from_file(path);
+}
+
 void* ocio_config_create_raw(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_config().release();
@@ -2425,6 +2433,14 @@ void* ocio_config_get_role_name(void* handle, int index) {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleName(index);
   } catch (...) { return nullptr; }
 #endif
+}
+
+void* ocio_config_get_role_color_space(void* handle, int index) {
+  return ocio_config_get_role_color_space_by_index(handle, index);
+}
+
+void* ocio_config_get_role_color_space_v1(void* handle, const char* roleName) {
+  return ocio_config_get_role_color_space_by_name(handle, roleName);
 }
 
 void* ocio_config_get_role_color_space_by_index(void* handle, int index) {
@@ -6109,6 +6125,24 @@ void* ocio_processor_get_optimized_processor_v2(void* handle, int inBD, int outB
 #endif
 }
 
+void* ocio_processor_optimized_processor(void* handle, int oFlags) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)oFlags;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(
+        static_cast<ocio::OptimizationFlags>(oFlags));
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
+    out_handle->inner =
+        std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{result_unconst});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_processor_get_default_gpu_processor(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -6189,23 +6223,6 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
   } catch (...) { return nullptr; }
 #endif
 }
-
-void* ocio_processor_get_optimized_cpu_processor_v1(void* handle, int inBitDepth, int outBitDepth, int oFlags) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)inBitDepth; (void)outBitDepth; (void)oFlags;
-  return ocio_rs_bridge::make_stub_cpu_processor().release();
-#else
-  try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(static_cast<ocio::BitDepth>(inBitDepth), static_cast<ocio::BitDepth>(outBitDepth), static_cast<ocio::OptimizationFlags>(oFlags));
-    if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::CPUProcessorHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::CPUProcessor>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealCPUProcessor>(ocio_rs_bridge::RealCPUProcessor{result_unconst});
-    return out_handle.release();
-  } catch (...) { return nullptr; }
-#endif
-}
-
 
 // --- CPUProcessor ---
 
@@ -6313,6 +6330,17 @@ bool ocio_cpu_processor_is_dynamic(void* handle) {
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->isDynamic();
   } catch (...) { return false; }
+#endif
+}
+
+void ocio_cpu_processor_apply(void* handle, void* imgDesc) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)imgDesc;
+  return;
+#else
+  try {
+    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(imgDesc));
+  } catch (...) { return ; }
 #endif
 }
 
@@ -6470,6 +6498,19 @@ void* ocio_gpu_processor_get_cache_id(void* handle) {
 #endif
 }
 
+void ocio_gpu_processor_extract_gpu_shader_info(void* handle, void* shaderDesc) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderDesc;
+  return;
+#else
+  try {
+    auto* _shaderDesc_h = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shaderDesc);
+    auto shaderDesc_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGpuShaderDesc>(_shaderDesc_h->inner)->gpuShaderDesc;
+    ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(shaderDesc_ptr);
+  } catch (...) { return ; }
+#endif
+}
+
 void ocio_gpu_processor_extract_gpu_shader_info_v1(void* handle, void* shaderDesc) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)shaderDesc;
@@ -6498,6 +6539,10 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
 
 
 // --- GpuShaderDesc ---
+
+void* ocio_gpu_shader_desc_create_shader_desc(void) {
+  return ocio_gpu_shader_desc_create();
+}
 
 void* ocio_gpu_shader_desc_create(void) {
 #ifdef OCIO_RS_STUB
@@ -7734,6 +7779,24 @@ void ocio_allocation_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::AllocationTransformHandle*>(handle);
 }
 
+void* ocio_allocation_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_allocation_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_allocation_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto typed = std::dynamic_pointer_cast<ocio::AllocationTransform>(result);
+    if (!typed) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::AllocationTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealAllocationTransform>(
+        ocio_rs_bridge::RealAllocationTransform{typed});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_allocation_transform_get_direction(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -7929,8 +7992,57 @@ void* ocio_cdl_transform_create(void) {
 #endif
 }
 
+void* ocio_cdl_transform_create_from_file(const char* src, const char* cccId) {
+#ifdef OCIO_RS_STUB
+  (void)src; (void)cccId;
+  return ocio_rs_bridge::make_stub_cdl_transform().release();
+#else
+  try {
+    auto result = ocio::CDLTransform::CreateFromFile(src, cccId);
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::CDLTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealCDLTransform>(
+      ocio_rs_bridge::RealCDLTransform{ result }
+    );
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+void* ocio_cdl_transform_from_file(const char* src, const char* cccId) {
+  return ocio_cdl_transform_create_from_file(src, cccId);
+}
+
+void* ocio_cdl_transform_create_group_from_file(const char* src) {
+#ifdef OCIO_RS_STUB
+  (void)src;
+  return ocio_rs_bridge::make_stub_group_transform().release();
+#else
+  try {
+    auto result = ocio::CDLTransform::CreateGroupFromFile(src);
+    if (!result) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
+    out_handle->inner =
+        std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{result});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void ocio_cdl_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::CDLTransformHandle*>(handle);
+}
+
+void* ocio_cdl_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_cdl_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_cdl_transform_get_format_metadata_v1(void* handle) {
@@ -8170,6 +8282,24 @@ void ocio_color_space_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ColorSpaceTransformHandle*>(handle);
 }
 
+void* ocio_color_space_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_color_space_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_color_space_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto typed = std::dynamic_pointer_cast<ocio::ColorSpaceTransform>(result);
+    if (!typed) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::ColorSpaceTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceTransform>(
+        ocio_rs_bridge::RealColorSpaceTransform{typed});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_color_space_transform_get_direction(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -8284,6 +8414,24 @@ void* ocio_display_view_transform_create(void) {
 
 void ocio_display_view_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::DisplayViewTransformHandle*>(handle);
+}
+
+void* ocio_display_view_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_display_view_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_display_view_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto typed = std::dynamic_pointer_cast<ocio::DisplayViewTransform>(result);
+    if (!typed) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::DisplayViewTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealDisplayViewTransform>(
+        ocio_rs_bridge::RealDisplayViewTransform{typed});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
 }
 
 int ocio_display_view_transform_get_direction(void* handle) {
@@ -8446,6 +8594,18 @@ void ocio_exponent_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ExponentTransformHandle*>(handle);
 }
 
+void* ocio_exponent_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_exponent_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_exponent_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -8518,6 +8678,18 @@ void ocio_exponent_with_linear_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ExponentWithLinearTransformHandle*>(handle);
 }
 
+void* ocio_exponent_with_linear_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_exponent_with_linear_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -8588,6 +8760,18 @@ void* ocio_exposure_contrast_transform_create(void) {
 
 void ocio_exposure_contrast_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ExposureContrastTransformHandle*>(handle);
+}
+
+void* ocio_exposure_contrast_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_exposure_contrast_transform_get_format_metadata_v1(void* handle) {
@@ -8893,6 +9077,24 @@ void ocio_file_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::FileTransformHandle*>(handle);
 }
 
+void* ocio_file_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_file_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_file_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto typed = std::dynamic_pointer_cast<ocio::FileTransform>(result);
+    if (!typed) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::FileTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileTransform>(
+        ocio_rs_bridge::RealFileTransform{typed});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_file_transform_get_direction(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -9048,6 +9250,18 @@ void* ocio_fixed_function_transform_create_with_params(int style, const double* 
 
 void ocio_fixed_function_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::FixedFunctionTransformHandle*>(handle);
+}
+
+void* ocio_fixed_function_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_fixed_function_transform_get_format_metadata_v1(void* handle) {
@@ -9231,6 +9445,18 @@ void* ocio_grading_primary_transform_create_with_style(int style) {
 
 void ocio_grading_primary_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingPrimaryTransformHandle*>(handle);
+}
+
+void* ocio_grading_primary_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_grading_primary_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_grading_primary_transform_get_format_metadata_v1(void* handle) {
@@ -9441,6 +9667,18 @@ void* ocio_grading_rgb_curve_transform_create_with_style(int style) {
 
 void ocio_grading_rgb_curve_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingRGBCurveTransformHandle*>(handle);
+}
+
+void* ocio_grading_rgb_curve_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_grading_rgb_curve_transform_get_format_metadata_v1(void* handle) {
@@ -9732,6 +9970,18 @@ void ocio_grading_hue_curve_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingHueCurveTransformHandle*>(handle);
 }
 
+void* ocio_grading_hue_curve_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_grading_hue_curve_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -10021,6 +10271,18 @@ void ocio_grading_tone_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingToneTransformHandle*>(handle);
 }
 
+void* ocio_grading_tone_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_grading_tone_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_grading_tone_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -10208,6 +10470,18 @@ void ocio_group_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GroupTransformHandle*>(handle);
 }
 
+void* ocio_group_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_group_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_group_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -10376,6 +10650,18 @@ void ocio_log_affine_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LogAffineTransformHandle*>(handle);
 }
 
+void* ocio_log_affine_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_log_affine_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_log_affine_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -10462,6 +10748,18 @@ void* ocio_log_camera_transform_create_with_lin_side_break(const double* values)
 
 void ocio_log_camera_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LogCameraTransformHandle*>(handle);
+}
+
+void* ocio_log_camera_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_log_camera_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 void* ocio_log_camera_transform_get_format_metadata_v1(void* handle) {
@@ -10732,6 +11030,18 @@ void ocio_log_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LogTransformHandle*>(handle);
 }
 
+void* ocio_log_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_log_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_log_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -10802,6 +11112,24 @@ void* ocio_look_transform_create(void) {
 
 void ocio_look_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::LookTransformHandle*>(handle);
+}
+
+void* ocio_look_transform_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return ocio_rs_bridge::make_stub_look_transform().release();
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_look_transform(handle)->createEditableCopy();
+    if (!result) return nullptr;
+    auto typed = std::dynamic_pointer_cast<ocio::LookTransform>(result);
+    if (!typed) return nullptr;
+    auto out_handle = std::make_unique<ocio_rs_bridge::LookTransformHandle>();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealLookTransform>(
+        ocio_rs_bridge::RealLookTransform{typed});
+    return out_handle.release();
+  } catch (...) { return nullptr; }
+#endif
 }
 
 int ocio_look_transform_get_direction(void* handle) {
@@ -10940,6 +11268,18 @@ void* ocio_lut1d_transform_create(void) {
 
 void ocio_lut1d_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(handle);
+}
+
+void* ocio_lut1d_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_lut1d_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 int ocio_lut1d_transform_get_file_output_bit_depth(void* handle) {
@@ -11173,6 +11513,18 @@ void ocio_lut3d_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::Lut3DTransformHandle*>(handle);
 }
 
+void* ocio_lut3d_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_lut3d_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_lut3d_transform_get_file_output_bit_depth(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -11343,6 +11695,18 @@ void ocio_matrix_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::MatrixTransformHandle*>(handle);
 }
 
+void* ocio_matrix_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_matrix_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
+}
+
 void* ocio_matrix_transform_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -11479,6 +11843,18 @@ void* ocio_range_transform_create(void) {
 
 void ocio_range_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::RangeTransformHandle*>(handle);
+}
+
+void* ocio_range_transform_get_format_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return const_cast<void*>(static_cast<const void*>(
+        &(ocio_rs_bridge::get_real_range_transform(handle)->getFormatMetadata())));
+  } catch (...) { return nullptr; }
+#endif
 }
 
 int ocio_range_transform_get_style(void* handle) {
@@ -12153,6 +12529,17 @@ void* ocio_matrix_transform_create_identity(void) {
     ocio::MatrixTransform::Identity(m44, offset4);
     return make_matrix_transform_from_values(m44, offset4);
   } catch (...) { return nullptr; }
+#endif
+}
+
+void ocio_matrix_transform_identity(double* m44, double* offset4) {
+#ifdef OCIO_RS_STUB
+  (void)m44; (void)offset4;
+  return;
+#else
+  try {
+    ocio::MatrixTransform::Identity(m44, offset4);
+  } catch (...) { return; }
 #endif
 }
 

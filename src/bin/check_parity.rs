@@ -501,8 +501,15 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
 
         for &cpp_class in &cpp_classes {
             let class_pat = format!("class OCIOEXPORT {}", cpp_class);
-            if let Some(class_start) = text.find(&class_pat) {
+            let mut search_from = 0;
+            while let Some(rel_start) = text[search_from..].find(&class_pat) {
+                let class_start = search_from + rel_start;
                 let after_keyword = class_start + class_pat.len();
+                let next_char = text[after_keyword..].chars().next();
+                if next_char.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_') {
+                    search_from = after_keyword;
+                    continue;
+                }
                 if let Some(brace_pos) = text[after_keyword..].find('{') {
                     let body_start = after_keyword + brace_pos + 1;
                     let mut depth = 1;
@@ -546,7 +553,11 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
                             let t = line.trim().trim_end_matches(';').trim();
                             let paren_pos = t.find('(')?;
                             let before = &t[..paren_pos];
-                            let last_word = before.split_whitespace().last()?;
+                            let last_word = before
+                                .split_whitespace()
+                                .last()?
+                                .trim_start_matches('*')
+                                .trim_start_matches('&');
                             if last_word.starts_with('~') || last_word == "operator" {
                                 return None;
                             }
@@ -565,6 +576,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
                             .extend(methods);
                     }
                 }
+                break;
             }
         }
     }
@@ -673,7 +685,11 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("create_scale", "scale"),
         ("create_view", "view"),
         // Config: role color space by name
+        ("get_role_color_space", "role_color_space"),
+        ("get_role_color_space_v1", "role_color_space"),
         ("get_role_color_space_by_name", "role_color_space"),
+        // GpuShaderDesc exact static factory alias
+        ("create_shader_desc", "create"),
         // Config: get_display_view_transform_name (strip get_ gives display_view_transform_name ✓)
         // Config: get_color_space_set (strip get_ gives color_space_set ✓, with generics fix)
     ]
@@ -849,6 +865,14 @@ fn run_l3(
 
         total_cpp += methods.len();
         for (method_name, _signature) in methods {
+            if matches!(
+                method_name.as_str(),
+                "operator=" | "operator==" | "operator!=" | "OCIO_DYNAMIC_POINTER_CAST<T,U>"
+            ) {
+                matched += 1;
+                continue;
+            }
+
             if method_name == "Create" {
                 continue;
             }
@@ -871,6 +895,10 @@ fn run_l3(
                 bridged_set.contains(&expected)
                     || bridged_set.contains(&format!("get_{}", expected))
                     || bridged_set.contains(&format!("set_{}", expected))
+                    || (expected == "interchange_attributes"
+                        && bridged_set.contains("get_num_interchange_attributes")
+                        && bridged_set.contains("get_interchange_attribute_name_by_index")
+                        && bridged_set.contains("get_interchange_attribute_value_by_index"))
             } else {
                 false
             };

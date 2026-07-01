@@ -66,36 +66,6 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Apply the processor to a single RGBA pixel in place.
-    pub fn apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
-        unsafe {
-            ocio_sys::ocio_processor_apply_rgba(
-                self.handle.as_ptr(),
-                rgba.as_mut_ptr(),
-                rgba.len(),
-            );
-        }
-        Ok(())
-    }
-
-    /// Apply the processor to packed RGBA pixel data in place.
-    pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
-        validate_scalar_buffer_len(
-            "Processor::apply_rgba_pixels",
-            rgba.len(),
-            num_pixels,
-            stride,
-        );
-        unsafe {
-            ocio_sys::ocio_processor_apply_rgba_pixels(
-                self.handle.as_ptr(),
-                rgba.as_mut_ptr(),
-                num_pixels,
-                stride,
-            );
-        }
-    }
-
     pub fn is_no_op(&self) -> bool {
         unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
@@ -222,64 +192,18 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn default_cpu_processor_bitdepth(
-        &self,
-        in_bit_depth: i32,
-        out_bit_depth: i32,
-    ) -> Result<CPUProcessor> {
-        self.optimized_cpu_processor_bitdepth(in_bit_depth, out_bit_depth, 0)
-    }
-
-    pub fn optimized_cpu_processor_bitdepth(
-        &self,
-        in_bit_depth: i32,
-        out_bit_depth: i32,
-        flags: u64,
-    ) -> Result<CPUProcessor> {
-        let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_cpu_processor_v1(
-                self.handle.as_ptr(),
-                in_bit_depth,
-                out_bit_depth,
-                flags as i32,
-            )
-        };
-        NonNull::new(handle)
-            .map(|h| CPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
-    }
-
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
-        note = "compat alias; prefer optimized_cpu_processor_bitdepth()"
+        note = "compat alias; prefer optimized_processor_bitdepth() or optimized_cpu/gpu_processor helpers"
     )]
-    pub fn optimized_cpu_processor_v1(
-        &self,
-        in_bit_depth: i32,
-        out_bit_depth: i32,
-        flags: u64,
-    ) -> Result<CPUProcessor> {
-        self.optimized_cpu_processor_bitdepth(in_bit_depth, out_bit_depth, flags)
-    }
-
-    pub fn default_gpu_processor_bitdepth(
-        &self,
-        in_bit_depth: i32,
-        out_bit_depth: i32,
-    ) -> Result<GPUProcessor> {
-        let _ = (in_bit_depth, out_bit_depth);
-        self.default_gpu_processor()
-    }
-
-    pub fn optimized_gpu_processor_bitdepth(
-        &self,
-        in_bit_depth: i32,
-        out_bit_depth: i32,
-        flags: u64,
-    ) -> Result<GPUProcessor> {
-        let _ = (in_bit_depth, out_bit_depth);
-        self.optimized_gpu_processor(flags)
+    pub fn optimized_processor(&self, flags: u64) -> Result<Self> {
+        let handle = unsafe {
+            ocio_sys::ocio_processor_optimized_processor(self.handle.as_ptr(), flags as i32)
+        };
+        NonNull::new(handle)
+            .map(|h| Self { handle: h })
+            .ok_or(OcioError::AllocationFailed)
     }
 
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
@@ -372,6 +296,17 @@ impl CPUProcessor {
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
+    )]
+    pub unsafe fn apply(&self, img_desc: *mut c_void) {
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply(self.handle.as_ptr(), img_desc);
+        }
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer apply() or the typed pixel helpers"
     )]
     pub unsafe fn apply_v1(&self, img_desc: *mut c_void) {
         unsafe {
@@ -653,6 +588,17 @@ impl GPUProcessor {
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v1(
+                self.handle.as_ptr(),
+                shader_desc.handle.as_ptr(),
+            );
+        }
+    }
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
+    pub fn extract_gpu_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
+        unsafe {
+            ocio_sys::ocio_gpu_processor_extract_gpu_shader_info(
                 self.handle.as_ptr(),
                 shader_desc.handle.as_ptr(),
             );
@@ -1689,14 +1635,6 @@ mod tests {
     use crate::Config;
 
     #[test]
-    fn processor_apply_rgba() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        let mut pixel = [0.5, 0.25, 0.125, 1.0];
-        proc.apply_rgba(&mut pixel).unwrap();
-    }
-
-    #[test]
     fn processor_metadata() {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
@@ -1729,14 +1667,6 @@ mod tests {
             let _ = gpu.is_no_op();
             let _ = gpu.cache_id();
         }
-    }
-
-    #[test]
-    fn processor_named_optimization_wrappers_no_crash() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        let _ = proc.optimized_processor_bitdepth(8, 8, 0);
-        let _ = proc.optimized_cpu_processor_bitdepth(8, 8, 0);
     }
 
     #[test]
@@ -1903,14 +1833,6 @@ mod tests {
     }
 
     #[test]
-    fn processor_apply_rgba_pixels_no_crash() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        let mut pixels = vec![0.0f32; 16]; // 4 pixels RGBA
-        proc.apply_rgba_pixels(&mut pixels, 4, 4);
-    }
-
-    #[test]
     fn cpu_processor_apply_pixels_no_crash() {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
@@ -1991,26 +1913,6 @@ mod tests {
             let _ = desc.get3d_texture(0);
             let _ = desc.get3d_texture_values(0);
             let _ = desc.get3d_texture_shader_binding_index(0);
-        }
-    }
-
-    #[test]
-    fn processor_bitdepth_no_crash() {
-        let config = Config::raw().unwrap();
-        let proc = config.processor("raw", "raw").unwrap();
-        // BIT_DEPTH_F32 = 8
-        if let Ok(cpu) = proc.default_cpu_processor_bitdepth(8, 8) {
-            let _ = cpu.is_no_op();
-            let _ = cpu.is_identity();
-        }
-        if let Ok(cpu) = proc.optimized_cpu_processor_bitdepth(8, 8, 0) {
-            let _ = cpu.is_no_op();
-        }
-        if let Ok(gpu) = proc.default_gpu_processor_bitdepth(8, 8) {
-            let _ = gpu.is_no_op();
-        }
-        if let Ok(gpu) = proc.optimized_gpu_processor_bitdepth(8, 8, 0) {
-            let _ = gpu.is_no_op();
         }
     }
 }

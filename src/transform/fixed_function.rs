@@ -136,7 +136,9 @@ impl FixedFunctionTransform {
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe {
-            ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr() as *mut c_void)
+            ocio_sys::ocio_fixed_function_transform_get_format_metadata(
+                self.handle.as_ptr() as *mut c_void
+            )
         };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
