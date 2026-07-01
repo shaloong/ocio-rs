@@ -34,7 +34,7 @@ jobs:
         run: cargo doc --workspace --no-deps --no-default-features
 
       - name: Parity
-        run: cargo run --bin check_parity --quiet
+        run: cargo run --bin check_parity --quiet -- --check-l3
 
       - name: Package
         run: cargo package -p ocio-sys --allow-dirty

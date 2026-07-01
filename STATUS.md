@@ -28,7 +28,8 @@ Current release checklist highlights:
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
   `1004` bridge/lib.rs declarations, `993` bridge-backed safe-wrapper matches,
-  and `788/822` OCIO C++ header methods accounted for by the bridge policy.
+  and `822/822` OCIO C++ header methods accounted for, including normalized
+  coverage for static `Create` constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
 - `cargo test --workspace --features bundled` passes.

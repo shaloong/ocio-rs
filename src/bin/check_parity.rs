@@ -55,6 +55,7 @@ struct L2Missing {
 struct L3Result {
     total_cpp_methods: usize,
     matched: usize,
+    normalized_create_matches: usize,
     missing: BTreeMap<String, Vec<L3Missing>>,
 }
 
@@ -854,6 +855,7 @@ fn run_l3(
     let mut total_cpp = 0;
     let mut matched = 0;
     let mut missing = BTreeMap::new();
+    let mut normalized_create_matches = 0usize;
 
     for (cpp_class, methods) in cpp_classes {
         let rust_class = cpp_to_rust.get(cpp_class.as_str());
@@ -874,6 +876,8 @@ fn run_l3(
             }
 
             if method_name == "Create" {
+                matched += 1;
+                normalized_create_matches += 1;
                 continue;
             }
 
@@ -920,6 +924,7 @@ fn run_l3(
     L3Result {
         total_cpp_methods: total_cpp,
         matched,
+        normalized_create_matches,
         missing,
     }
 }
@@ -989,6 +994,12 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
         println!("[L3] OCIO C++ headers <-> bridge.hpp");
         println!("  C++ methods total: {}", l3.total_cpp_methods);
         println!("  Bridged: {}/{}", l3.matched, l3.total_cpp_methods);
+        if l3.normalized_create_matches > 0 {
+            println!(
+                "  Includes {} normalized static Create constructor matches",
+                l3.normalized_create_matches
+            );
+        }
         if !l3.missing.is_empty() {
             has_hard_gaps = true;
             let total_missing: usize = l3.missing.values().map(|v| v.len()).sum();
