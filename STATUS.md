@@ -163,6 +163,11 @@ Current runtime semantics worth calling out explicitly:
   config created from proxy-backed assets follows real OCIO path resolution:
   search paths are consulted before a working-directory fallback, including
   context-variable-expanded entries such as `./$SHOT`.
+- `FileRules` now has bundled runtime coverage beyond metadata round-trips:
+  attached rules on a `Config` actively drive
+  `color_space_from_filepath_with_rule_index(...)`, including preserving the
+  matched rule index for ordered filename-pattern rules and falling back to the
+  configured default-rule color space when no explicit rule matches.
 - `Baker` round-trips its configured properties in bundled mode and emits real
   LUT text; for a no-crosstalk `raw -> raw` `resolve_cube` bake, upstream OCIO
   emits a 1D LUT (`LUT_1D_SIZE`) rather than forcing a 3D cube.

@@ -84,3 +84,55 @@ fn config_file_rules_attachment_round_trip_behavior() {
     assert_eq!(attached.name(0).as_deref(), Some("ConfigRule"));
     assert_eq!(attached.color_space(0).as_deref(), Some("raw"));
 }
+
+#[test]
+fn config_file_rules_drive_filepath_resolution_behavior() {
+    let _guard = file_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+    let rules = FileRules::create().expect("file_rules create");
+    rules
+        .insert_rule(0, "ExrRule", "raw", "plate_*", "exr")
+        .expect("insert exr rule");
+    rules
+        .insert_rule(1, "MovRule", "raw", "clip_*", "mov")
+        .expect("insert mov rule");
+    rules
+        .set_default_rule_color_space("raw")
+        .expect("set default rule color space");
+
+    config.set_file_rules(&rules);
+
+    assert_eq!(
+        config
+            .color_space_from_filepath_with_rule_index("plate_main.exr")
+            .as_ref()
+            .map(|(_, rule_index)| *rule_index),
+        Some(0)
+    );
+    assert_eq!(
+        config
+            .color_space_from_filepath_with_rule_index("clip_proxy.mov")
+            .as_ref()
+            .map(|(_, rule_index)| *rule_index),
+        Some(1)
+    );
+    assert_eq!(
+        config.color_space_from_filepath("plate_main.exr").as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config.color_space_from_filepath("clip_proxy.mov").as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config.color_space_from_filepath("fallback.unknown").as_deref(),
+        Some("raw")
+    );
+}
