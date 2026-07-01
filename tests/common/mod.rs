@@ -13,6 +13,7 @@ pub fn is_stub() -> bool {
 }
 
 /// Assert two f64 values are within `tol` absolute difference.
+#[allow(dead_code)]
 #[track_caller]
 pub fn assert_close(a: f64, b: f64, tol: f64) {
     let diff = (a - b).abs();

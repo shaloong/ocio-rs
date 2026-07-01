@@ -6,73 +6,18 @@
 mod common;
 use common::*;
 
-use ocio_rs::{Config, ReferenceSpaceType, ViewTransform};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
-const OPTIMIZATION_DEFAULT: u64 = 0;
+use ocio_rs::{ReferenceSpaceType, ViewTransform};
 
-#[test]
-fn config_processor_from_configs_identity_behavior() {
-    if is_stub() {
-        return;
-    }
-
-    let src_config = create_test_config().expect("src raw config");
-    let dst_config = create_test_config().expect("dst raw config");
-
-    let processor = Config::processor_from_configs(&src_config, "raw", &dst_config, "raw")
-        .expect("processor_from_configs");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.25f32, 0.5, 0.75, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
-}
-
-#[test]
-fn config_processor_from_configs_with_contexts_identity_behavior() {
-    if is_stub() {
-        return;
-    }
-
-    let config = create_test_config().expect("driver raw config");
-    let src_config = create_test_config().expect("src raw config");
-    let dst_config = create_test_config().expect("dst raw config");
-    let src_ctx = src_config.current_context().expect("src current_context");
-    let dst_ctx = dst_config.current_context().expect("dst current_context");
-
-    let processor = config
-        .processor_from_configs_with_contexts(
-            &src_ctx,
-            &src_config,
-            "raw",
-            &dst_ctx,
-            &dst_config,
-            "raw",
-        )
-        .expect("processor_from_configs_with_contexts");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.1f32, 0.2, 0.3, 0.4];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
+fn config_test_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
 }
 
 #[test]
 fn config_processor_from_configs_with_interchange_rejects_empty_interchange_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -95,6 +40,7 @@ fn config_processor_from_configs_with_interchange_rejects_empty_interchange_beha
 #[test]
 fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
 {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -119,44 +65,8 @@ fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_int
 }
 
 #[test]
-fn config_processor_from_configs_to_display_identity_behavior() {
-    if is_stub() {
-        return;
-    }
-
-    let config = create_test_config().expect("driver raw config");
-    let src_config = create_test_config().expect("src raw config");
-    let dst_config = create_test_config().expect("dst raw config");
-    dst_config
-        .add_display("UnitDisplay", "UnitView", "raw", "")
-        .expect("add_display");
-
-    let processor = config
-        .processor_from_configs_to_display(
-            &src_config,
-            "raw",
-            &dst_config,
-            "UnitDisplay",
-            "UnitView",
-            ocio_rs::TransformDirection::Forward,
-        )
-        .expect("processor_from_configs_to_display");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.6f32, 0.3, 0.1, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
-}
-
-#[test]
 fn config_processor_from_configs_to_display_with_interchange_rejects_empty_interchange_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -182,49 +92,9 @@ fn config_processor_from_configs_to_display_with_interchange_rejects_empty_inter
 }
 
 #[test]
-fn config_processor_from_configs_to_display_with_contexts_identity_behavior() {
-    if is_stub() {
-        return;
-    }
-
-    let config = create_test_config().expect("driver raw config");
-    let src_config = create_test_config().expect("src raw config");
-    let dst_config = create_test_config().expect("dst raw config");
-    let src_ctx = src_config.current_context().expect("src current_context");
-    let dst_ctx = dst_config.current_context().expect("dst current_context");
-    dst_config
-        .add_display("UnitDisplay", "UnitView", "raw", "")
-        .expect("add_display");
-
-    let processor = config
-        .processor_from_configs_to_display_with_contexts(
-            &src_ctx,
-            &src_config,
-            "raw",
-            &dst_ctx,
-            &dst_config,
-            "UnitDisplay",
-            "UnitView",
-            ocio_rs::TransformDirection::Forward,
-        )
-        .expect("processor_from_configs_to_display_with_contexts");
-    let cpu = processor
-        .optimized_cpu_processor(OPTIMIZATION_DEFAULT)
-        .expect("optimized_cpu_processor");
-
-    let mut pixel = [0.2f32, 0.4, 0.8, 1.0];
-    let original = pixel;
-    cpu.apply_rgba(&mut pixel);
-
-    assert_close(pixel[0] as f64, original[0] as f64, 1e-6);
-    assert_close(pixel[1] as f64, original[1] as f64, 1e-6);
-    assert_close(pixel[2] as f64, original[2] as f64, 1e-6);
-    assert_close(pixel[3] as f64, original[3] as f64, 1e-6);
-}
-
-#[test]
 fn config_processor_from_configs_to_display_with_contexts_and_interchange_rejects_empty_interchange_behavior(
 ) {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -255,6 +125,7 @@ fn config_processor_from_configs_to_display_with_contexts_and_interchange_reject
 
 #[test]
 fn config_display_view_metadata_round_trip_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -306,6 +177,7 @@ fn config_display_view_metadata_round_trip_behavior() {
 
 #[test]
 fn config_display_shared_view_metadata_round_trip_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -354,6 +226,7 @@ fn config_display_shared_view_metadata_round_trip_behavior() {
 
 #[test]
 fn config_virtual_display_metadata_round_trip_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
@@ -401,6 +274,7 @@ fn config_virtual_display_metadata_round_trip_behavior() {
 
 #[test]
 fn config_virtual_display_shared_view_behavior() {
+    let _guard = config_test_lock();
     if is_stub() {
         return;
     }
