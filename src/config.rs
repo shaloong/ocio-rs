@@ -812,6 +812,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_color_spaces()"
@@ -824,6 +825,7 @@ impl Config {
         self.processor_from_color_spaces(src_color_space, dst_color_space)
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer processor()")]
     pub fn get_processor_v2(
         &self,
@@ -858,6 +860,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer processor_display()")]
     pub fn get_processor_v4(
         &self,
@@ -899,6 +902,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_transform_default_direction()"
@@ -907,6 +911,7 @@ impl Config {
         self.processor_from_transform_default_direction(transform)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_transform()"
@@ -940,6 +945,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_with_context()"
@@ -980,6 +986,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_display_with_context()"
@@ -1015,6 +1022,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_transform_with_context()"
@@ -1046,6 +1054,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_named_transform()"
@@ -1078,6 +1087,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_named_transform_with_context()"
@@ -1110,6 +1120,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_named_transform_name()"
@@ -1143,6 +1154,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_named_transform_name_with_context()"
@@ -1177,6 +1189,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_to_builtin_color_space()"
@@ -1215,6 +1228,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_builtin_color_space()"
@@ -1281,6 +1295,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_with_contexts()"
@@ -1333,6 +1348,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_with_interchange()"
@@ -1391,6 +1407,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_with_contexts_and_interchange()"
@@ -1446,6 +1463,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_to_display()"
@@ -1503,6 +1521,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_to_display_with_contexts()"
@@ -1566,6 +1585,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_to_display_with_interchange()"
@@ -1633,6 +1653,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer processor_from_configs_to_display_with_contexts_and_interchange()"
@@ -1672,6 +1693,7 @@ impl Config {
         NonNull::new(handle).map(|h| ColorSpace { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer color_space()")]
     pub fn get_color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.color_space(name)
@@ -1730,6 +1752,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer color_space_index()")]
     pub fn get_index_for_color_space(&self, name: impl AsRef<str>) -> i32 {
         self.color_space_index(name)
@@ -1769,6 +1792,7 @@ impl Config {
         NonNull::new(handle).map(|h| Look { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer look()")]
     pub fn get_look(&self, name: impl AsRef<str>) -> Option<Look> {
         self.look(name)
@@ -1828,6 +1852,7 @@ impl Config {
         Ok(())
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer add_display() for basic display/view wiring"
@@ -1889,6 +1914,7 @@ impl Config {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer add_display_view_detailed()"
@@ -2069,6 +2095,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_num_views()"
@@ -2091,6 +2118,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer virtual_display_view()")]
     pub fn get_virtual_display_view(
         &self,
@@ -2102,6 +2130,7 @@ impl Config {
 
     /// # Safety
     /// `first` and `second` must be valid pointers to OCIO virtual-view descriptors.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO virtual-view entry point; prefer higher-level virtual display APIs unless you must interoperate with external OCIO ABI objects"
@@ -2138,6 +2167,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_view_transform_name()"
@@ -2158,6 +2188,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_view_color_space_name()"
@@ -2179,6 +2210,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_view_looks()"
@@ -2197,6 +2229,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_view_rule()"
@@ -2215,6 +2248,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer virtual_display_view_description()"
@@ -2275,6 +2309,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer num_named_transforms()")]
     pub fn get_num_named_transforms_v1(&self) -> i32 {
         self.num_named_transforms()
@@ -2289,6 +2324,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "compat alias; prefer named_transform_name_by_index()"
@@ -2305,6 +2341,7 @@ impl Config {
         NonNull::new(handle).map(|h| NamedTransform { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer named_transform()")]
     pub fn get_named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         self.named_transform(name)
@@ -2323,6 +2360,7 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer named_transform_index()")]
     pub fn get_index_for_named_transform(&self, name: impl AsRef<str>) -> i32 {
         self.named_transform_index(name)
@@ -2370,6 +2408,7 @@ impl Config {
         NonNull::new(handle).map(|h| ViewTransform { handle: h })
     }
 
+    #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer view_transform()")]
     pub fn get_view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         self.view_transform(name)
