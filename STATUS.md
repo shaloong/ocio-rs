@@ -43,8 +43,9 @@ Current release checklist highlights:
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
-  `builtin_transform_registry_behavior`, and `named_transform_behavior`
-  integration suites in addition to crate unit tests.
+  `builtin_transform_registry_behavior`, `view_transform_behavior`, and
+  `named_transform_behavior` integration suites in addition to crate unit
+  tests.
 - Bundled real-OCIO builds are validated from a recursive repository checkout.
 - The published `ocio-sys` crate now vendors the upstream OpenColorIO source
   tree required by `--features bundled`.
@@ -60,13 +61,13 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirteen
+- The current bundled validation path exercises `373` crate tests plus fourteen
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
-  CPU processor execution, matrix processing behavior, and named-transform
-  execution.
+  CPU processor execution, matrix processing behavior, named-transform
+  execution, and view-transform display-pipeline behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -97,6 +98,10 @@ Current runtime semantics worth calling out explicitly:
   bundled mode, editable copies keep independent direction state, and the
   `ACEScct_to_ACES2065-1` builtin style executes as a real forward/inverse CPU
   processing pair rather than a no-op.
+- `ViewTransform` round-trips categories, interchange metadata, and attached
+  transforms in bundled mode, and when driven through a `DisplayViewTransform`
+  display pipeline, `TransformDirection::Forward` uses the view transform's
+  `FromReference` branch for scene-to-display processing.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
