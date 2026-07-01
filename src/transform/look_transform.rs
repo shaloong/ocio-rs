@@ -93,8 +93,10 @@ impl LookTransform {
         }
     }
 
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_transform_validate(self.handle.as_ptr()) };
+        crate::validation_status()
     }
 }
 
@@ -161,6 +163,6 @@ mod tests {
     #[test]
     fn validate_no_crash() {
         let t = LookTransform::create().unwrap();
-        t.validate();
+        let _ = t.validate();
     }
 }

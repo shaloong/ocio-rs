@@ -91,8 +91,10 @@ impl ColorSpaceTransform {
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_transform_validate(self.handle.as_ptr()) };
+        crate::validation_status()
     }
 }
 
@@ -156,6 +158,6 @@ mod tests {
     #[test]
     fn validate_no_crash() {
         let t = ColorSpaceTransform::create().unwrap();
-        t.validate();
+        let _ = t.validate();
     }
 }

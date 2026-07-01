@@ -96,8 +96,10 @@ impl AllocationTransform {
         }
     }
 
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_allocation_transform_validate(self.handle.as_ptr()) };
+        crate::validation_status()
     }
 }
 
@@ -162,6 +164,6 @@ mod tests {
     #[test]
     fn validate_no_crash() {
         let t = AllocationTransform::create().unwrap();
-        t.validate();
+        let _ = t.validate();
     }
 }

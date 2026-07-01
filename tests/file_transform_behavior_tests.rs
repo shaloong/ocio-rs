@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::{CDLTransform, FileTransform};
-use ocio_rs::{CDLStyle, Interpolation, TransformDirection};
+use ocio_rs::{CDLStyle, Interpolation, OcioError, TransformDirection};
 
 fn file_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -161,4 +161,18 @@ fn file_transform_ccc_id_and_default_direction_behavior() {
     assert_close(file_pixel[1] as f64, cdl_pixel[1] as f64, 1e-6);
     assert_close(file_pixel[2] as f64, cdl_pixel[2] as f64, 1e-6);
     assert_close(file_pixel[3] as f64, cdl_pixel[3] as f64, 1e-6);
+}
+
+#[test]
+fn file_transform_validate_reports_real_ocio_errors() {
+    let _guard = file_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = FileTransform::create().expect("file transform create");
+    let err = transform
+        .validate()
+        .expect_err("missing src should fail validation");
+    assert!(matches!(err, OcioError::ValidationFailed(_)));
 }

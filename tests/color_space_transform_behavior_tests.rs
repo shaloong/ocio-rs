@@ -84,7 +84,9 @@ fn color_space_transform_field_copy_and_validate_behavior() {
         .expect("set dst");
     transform.set_data_bypass(true);
     transform.set_direction(TransformDirection::Inverse);
-    transform.validate();
+    transform
+        .validate()
+        .expect("validate color space transform");
 
     assert_eq!(
         transform.src().as_deref(),

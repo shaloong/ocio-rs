@@ -20,6 +20,32 @@ namespace ocio = OCIO_NAMESPACE;
 namespace ocio_rs_bridge {
 
 thread_local std::string g_serialized_text;
+thread_local std::string g_last_error;
+
+void clear_last_error() {
+  g_last_error.clear();
+}
+
+void capture_error_message(const char* msg) {
+  g_last_error = msg ? msg : "OpenColorIO bridge error";
+}
+
+void capture_current_exception() {
+  try {
+    throw;
+  }
+#ifndef OCIO_RS_STUB
+  catch (const ocio::Exception& e) {
+    capture_error_message(e.what());
+  }
+#endif
+  catch (const std::exception& e) {
+    capture_error_message(e.what());
+  }
+  catch (...) {
+    capture_error_message("Unknown OpenColorIO bridge exception");
+  }
+}
 
 // --- Handle types ---
 
@@ -1886,11 +1912,16 @@ void ocio_config_upgrade_to_latest_version(void* handle) {
 void ocio_config_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_config(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -6668,63 +6699,90 @@ bool ocio_cpu_processor_is_dynamic(void* handle) {
 void ocio_cpu_processor_apply(void* handle, void* imgDesc) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)imgDesc;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(imgDesc));
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_v1(void* handle, void* imgDesc) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)imgDesc;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(imgDesc));
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDesc) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)srcImgDesc; (void)dstImgDesc;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(srcImgDesc), *static_cast<ocio::ImageDesc*>(dstImgDesc));
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgb(void* handle, void* pixel) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)pixel;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGB(static_cast<float*>(pixel));
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)pixel;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGBA(static_cast<float*>(pixel));
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgba; (void)numPixels; (void)stride;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!rgba || numPixels <= 0) return;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
@@ -6732,15 +6790,20 @@ void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t num
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
                               ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
-  } catch (...) { return; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)numPixels; (void)stride;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!rgb || numPixels <= 0) return;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
@@ -6748,15 +6811,20 @@ void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPi
     ocio::PackedImageDesc img(rgb, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGB,
                               ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
-  } catch (...) { return; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgba; (void)bitDepth; (void)numPixels; (void)stride;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!rgba || numPixels <= 0) return;
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
@@ -6767,15 +6835,20 @@ void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
                               static_cast<ocio::BitDepth>(bitDepth), channelStride, xStride, xStride * numPixels);
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
-  } catch (...) { return; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)bitDepth; (void)numPixels; (void)stride;
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     if (!rgb || numPixels <= 0) return;
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
@@ -6786,7 +6859,10 @@ void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, 
     ocio::PackedImageDesc img(rgb, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGB,
                               static_cast<ocio::BitDepth>(bitDepth), channelStride, xStride, xStride * numPixels);
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
-  } catch (...) { return; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -8543,11 +8619,16 @@ void ocio_allocation_transform_set_direction(void* handle, int dir) {
 void ocio_allocation_transform_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_allocation_transform(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -9046,11 +9127,16 @@ void ocio_color_space_transform_set_direction(void* handle, int dir) {
 void ocio_color_space_transform_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_color_space_transform(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -9180,11 +9266,16 @@ void ocio_display_view_transform_set_direction(void* handle, int dir) {
 void ocio_display_view_transform_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -9841,11 +9932,16 @@ void ocio_file_transform_set_direction(void* handle, int dir) {
 void ocio_file_transform_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -11878,11 +11974,16 @@ void ocio_look_transform_set_direction(void* handle, int dir) {
 void ocio_look_transform_validate(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
+  ocio_rs_bridge::clear_last_error();
   return;
 #else
+  ocio_rs_bridge::clear_last_error();
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->validate();
-  } catch (...) { return ; }
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return;
+  }
 #endif
 }
 
@@ -13748,5 +13849,13 @@ bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* handle, in
 #endif
 }
 
+
+const char* ocio_error_get_last(void) {
+  return ocio_rs_bridge::g_last_error.empty() ? nullptr : ocio_rs_bridge::g_last_error.c_str();
+}
+
+void ocio_error_clear_last(void) {
+  ocio_rs_bridge::clear_last_error();
+}
 
 }  // extern "C"

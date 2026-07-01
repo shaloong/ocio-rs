@@ -37,6 +37,10 @@ pub struct OcioGpuUniformInfo {
 }
 
 unsafe extern "C" {
+    // --- Error state ---
+    pub fn ocio_error_get_last() -> *const i8;
+    pub fn ocio_error_clear_last();
+
     // --- Runtime ---
     pub fn ocio_runtime_is_stub() -> bool;
 
@@ -746,15 +750,10 @@ unsafe extern "C" {
     pub fn ocio_viewing_rules_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_viewing_rules_destroy(handle: *mut c_void);
     pub fn ocio_viewing_rules_get_num_entries(handle: *mut c_void) -> usize;
-    pub fn ocio_viewing_rules_get_index_for_rule(
-        handle: *mut c_void,
-        ruleName: *const i8,
-    ) -> usize;
+    pub fn ocio_viewing_rules_get_index_for_rule(handle: *mut c_void, ruleName: *const i8)
+        -> usize;
     pub fn ocio_viewing_rules_get_name(handle: *mut c_void, ruleIndex: usize) -> *mut c_void;
-    pub fn ocio_viewing_rules_get_num_color_spaces(
-        handle: *mut c_void,
-        ruleIndex: usize,
-    ) -> usize;
+    pub fn ocio_viewing_rules_get_num_color_spaces(handle: *mut c_void, ruleIndex: usize) -> usize;
     pub fn ocio_viewing_rules_get_color_space(
         handle: *mut c_void,
         ruleIndex: usize,
@@ -786,10 +785,7 @@ unsafe extern "C" {
         ruleIndex: usize,
         encodingIndex: usize,
     ) -> ();
-    pub fn ocio_viewing_rules_get_num_custom_keys(
-        handle: *mut c_void,
-        ruleIndex: usize,
-    ) -> usize;
+    pub fn ocio_viewing_rules_get_num_custom_keys(handle: *mut c_void, ruleIndex: usize) -> usize;
     pub fn ocio_viewing_rules_get_custom_key_name(
         handle: *mut c_void,
         ruleIndex: usize,
@@ -1170,10 +1166,11 @@ unsafe extern "C" {
         handle: *mut c_void,
         index: u32,
     ) -> *mut c_void;
-    pub fn ocio_gpu_shader_desc_get_dynamic_property(handle: *mut c_void, type_param: i32)
-        -> *mut c_void;
-    pub fn ocio_gpu_shader_desc_has_dynamic_property(handle: *mut c_void, type_param: i32)
-        -> bool;
+    pub fn ocio_gpu_shader_desc_get_dynamic_property(
+        handle: *mut c_void,
+        type_param: i32,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_desc_has_dynamic_property(handle: *mut c_void, type_param: i32) -> bool;
     pub fn ocio_gpu_shader_desc_add_texture(
         handle: *mut c_void,
         texture_name: *const i8,
@@ -2372,10 +2369,8 @@ unsafe extern "C" {
         max_width: u32,
     ) -> ();
 
-    pub fn ocio_gpu_shader_desc_set_allow_texture_1d(
-        shader_desc: *mut c_void,
-        allowed: bool,
-    ) -> ();
+    pub fn ocio_gpu_shader_desc_set_allow_texture_1d(shader_desc: *mut c_void, allowed: bool)
+        -> ();
 
     pub fn ocio_grading_primary_transform_get_direction(transform: *mut c_void) -> i32;
 

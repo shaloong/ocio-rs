@@ -71,6 +71,7 @@ pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 
 use std::ffi::{c_void, CString};
+use std::ptr::NonNull;
 use thiserror::Error;
 
 pub use ocio_sys;
@@ -81,6 +82,8 @@ pub enum OcioError {
     Ocio(String),
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
     #[error("path contains interior NUL byte")]
     InteriorNul,
     #[error("OpenColorIO handle allocation failed")]
@@ -172,6 +175,38 @@ pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
 // v2.5.1 compat: accept *mut c_void (new return type for many getter functions)
 pub(crate) unsafe fn cstr_from_mut(ptr: *mut c_void) -> Option<String> {
     cstr_to_opt_string(ptr as *const i8)
+}
+
+pub(crate) fn clear_last_error() {
+    unsafe { ocio_sys::ocio_error_clear_last() };
+}
+
+pub(crate) fn last_error_message() -> Option<String> {
+    unsafe { cstr_to_opt_string(ocio_sys::ocio_error_get_last()) }
+}
+
+pub(crate) fn validation_status() -> Result<()> {
+    match last_error_message() {
+        Some(message) => Err(OcioError::ValidationFailed(message)),
+        None => Ok(()),
+    }
+}
+
+pub(crate) fn ocio_call_status() -> Result<()> {
+    match last_error_message() {
+        Some(message) => Err(OcioError::Ocio(message)),
+        None => Ok(()),
+    }
+}
+
+pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
+    match NonNull::new(handle) {
+        Some(handle) => Ok(handle),
+        None => match last_error_message() {
+            Some(message) => Err(OcioError::Ocio(message)),
+            None => Err(OcioError::AllocationFailed),
+        },
+    }
 }
 
 #[cfg(test)]

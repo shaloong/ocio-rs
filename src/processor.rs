@@ -8,35 +8,44 @@ use crate::{
 };
 use ocio_sys;
 
-fn required_scalar_len(api: &str, num_pixels: i64, stride: i64) -> usize {
+fn required_scalar_len(api: &str, num_pixels: i64, stride: i64) -> Result<usize> {
     let num_pixels = usize::try_from(num_pixels)
-        .unwrap_or_else(|_| panic!("{api}: num_pixels must be non-negative"));
-    let stride =
-        usize::try_from(stride).unwrap_or_else(|_| panic!("{api}: stride must be non-negative"));
+        .map_err(|_| OcioError::InvalidInput(format!("{api}: num_pixels must be non-negative")))?;
+    let stride = usize::try_from(stride)
+        .map_err(|_| OcioError::InvalidInput(format!("{api}: stride must be non-negative")))?;
     num_pixels
         .checked_mul(stride)
-        .unwrap_or_else(|| panic!("{api}: num_pixels * stride overflowed"))
+        .ok_or_else(|| OcioError::InvalidInput(format!("{api}: num_pixels * stride overflowed")))
 }
 
-fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> usize {
+fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> Result<usize> {
     match bit_depth {
-        BitDepth::Uint8 => 1,
+        BitDepth::Uint8 => Ok(1),
         BitDepth::Uint10
         | BitDepth::Uint12
         | BitDepth::Uint14
         | BitDepth::Uint16
-        | BitDepth::F16 => 2,
-        BitDepth::Uint32 | BitDepth::F32 => 4,
-        BitDepth::Unknown => panic!("{api}: BitDepth::Unknown is not valid for packed pixel IO"),
+        | BitDepth::F16 => Ok(2),
+        BitDepth::Uint32 | BitDepth::F32 => Ok(4),
+        BitDepth::Unknown => Err(OcioError::InvalidInput(format!(
+            "{api}: BitDepth::Unknown is not valid for packed pixel IO"
+        ))),
     }
 }
 
-fn validate_scalar_buffer_len(api: &str, actual_len: usize, num_pixels: i64, stride: i64) {
-    let required_len = required_scalar_len(api, num_pixels, stride);
-    assert!(
-        actual_len >= required_len,
-        "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}; required at least {required_len} scalars, got {actual_len}"
-    );
+fn validate_scalar_buffer_len(
+    api: &str,
+    actual_len: usize,
+    num_pixels: i64,
+    stride: i64,
+) -> Result<()> {
+    let required_len = required_scalar_len(api, num_pixels, stride)?;
+    if actual_len < required_len {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}; required at least {required_len} scalars, got {actual_len}"
+        )));
+    }
+    Ok(())
 }
 
 fn validate_packed_buffer_len(
@@ -45,16 +54,20 @@ fn validate_packed_buffer_len(
     bit_depth: BitDepth,
     num_pixels: i64,
     stride: i64,
-) {
-    let required_scalars = required_scalar_len(api, num_pixels, stride);
-    let bytes_per_channel = bit_depth_bytes_per_channel(api, bit_depth);
+) -> Result<()> {
+    let required_scalars = required_scalar_len(api, num_pixels, stride)?;
+    let bytes_per_channel = bit_depth_bytes_per_channel(api, bit_depth)?;
     let required_len = required_scalars
         .checked_mul(bytes_per_channel)
-        .unwrap_or_else(|| panic!("{api}: required packed buffer size overflowed"));
-    assert!(
-        actual_len >= required_len,
-        "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}, bit_depth={bit_depth:?}; required at least {required_len} bytes, got {actual_len}"
-    );
+        .ok_or_else(|| {
+            OcioError::InvalidInput(format!("{api}: required packed buffer size overflowed"))
+        })?;
+    if actual_len < required_len {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}, bit_depth={bit_depth:?}; required at least {required_len} bytes, got {actual_len}"
+        )));
+    }
+    Ok(())
 }
 
 /// An immutable color-processing pipeline produced from a `Config`.
@@ -89,22 +102,20 @@ impl Processor {
 
     /// Create the default CPU execution path for this processor.
     pub fn default_cpu_processor(&self) -> Result<CPUProcessor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| CPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| CPUProcessor { handle })
     }
 
     /// Create an optimized CPU execution path for this processor.
     pub fn optimized_cpu_processor(&self, flags: u64) -> Result<CPUProcessor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle)
-            .map(|h| CPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| CPUProcessor { handle })
     }
 
     #[doc(hidden)]
@@ -113,12 +124,11 @@ impl Processor {
         note = "compat alias; prefer optimized_processor_bitdepth or optimized_cpu/gpu_processor helpers"
     )]
     pub fn optimized_processor_v1(&self, flags: u64) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_processor_v1(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an optimized processor variant for explicit input/output bit depths.
@@ -131,6 +141,7 @@ impl Processor {
         out_bit_depth: i32,
         flags: u64,
     ) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_processor_v2(
                 self.handle.as_ptr(),
@@ -139,9 +150,7 @@ impl Processor {
                 flags as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     #[doc(hidden)]
@@ -160,22 +169,20 @@ impl Processor {
 
     /// Create the default GPU execution path for this processor.
     pub fn default_gpu_processor(&self) -> Result<GPUProcessor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_gpu_processor(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| GPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| GPUProcessor { handle })
     }
 
     /// Create an optimized GPU execution path for this processor.
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle)
-            .map(|h| GPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| GPUProcessor { handle })
     }
 
     #[doc(hidden)]
@@ -189,6 +196,7 @@ impl Processor {
         edge_len: u32,
     ) -> Result<GPUProcessor> {
         // OCIO v1-style GPU path that bakes some ops into a 3D LUT.
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_legacy_gpu_processor(
                 self.handle.as_ptr(),
@@ -196,9 +204,7 @@ impl Processor {
                 edge_len,
             )
         };
-        NonNull::new(handle)
-            .map(|h| GPUProcessor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| GPUProcessor { handle })
     }
 
     #[doc(hidden)]
@@ -207,25 +213,23 @@ impl Processor {
         note = "compat alias; prefer optimized_processor_bitdepth() or optimized_cpu/gpu_processor helpers"
     )]
     pub fn optimized_processor(&self, flags: u64) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_optimized_processor(self.handle.as_ptr(), flags as i32)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Borrow a runtime-adjustable dynamic property from the processor.
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_dynamic_property(
                 self.handle.as_ptr(),
                 property_type as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| DynamicProperty { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| DynamicProperty { handle })
     }
 
     /// Return the number of transforms represented by this processor.
@@ -346,34 +350,64 @@ impl CPUProcessor {
 
     /// Apply the processor in place to one RGBA pixel.
     pub fn apply_rgba(&self, rgba: &mut [f32; 4]) {
+        self.try_apply_rgba(rgba)
+            .expect("CPUProcessor::apply_rgba failed");
+    }
+
+    /// Apply the processor in place to one RGBA pixel.
+    pub fn try_apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Apply the processor in place to one RGB pixel.
     pub fn apply_rgb(&self, rgb: &mut [f32; 3]) {
+        self.try_apply_rgb(rgb)
+            .expect("CPUProcessor::apply_rgb failed");
+    }
+
+    /// Apply the processor in place to one RGB pixel.
+    pub fn try_apply_rgb(&self, rgb: &mut [f32; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Apply the processor to an RGBA float buffer with an explicit scalar stride.
     ///
     /// `stride` is measured in `f32` elements, not bytes.
     pub fn apply_rgba_pixels(&self, rgba: &mut [f32], num_pixels: i64, stride: i64) {
+        self.try_apply_rgba_pixels(rgba, num_pixels, stride)
+            .expect("CPUProcessor::apply_rgba_pixels failed");
+    }
+
+    /// Apply the processor to an RGBA float buffer with an explicit scalar stride.
+    ///
+    /// `stride` is measured in `f32` elements, not bytes.
+    pub fn try_apply_rgba_pixels(
+        &self,
+        rgba: &mut [f32],
+        num_pixels: i64,
+        stride: i64,
+    ) -> Result<()> {
         validate_scalar_buffer_len(
             "CPUProcessor::apply_rgba_pixels",
             rgba.len(),
             num_pixels,
             stride,
-        );
+        )?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_pixels(
                 self.handle.as_ptr(),
@@ -382,18 +416,33 @@ impl CPUProcessor {
                 stride,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Apply the processor to an RGB float buffer with an explicit scalar stride.
     ///
     /// `stride` is measured in `f32` elements, not bytes.
     pub fn apply_rgb_pixels(&self, rgb: &mut [f32], num_pixels: i64, stride: i64) {
+        self.try_apply_rgb_pixels(rgb, num_pixels, stride)
+            .expect("CPUProcessor::apply_rgb_pixels failed");
+    }
+
+    /// Apply the processor to an RGB float buffer with an explicit scalar stride.
+    ///
+    /// `stride` is measured in `f32` elements, not bytes.
+    pub fn try_apply_rgb_pixels(
+        &self,
+        rgb: &mut [f32],
+        num_pixels: i64,
+        stride: i64,
+    ) -> Result<()> {
         validate_scalar_buffer_len(
             "CPUProcessor::apply_rgb_pixels",
             rgb.len(),
             num_pixels,
             stride,
-        );
+        )?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
                 self.handle.as_ptr(),
@@ -402,6 +451,7 @@ impl CPUProcessor {
                 stride,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Apply the processor to packed RGBA bytes using an explicit OCIO bit depth.
@@ -412,13 +462,26 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) {
+        self.try_apply_rgba_packed_bit_depth(rgba, bit_depth, num_pixels, stride)
+            .expect("CPUProcessor::apply_rgba_packed_bit_depth failed");
+    }
+
+    /// Apply the processor to packed RGBA bytes using an explicit OCIO bit depth.
+    pub fn try_apply_rgba_packed_bit_depth(
+        &self,
+        rgba: &mut [u8],
+        bit_depth: BitDepth,
+        num_pixels: i64,
+        stride: i64,
+    ) -> Result<()> {
         validate_packed_buffer_len(
             "CPUProcessor::apply_rgba_packed_bit_depth",
             rgba.len(),
             bit_depth,
             num_pixels,
             stride,
-        );
+        )?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
                 self.handle.as_ptr(),
@@ -428,6 +491,7 @@ impl CPUProcessor {
                 stride,
             );
         }
+        crate::ocio_call_status()
     }
 
     #[doc(hidden)]
@@ -458,13 +522,26 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) {
+        self.try_apply_rgb_packed_bit_depth(rgb, bit_depth, num_pixels, stride)
+            .expect("CPUProcessor::apply_rgb_packed_bit_depth failed");
+    }
+
+    /// Apply the processor to packed RGB bytes using an explicit OCIO bit depth.
+    pub fn try_apply_rgb_packed_bit_depth(
+        &self,
+        rgb: &mut [u8],
+        bit_depth: BitDepth,
+        num_pixels: i64,
+        stride: i64,
+    ) -> Result<()> {
         validate_packed_buffer_len(
             "CPUProcessor::apply_rgb_packed_bit_depth",
             rgb.len(),
             bit_depth,
             num_pixels,
             stride,
-        );
+        )?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_packed(
                 self.handle.as_ptr(),
@@ -474,6 +551,7 @@ impl CPUProcessor {
                 stride,
             );
         }
+        crate::ocio_call_status()
     }
 
     #[doc(hidden)]
@@ -2283,9 +2361,9 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(cpu) = proc.default_cpu_processor() {
             let mut rgba = vec![0.0f32; 16]; // 4 pixels RGBA
-            cpu.apply_rgba_pixels(&mut rgba, 4, 4);
+            cpu.try_apply_rgba_pixels(&mut rgba, 4, 4).unwrap();
             let mut rgb = vec![0.0f32; 12]; // 4 pixels RGB
-            cpu.apply_rgb_pixels(&mut rgb, 4, 3);
+            cpu.try_apply_rgb_pixels(&mut rgb, 4, 3).unwrap();
         }
     }
 
@@ -2295,9 +2373,28 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(cpu) = proc.default_cpu_processor() {
             let mut rgba = vec![0u8; 32]; // 2 RGBA pixels as packed f32 bytes
-            cpu.apply_rgba_packed_bit_depth(&mut rgba, BitDepth::F32, 2, 4);
+            cpu.try_apply_rgba_packed_bit_depth(&mut rgba, BitDepth::F32, 2, 4)
+                .unwrap();
             let mut rgb = vec![0u8; 24]; // 2 RGB pixels as packed f32 bytes
-            cpu.apply_rgb_packed_bit_depth(&mut rgb, BitDepth::F32, 2, 3);
+            cpu.try_apply_rgb_packed_bit_depth(&mut rgb, BitDepth::F32, 2, 3)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn cpu_processor_try_apply_reports_invalid_input() {
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(cpu) = proc.default_cpu_processor() {
+            let mut rgba = vec![0.0f32; 3];
+            let err = cpu.try_apply_rgba_pixels(&mut rgba, 1, 4).unwrap_err();
+            assert!(matches!(err, OcioError::InvalidInput(_)));
+
+            let mut packed = vec![0u8; 4];
+            let err = cpu
+                .try_apply_rgba_packed_bit_depth(&mut packed, BitDepth::Unknown, 1, 4)
+                .unwrap_err();
+            assert!(matches!(err, OcioError::InvalidInput(_)));
         }
     }
 

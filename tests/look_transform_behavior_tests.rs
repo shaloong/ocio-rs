@@ -98,7 +98,7 @@ fn look_transform_field_copy_and_validate_behavior() {
     transform.set_looks("UnitLook").expect("set looks");
     transform.set_direction(TransformDirection::Inverse);
     transform.set_skip_color_space_conversion(true);
-    transform.validate();
+    transform.validate().expect("validate look transform");
 
     assert_eq!(transform.src().as_deref(), Some("UnitLookSource"));
     assert_eq!(transform.dst().as_deref(), Some("UnitLookSource"));

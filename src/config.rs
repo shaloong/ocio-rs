@@ -24,39 +24,35 @@ impl Config {
     /// linked OCIO build.
     pub fn create_from_builtin_config(config_name: impl AsRef<str>) -> Result<Self> {
         let config_name = cstring(config_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_create_from_builtin_config(config_name.as_ptr().cast())
         };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an empty editable config using OCIO defaults.
     pub fn raw() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_raw() };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Load a config from an `.ocio` file on disk.
     pub fn from_file(path: impl AsRef<str>) -> Result<Self> {
         let path = cstring(path)?;
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Load a config from the `OCIO` environment variable.
     ///
     /// In real OCIO mode this mirrors `OCIO::Config::CreateFromEnv`.
     pub fn from_env() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_env() };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Parse a config from in-memory OCIO text.
@@ -65,19 +61,17 @@ impl Config {
     /// wants to validate config text before writing it to disk.
     pub fn from_stream(text: impl AsRef<str>) -> Result<Self> {
         let text = cstring(text)?;
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_stream(text.as_ptr().cast()) };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a config from an in-memory `ConfigIOProxy`.
     pub fn from_config_io_proxy(proxy: &ConfigIOProxy) -> Result<Self> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_config_create_from_config_io_proxy(proxy.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|handle| Self { handle })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     // --- Name & metadata ---
@@ -2553,8 +2547,9 @@ impl Config {
 
     /// Ask OCIO to validate the config in its current authored state.
     pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_validate(self.handle.as_ptr()) };
-        Ok(()) // v2.5.1: validate() returns void
+        crate::validation_status()
     }
 
     // --- Serialize ---

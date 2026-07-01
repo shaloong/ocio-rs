@@ -22,6 +22,10 @@
 
 extern "C" {
 
+// --- Error state ---
+const char* ocio_error_get_last(void);
+void ocio_error_clear_last(void);
+
 typedef struct OcioGpuTexture2DInfo {
   const char* texture_name;
   const char* sampler_name;

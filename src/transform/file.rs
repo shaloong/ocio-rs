@@ -123,8 +123,10 @@ impl FileTransform {
     }
 
     /// Ask OCIO to validate the transform in place.
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_file_transform_validate(self.handle.as_ptr()) };
+        crate::validation_status()
     }
 
     /// Return the number of reader formats supported by `FileTransform`.
@@ -220,7 +222,7 @@ mod tests {
     #[test]
     fn validate_no_crash() {
         let ft = FileTransform::create().unwrap();
-        ft.validate();
+        let _ = ft.validate();
     }
 
     #[test]
