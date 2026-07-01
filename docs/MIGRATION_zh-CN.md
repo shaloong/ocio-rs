@@ -14,6 +14,12 @@
 - `texture_values(index)` 现在返回拥有所有权的 `Vec<f32>`。
 - 数量、binding index、uniform buffer size 等接口返回明确的 Rust 整数类型，不再返回指针形状的兼容值。
 
+bundled 真实 OCIO 验证现在也会覆盖真实 shader 提取。按当前 Rust wrapper 语义：
+
+- language、function name、pixel name、resource prefix 等描述符配置会在安全 API 中正常往返；
+- 提取出的 shader text、uniform、texture 会通过结构化 accessor 做一致性验证；
+- `clone_desc()` 会保留描述符配置，但不应被视作“已经提取好的 shader payload 的深拷贝”。
+
 ### ViewTransform
 
 `ViewTransform` 已收敛到 OCIO 的真实定义：
@@ -45,6 +51,15 @@ let (color_space, rule_index) = config
 `GradingRGBCurveTransform::create(style)` 与 `GradingHueCurveTransform::create(style)` 现在也会创建真实 OCIO transform。Hue 曲线现在使用 `HueCurveType` 与 `HSYTransformStyle`，不再复用 `RGBCurveType`，也不再暴露不属于 OCIO Hue 曲线模型的 `bypass_lin_to_log` helper。`DynamicProperty::grading_hue_curve_*` 系列方法也改为使用 `HueCurveType`。
 
 `Lut1DTransform::set_length` 与 `Lut3DTransform::set_grid_size` 现在通过 C ABI 传递明确的整数值。
+
+动态属性这条链现在也有了 bundled 真实运行时验证：
+
+- `Processor::dynamic_property(DynamicPropertyType::Exposure)` 暴露的是创建 `CPUProcessor` 时的动态曝光种子值；
+- 每个创建出来的 `CPUProcessor` 在创建后拥有自己的运行时动态属性状态，并会真实影响 CPU 像素结果。
+
+CPU 执行 helper 也已经超出 smoke test 覆盖范围。`CPUProcessor::apply_rgb(a)_pixels`
+与 `CPUProcessor::apply_rgb(a)_packed_bit_depth(..., BitDepth::F32, ...)` 现在会对真实
+matrix processor 做 bundled 行为验证，包括带 padding 的 RGB/RGBA buffer 上的 stride 保持行为。
 
 ### FixedFunction 和 LogCamera
 
