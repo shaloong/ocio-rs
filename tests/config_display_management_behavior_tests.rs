@@ -1,0 +1,203 @@
+//! Config display-management behavioral tests against real OCIO.
+//!
+//! In stub mode these tests return early after the unit-level smoke tests in
+//! `src/config.rs`. In bundled/real mode they validate shared-view, display,
+//! and virtual-display lifecycle behavior.
+
+mod common;
+use common::*;
+
+use std::collections::BTreeSet;
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
+use ocio_rs::{ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform};
+
+fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn identity_view_transform(name: &str) -> ViewTransform {
+    let view_transform =
+        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
+    view_transform.set_name(name).expect("set name");
+    view_transform
+}
+
+fn virtual_view_names(
+    config: &ocio_rs::Config,
+    reference_space: SearchReferenceSpaceType,
+) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for index in 0..config.virtual_display_num_views(reference_space) {
+        let name = config
+            .virtual_display_view(reference_space, index)
+            .expect("virtual display view name");
+        names.insert(name);
+    }
+    names
+}
+
+#[test]
+fn config_shared_view_and_display_lifecycle_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+    let initial_displays = config.num_displays_all();
+
+    let view_transform = identity_view_transform("UnitLifecycleSharedTransform");
+    config.add_view_transform(&view_transform);
+
+    config
+        .add_shared_view(
+            "UnitLifecycleSharedView",
+            "UnitLifecycleSharedTransform",
+            "raw",
+            "",
+            "",
+            "shared lifecycle test",
+        )
+        .expect("add shared view");
+    config
+        .add_display_shared_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
+        .expect("add display shared view");
+
+    assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+    assert!(config.is_view_shared("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+    assert_eq!(config.num_views("UnitLifecycleDisplay"), 1);
+    assert_eq!(
+        config.view("UnitLifecycleDisplay", 0).as_deref(),
+        Some("UnitLifecycleSharedView")
+    );
+    assert_eq!(
+        config
+            .display_view_transform_name("UnitLifecycleDisplay", "UnitLifecycleSharedView")
+            .as_deref(),
+        Some("UnitLifecycleSharedTransform")
+    );
+    assert_eq!(config.num_displays_all(), initial_displays + 1);
+
+    config
+        .remove_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
+        .expect("remove display view");
+    assert!(!config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+
+    config
+        .add_display_shared_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
+        .expect("re-add display shared view");
+    assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+
+    config
+        .remove_shared_view("UnitLifecycleSharedView")
+        .expect("remove shared view");
+    assert!(!config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+
+    config
+        .add_shared_view(
+            "UnitLifecycleSharedView",
+            "UnitLifecycleSharedTransform",
+            "raw",
+            "",
+            "",
+            "shared lifecycle test",
+        )
+        .expect("re-add shared view");
+    config
+        .add_display_shared_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
+        .expect("re-add display shared view");
+    assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+
+    config.clear_shared_views();
+    assert!(!config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
+
+    config.clear_displays();
+    assert_eq!(config.num_displays_all(), 0);
+    assert_eq!(config.num_displays(), 0);
+}
+
+#[test]
+fn config_virtual_display_lifecycle_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let view_transform = identity_view_transform("UnitLifecycleVirtualTransform");
+    config.add_view_transform(&view_transform);
+
+    config
+        .add_shared_view(
+            "UnitLifecycleVirtualSharedView",
+            "UnitLifecycleVirtualTransform",
+            "raw",
+            "",
+            "",
+            "virtual shared lifecycle test",
+        )
+        .expect("add shared view");
+    config
+        .add_virtual_display_shared_view("UnitLifecycleVirtualSharedView")
+        .expect("add virtual display shared view");
+    config
+        .add_virtual_display_view(
+            "UnitLifecycleVirtualView",
+            "UnitLifecycleVirtualTransform",
+            "raw",
+            "",
+            "",
+            "virtual lifecycle test",
+        )
+        .expect("add virtual display view");
+
+    assert!(config.has_virtual_view("UnitLifecycleVirtualSharedView"));
+    assert!(config.has_virtual_view("UnitLifecycleVirtualView"));
+    assert!(config.is_virtual_view_shared("UnitLifecycleVirtualSharedView"));
+    assert!(!config.is_virtual_view_shared("UnitLifecycleVirtualView"));
+
+    assert_eq!(
+        config
+            .virtual_display_view_transform_name("UnitLifecycleVirtualView")
+            .as_deref(),
+        Some("UnitLifecycleVirtualTransform")
+    );
+    assert_eq!(
+        config
+            .virtual_display_view_color_space_name("UnitLifecycleVirtualView")
+            .as_deref(),
+        Some("raw")
+    );
+
+    let scene_views = virtual_view_names(&config, SearchReferenceSpaceType::Scene);
+    let all_views = virtual_view_names(&config, SearchReferenceSpaceType::All);
+    assert_eq!(
+        scene_views,
+        BTreeSet::from([String::from("UnitLifecycleVirtualSharedView")])
+    );
+    assert!(all_views.is_empty());
+    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 1);
+
+    config
+        .remove_virtual_display_view("UnitLifecycleVirtualView")
+        .expect("remove virtual display view");
+    assert!(!config.has_virtual_view("UnitLifecycleVirtualView"));
+    assert!(config.has_virtual_view("UnitLifecycleVirtualSharedView"));
+    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 1);
+
+    config.clear_virtual_display();
+    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 0);
+    assert!(!config.has_virtual_view("UnitLifecycleVirtualSharedView"));
+    assert!(!config.has_virtual_view("UnitLifecycleVirtualView"));
+}

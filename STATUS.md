@@ -46,6 +46,7 @@ Current release checklist highlights:
   `cdl_transform_behavior`, `config_behavior`,
   `config_collection_behavior`, `config_io_proxy_behavior`,
   `config_runtime_settings_behavior`,
+  `config_display_management_behavior`,
   `context_behavior`,
   `file_rules_behavior`, `file_transform_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
@@ -83,16 +84,16 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus forty-three
+- The current bundled validation path exercises `373` crate tests plus forty-four
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
-  color-space-set behavior, config collection behavior, config-IO proxy
-  behavior, config runtime-settings behavior, context resolution, file rules,
-  file-transform behavior, dynamic properties, GPU shader descriptors, CPU
-  processor execution, matrix processing behavior, named-transform execution,
-  cdl-transform behavior, color-space-transform behavior, runtime-helper
-  behavior,
+  color-space-set behavior, config collection behavior, config display-
+  management behavior, config-IO proxy behavior, config runtime-settings
+  behavior, context resolution, file rules, file-transform behavior, dynamic
+  properties, GPU shader descriptors, CPU processor execution, matrix
+  processing behavior, named-transform execution, cdl-transform behavior,
+  color-space-transform behavior, runtime-helper behavior,
   allocation-transform behavior,
   display-view-transform behavior, look behavior, look-transform behavior,
   exponent-transform behavior, exponent-with-linear-transform behavior,
@@ -134,6 +135,13 @@ Current runtime semantics worth calling out explicitly:
   `ENABLED | SHARE_DYN_PROPERTIES` rather than just `ENABLED`. The crate-level
   `current_config()` / `set_current_config()` / `processor_cache_flags()`
   helpers follow the installed config's real runtime state.
+- `Config` display-management helpers now have bundled lifecycle coverage:
+  shared views attach to displays, survive re-attachment, and disappear from
+  display lookup when either the display-view link or the shared view itself is
+  removed; `clear_shared_views()` clears those display-facing references, and
+  `clear_displays()` empties display counts. For virtual displays, name-based
+  metadata lookup may succeed even when the same view is not returned by
+  `virtual_display_view(...)` enumeration for a given reference-space filter.
 - The top-level runtime helpers now have bundled coverage: `version()` reports
   a real `2.5.x` OCIO runtime string, logging level changes round-trip through
   the global getter/setter pair, and `Config::raw()` currently starts at schema
