@@ -52,6 +52,7 @@ Current release checklist highlights:
   `grading_tone_transform_behavior`,
   `grading_rgb_curve_transform_behavior`,
   `grading_hue_curve_transform_behavior`,
+  `processor_behavior`,
   `range_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
@@ -75,7 +76,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus thirty-four
+- The current bundled validation path exercises `373` crate tests plus thirty-five
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -87,6 +88,7 @@ Latest release-audit result:
   exponent-transform behavior, exponent-with-linear-transform behavior,
   grading-primary-transform behavior, grading-tone-transform behavior,
   grading-rgb-curve-transform behavior, grading-hue-curve-transform behavior,
+  processor helper behavior,
   log-affine-transform behavior, log-camera-transform behavior,
   log-transform behavior, lut1d-transform behavior, lut3d-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
@@ -155,6 +157,11 @@ Current runtime semantics worth calling out explicitly:
   control-point layout on write, so validation follows OCIO's real constrained
   curve semantics instead of assuming every authored point is a free-form
   round-trip value.
+- `Processor`, `CPUProcessor`, and `GPUProcessor` now have bundled runtime
+  coverage for non-no-op matrix pipelines: default and optimized CPU helpers
+  produce the same scaled RGBA output, default and optimized GPU helpers both
+  emit non-empty shader text, and `Processor::create_group_transform()` can be
+  round-tripped back into an equivalent processor path.
 - `LogTransform` round-trips base and direction state in bundled mode, uses
   the documented default base of `2.0`, executes the expected `log(color,
   base)` CPU path on positive inputs, and leaves alpha numerically unchanged
