@@ -44,7 +44,8 @@ Current release checklist highlights:
   `cdl_transform_behavior`, `config_behavior`, `context_behavior`,
   `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
-  `exponent_transform_behavior`, `exposure_contrast_transform_behavior`,
+  `exponent_transform_behavior`, `exponent_with_linear_transform_behavior`,
+  `exposure_contrast_transform_behavior`,
   `fixed_function_transform_behavior`,
   `range_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
@@ -67,14 +68,15 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty-three
+- The current bundled validation path exercises `373` crate tests plus twenty-four
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
   execution, cdl-transform behavior, color-space-transform behavior,
-  display-view-transform behavior, look behavior, look-transform behavior, exponent-transform behavior,
+  display-view-transform behavior, look behavior, look-transform behavior,
+  exponent-transform behavior, exponent-with-linear-transform behavior,
   exposure-contrast-transform behavior, fixed-function-transform behavior,
   range-transform behavior, and view-transform display-pipeline behavior.
 
@@ -113,6 +115,11 @@ Current runtime semantics worth calling out explicitly:
   a real forward/inverse CPU processing pair for positive-domain RGB values;
   the current OCIO CPU path is numerically close to alpha-identity rather than
   bit-exact on the alpha channel.
+- `ExponentWithLinearTransform` round-trips gamma, offset, negative-style, and
+  direction state in bundled mode, and for positive-domain inputs above the
+  linear breakpoint, a `[2, 2, 2, 1]` gamma with `[0.1, 0.1, 0.1, 0]` offset
+  executes the expected moncurve forward/inverse CPU processing pair rather
+  than collapsing to a plain exponent or no-op path.
 - `BuiltinTransformRegistry` and `BuiltinTransform` helper enumeration stay
   coherent in bundled mode, and builtin descriptions may legitimately be empty
   strings for some upstream styles rather than guaranteed human-readable text.
