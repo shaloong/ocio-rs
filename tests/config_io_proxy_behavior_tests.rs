@@ -107,10 +107,7 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         proxy.lut_data("E:/virtual/context/empty.spi1d").as_deref(),
         Some([].as_slice())
     );
-    assert_eq!(
-        proxy.lut_data("E:/virtual/context/missing.spi1d").as_deref(),
-        Some([].as_slice())
-    );
+    assert_eq!(proxy.lut_data("E:/virtual/context/missing.spi1d"), None);
 
     let config = Config::raw().expect("raw config");
     config.set_config_io_proxy_object(&proxy);

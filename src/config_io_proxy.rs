@@ -63,13 +63,10 @@ impl ConfigIOProxy {
 
     /// Return the registered LUT payload for `filepath`, if present.
     pub fn lut_data(&self, filepath: impl AsRef<str>) -> Option<Vec<u8>> {
-        let filepath = cstring(filepath).ok()?;
-        let len = self.get_lut_data_size(filepath.as_c_str().to_str().ok()?) as usize;
+        let filepath = filepath.as_ref();
+        let len = self.get_lut_data_size(filepath) as usize;
         let mut bytes = vec![0u8; len];
-        if len == 0 {
-            return Some(bytes);
-        }
-        let copied = self.copy_lut_data(filepath.as_c_str().to_str().ok()?, &mut bytes);
+        let copied = self.copy_lut_data(filepath, &mut bytes);
         copied.then_some(bytes)
     }
 
