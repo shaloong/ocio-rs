@@ -66,16 +66,19 @@ pub struct Processor {
 }
 
 impl Processor {
+    /// Return whether the processor is an identity/no-op pipeline.
     pub fn is_no_op(&self) -> bool {
         unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return whether the processor mixes channels rather than operating lane-wise.
     pub fn has_channel_crosstalk(&self) -> bool {
         unsafe {
             ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return OCIO's cache identifier for this processor instance.
     pub fn cache_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_processor_get_cache_id(
@@ -94,6 +97,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an optimized CPU execution path for this processor.
     pub fn optimized_cpu_processor(&self, flags: u64) -> Result<CPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags as i32)
@@ -160,6 +164,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Create an optimized GPU execution path for this processor.
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
@@ -206,6 +211,7 @@ impl Processor {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Borrow a runtime-adjustable dynamic property from the processor.
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Result<DynamicProperty> {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_dynamic_property(
@@ -222,6 +228,7 @@ impl Processor {
         unsafe { ocio_sys::ocio_processor_get_num_transforms(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Materialize the processor back into an equivalent group transform, when available.
     pub fn create_group_transform(&self) -> Option<GroupTransform> {
         let handle = unsafe {
             ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr() as *mut c_void)

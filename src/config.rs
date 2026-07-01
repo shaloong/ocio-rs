@@ -82,6 +82,7 @@ impl Config {
 
     // --- Name & metadata ---
 
+    /// Return the config name, if one has been authored.
     pub fn name(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_name(
@@ -90,12 +91,14 @@ impl Config {
         }
     }
 
+    /// Set the config name used in serialized metadata.
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let name = cstring(name)?;
         unsafe { ocio_sys::ocio_config_set_name(self.handle.as_ptr(), name.as_ptr().cast()) };
         Ok(())
     }
 
+    /// Return the config description, if present.
     pub fn description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_description(
@@ -104,6 +107,7 @@ impl Config {
         }
     }
 
+    /// Set the config description stored in serialized metadata.
     pub fn set_description(&self, desc: impl AsRef<str>) -> Result<()> {
         let desc = cstring(desc)?;
         unsafe {
@@ -112,6 +116,7 @@ impl Config {
         Ok(())
     }
 
+    /// Return OCIO's cache identifier for the config's current authored state.
     pub fn cache_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_cache_id(
@@ -120,6 +125,7 @@ impl Config {
         }
     }
 
+    /// Return a cache identifier specialized for a context key string.
     pub fn cache_id_with_context(&self, context_key: impl AsRef<str>) -> Option<String> {
         let ck = cstring(context_key).ok()?;
         unsafe {
@@ -614,6 +620,7 @@ impl Config {
         }
     }
 
+    /// Look up the color space currently bound to a role name.
     pub fn role_color_space(&self, role_name: impl AsRef<str>) -> Option<String> {
         let role = cstring(role_name).ok()?;
         unsafe {
@@ -818,7 +825,7 @@ impl Config {
 
     // --- Processors ---
 
-    /// Create a processor between two named color spaces or named transforms.
+    /// Create a processor between two authored color-space names.
     pub fn processor(&self, src: impl AsRef<str>, dst: impl AsRef<str>) -> Result<Processor> {
         let src = cstring(src)?;
         let dst = cstring(dst)?;
@@ -1724,6 +1731,7 @@ impl Config {
         )
     }
 
+    /// Look up a color space by authored name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
@@ -1760,6 +1768,7 @@ impl Config {
         }
     }
 
+    /// Infer a color space from a file path and also return the matched rule index.
     pub fn color_space_from_filepath_with_rule_index(
         &self,
         path: impl AsRef<str>,
@@ -2464,6 +2473,7 @@ impl Config {
 
     // --- Search paths ---
 
+    /// Return the serialized search-path string used for file resolution.
     pub fn search_path(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_search_path(
@@ -2472,6 +2482,7 @@ impl Config {
         }
     }
 
+    /// Replace the config search-path list from a serialized search-path string.
     pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
         unsafe { ocio_sys::ocio_config_set_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
@@ -2491,10 +2502,12 @@ impl Config {
         }
     }
 
+    /// Remove all configured search-path entries.
     pub fn clear_search_paths(&self) {
         unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr() as *mut c_void) };
     }
 
+    /// Append one search-path entry to the config.
     pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
         unsafe { ocio_sys::ocio_config_add_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
@@ -2538,6 +2551,7 @@ impl Config {
 
     // --- Validate ---
 
+    /// Ask OCIO to validate the config in its current authored state.
     pub fn validate(&self) -> Result<()> {
         unsafe { ocio_sys::ocio_config_validate(self.handle.as_ptr()) };
         Ok(()) // v2.5.1: validate() returns void
@@ -2565,6 +2579,7 @@ impl Config {
 
     // --- Editable copy ---
 
+    /// Create an editable clone of the config.
     pub fn create_editable_copy(&self) -> Result<Self> {
         let handle = unsafe {
             ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr() as *mut c_void)
@@ -2646,6 +2661,7 @@ impl Config {
 
     // --- FileRules ---
 
+    /// Return the editable file-rules object attached to this config.
     pub fn file_rules(&self) -> Result<FileRules> {
         let handle =
             unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr() as *mut c_void) };
@@ -2654,6 +2670,7 @@ impl Config {
             .ok_or(OcioError::AllocationFailed)
     }
 
+    /// Attach a file-rules object to this config.
     pub fn set_file_rules(&self, file_rules: &FileRules) {
         unsafe {
             ocio_sys::ocio_config_set_file_rules(
