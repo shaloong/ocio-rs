@@ -201,6 +201,54 @@ fn config_display_view_metadata_round_trip_behavior() {
 }
 
 #[test]
+fn config_display_shared_view_metadata_round_trip_behavior() {
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let view_transform =
+        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
+    view_transform
+        .set_name("SharedUnitViewTransform")
+        .expect("set name");
+    config.add_view_transform(&view_transform);
+
+    config
+        .add_shared_view(
+            "SharedUnitView",
+            "SharedUnitViewTransform",
+            "raw",
+            "",
+            "",
+            "Shared display description",
+        )
+        .expect("add_shared_view");
+    config
+        .add_display_shared_view("SharedDisplay", "SharedUnitView")
+        .expect("add_display_shared_view");
+
+    assert_eq!(
+        config
+            .display_view_transform_name("SharedDisplay", "SharedUnitView")
+            .as_deref(),
+        Some("SharedUnitViewTransform")
+    );
+    assert_eq!(
+        config
+            .display_view_color_space_name("SharedDisplay", "SharedUnitView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .display_view_description("SharedDisplay", "SharedUnitView")
+            .as_deref(),
+        Some("Shared display description")
+    );
+}
+
+#[test]
 fn config_virtual_display_metadata_round_trip_behavior() {
     if is_stub() {
         return;
@@ -244,5 +292,55 @@ fn config_virtual_display_metadata_round_trip_behavior() {
             .virtual_display_view_description("VirtualUnitFilm")
             .as_deref(),
         Some("Virtual display description")
+    );
+}
+
+#[test]
+fn config_virtual_display_shared_view_behavior() {
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let view_transform =
+        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
+    view_transform
+        .set_name("VirtualSharedUnitTransform")
+        .expect("set name");
+    config.add_view_transform(&view_transform);
+
+    config
+        .add_shared_view(
+            "VirtualSharedUnitView",
+            "VirtualSharedUnitTransform",
+            "raw",
+            "",
+            "",
+            "Virtual shared description",
+        )
+        .expect("add_shared_view");
+    config
+        .add_virtual_display_shared_view("VirtualSharedUnitView")
+        .expect("add_virtual_display_shared_view");
+
+    assert!(config.has_virtual_view("VirtualSharedUnitView"));
+    assert!(config.is_virtual_view_shared("VirtualSharedUnitView"));
+    assert_eq!(
+        config
+            .virtual_display_view_transform_name("VirtualSharedUnitView")
+            .as_deref(),
+        Some("VirtualSharedUnitTransform")
+    );
+    assert_eq!(
+        config
+            .virtual_display_view_color_space_name("VirtualSharedUnitView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .virtual_display_view_description("VirtualSharedUnitView")
+            .as_deref(),
+        Some("Virtual shared description")
     );
 }
