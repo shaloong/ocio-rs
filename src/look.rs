@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
-use crate::{cstr_from_mut, cstring, OcioError, Result};
+use crate::{cstr_from_mut, cstr_to_opt_string, cstring, OcioError, Result};
 use ocio_sys;
 
 /// Wraps an OCIO look definition with forward and inverse transform slots.
@@ -86,6 +87,42 @@ impl Look {
         Ok(())
     }
 
+    pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
+        let name = cstring(name).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_look_get_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
+        let mut attrs = BTreeMap::new();
+        let count =
+            unsafe { ocio_sys::ocio_look_get_num_interchange_attributes(self.handle.as_ptr()) };
+        for index in 0..count {
+            let name = unsafe {
+                cstr_to_opt_string(ocio_sys::ocio_look_get_interchange_attribute_name_by_index(
+                    self.handle.as_ptr(),
+                    index,
+                ))
+            };
+            let value = unsafe {
+                cstr_to_opt_string(
+                    ocio_sys::ocio_look_get_interchange_attribute_value_by_index(
+                        self.handle.as_ptr(),
+                        index,
+                    ),
+                )
+            };
+            if let (Some(name), Some(value)) = (name, value) {
+                attrs.insert(name, value);
+            }
+        }
+        attrs
+    }
+
     pub fn transform(&self) -> Option<Transform> {
         let handle =
             unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
@@ -153,6 +190,29 @@ mod tests {
         assert!(look
             .set_interchange_attribute("amf_transform_ids", "urn:ampas:aces:transformId:v1.5:Look")
             .is_ok());
+        let _ = look.interchange_attribute("amf_transform_ids");
+        let _ = look.interchange_attributes();
+    }
+
+    #[test]
+    fn interchange_attribute_real_round_trip() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let look = Look::create().unwrap();
+        look.set_interchange_attribute("amf_transform_ids", "urn:test:look")
+            .unwrap();
+        assert_eq!(
+            look.interchange_attribute("amf_transform_ids").as_deref(),
+            Some("urn:test:look")
+        );
+        assert_eq!(
+            look.interchange_attributes()
+                .get("amf_transform_ids")
+                .map(String::as_str),
+            Some("urn:test:look")
+        );
     }
 
     #[test]

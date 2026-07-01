@@ -604,6 +604,15 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("create_from_env", "from_env"),
         ("create_from_stream", "from_stream"),
         ("create_from_config_io_proxy", "from_config_io_proxy"),
+        ("get_num_interchange_attributes", "interchange_attributes"),
+        (
+            "get_interchange_attribute_name_by_index",
+            "interchange_attributes",
+        ),
+        (
+            "get_interchange_attribute_value_by_index",
+            "interchange_attributes",
+        ),
         // Processor naming differences
         ("get_cache_id_n", "cache_id_with_context"),
         ("get_processor_transform", "processor_from_transform"),

@@ -694,6 +694,24 @@ public:
 };
 #endif
 
+template <typename MapLike>
+std::string interchange_attribute_name_by_index(const MapLike& attrs, int index)
+{
+  if (index < 0 || static_cast<size_t>(index) >= attrs.size()) return {};
+  auto it = attrs.begin();
+  std::advance(it, index);
+  return it->first;
+}
+
+template <typename MapLike>
+std::string interchange_attribute_value_by_index(const MapLike& attrs, int index)
+{
+  if (index < 0 || static_cast<size_t>(index) >= attrs.size()) return {};
+  auto it = attrs.begin();
+  std::advance(it, index);
+  return it->second;
+}
+
 // --- TransformHandleBase out-of-line ---
 int TransformHandle::get_transform_type_tag() const {
 #ifdef OCIO_RS_STUB
@@ -4612,6 +4630,54 @@ void ocio_color_space_set_interchange_attribute(void* handle, const char* attrNa
 #endif
 }
 
+const char* ocio_color_space_get_interchange_attribute(void* handle, const char* attrName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)attrName;
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttribute(attrName);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_color_space_get_num_interchange_attributes(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return static_cast<int>(ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttributes().size());
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_color_space_get_interchange_attribute_name_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_name_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_color_space_get_interchange_attribute_value_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_value_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 int ocio_color_space_get_bit_depth(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -5160,6 +5226,54 @@ void ocio_look_set_interchange_attribute(void* handle, const char* attrName, con
 #endif
 }
 
+const char* ocio_look_get_interchange_attribute(void* handle, const char* attrName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)attrName;
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_look(handle)->getInterchangeAttribute(attrName);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_look_get_num_interchange_attributes(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return static_cast<int>(ocio_rs_bridge::get_real_look(handle)->getInterchangeAttributes().size());
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_look_get_interchange_attribute_name_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_look(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_name_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_look_get_interchange_attribute_value_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_look(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_value_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
 
 // --- NamedTransform ---
 
@@ -5561,6 +5675,54 @@ void ocio_view_transform_set_interchange_attribute(void* handle, const char* att
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, value);
   } catch (...) { return ; }
+#endif
+}
+
+const char* ocio_view_transform_get_interchange_attribute(void* handle, const char* attrName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)attrName;
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttribute(attrName);
+  } catch (...) { return nullptr; }
+#endif
+}
+
+int ocio_view_transform_get_num_interchange_attributes(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  try {
+    return static_cast<int>(ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttributes().size());
+  } catch (...) { return 0; }
+#endif
+}
+
+const char* ocio_view_transform_get_interchange_attribute_name_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_name_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
+#endif
+}
+
+const char* ocio_view_transform_get_interchange_attribute_value_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    const auto attrs = ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttributes();
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::interchange_attribute_value_by_index(attrs, index);
+    return ocio_rs_bridge::g_serialized_text.empty() ? nullptr : ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { return nullptr; }
 #endif
 }
 

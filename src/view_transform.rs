@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
@@ -5,7 +6,8 @@ use ocio_sys;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{
-    cstr_from_mut, cstring, OcioError, ReferenceSpaceType, Result, ViewTransformDirection,
+    cstr_from_mut, cstr_to_opt_string, cstring, OcioError, ReferenceSpaceType, Result,
+    ViewTransformDirection,
 };
 
 /// Describes a scene/display view transform entry stored in a [`Config`](crate::Config).
@@ -84,6 +86,45 @@ impl ViewTransform {
             )
         };
         Ok(())
+    }
+
+    pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
+        let name = cstring(name).ok()?;
+        unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_view_transform_get_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
+        let mut attrs = BTreeMap::new();
+        let count = unsafe {
+            ocio_sys::ocio_view_transform_get_num_interchange_attributes(self.handle.as_ptr())
+        };
+        for index in 0..count {
+            let name = unsafe {
+                cstr_to_opt_string(
+                    ocio_sys::ocio_view_transform_get_interchange_attribute_name_by_index(
+                        self.handle.as_ptr(),
+                        index,
+                    ),
+                )
+            };
+            let value = unsafe {
+                cstr_to_opt_string(
+                    ocio_sys::ocio_view_transform_get_interchange_attribute_value_by_index(
+                        self.handle.as_ptr(),
+                        index,
+                    ),
+                )
+            };
+            if let (Some(name), Some(value)) = (name, value) {
+                attrs.insert(name, value);
+            }
+        }
+        attrs
     }
 
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
@@ -207,6 +248,29 @@ mod tests {
         let _ = vt.name();
         let _ = vt.family();
         let _ = vt.description();
+        let _ = vt.interchange_attribute("amf_transform_ids");
+        let _ = vt.interchange_attributes();
+    }
+
+    #[test]
+    fn interchange_attribute_real_round_trip() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+        vt.set_interchange_attribute("amf_transform_ids", "urn:test:view")
+            .unwrap();
+        assert_eq!(
+            vt.interchange_attribute("amf_transform_ids").as_deref(),
+            Some("urn:test:view")
+        );
+        assert_eq!(
+            vt.interchange_attributes()
+                .get("amf_transform_ids")
+                .map(String::as_str),
+            Some("urn:test:view")
+        );
     }
 
     #[test]

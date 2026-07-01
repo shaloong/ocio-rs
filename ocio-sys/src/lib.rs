@@ -759,6 +759,19 @@ unsafe extern "C" {
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    pub fn ocio_color_space_get_interchange_attribute(
+        handle: *mut c_void,
+        attrName: *const i8,
+    ) -> *const i8;
+    pub fn ocio_color_space_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    pub fn ocio_color_space_get_interchange_attribute_name_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_color_space_get_interchange_attribute_value_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
     pub fn ocio_color_space_get_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_color_space_set_bit_depth(handle: *mut c_void, bitDepth: i32) -> ();
     pub fn ocio_color_space_get_reference_space_type(handle: *mut c_void) -> i32;
@@ -830,6 +843,19 @@ unsafe extern "C" {
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    pub fn ocio_look_get_interchange_attribute(
+        handle: *mut c_void,
+        attrName: *const i8,
+    ) -> *const i8;
+    pub fn ocio_look_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    pub fn ocio_look_get_interchange_attribute_name_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_look_get_interchange_attribute_value_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
 
     // --- NamedTransform ---
     pub fn ocio_named_transform_create() -> *mut c_void;
@@ -877,6 +903,19 @@ unsafe extern "C" {
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    pub fn ocio_view_transform_get_interchange_attribute(
+        handle: *mut c_void,
+        attrName: *const i8,
+    ) -> *const i8;
+    pub fn ocio_view_transform_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    pub fn ocio_view_transform_get_interchange_attribute_name_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_view_transform_get_interchange_attribute_value_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
     pub fn ocio_view_transform_has_category(handle: *mut c_void, category: *const i8) -> bool;
     pub fn ocio_view_transform_add_category(handle: *mut c_void, category: *const i8) -> ();
     pub fn ocio_view_transform_remove_category(handle: *mut c_void, category: *const i8) -> ();
