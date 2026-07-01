@@ -61,7 +61,12 @@ fn color_space_set_mutation_and_copy_behavior() {
     assert!(set.has_color_space("UnitColorSpaceSetA"));
     assert!(set.has_color_space("UnitColorSpaceSetB"));
     assert_eq!(set.color_space_index("UnitColorSpaceSetA"), 0);
-    assert_eq!(set.color_space("UnitColorSpaceSetB").and_then(|cs| cs.name()).as_deref(), Some("UnitColorSpaceSetB"));
+    assert_eq!(
+        set.color_space("UnitColorSpaceSetB")
+            .and_then(|cs| cs.name())
+            .as_deref(),
+        Some("UnitColorSpaceSetB")
+    );
     assert_eq!(
         set_names(&set),
         BTreeSet::from([
@@ -113,7 +118,9 @@ fn config_color_space_set_category_filter_behavior() {
     config.add_color_space(&display_b);
     config.add_color_space(&scene);
 
-    let all = config.color_space_set::<&str>(None).expect("all color spaces");
+    let all = config
+        .color_space_set::<&str>(None)
+        .expect("all color spaces");
     assert!(all.has_color_space("raw"));
     assert!(all.has_color_space("UnitDisplayCategoryA"));
     assert!(all.has_color_space("UnitDisplayCategoryB"));

@@ -163,8 +163,14 @@ fn cdl_transform_file_loading_behavior() {
     match group.transform(0) {
         Some(Transform::CDL(first)) => {
             assert_eq!(first.id().as_deref(), Some("cc0001"));
-            assert_eq!(first.first_sop_description().as_deref(), Some("Example look"));
+            assert_eq!(
+                first.first_sop_description().as_deref(),
+                Some("Example look")
+            );
         }
-        other => panic!("expected first transform to be CDL, got {:?}", other.is_some()),
+        other => panic!(
+            "expected first transform to be CDL, got {:?}",
+            other.is_some()
+        ),
     }
 }

@@ -42,13 +42,21 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
     config
         .set_active_displays(&first_display)
         .expect("set active displays");
-    config.set_active_views(&first_view).expect("set active views");
+    config
+        .set_active_views(&first_view)
+        .expect("set active views");
 
-    assert_eq!(config.active_displays().as_deref(), Some(first_display.as_str()));
+    assert_eq!(
+        config.active_displays().as_deref(),
+        Some(first_display.as_str())
+    );
     assert_eq!(config.active_views().as_deref(), Some(first_view.as_str()));
     assert_eq!(config.num_active_displays(), 1);
     assert_eq!(config.num_active_views(), 1);
-    assert_eq!(config.active_display(0).as_deref(), Some(first_display.as_str()));
+    assert_eq!(
+        config.active_display(0).as_deref(),
+        Some(first_display.as_str())
+    );
     assert_eq!(config.active_view(0).as_deref(), Some(first_view.as_str()));
 
     config
@@ -82,8 +90,7 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
         initial_cache_flags,
         (ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES).0 as i32
     );
-    let custom_flags =
-        ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
+    let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
     config.set_processor_cache_flags(custom_flags.0 as i32);
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
 
@@ -108,12 +115,14 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         .expect("raw config")
         .create_editable_copy()
         .expect("editable config copy");
-    let custom_flags =
-        ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
+    let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
 
     set_current_config(&config);
     let installed = current_config().expect("current config after install");
-    assert_eq!(installed.processor_cache_flags(), config.processor_cache_flags());
+    assert_eq!(
+        installed.processor_cache_flags(),
+        config.processor_cache_flags()
+    );
 
     set_processor_cache_flags(custom_flags);
     assert_eq!(processor_cache_flags(), custom_flags);

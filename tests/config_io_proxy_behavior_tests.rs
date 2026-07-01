@@ -39,17 +39,41 @@ fn populate_context_test_proxy(proxy: &ConfigIOProxy) {
     let asset_mappings = [
         ("configs/context_test1/lut1.clf", "lut1.clf", "lut1-hash"),
         ("configs/context_test1/looks.cdl", "looks.cdl", "looks-hash"),
-        ("configs/context_test1/shot1/lut1.clf", "shot1/lut1.clf", "shot1-lut1-hash"),
-        ("configs/context_test1/shot2/lut1.clf", "shot2/lut1.clf", "shot2-lut1-hash"),
-        ("configs/context_test1/shot2/lut2.clf", "shot2/lut2.clf", "shot2-lut2-hash"),
-        ("configs/context_test1/shot3/lut1.clf", "shot3/lut1.clf", "shot3-lut1-hash"),
+        (
+            "configs/context_test1/shot1/lut1.clf",
+            "shot1/lut1.clf",
+            "shot1-lut1-hash",
+        ),
+        (
+            "configs/context_test1/shot2/lut1.clf",
+            "shot2/lut1.clf",
+            "shot2-lut1-hash",
+        ),
+        (
+            "configs/context_test1/shot2/lut2.clf",
+            "shot2/lut2.clf",
+            "shot2-lut2-hash",
+        ),
+        (
+            "configs/context_test1/shot3/lut1.clf",
+            "shot3/lut1.clf",
+            "shot3-lut1-hash",
+        ),
         (
             "configs/context_test1/shot3/subdir/lut3.clf",
             "shot3/subdir/lut3.clf",
             "shot3-lut3-hash",
         ),
-        ("configs/context_test1/shot4/lut1.clf", "shot4/lut1.clf", "shot4-lut1-hash"),
-        ("configs/context_test1/shot4/lut4.clf", "shot4/lut4.clf", "shot4-lut4-hash"),
+        (
+            "configs/context_test1/shot4/lut1.clf",
+            "shot4/lut1.clf",
+            "shot4-lut1-hash",
+        ),
+        (
+            "configs/context_test1/shot4/lut4.clf",
+            "shot4/lut4.clf",
+            "shot4-lut4-hash",
+        ),
     ];
 
     for (source_rel, virtual_rel, hash) in asset_mappings {
@@ -92,11 +116,9 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         )
     );
 
-    assert!(
-        proxy
-            .set_lut_data("E:/virtual/context/empty.spi1d", &[], "empty-hash")
-            .expect("set empty lut data")
-    );
+    assert!(proxy
+        .set_lut_data("E:/virtual/context/empty.spi1d", &[], "empty-hash")
+        .expect("set empty lut data"));
     assert_eq!(
         proxy
             .fast_lut_file_hash("E:/virtual/context/empty.spi1d")

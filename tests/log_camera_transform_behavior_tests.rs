@@ -21,7 +21,8 @@ fn log_camera_transform_test_lock() -> MutexGuard<'static, ()> {
 }
 
 fn configured_log_camera_transform() -> LogCameraTransform {
-    let transform = LogCameraTransform::create(&[0.5, 0.5, 0.5]).expect("log camera transform create");
+    let transform =
+        LogCameraTransform::create(&[0.5, 0.5, 0.5]).expect("log camera transform create");
     transform.set_base(2.0);
     transform.set_log_side_slope_value(&[1.0, 1.0, 1.0]);
     transform.set_log_side_offset_value(&[0.0, 0.0, 0.0]);
@@ -76,7 +77,8 @@ fn log_camera_transform_linear_slope_optional_state_behavior() {
         return;
     }
 
-    let transform = LogCameraTransform::create(&[0.5, 0.5, 0.5]).expect("log camera transform create");
+    let transform =
+        LogCameraTransform::create(&[0.5, 0.5, 0.5]).expect("log camera transform create");
     transform.set_base(2.0);
     transform.set_log_side_slope_value(&[1.0, 1.0, 1.0]);
     transform.set_log_side_offset_value(&[0.0, 0.0, 0.0]);

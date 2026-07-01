@@ -29,12 +29,7 @@ fn configured_lut3d_transform() -> Lut3DTransform {
     for r in 0..2u64 {
         for g in 0..2u64 {
             for b in 0..2u64 {
-                transform.set_value(
-                    r,
-                    g,
-                    b,
-                    [2.0 * r as f32, 3.0 * g as f32, 4.0 * b as f32],
-                );
+                transform.set_value(r, g, b, [2.0 * r as f32, 3.0 * g as f32, 4.0 * b as f32]);
             }
         }
     }

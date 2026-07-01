@@ -187,17 +187,26 @@ fn config_virtual_display_lifecycle_behavior() {
         BTreeSet::from([String::from("UnitLifecycleVirtualSharedView")])
     );
     assert!(all_views.is_empty());
-    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 1);
+    assert_eq!(
+        config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
+        1
+    );
 
     config
         .remove_virtual_display_view("UnitLifecycleVirtualView")
         .expect("remove virtual display view");
     assert!(!config.has_virtual_view("UnitLifecycleVirtualView"));
     assert!(config.has_virtual_view("UnitLifecycleVirtualSharedView"));
-    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 1);
+    assert_eq!(
+        config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
+        1
+    );
 
     config.clear_virtual_display();
-    assert_eq!(config.virtual_display_num_views(SearchReferenceSpaceType::Scene), 0);
+    assert_eq!(
+        config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
+        0
+    );
     assert!(!config.has_virtual_view("UnitLifecycleVirtualSharedView"));
     assert!(!config.has_virtual_view("UnitLifecycleVirtualView"));
 }

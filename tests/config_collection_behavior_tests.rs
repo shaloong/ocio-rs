@@ -26,8 +26,7 @@ fn config_collection_test_lock() -> MutexGuard<'static, ()> {
 fn identity_color_space(name: &str) -> ColorSpace {
     let cs = ColorSpace::create().expect("color space create");
     cs.set_name(name).expect("set color space name");
-    cs.set_family("Unit/ConfigCollections")
-        .expect("set family");
+    cs.set_family("Unit/ConfigCollections").expect("set family");
     cs.set_description("config collection behavior test")
         .expect("set description");
     cs.set_is_data(false);
