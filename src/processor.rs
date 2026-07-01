@@ -922,6 +922,11 @@ impl GpuShaderDesc {
     }
 
     // ── v2.5.1 ──
+    /// Clone the descriptor configuration.
+    ///
+    /// In real OCIO builds this preserves descriptor settings such as language,
+    /// function name, pixel name, and resource prefix. Extracted shader payloads
+    /// are not guaranteed to be copied into the clone.
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
         let h =
             unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
