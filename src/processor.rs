@@ -2164,6 +2164,12 @@ mod tests {
         let _ = proc.is_no_op();
         let _ = proc.has_channel_crosstalk();
         let _ = proc.cache_id();
+        if let Some(metadata) = proc.processor_metadata() {
+            let _ = metadata.num_files();
+            let _ = metadata.file(0);
+            let _ = metadata.num_looks();
+            let _ = metadata.look(0);
+        }
     }
 
     #[test]

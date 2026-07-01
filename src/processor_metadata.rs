@@ -16,10 +16,9 @@ pub struct ProcessorMetadata {
 impl ProcessorMetadata {
     /// Create an empty metadata container.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_processor_metadata_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the number of source files referenced by the processor metadata.
@@ -29,7 +28,12 @@ impl ProcessorMetadata {
 
     /// Return one referenced source file by index.
     pub fn file(&self, index: i32) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_processor_metadata_get_file(self.handle.as_ptr(), index)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_processor_metadata_get_file(
+                self.handle.as_ptr(),
+                index,
+            ))
+        }
     }
 
     /// Return the number of look names referenced by the processor metadata.
@@ -39,7 +43,12 @@ impl ProcessorMetadata {
 
     /// Return one referenced look name by index.
     pub fn look(&self, index: i32) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_processor_metadata_get_look(self.handle.as_ptr(), index)) }
+        unsafe {
+            cstr_from_mut(ocio_sys::ocio_processor_metadata_get_look(
+                self.handle.as_ptr(),
+                index,
+            ))
+        }
     }
 
     /// Append a file reference to the metadata.
@@ -57,7 +66,9 @@ impl ProcessorMetadata {
     /// Append a look reference to the metadata.
     pub fn add_look(&self, look: impl AsRef<str>) -> Result<()> {
         let look = cstring(look)?;
-        unsafe { ocio_sys::ocio_processor_metadata_add_look(self.handle.as_ptr(), look.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_processor_metadata_add_look(self.handle.as_ptr(), look.as_ptr().cast())
+        };
         Ok(())
     }
 }

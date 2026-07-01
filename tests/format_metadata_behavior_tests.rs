@@ -9,8 +9,8 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{Baker, Config, TransformDirection};
+use ocio_rs::transform::{FixedFunctionTransform, MatrixTransform};
+use ocio_rs::{Baker, Config, FixedFunctionStyle, TransformDirection};
 
 fn format_metadata_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -193,5 +193,21 @@ fn format_metadata_remains_usable_after_parent_drop() {
     assert_eq!(
         baker_metadata.attribute_value("owner").as_deref(),
         Some("baker")
+    );
+
+    let fixed_function_metadata = {
+        let transform =
+            FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).expect("fixed func");
+        let metadata = transform
+            .format_metadata()
+            .expect("fixed-function format metadata");
+        metadata
+            .add_attribute("owner", "fixed-function")
+            .expect("set fixed-function metadata attribute");
+        metadata
+    };
+    assert_eq!(
+        fixed_function_metadata.attribute_value("owner").as_deref(),
+        Some("fixed-function")
     );
 }

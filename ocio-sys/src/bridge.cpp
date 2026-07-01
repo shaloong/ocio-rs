@@ -6288,7 +6288,7 @@ void* ocio_processor_get_cache_id(void* handle) {
 void* ocio_processor_get_processor_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return reinterpret_cast<void*>(1);
+  return ocio_rs_bridge::make_stub_processor_metadata().release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getProcessorMetadata();
