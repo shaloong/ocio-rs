@@ -59,7 +59,10 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     assert_eq!(metadata.element_value().as_deref(), Some(""));
     assert_eq!(metadata.name().as_deref(), Some("FriendlyName"));
     assert_eq!(metadata.id().as_deref(), Some("urn:test:baker"));
-    assert_eq!(metadata.attribute_value("origin").as_deref(), Some("ocio-rs"));
+    assert_eq!(
+        metadata.attribute_value("origin").as_deref(),
+        Some("ocio-rs")
+    );
     assert_eq!(
         metadata.attribute_value("stage").as_deref(),
         Some("format-metadata")
@@ -85,7 +88,10 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     let first_child = metadata
         .child_element(baseline_children)
         .expect("first added child");
-    assert_eq!(first_child.element_name().as_deref(), Some("InputDescriptor"));
+    assert_eq!(
+        first_child.element_name().as_deref(),
+        Some("InputDescriptor")
+    );
     assert_eq!(first_child.element_value().as_deref(), Some("raw"));
     let second_child = metadata
         .child_element(baseline_children + 1)
@@ -100,7 +106,10 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     let copy_metadata = copy.format_metadata().expect("copy format metadata");
     assert_eq!(copy_metadata.element_name().as_deref(), Some("ROOT"));
     assert_eq!(copy_metadata.element_value().as_deref(), Some(""));
-    assert_eq!(copy_metadata.attribute_value("origin").as_deref(), Some("ocio-rs"));
+    assert_eq!(
+        copy_metadata.attribute_value("origin").as_deref(),
+        Some("ocio-rs")
+    );
     assert_eq!(copy_metadata.num_children(), baseline_children + 2);
 
     copy_metadata.clear();
@@ -147,5 +156,42 @@ fn processor_transform_format_metadata_access_behavior() {
     assert_eq!(
         transform_metadata.attribute_value("test_attr").as_deref(),
         Some("matrix")
+    );
+}
+
+#[test]
+fn format_metadata_remains_usable_after_parent_drop() {
+    let _guard = format_metadata_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform_metadata = {
+        let transform = MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).expect("matrix scale");
+        let metadata = transform.format_metadata().expect("matrix format metadata");
+        metadata
+            .add_attribute("owner", "transform")
+            .expect("set transform metadata attribute");
+        metadata
+    };
+    assert_eq!(
+        transform_metadata.attribute_value("owner").as_deref(),
+        Some("transform")
+    );
+
+    let baker_metadata = {
+        let baker = Baker::create().expect("baker create");
+        let config = Config::raw().expect("raw config");
+        baker.set_config(&config);
+        baker.set_format("resolve_cube").expect("set baker format");
+        let metadata = baker.format_metadata().expect("baker format metadata");
+        metadata
+            .add_attribute("owner", "baker")
+            .expect("set baker metadata attribute");
+        metadata
+    };
+    assert_eq!(
+        baker_metadata.attribute_value("owner").as_deref(),
+        Some("baker")
     );
 }

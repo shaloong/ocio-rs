@@ -51,6 +51,8 @@ void capture_current_exception() {
 
 struct ConfigHandle { std::shared_ptr<void> inner; };
 struct ProcessorHandle { std::shared_ptr<void> inner; };
+struct ProcessorMetadataHandle { std::shared_ptr<void> inner; };
+struct FormatMetadataHandle { std::shared_ptr<void> owner; void* metadata = nullptr; };
 struct CPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GpuShaderDescHandle { std::shared_ptr<void> inner; };
@@ -213,7 +215,6 @@ struct BuiltinConfigRegistryHandle { std::shared_ptr<void> inner; };
 struct BuiltinTransformRegistryHandle { std::shared_ptr<void> inner; };
 struct FileRulesHandle { std::shared_ptr<void> inner; };
 struct ColorSpaceSetHandle { std::shared_ptr<void> inner; };
-struct FormatMetadataHandle { std::shared_ptr<void> inner; };
 
 // Handle types for referenced-only classes
 struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
@@ -224,7 +225,6 @@ struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
 };
 struct ConfigIOProxyHandle { std::shared_ptr<void> inner; };
 struct ViewingRulesHandle { std::shared_ptr<void> inner; };
-struct ProcessorMetadataHandle { std::shared_ptr<void> inner; };
 struct GpuShaderCreatorHandle { std::shared_ptr<void> inner; };
 struct GradingRGBCurveHandle { std::shared_ptr<void> inner; };
 struct GradingHueCurveHandle { std::shared_ptr<void> inner; };
@@ -425,6 +425,10 @@ static std::unique_ptr<DynamicPropertyHandle> make_stub_dynamic_property() {
   auto handle = std::make_unique<DynamicPropertyHandle>();
   handle->inner = std::make_shared<StubDynamicProperty>();
   return handle;
+}
+
+static std::unique_ptr<FormatMetadataHandle> make_stub_format_metadata() {
+  return std::make_unique<FormatMetadataHandle>();
 }
 
 static std::unique_ptr<CPUProcessorHandle> make_stub_cpu_processor() {
@@ -938,6 +942,19 @@ static ocio::ContextRcPtr get_real_context(void* handle) {
 static ocio::DynamicPropertyRcPtr get_real_dynamic_property(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::DynamicPropertyHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealDynamicProperty>(h->inner)->prop;
+}
+
+static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
+  return h ? static_cast<ocio::FormatMetadata*>(h->metadata) : nullptr;
+}
+
+static void* make_format_metadata_handle(std::shared_ptr<void> owner, const ocio::FormatMetadata* metadata) {
+  if (!metadata) return nullptr;
+  auto out_handle = std::make_unique<ocio_rs_bridge::FormatMetadataHandle>();
+  out_handle->owner = std::move(owner);
+  out_handle->metadata = const_cast<ocio::FormatMetadata*>(metadata);
+  return out_handle.release();
 }
 
 static const ocio::BuiltinConfigRegistry* get_real_builtin_config_registry(void* handle) {
@@ -6287,10 +6304,12 @@ void* ocio_processor_get_processor_metadata(void* handle) {
 void* ocio_processor_get_format_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return reinterpret_cast<void*>(1);
+  return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_processor(handle)->getFormatMetadata())));
+    auto processor = ocio_rs_bridge::get_real_processor(handle);
+    auto owner = std::make_shared<ocio::ProcessorRcPtr>(processor);
+    return ocio_rs_bridge::make_format_metadata_handle(owner, &((*owner)->getFormatMetadata()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -6309,10 +6328,14 @@ int ocio_processor_get_num_transforms(void* handle) {
 void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index;
-  return reinterpret_cast<void*>(1);
+  return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_processor(handle)->getTransformFormatMetadata(index))));
+    auto processor = ocio_rs_bridge::get_real_processor(handle);
+    auto owner = std::make_shared<ocio::ProcessorRcPtr>(processor);
+    return ocio_rs_bridge::make_format_metadata_handle(
+      owner,
+      &((*owner)->getTransformFormatMetadata(index)));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8033,10 +8056,12 @@ void ocio_baker_set_format(void* handle, const char* formatName) {
 void* ocio_baker_get_format_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return reinterpret_cast<void*>(1);
+  return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata())));
+    auto baker = ocio_rs_bridge::get_real_baker(handle);
+    auto owner = std::make_shared<ocio::BakerRcPtr>(baker);
+    return ocio_rs_bridge::make_format_metadata_handle(owner, &((*owner)->getFormatMetadata()));
   } catch (...) { return nullptr; }
 #endif
 }
@@ -8044,11 +8069,9 @@ void* ocio_baker_get_format_metadata(void* handle) {
 void* ocio_baker_get_format_metadata_v1(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
-  return reinterpret_cast<void*>(1);
+  return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
-  try {
-    return const_cast<void*>(static_cast<const void*>(&(ocio_rs_bridge::get_real_baker(handle)->getFormatMetadata())));
-  } catch (...) { return nullptr; }
+  return ocio_baker_get_format_metadata(handle);
 #endif
 }
 
@@ -13009,22 +13032,23 @@ void* ocio_format_metadata_get_child_element(void* metadata, int i) {
   (void)metadata; (void)i;
   return nullptr;
 #else
-  try { return &static_cast<ocio::FormatMetadata*>(metadata)->getChildElement(i); }
-  catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    if (!format_metadata) return nullptr;
+    auto* parent_handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+    return ocio_rs_bridge::make_format_metadata_handle(
+      parent_handle ? parent_handle->owner : std::shared_ptr<void>{},
+      &format_metadata->getChildElement(i));
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_destroy(void* handle) {
-  (void)handle;
+  delete static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
 }
 
 #ifndef OCIO_RS_STUB
-static ocio::FormatMetadata* get_format_metadata_from_transform(void* handle) {
-  auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
-  if (!base) return nullptr;
-  auto transform = base->get_ocio_transform();
-  if (!transform) return nullptr;
-
+static ocio::FormatMetadata* get_format_metadata_from_transform(const ocio::TransformRcPtr& transform) {
   if (auto t = std::dynamic_pointer_cast<ocio::CDLTransform>(transform)) return &t->getFormatMetadata();
   if (auto t = std::dynamic_pointer_cast<ocio::ExponentTransform>(transform)) return &t->getFormatMetadata();
   if (auto t = std::dynamic_pointer_cast<ocio::ExponentWithLinearTransform>(transform)) return &t->getFormatMetadata();
@@ -13049,9 +13073,17 @@ static ocio::FormatMetadata* get_format_metadata_from_transform(void* handle) {
 void* ocio_transform_get_format_metadata(void* transform) {
 #ifdef OCIO_RS_STUB
   (void)transform;
-  return nullptr;
+  return ocio_rs_bridge::make_stub_format_metadata().release();
 #else
-  try { return get_format_metadata_from_transform(transform); }
+  try {
+    auto* base = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    if (!base) return nullptr;
+    auto transform_ptr = base->get_ocio_transform();
+    if (!transform_ptr) return nullptr;
+    return ocio_rs_bridge::make_format_metadata_handle(
+      std::make_shared<ocio::TransformRcPtr>(transform_ptr),
+      get_format_metadata_from_transform(transform_ptr));
+  }
   catch (...) { return nullptr; }
 #endif
 }
@@ -13060,13 +13092,20 @@ const char* ocio_format_metadata_get_element_name(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getElementName(); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getElementName() : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_set_element_name(void* metadata, const char* name) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->setElementName(name); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->setElementName(name);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)name;
 #endif
@@ -13076,13 +13115,20 @@ const char* ocio_format_metadata_get_element_value(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getElementValue(); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getElementValue() : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_set_element_value(void* metadata, const char* value) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->setElementValue(value); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->setElementValue(value);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)value;
 #endif
@@ -13092,7 +13138,10 @@ int ocio_format_metadata_get_num_attributes(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return 0;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getNumAttributes(); } catch (...) { return 0; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getNumAttributes() : 0;
+  } catch (...) { return 0; }
 #endif
 }
 
@@ -13100,7 +13149,10 @@ const char* ocio_format_metadata_get_attribute_name(void* metadata, int i) {
 #ifdef OCIO_RS_STUB
   (void)metadata; (void)i; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeName(i); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getAttributeName(i) : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -13108,7 +13160,10 @@ const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, in
 #ifdef OCIO_RS_STUB
   (void)metadata; (void)i; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeValue(i); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getAttributeValue(i) : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
@@ -13116,13 +13171,20 @@ const char* ocio_format_metadata_get_attribute_value(void* metadata, const char*
 #ifdef OCIO_RS_STUB
   (void)metadata; (void)name; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getAttributeValue(name); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getAttributeValue(name) : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_add_attribute(void* metadata, const char* name, const char* value) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->addAttribute(name, value); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->addAttribute(name, value);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)name; (void)value;
 #endif
@@ -13132,13 +13194,20 @@ int ocio_format_metadata_get_num_children_elements(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return 0;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getNumChildrenElements(); } catch (...) { return 0; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getNumChildrenElements() : 0;
+  } catch (...) { return 0; }
 #endif
 }
 
 void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->addChildElement(name, value); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->addChildElement(name, value);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)name; (void)value;
 #endif
@@ -13146,7 +13215,11 @@ void ocio_format_metadata_add_child_element(void* metadata, const char* name, co
 
 void ocio_format_metadata_clear(void* metadata) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->clear(); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->clear();
+    }
+  } catch (...) { return; }
 #else
   (void)metadata;
 #endif
@@ -13156,13 +13229,20 @@ const char* ocio_format_metadata_get_name(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getName(); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getName() : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_set_name(void* metadata, const char* name) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->setName(name); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->setName(name);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)name;
 #endif
@@ -13172,13 +13252,20 @@ const char* ocio_format_metadata_get_id(void* metadata) {
 #ifdef OCIO_RS_STUB
   (void)metadata; return nullptr;
 #else
-  try { return static_cast<ocio::FormatMetadata*>(metadata)->getID(); } catch (...) { return nullptr; }
+  try {
+    auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
+    return format_metadata ? format_metadata->getID() : nullptr;
+  } catch (...) { return nullptr; }
 #endif
 }
 
 void ocio_format_metadata_set_id(void* metadata, const char* id) {
 #ifndef OCIO_RS_STUB
-  try { static_cast<ocio::FormatMetadata*>(metadata)->setID(id); } catch (...) { return; }
+  try {
+    if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      format_metadata->setID(id);
+    }
+  } catch (...) { return; }
 #else
   (void)metadata; (void)id;
 #endif

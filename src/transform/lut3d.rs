@@ -147,8 +147,7 @@ impl Lut3DTransform {
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
-        let handle =
-            unsafe { ocio_sys::ocio_lut3d_transform_get_format_metadata(self.handle.as_ptr()) };
+        let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
