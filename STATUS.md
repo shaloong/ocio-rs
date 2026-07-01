@@ -43,6 +43,7 @@ Current release checklist highlights:
   `color_space_transform_behavior`,
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
+  `exposure_contrast_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
   `view_transform_behavior`, `look_behavior`, `look_transform_behavior`, and
@@ -63,15 +64,15 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus eighteen
+- The current bundled validation path exercises `373` crate tests plus nineteen
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   context resolution, file rules, dynamic properties, GPU shader descriptors,
   CPU processor execution, matrix processing behavior, named-transform
   execution, color-space-transform behavior, display-view-transform behavior,
-  look behavior, look-transform behavior, and view-transform display-pipeline
-  behavior.
+  look behavior, look-transform behavior, exposure-contrast-transform
+  behavior, and view-transform display-pipeline behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -125,6 +126,11 @@ Current runtime semantics worth calling out explicitly:
   semantics: in the current validation path it applies the look directly in
   source space instead of after the configured source/process color-space
   conversions.
+- `ExposureContrastTransform` round-trips its fixed parameters and dynamic
+  toggles in bundled mode, and a linear exposure of `1.0` behaves as a real
+  one-stop gain (`x2`) in forward processing with the inverse processor
+  restoring the input. Its `equals` helper should not currently be treated as a
+  normal value-semantic equality contract.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
