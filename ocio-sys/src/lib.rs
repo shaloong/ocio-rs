@@ -1143,6 +1143,18 @@ unsafe extern "C" {
         -> *mut c_void;
     pub fn ocio_gpu_shader_desc_has_dynamic_property(handle: *mut c_void, type_param: i32)
         -> bool;
+    pub fn ocio_gpu_shader_desc_add_texture(
+        handle: *mut c_void,
+        texture_name: *const i8,
+        sampler_name: *const i8,
+        width: u32,
+        height: u32,
+        channel: i32,
+        dimensions: i32,
+        interpolation: i32,
+        values: *const f32,
+        len: usize,
+    ) -> u32;
     pub fn ocio_gpu_shader_desc_get_num_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_texture_info(
         handle: *mut c_void,
@@ -1156,6 +1168,15 @@ unsafe extern "C" {
         values: *mut f32,
         len: usize,
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_add3d_texture(
+        handle: *mut c_void,
+        texture_name: *const i8,
+        sampler_name: *const i8,
+        edge_len: u32,
+        interpolation: i32,
+        values: *const f32,
+        len: usize,
+    ) -> u32;
     pub fn ocio_gpu_shader_desc_get_num3d_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get3d_texture_info(
         handle: *mut c_void,

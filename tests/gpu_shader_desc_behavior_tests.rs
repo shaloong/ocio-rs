@@ -13,7 +13,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{
     DynamicPropertyType, ExposureContrastStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
-    GpuTextureDimensions, GpuUniformType, GpuUniformValue, TransformDirection,
+    GpuTextureDimensions, GpuUniformType, GpuUniformValue, Interpolation, TransformDirection,
 };
 use ocio_rs::transform::ExposureContrastTransform;
 
@@ -291,4 +291,64 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     assert!(rebuilt.contains("uniform sampler2D texManual;"));
     assert!(rebuilt.contains("helperFn"));
     assert!(rebuilt.contains("ExplicitMain"));
+}
+
+#[test]
+fn gpu_shader_desc_manual_texture_round_trip_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    desc.set_descriptor_set_index(2, 5);
+
+    let values_2d = vec![0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
+    let binding_2d = desc
+        .add_texture_2d(
+            "manualTex2D",
+            "manualSampler2D",
+            2,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture1D,
+            Interpolation::Linear,
+            &values_2d,
+        )
+        .expect("add texture 2d");
+    assert_eq!(binding_2d, 5);
+
+    let tex2d = desc.texture_2d(0).expect("texture_2d");
+    assert_eq!(tex2d.texture_name, "manualTex2D");
+    assert_eq!(tex2d.sampler_name, "manualSampler2D");
+    assert_eq!(tex2d.width, 2);
+    assert_eq!(tex2d.height, 1);
+    assert_eq!(tex2d.channel, GpuTextureChannel::Rgb);
+    assert_eq!(tex2d.dimensions, GpuTextureDimensions::Texture1D);
+    assert_eq!(tex2d.interpolation, Interpolation::Linear);
+    assert_eq!(tex2d.binding_index, 5);
+    assert_eq!(tex2d.values, values_2d);
+
+    let values_3d = vec![
+        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+        0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    ];
+    let binding_3d = desc
+        .add_texture_3d(
+            "manualTex3D",
+            "manualSampler3D",
+            2,
+            Interpolation::Nearest,
+            &values_3d,
+        )
+        .expect("add texture 3d");
+    assert_eq!(binding_3d, 6);
+
+    let tex3d = desc.texture_3d(0).expect("texture_3d");
+    assert_eq!(tex3d.texture_name, "manualTex3D");
+    assert_eq!(tex3d.sampler_name, "manualSampler3D");
+    assert_eq!(tex3d.edge_len, 2);
+    assert_eq!(tex3d.interpolation, Interpolation::Nearest);
+    assert_eq!(tex3d.binding_index, 6);
+    assert_eq!(tex3d.values, values_3d);
 }

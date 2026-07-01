@@ -576,10 +576,29 @@ unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
 void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
 void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);
 bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type);
+uint32_t ocio_gpu_shader_desc_add_texture(
+    void* handle,
+    const char* textureName,
+    const char* samplerName,
+    uint32_t width,
+    uint32_t height,
+    int channel,
+    int dimensions,
+    int interpolation,
+    const float* values,
+    size_t len);
 unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
 size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len);
+uint32_t ocio_gpu_shader_desc_add3d_texture(
+    void* handle,
+    const char* textureName,
+    const char* samplerName,
+    uint32_t edgeLen,
+    int interpolation,
+    const float* values,
+    size_t len);
 unsigned ocio_gpu_shader_desc_get_num3d_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioGpuTexture3DInfo* out);
 size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned index);

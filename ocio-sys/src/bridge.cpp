@@ -7094,6 +7094,39 @@ bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
 #endif
 }
 
+uint32_t ocio_gpu_shader_desc_add_texture(
+    void* handle,
+    const char* textureName,
+    const char* samplerName,
+    uint32_t width,
+    uint32_t height,
+    int channel,
+    int dimensions,
+    int interpolation,
+    const float* values,
+    size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)textureName; (void)samplerName; (void)width; (void)height;
+  (void)channel; (void)dimensions; (void)interpolation; (void)values; (void)len;
+  return 0;
+#else
+  try {
+    const size_t channels = channel == static_cast<int>(ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL) ? 1 : 3;
+    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height) * channels;
+    if (!values || len < expected) return 0;
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addTexture(
+      textureName,
+      samplerName,
+      width,
+      height,
+      static_cast<ocio::GpuShaderDesc::TextureType>(channel),
+      static_cast<ocio::GpuShaderDesc::TextureDimensions>(dimensions),
+      static_cast<ocio::Interpolation>(interpolation),
+      values);
+  } catch (...) { return 0; }
+#endif
+}
+
 unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -7161,6 +7194,33 @@ bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, floa
     for (size_t i = 0; i < expected; ++i) values[i] = src[i];
     return true;
   } catch (...) { return false; }
+#endif
+}
+
+uint32_t ocio_gpu_shader_desc_add3d_texture(
+    void* handle,
+    const char* textureName,
+    const char* samplerName,
+    uint32_t edgeLen,
+    int interpolation,
+    const float* values,
+    size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)textureName; (void)samplerName; (void)edgeLen;
+  (void)interpolation; (void)values; (void)len;
+  return 0;
+#else
+  try {
+    const size_t edge = static_cast<size_t>(edgeLen);
+    const size_t expected = edge * edge * edge * 3;
+    if (!values || len < expected) return 0;
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->add3DTexture(
+      textureName,
+      samplerName,
+      edgeLen,
+      static_cast<ocio::Interpolation>(interpolation),
+      values);
+  } catch (...) { return 0; }
 #endif
 }
 

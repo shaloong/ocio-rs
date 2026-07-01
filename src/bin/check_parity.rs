@@ -685,6 +685,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("set_texture_max_width_u32", "set_texture_max_width"),
         ("get_num_dynamic_properties_u32", "num_dynamic_properties"),
         ("get_dynamic_property_by_index", "dynamic_property_by_index"),
+        ("add_texture", "add_texture_2d"),
+        ("add3d_texture", "add_texture_3d"),
         // FormatMetadata: get_num_children_elements -> num_children
         ("get_num_children_elements", "num_children"),
         // MatrixTransform: static factories differ

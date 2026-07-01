@@ -1130,6 +1130,48 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
+    /// Adds a manual 1D/2D texture resource to the descriptor and returns its OCIO binding index.
+    pub fn add_texture_2d(
+        &self,
+        texture_name: impl AsRef<str>,
+        sampler_name: impl AsRef<str>,
+        width: u32,
+        height: u32,
+        channel: GpuTextureChannel,
+        dimensions: GpuTextureDimensions,
+        interpolation: Interpolation,
+        values: &[f32],
+    ) -> Result<u32> {
+        let expected = width as usize * height as usize * channel.channel_count();
+        if values.len() != expected {
+            return Err(OcioError::ValidationFailed(format!(
+                "gpu texture value count mismatch: expected {expected}, got {}",
+                values.len()
+            )));
+        }
+        let texture_name = cstring(texture_name)?;
+        let sampler_name = cstring(sampler_name)?;
+        let binding_index = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_texture(
+                self.handle.as_ptr(),
+                texture_name.as_ptr(),
+                sampler_name.as_ptr(),
+                width,
+                height,
+                channel as i32,
+                dimensions as i32,
+                interpolation as i32,
+                values.as_ptr(),
+                values.len(),
+            )
+        };
+        if binding_index == 0 {
+            Err(OcioError::AllocationFailed)
+        } else {
+            Ok(binding_index)
+        }
+    }
+
     /// Rebuilds the full shader text from the provided OCIO shader sections.
     pub fn create_shader_text(
         &self,
@@ -1504,6 +1546,43 @@ impl GpuShaderDesc {
         self.texture_3d(index)
             .map(|texture| texture.values)
             .unwrap_or_default()
+    }
+
+    /// Adds a manual 3D texture resource to the descriptor and returns its OCIO binding index.
+    pub fn add_texture_3d(
+        &self,
+        texture_name: impl AsRef<str>,
+        sampler_name: impl AsRef<str>,
+        edge_len: u32,
+        interpolation: Interpolation,
+        values: &[f32],
+    ) -> Result<u32> {
+        let edge = edge_len as usize;
+        let expected = edge * edge * edge * 3;
+        if values.len() != expected {
+            return Err(OcioError::ValidationFailed(format!(
+                "gpu 3d texture value count mismatch: expected {expected}, got {}",
+                values.len()
+            )));
+        }
+        let texture_name = cstring(texture_name)?;
+        let sampler_name = cstring(sampler_name)?;
+        let binding_index = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add3d_texture(
+                self.handle.as_ptr(),
+                texture_name.as_ptr(),
+                sampler_name.as_ptr(),
+                edge_len,
+                interpolation as i32,
+                values.as_ptr(),
+                values.len(),
+            )
+        };
+        if binding_index == 0 {
+            Err(OcioError::AllocationFailed)
+        } else {
+            Ok(binding_index)
+        }
     }
 
     #[doc(hidden)]
