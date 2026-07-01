@@ -44,6 +44,7 @@ Current release checklist highlights:
   `config_behavior`, `context_behavior`, `file_rules_behavior`,
   `dynamic_property_behavior`, `gpu_shader_desc_behavior`,
   `exposure_contrast_transform_behavior`,
+  `fixed_function_transform_behavior`,
   `range_transform_behavior`,
   `cpu_processor_behavior`, `matrix_op`, `builtin_transform_behavior`,
   `builtin_transform_registry_behavior`, `display_view_transform_behavior`,
@@ -65,7 +66,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `373` crate tests plus twenty
+- The current bundled validation path exercises `373` crate tests plus twenty-one
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -73,8 +74,8 @@ Latest release-audit result:
   CPU processor execution, matrix processing behavior, named-transform
   execution, color-space-transform behavior, display-view-transform behavior,
   look behavior, look-transform behavior, exposure-contrast-transform
-  behavior, range-transform behavior, and view-transform display-pipeline
-  behavior.
+  behavior, fixed-function-transform behavior, range-transform behavior, and
+  view-transform display-pipeline behavior.
 
 The GitHub Actions workflow keeps bundled validation as a manual job because it
 requires a recursive checkout and a slower native OCIO build, but the manual
@@ -137,6 +138,10 @@ Current runtime semantics worth calling out explicitly:
   bundled mode. In the current validation path it remaps and clamps RGB lanes
   as expected while leaving alpha unchanged, and inverse processing restores
   the forward-mapped RGB values for the configured no-clamp case.
+- `FixedFunctionTransform` round-trips style/parameter state and editable-copy
+  independence in bundled mode. The current validation path confirms
+  `RgbToHsv` executes as a real forward/inverse processor pair, and callers
+  should not assume `set_style(...)` clears previously stored parameter slots.
 - `GpuShaderDesc::clone_desc()` preserves descriptor configuration such as
   language, function name, pixel name, and resource prefix, but extracted
   shader payloads are not guaranteed to be copied into the clone.
