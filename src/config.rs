@@ -1805,12 +1805,19 @@ impl Config {
     }
 
     pub fn add_color_space(&self, cs: &ColorSpace) {
+        self.try_add_color_space(cs)
+            .expect("failed to add color space");
+    }
+
+    pub fn try_add_color_space(&self, cs: &ColorSpace) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_color_space(
                 self.handle.as_ptr(),
                 cs.handle.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
@@ -2422,12 +2429,19 @@ impl Config {
     }
 
     pub fn add_named_transform(&self, named_transform: &NamedTransform) {
+        self.try_add_named_transform(named_transform)
+            .expect("failed to add named transform");
+    }
+
+    pub fn try_add_named_transform(&self, named_transform: &NamedTransform) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_named_transform(
                 self.handle.as_ptr(),
                 named_transform.handle.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn remove_named_transform(&self, name: impl AsRef<str>) -> Result<()> {

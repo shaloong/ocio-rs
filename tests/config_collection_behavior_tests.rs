@@ -204,3 +204,31 @@ fn config_collection_remove_and_clear_behavior() {
     assert_eq!(config.num_displays(), 0);
     assert_eq!(config.display(0).as_deref(), Some(""));
 }
+
+#[test]
+fn config_collection_registration_errors_surface_behavior() {
+    let _guard = config_collection_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = Config::raw().expect("raw config");
+
+    let unnamed_color_space = ColorSpace::create().expect("color space create");
+    let add_color_space_err = config
+        .try_add_color_space(&unnamed_color_space)
+        .expect_err("unnamed color space should fail");
+    assert!(
+        matches!(add_color_space_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_color_space_err:?}"
+    );
+
+    let unnamed_named_transform = NamedTransform::create().expect("named transform create");
+    let add_named_transform_err = config
+        .try_add_named_transform(&unnamed_named_transform)
+        .expect_err("unnamed named transform should fail");
+    assert!(
+        matches!(add_named_transform_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_named_transform_err:?}"
+    );
+}
