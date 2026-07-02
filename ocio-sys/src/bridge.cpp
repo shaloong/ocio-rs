@@ -3674,7 +3674,14 @@ void* ocio_config_parse_color_space_from_string(void* handle, const char* str) {
   return nullptr;
 #else
   try {
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->parseColorSpaceFromString(str)));
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
   } catch (...) { return nullptr; }
 #endif
 }
@@ -4203,10 +4210,13 @@ void* ocio_config_get_config_io_proxy(void* handle) {
   return nullptr;
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_config(handle)->getConfigIOProxy();
+    auto config = ocio_rs_bridge::get_real_config(handle);
+    auto result = config->getConfigIOProxy();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(ocio_rs_bridge::RealConfigIOProxy{result});
+    auto owner = std::make_shared<ocio::ConfigRcPtr>(std::move(config));
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
+      ocio_rs_bridge::RealConfigIOProxy{result, owner});
     return out_handle.release();
   } catch (...) { return nullptr; }
 #endif
@@ -8635,10 +8645,13 @@ void* ocio_context_get_config_io_proxy(void* handle) {
   return nullptr;
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_context(handle)->getConfigIOProxy();
+    auto context = ocio_rs_bridge::get_real_context(handle);
+    auto result = context->getConfigIOProxy();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(ocio_rs_bridge::RealConfigIOProxy{result});
+    auto owner = std::make_shared<ocio::ContextRcPtr>(std::move(context));
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
+      ocio_rs_bridge::RealConfigIOProxy{result, owner});
     return out_handle.release();
   } catch (...) { return nullptr; }
 #endif

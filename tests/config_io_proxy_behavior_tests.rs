@@ -232,3 +232,47 @@ fn config_io_proxy_embedded_context_config_processing_behavior() {
     assert_close(lut_path_pixel[3] as f64, 1.0, 1e-6);
     assert_close(camera_pixel[3] as f64, 1.0, 1e-6);
 }
+
+#[test]
+fn config_io_proxy_handle_survives_parent_drop_behavior() {
+    let _guard = config_io_proxy_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let proxy = ConfigIOProxy::create().expect("config io proxy");
+    proxy
+        .set_config_data(
+            "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
+        )
+        .expect("set config data");
+    proxy
+        .set_lut_data("E:/virtual/context/empty.spi1d", &[], "empty-hash")
+        .expect("set lut data");
+
+    let config_proxy = {
+        let config = Config::raw().expect("raw config");
+        config.set_config_io_proxy_object(&proxy);
+        config
+            .config_io_proxy_object()
+            .expect("config proxy object")
+    };
+    assert_eq!(config_proxy.config_data(), proxy.config_data());
+    assert_eq!(
+        config_proxy.fast_lut_file_hash("E:/virtual/context/empty.spi1d"),
+        Some(String::from("empty-hash"))
+    );
+
+    let context_proxy = {
+        let context = Context::create().expect("context create");
+        context.set_config_io_proxy_object(&proxy);
+        context
+            .config_io_proxy_object()
+            .expect("context proxy object")
+    };
+    assert_eq!(context_proxy.config_data(), proxy.config_data());
+    assert_eq!(
+        context_proxy.lut_data("E:/virtual/context/empty.spi1d"),
+        Some(Vec::new())
+    );
+}
