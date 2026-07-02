@@ -333,12 +333,13 @@ impl Config {
         }
     }
 
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; OpenColorIO does not expose a setDefaultDisplay() mutator, prefer set_active_displays()"
+    )]
     pub fn set_default_display(&self, display: impl AsRef<str>) -> Result<()> {
-        let d = cstring(display)?;
-        unsafe {
-            ocio_sys::ocio_config_set_active_displays(self.handle.as_ptr(), d.as_ptr().cast())
-        };
-        Ok(())
+        self.set_active_displays(display)
     }
 
     pub fn num_displays(&self) -> i32 {
@@ -395,10 +396,13 @@ impl Config {
         self.default_view_with_color_space(display, color_space_name)
     }
 
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; OpenColorIO does not expose a setDefaultView() mutator, prefer set_active_views()"
+    )]
     pub fn set_default_view(&self, view: impl AsRef<str>) -> Result<()> {
-        let v = cstring(view)?;
-        unsafe { ocio_sys::ocio_config_set_active_views(self.handle.as_ptr(), v.as_ptr().cast()) };
-        Ok(())
+        self.set_active_views(view)
     }
 
     pub fn num_views(&self, display: impl AsRef<str>) -> i32 {
@@ -3581,10 +3585,13 @@ mod tests {
     }
 
     #[test]
-    fn set_default_display_view_no_crash() {
+    fn default_display_view_compat_aliases_no_crash() {
         let config = Config::raw().unwrap();
-        assert!(config.set_default_display("sRGB").is_ok());
-        assert!(config.set_default_view("Film").is_ok());
+        #[allow(deprecated)]
+        {
+            assert!(config.set_default_display("sRGB").is_ok());
+            assert!(config.set_default_view("Film").is_ok());
+        }
         let _ = config.default_view_transform_name();
     }
 

@@ -177,3 +177,32 @@ fn config_active_display_view_mutation_errors_surface_behavior() {
         "unexpected error variant: {missing_view_err:?}"
     );
 }
+
+#[test]
+fn config_default_display_view_compat_aliases_follow_active_lists_behavior() {
+    let _guard = config_runtime_settings_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let display = config.display(0).expect("first display");
+    let view = config.view(&display, 0).expect("first view");
+
+    #[allow(deprecated)]
+    {
+        config
+            .set_default_display(&display)
+            .expect("compat set_default_display");
+        config
+            .set_default_view(&view)
+            .expect("compat set_default_view");
+    }
+
+    assert_eq!(config.active_displays().as_deref(), Some(display.as_str()));
+    assert_eq!(config.active_views().as_deref(), Some(view.as_str()));
+}
