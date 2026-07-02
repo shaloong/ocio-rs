@@ -5413,7 +5413,7 @@ void ocio_color_space_set_add_color_space(void* handle, void* cs) {
     auto* _cs_h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(cs);
     auto cs_ptr = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(_cs_h->inner)->colorSpace;
     ocio_rs_bridge::get_real_color_space_set(handle)->addColorSpace(cs_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5426,7 +5426,7 @@ void ocio_color_space_set_add_color_spaces(void* handle, void* cs) {
     auto* _cs_h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(cs);
     auto cs_ptr = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(_cs_h->inner)->set;
     ocio_rs_bridge::get_real_color_space_set(handle)->addColorSpaces(cs_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
