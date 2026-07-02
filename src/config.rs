@@ -119,15 +119,19 @@ impl Config {
         }
     }
 
-    /// Return a cache identifier specialized for a context key string.
-    pub fn cache_id_with_context(&self, context_key: impl AsRef<str>) -> Option<String> {
-        let ck = cstring(context_key).ok()?;
+    /// Return a cache identifier specialized for a concrete OCIO context.
+    pub fn cache_id_for_context(&self, context: &Context) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_cache_id_n(
                 self.handle.as_ptr(),
-                ck.as_ptr() as *mut c_void,
+                context.handle.as_ptr(),
             ))
         }
+    }
+
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer cache_id_for_context()")]
+    pub fn cache_id_with_context(&self, context: &Context) -> Option<String> {
+        self.cache_id_for_context(context)
     }
 
     // --- Version ---
@@ -3829,7 +3833,11 @@ mod tests {
     #[test]
     fn cache_id_with_context_no_crash() {
         let config = Config::raw().unwrap();
-        let _ = config.cache_id_with_context("context_key");
+        if let Some(ctx) = config.current_context() {
+            let _ = config.cache_id_for_context(&ctx);
+            #[allow(deprecated)]
+            let _ = config.cache_id_with_context(&ctx);
+        }
     }
 
     #[test]

@@ -2095,6 +2095,9 @@ void* ocio_config_get_cache_id_n(void* handle, void* context) {
   return nullptr;
 #else
   try {
+    if (!context) {
+      return (void*)ocio_rs_bridge::get_real_config(handle)->getCacheID();
+    }
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     return (void*)ocio_rs_bridge::get_real_config(handle)->getCacheID(context_ptr);
