@@ -258,7 +258,7 @@ if ($ocioSysPackageDir) {
 }
 
 if ($IncludeBundled) {
-    Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--features", "bundled")
+    Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--features", "bundled", "--", "--test-threads=1")
 }
 
 if ($IncludeTopLevelPackage) {
