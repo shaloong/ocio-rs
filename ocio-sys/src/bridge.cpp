@@ -4362,7 +4362,7 @@ void ocio_file_rules_set_pattern(void* handle, size_t ruleIndex, const char* pat
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setPattern(ruleIndex, pattern);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4384,7 +4384,7 @@ void ocio_file_rules_set_extension(void* handle, size_t ruleIndex, const char* e
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setExtension(ruleIndex, extension);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4406,7 +4406,7 @@ void ocio_file_rules_set_regex(void* handle, size_t ruleIndex, const char* regex
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setRegex(ruleIndex, regex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4428,7 +4428,7 @@ void ocio_file_rules_set_color_space(void* handle, size_t ruleIndex, const char*
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setColorSpace(ruleIndex, colorSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4472,7 +4472,7 @@ void ocio_file_rules_set_custom_key(void* handle, size_t ruleIndex, const char* 
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setCustomKey(ruleIndex, key, value);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4483,7 +4483,7 @@ void ocio_file_rules_insert_rule(void* handle, size_t ruleIndex, const char* nam
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->insertRule(ruleIndex, name, colorSpace, pattern, extension);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4494,7 +4494,7 @@ void ocio_file_rules_insert_rule_v1(void* handle, size_t ruleIndex, const char* 
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->insertRule(ruleIndex, name, colorSpace, regex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4505,7 +4505,7 @@ void ocio_file_rules_insert_path_search_rule(void* handle, size_t ruleIndex) {
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->insertPathSearchRule(ruleIndex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4516,7 +4516,7 @@ void ocio_file_rules_set_default_rule_color_space(void* handle, const char* colo
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->setDefaultRuleColorSpace(colorSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

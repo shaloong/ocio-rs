@@ -145,3 +145,30 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
         Some("raw")
     );
 }
+
+#[test]
+fn file_rules_invalid_index_reports_error_behavior() {
+    let _guard = file_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let rules = FileRules::create().expect("file_rules create");
+    let invalid_index = rules.num_entries() + 100;
+
+    let set_pattern_error = rules
+        .set_pattern(invalid_index, "*.exr")
+        .expect_err("invalid index should fail");
+    assert!(
+        matches!(set_pattern_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {set_pattern_error:?}"
+    );
+
+    let insert_path_search_error = rules
+        .try_insert_path_search_rule(invalid_index)
+        .expect_err("invalid path-search insertion index should fail");
+    assert!(
+        matches!(insert_path_search_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {insert_path_search_error:?}"
+    );
+}
