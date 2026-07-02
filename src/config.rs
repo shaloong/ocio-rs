@@ -3762,7 +3762,8 @@ mod tests {
         let ft = crate::transform::FileTransform::create().unwrap();
         let src_cs = crate::ColorSpace::create().unwrap();
         let dst_cs = crate::ColorSpace::create().unwrap();
-        let nt = NamedTransform::create().unwrap();
+        let nt = configured_named_transform_for_processor_tests();
+        config.add_named_transform(&nt);
 
         let _ = config.processor("raw", "raw");
         let _ = config.processor_from_color_spaces(&src_cs, &dst_cs);
@@ -3770,7 +3771,10 @@ mod tests {
         let _ = config.processor_from_transform_default_direction(&ft);
         let _ = config.processor_from_transform(&ft, TransformDirection::Forward);
         let _ = config.processor_named_transform(&nt, TransformDirection::Forward);
-        let _ = config.processor_named_transform_name("Default", TransformDirection::Forward);
+        let _ = config.processor_named_transform_name(
+            "UnitCompatNamedTransform",
+            TransformDirection::Forward,
+        );
         let _ = config.processor_to_builtin_color_space(&config, "raw", "ACES2065-1");
         let _ = config.processor_from_builtin_color_space("ACES2065-1", &config, "raw");
 
@@ -3795,7 +3799,7 @@ mod tests {
             );
             let _ = config.processor_named_transform_name_with_context(
                 &ctx,
-                "Default",
+                "UnitCompatNamedTransform",
                 TransformDirection::Forward,
             );
         }
@@ -3842,14 +3846,19 @@ mod tests {
     #[allow(deprecated)]
     fn processor_named_transform_compat_aliases_no_crash() {
         let config = Config::raw().unwrap();
-        let nt = NamedTransform::create().unwrap();
+        let nt = configured_named_transform_for_processor_tests();
+        config.add_named_transform(&nt);
 
         let _ = config.get_processor_v6(&nt, TransformDirection::Forward);
-        let _ = config.get_processor_v8("Default", TransformDirection::Forward);
+        let _ = config.get_processor_v8("UnitCompatNamedTransform", TransformDirection::Forward);
 
         if let Some(ctx) = config.current_context() {
             let _ = config.get_processor_v7(&ctx, &nt, TransformDirection::Forward);
-            let _ = config.get_processor_v9(&ctx, "Default", TransformDirection::Forward);
+            let _ = config.get_processor_v9(
+                &ctx,
+                "UnitCompatNamedTransform",
+                TransformDirection::Forward,
+            );
         }
     }
 
@@ -3859,6 +3868,19 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.get_processor_to_builtin_color_space(&config, "raw", "ACES2065-1");
         let _ = config.get_processor_from_builtin_color_space("ACES2065-1", &config, "raw");
+    }
+
+    fn configured_named_transform_for_processor_tests() -> NamedTransform {
+        let nt = NamedTransform::create().unwrap();
+        nt.set_name("UnitCompatNamedTransform").unwrap();
+
+        let forward =
+            crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
+        let inverse =
+            crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
+        nt.set_transform(&forward, TransformDirection::Forward);
+        nt.set_transform(&inverse, TransformDirection::Inverse);
+        nt
     }
 
     #[test]
