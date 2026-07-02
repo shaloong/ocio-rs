@@ -105,6 +105,23 @@ fn gpu_shader_desc_config_round_trip_behavior() {
 }
 
 #[test]
+fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    let err = desc
+        .try_set_descriptor_set_index(3, 0)
+        .expect_err("zero texture binding start should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
+
+#[test]
 fn gpu_shader_desc_extraction_structural_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {

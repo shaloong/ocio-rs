@@ -7821,7 +7821,7 @@ void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index,
   (void)handle; (void)index; (void)textureBindingStart;
 #else
   try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setDescriptorSetIndex(index, textureBindingStart); }
-  catch (...) {}
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 

@@ -1114,6 +1114,17 @@ impl GpuShaderDesc {
 
     /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
     pub fn set_descriptor_set_index(&self, index: u32, texture_binding_start: u32) {
+        self.try_set_descriptor_set_index(index, texture_binding_start)
+            .expect("GpuShaderDesc::set_descriptor_set_index failed");
+    }
+
+    /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
+    pub fn try_set_descriptor_set_index(
+        &self,
+        index: u32,
+        texture_binding_start: u32,
+    ) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_descriptor_set_index(
                 self.handle.as_ptr(),
@@ -1121,6 +1132,7 @@ impl GpuShaderDesc {
                 texture_binding_start,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Returns the configured descriptor-set index.
