@@ -322,3 +322,20 @@ fn config_virtual_display_shared_view_behavior() {
         Some("Virtual shared description")
     );
 }
+
+#[test]
+fn config_role_mutation_errors_surface_behavior() {
+    let _guard = config_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let err = config
+        .set_role("", "raw")
+        .expect_err("empty role name should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}

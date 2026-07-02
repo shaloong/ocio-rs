@@ -1886,6 +1886,7 @@ impl Config {
         let view = cstring(view)?;
         let transform_name = cstring(transform_name)?;
         let rule = cstring(rule)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_display_view_v1(
                 self.handle.as_ptr(),
@@ -1895,7 +1896,7 @@ impl Config {
                 rule.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     #[doc(hidden)]
@@ -1914,6 +1915,7 @@ impl Config {
         let view = cstring(view)?;
         let color_space_name = cstring(color_space_name)?;
         let looks = cstring(looks)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_display_view_v1(
                 self.handle.as_ptr(),
@@ -1923,7 +1925,7 @@ impl Config {
                 looks.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1944,6 +1946,7 @@ impl Config {
         let looks = cstring(looks)?;
         let rule_name = cstring(rule_name)?;
         let description = cstring(description)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_display_view_v2(
                 self.handle.as_ptr(),
@@ -1956,7 +1959,7 @@ impl Config {
                 description.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2001,6 +2004,7 @@ impl Config {
         let looks = cstring(looks)?;
         let rule_name = cstring(rule_name)?;
         let description = cstring(description)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_shared_view(
                 self.handle.as_ptr(),
@@ -2012,15 +2016,16 @@ impl Config {
                 description.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_shared_view(&self, view: impl AsRef<str>) -> Result<()> {
         let view = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_remove_shared_view(self.handle.as_ptr(), view.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear_shared_views(&self) {
@@ -2030,6 +2035,7 @@ impl Config {
     pub fn remove_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Result<()> {
         let display = cstring(display)?;
         let view = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_remove_display_view(
                 self.handle.as_ptr(),
@@ -2037,7 +2043,7 @@ impl Config {
                 view.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_display_view(
@@ -2055,6 +2061,7 @@ impl Config {
     ) -> Result<()> {
         let display = cstring(display)?;
         let shared_view = cstring(shared_view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_display_shared_view(
                 self.handle.as_ptr(),
@@ -2062,7 +2069,7 @@ impl Config {
                 shared_view.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear_displays(&self) {
@@ -2529,6 +2536,7 @@ impl Config {
     pub fn set_role(&self, role: impl AsRef<str>, color_space: impl AsRef<str>) -> Result<()> {
         let r = cstring(role)?;
         let cs = cstring(color_space)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_role(
                 self.handle.as_ptr(),
@@ -2536,7 +2544,7 @@ impl Config {
                 cs.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     // --- Family separator ---

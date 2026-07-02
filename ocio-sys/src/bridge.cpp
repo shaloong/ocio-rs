@@ -2521,7 +2521,7 @@ void ocio_config_set_role(void* handle, const char* role, const char* colorSpace
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setRole(role, colorSpaceName);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2606,7 +2606,7 @@ void ocio_config_add_shared_view(void* handle, const char* view, const char* vie
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addSharedView(view, viewTransformName, colorSpaceName, looks, ruleName, description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2617,7 +2617,7 @@ void ocio_config_remove_shared_view(void* handle, const char* view) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeSharedView(view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2819,7 +2819,7 @@ void ocio_config_add_display_view_v1(void* handle, const char* display, const ch
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addDisplayView(display, view, colorSpaceName, looks);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2830,7 +2830,7 @@ void ocio_config_add_display_view_v2(void* handle, const char* display, const ch
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addDisplayView(display, view, viewTransformName, colorSpaceName, looks, ruleName, description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2841,7 +2841,7 @@ void ocio_config_add_display_shared_view(void* handle, const char* display, cons
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addDisplaySharedView(display, sharedView);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2852,7 +2852,7 @@ void ocio_config_remove_display_view(void* handle, const char* display, const ch
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeDisplayView(display, view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

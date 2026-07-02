@@ -110,9 +110,6 @@ fn config_shared_view_and_display_lifecycle_behavior() {
             "shared lifecycle test",
         )
         .expect("re-add shared view");
-    config
-        .add_display_shared_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
-        .expect("re-add display shared view");
     assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
 
     config.clear_shared_views();
@@ -209,4 +206,57 @@ fn config_virtual_display_lifecycle_behavior() {
     );
     assert!(!config.has_virtual_view("UnitLifecycleVirtualSharedView"));
     assert!(!config.has_virtual_view("UnitLifecycleVirtualView"));
+}
+
+#[test]
+fn config_display_mutation_errors_surface_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let add_display_err = config
+        .add_display("UnitDisplay", "BrokenView", "", "")
+        .expect_err("empty color-space display view should fail");
+    assert!(
+        matches!(add_display_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_display_err:?}"
+    );
+
+    let missing_remove_err = config
+        .remove_view("MissingDisplay", "MissingView")
+        .expect_err("missing display/view removal should fail");
+    assert!(
+        matches!(missing_remove_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_remove_err:?}"
+    );
+
+    let view_transform = identity_view_transform("UnitErrorSharedTransform");
+    config.add_view_transform(&view_transform);
+    config
+        .add_shared_view(
+            "UnitErrorSharedView",
+            "UnitErrorSharedTransform",
+            "raw",
+            "",
+            "",
+            "shared error test",
+        )
+        .expect("add shared view");
+    config
+        .add_display_shared_view("UnitErrorDisplay", "UnitErrorSharedView")
+        .expect("add display shared view");
+
+    let duplicate_shared_view_err = config
+        .add_display_shared_view("UnitErrorDisplay", "UnitErrorSharedView")
+        .expect_err("duplicate display shared view should fail");
+    assert!(
+        matches!(duplicate_shared_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {duplicate_shared_view_err:?}"
+    );
 }
