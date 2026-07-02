@@ -27,10 +27,11 @@ impl BuiltinTransform {
 
     pub fn set_style(&self, style: impl AsRef<str>) -> Result<()> {
         let s = cstring(style)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_builtin_transform_set_style(self.handle.as_ptr(), s.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -107,6 +108,12 @@ mod tests {
         let bt = BuiltinTransform::create().unwrap();
         let _ = bt.style();
         assert!(bt.set_style("ACEScct_to_ACES2065-1").is_ok());
+        let invalid = bt.set_style("not-a-real-builtin-style");
+        if crate::is_stub_build() {
+            assert!(invalid.is_ok());
+        } else {
+            assert!(invalid.is_err());
+        }
     }
 
     #[test]

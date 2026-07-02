@@ -144,8 +144,15 @@ impl Config {
         unsafe { ocio_sys::ocio_config_get_minor_version(self.handle.as_ptr()) as u32 }
     }
 
-    pub fn set_version(&self, major: u32, minor: u32) {
+    /// Set the authored config version.
+    ///
+    /// OCIO rejects unsupported major/minor combinations. For example, asking
+    /// for a minor version that does not exist for the current major returns an
+    /// error instead of silently clamping.
+    pub fn set_version(&self, major: u32, minor: u32) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_version(self.handle.as_ptr(), major, minor) };
+        crate::ocio_call_status()
     }
 
     pub fn upgrade_to_latest_version(&self) {
@@ -2656,12 +2663,23 @@ impl Config {
 
     // --- Version setters ---
 
-    pub fn set_major_version(&self, version: u32) {
+    /// Set the authored config major version.
+    ///
+    /// OCIO validates that the requested major version is supported and will
+    /// update the minor version to the newest supported value for that major.
+    pub fn set_major_version(&self, version: u32) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_major_version(self.handle.as_ptr(), version) };
+        crate::ocio_call_status()
     }
 
-    pub fn set_minor_version(&self, version: u32) {
+    /// Set the authored config minor version for the current major version.
+    ///
+    /// OCIO rejects minor versions that are unsupported for the current major.
+    pub fn set_minor_version(&self, version: u32) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_minor_version(self.handle.as_ptr(), version) };
+        crate::ocio_call_status()
     }
 
     // --- Working directory ---
@@ -3527,8 +3545,8 @@ mod tests {
     #[test]
     fn version_setters_no_crash() {
         let config = Config::raw().unwrap();
-        config.set_major_version(2);
-        config.set_minor_version(1);
+        assert!(config.set_major_version(2).is_ok());
+        assert!(config.set_minor_version(1).is_ok());
     }
 
     #[test]
@@ -3987,7 +4005,7 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.get_num_color_spaces_v1();
         let _ = config.get_color_space_name_by_index_v1(0);
-        config.set_version(2, 5);
+        assert!(config.set_version(2, 5).is_ok());
         config.upgrade_to_latest_version();
     }
 

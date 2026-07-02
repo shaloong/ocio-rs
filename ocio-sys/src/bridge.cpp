@@ -1926,7 +1926,7 @@ void ocio_config_set_major_version(void* handle, unsigned int major) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setMajorVersion(major);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -1948,7 +1948,7 @@ void ocio_config_set_minor_version(void* handle, unsigned int minor) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setMinorVersion(minor);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -1959,7 +1959,7 @@ void ocio_config_set_version(void* handle, unsigned int major, unsigned int mino
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setVersion(major, minor);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8837,7 +8837,7 @@ void ocio_builtin_transform_set_style(void* handle, const char* style) {
 #else
   try {
     ocio_rs_bridge::get_real_builtin_transform(handle)->setStyle(style);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
