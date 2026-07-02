@@ -1911,6 +1911,35 @@ pub struct DynamicProperty {
 }
 
 impl DynamicProperty {
+    fn require_property_type(
+        &self,
+        expected: DynamicPropertyType,
+        operation: &'static str,
+    ) -> Result<()> {
+        let actual = self.property_type();
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(OcioError::InvalidInput(format!(
+                "{operation} requires {:?}, got {:?}",
+                expected, actual
+            )))
+        }
+    }
+
+    fn require_double_property(&self, operation: &'static str) -> Result<()> {
+        let actual = self.property_type();
+        match actual {
+            DynamicPropertyType::Exposure
+            | DynamicPropertyType::Contrast
+            | DynamicPropertyType::Gamma => Ok(()),
+            _ => Err(OcioError::InvalidInput(format!(
+                "{operation} requires Exposure, Contrast, or Gamma, got {:?}",
+                actual
+            ))),
+        }
+    }
+
     pub fn property_type(&self) -> DynamicPropertyType {
         let t = unsafe {
             ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void)
@@ -1927,62 +1956,87 @@ impl DynamicProperty {
         }
     }
 
-    pub fn double_value(&self) -> f64 {
-        unsafe {
+    pub fn double_value(&self) -> Result<f64> {
+        self.require_double_property("DynamicProperty::double_value")?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_double_get_value(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn set_double_value(&self, value: f64) {
+    pub fn set_double_value(&self, value: f64) -> Result<()> {
+        self.require_double_property("DynamicProperty::set_double_value")?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_dynamic_property_double_set_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
     }
 
-    pub fn grading_primary_value(&self) -> Option<crate::grading::GradingPrimary> {
-        if self.property_type() != DynamicPropertyType::GradingPrimary {
-            return None;
-        }
+    pub fn grading_primary_value(&self) -> Result<crate::grading::GradingPrimary> {
+        self.require_property_type(
+            DynamicPropertyType::GradingPrimary,
+            "DynamicProperty::grading_primary_value",
+        )?;
         let mut values = [0.0f64; 34];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_primary_get_value(
                 self.handle.as_ptr(),
                 values.as_mut_ptr(),
             );
         }
-        Some(crate::grading::GradingPrimary::from_flat_array(&values))
+        crate::ocio_call_status()?;
+        Ok(crate::grading::GradingPrimary::from_flat_array(&values))
     }
 
-    pub fn set_grading_primary_value(&self, value: &crate::grading::GradingPrimary) {
+    pub fn set_grading_primary_value(&self, value: &crate::grading::GradingPrimary) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingPrimary,
+            "DynamicProperty::set_grading_primary_value",
+        )?;
         let values = value.to_flat_array();
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_primary_set_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn grading_tone_value(&self) -> Option<crate::grading::GradingTone> {
-        if self.property_type() != DynamicPropertyType::GradingTone {
-            return None;
-        }
+    pub fn grading_tone_value(&self) -> Result<crate::grading::GradingTone> {
+        self.require_property_type(
+            DynamicPropertyType::GradingTone,
+            "DynamicProperty::grading_tone_value",
+        )?;
         let mut values = [0.0f64; 31];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_tone_get_value(
                 self.handle.as_ptr(),
                 values.as_mut_ptr(),
             );
         }
-        Some(crate::grading::GradingTone::from_flat_array(&values))
+        crate::ocio_call_status()?;
+        Ok(crate::grading::GradingTone::from_flat_array(&values))
     }
 
-    pub fn set_grading_tone_value(&self, value: &crate::grading::GradingTone) {
+    pub fn set_grading_tone_value(&self, value: &crate::grading::GradingTone) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingTone,
+            "DynamicProperty::set_grading_tone_value",
+        )?;
         let values = value.to_flat_array();
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_tone_set_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn grading_rgb_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
@@ -2295,7 +2349,7 @@ mod tests {
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::Exposure) {
             let _ = dp.property_type();
             let _ = dp.double_value();
-            dp.set_double_value(1.5);
+            let _ = dp.set_double_value(1.5);
         }
     }
 
@@ -2314,7 +2368,7 @@ mod tests {
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingPrimary) {
             let _ = dp.grading_primary_value();
             let v = crate::grading::GradingPrimary::new(crate::GradingStyle::Log);
-            dp.set_grading_primary_value(&v);
+            let _ = dp.set_grading_primary_value(&v);
         }
     }
 
@@ -2325,7 +2379,7 @@ mod tests {
         if let Ok(dp) = proc.dynamic_property(DynamicPropertyType::GradingTone) {
             let _ = dp.grading_tone_value();
             let v = crate::grading::GradingTone::new(crate::GradingStyle::Log);
-            dp.set_grading_tone_value(&v);
+            let _ = dp.set_grading_tone_value(&v);
         }
     }
 

@@ -13331,7 +13331,7 @@ double ocio_dynamic_property_double_get_value(void* handle) {
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     return ocio::DynamicPropertyValue::AsDouble(prop)->getValue();
-  } catch (...) { return 0.0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0.0; }
 #endif
 }
 
@@ -13342,7 +13342,7 @@ void ocio_dynamic_property_double_set_value(void* handle, double value) {
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     ocio::DynamicPropertyValue::AsDouble(prop)->setValue(value);
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -13374,7 +13374,7 @@ void ocio_dynamic_property_grading_primary_get_value(void* handle, double* value
     values[off++] = v.m_pivotWhite;
     values[off++] = v.m_clampBlack;
     values[off++] = v.m_clampWhite;
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -13410,7 +13410,7 @@ void ocio_dynamic_property_grading_primary_set_value(void* handle, const double*
     v.m_clampBlack = values[off++];
     v.m_clampWhite = values[off++];
     typed->setValue(v);
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -13437,7 +13437,7 @@ void ocio_dynamic_property_grading_tone_get_value(void* handle, double* values) 
     write_rgbmsw(v.m_highlights);
     write_rgbmsw(v.m_whites);
     values[off++] = v.m_scontrast;
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -13468,7 +13468,7 @@ void ocio_dynamic_property_grading_tone_set_value(void* handle, const double* va
     v.m_whites = read_rgbmsw();
     v.m_scontrast = values[off++];
     typed->setValue(v);
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 

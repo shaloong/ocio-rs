@@ -243,7 +243,11 @@ fn gpu_shader_desc_dynamic_property_behavior() {
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("desc dynamic exposure property");
     assert_eq!(desc_prop.property_type(), DynamicPropertyType::Exposure);
-    assert_close(desc_prop.double_value(), 0.0, 1e-8);
+    assert_close(
+        desc_prop.double_value().expect("desc prop double value"),
+        0.0,
+        1e-8,
+    );
 
     let indexed_types: Vec<_> = (0..desc.num_dynamic_properties())
         .filter_map(|index| desc.dynamic_property_by_index(index))
@@ -254,15 +258,37 @@ fn gpu_shader_desc_dynamic_property_behavior() {
     let processor_prop = processor
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("processor dynamic exposure property");
-    processor_prop.set_double_value(1.0);
-    assert_close(desc_prop.double_value(), 0.0, 1e-8);
+    processor_prop
+        .set_double_value(1.0)
+        .expect("set processor prop double value");
+    assert_close(
+        desc_prop
+            .double_value()
+            .expect("desc prop double value after processor update"),
+        0.0,
+        1e-8,
+    );
 
-    desc_prop.set_double_value(-1.0);
-    assert_close(processor_prop.double_value(), 1.0, 1e-8);
+    desc_prop
+        .set_double_value(-1.0)
+        .expect("set desc prop double value");
+    assert_close(
+        processor_prop
+            .double_value()
+            .expect("processor prop double value after desc update"),
+        1.0,
+        1e-8,
+    );
     let desc_prop_after = desc
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("desc dynamic exposure property after update");
-    assert_close(desc_prop_after.double_value(), -1.0, 1e-8);
+    assert_close(
+        desc_prop_after
+            .double_value()
+            .expect("desc prop double value after desc update"),
+        -1.0,
+        1e-8,
+    );
 }
 
 #[test]
