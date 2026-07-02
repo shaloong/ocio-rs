@@ -1,7 +1,12 @@
-use std::collections::hash_map::DefaultHasher;
 use std::env;
+use std::path::PathBuf;
+
+#[cfg(target_os = "windows")]
+use std::collections::hash_map::DefaultHasher;
+#[cfg(target_os = "windows")]
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+#[cfg(target_os = "windows")]
+use std::path::Path;
 
 fn main() {
     let mut include_paths = Vec::<PathBuf>::new();
@@ -281,25 +286,24 @@ fn main() {
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
 }
 
+#[cfg(target_os = "windows")]
 fn link_transitive_deps(link_paths: &[PathBuf]) {
-    #[cfg(target_os = "windows")]
-    {
-        link_static_library(link_paths, &["libexpatMD", "expat", "libexpatdMD"]);
-        link_static_library(link_paths, &["yaml-cpp", "yaml-cppd"]);
-        link_static_library(link_paths, &["Imath-3_2", "Imath-3_2_d"]);
-        link_static_library(link_paths, &["pystring"]);
-        link_static_library(link_paths, &["minizip-ng"]);
-        link_static_library(link_paths, &["zlibstatic", "zlib", "zlibstaticd", "zlibd"]);
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        println!("cargo:rustc-link-lib=static=expat");
-        println!("cargo:rustc-link-lib=static=yaml-cpp");
-        println!("cargo:rustc-link-lib=static=Imath-3_2");
-        println!("cargo:rustc-link-lib=static=pystring");
-        println!("cargo:rustc-link-lib=static=minizip-ng");
-        println!("cargo:rustc-link-lib=static=z");
-    }
+    link_static_library(link_paths, &["libexpatMD", "expat", "libexpatdMD"]);
+    link_static_library(link_paths, &["yaml-cpp", "yaml-cppd"]);
+    link_static_library(link_paths, &["Imath-3_2", "Imath-3_2_d"]);
+    link_static_library(link_paths, &["pystring"]);
+    link_static_library(link_paths, &["minizip-ng"]);
+    link_static_library(link_paths, &["zlibstatic", "zlib", "zlibstaticd", "zlibd"]);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn link_transitive_deps(_link_paths: &[PathBuf]) {
+    println!("cargo:rustc-link-lib=static=expat");
+    println!("cargo:rustc-link-lib=static=yaml-cpp");
+    println!("cargo:rustc-link-lib=static=Imath-3_2");
+    println!("cargo:rustc-link-lib=static=pystring");
+    println!("cargo:rustc-link-lib=static=minizip-ng");
+    println!("cargo:rustc-link-lib=static=z");
 }
 
 #[cfg(target_os = "windows")]
