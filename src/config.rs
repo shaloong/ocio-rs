@@ -3874,10 +3874,8 @@ mod tests {
         let nt = NamedTransform::create().unwrap();
         nt.set_name("UnitCompatNamedTransform").unwrap();
 
-        let forward =
-            crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
-        let inverse =
-            crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
+        let forward = crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
+        let inverse = crate::transform::MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap();
         nt.set_transform(&forward, TransformDirection::Forward);
         nt.set_transform(&inverse, TransformDirection::Inverse);
         nt

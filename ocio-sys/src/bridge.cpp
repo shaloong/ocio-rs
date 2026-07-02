@@ -8968,7 +8968,8 @@ bool ocio_cdl_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_cdl_transform(handle)->equals(*static_cast<const ocio::CDLTransform*>(other));
+    return ocio_rs_bridge::get_real_cdl_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_cdl_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -9517,7 +9518,8 @@ bool ocio_exponent_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_exponent_transform(handle)->equals(*static_cast<const ocio::ExponentTransform*>(other));
+    return ocio_rs_bridge::get_real_exponent_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_exponent_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -9579,7 +9581,8 @@ bool ocio_exponent_with_linear_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->equals(*static_cast<const ocio::ExponentWithLinearTransform*>(other));
+    return ocio_rs_bridge::get_real_exponent_with_linear_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_exponent_with_linear_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -9641,7 +9644,8 @@ bool ocio_exposure_contrast_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->equals(*static_cast<const ocio::ExposureContrastTransform*>(other));
+    return ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_exposure_contrast_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -10114,7 +10118,8 @@ bool ocio_fixed_function_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_fixed_function_transform(handle)->equals(*static_cast<const ocio::FixedFunctionTransform*>(other));
+    return ocio_rs_bridge::get_real_fixed_function_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_fixed_function_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -10287,7 +10292,8 @@ bool ocio_grading_primary_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_grading_primary_transform(handle)->equals(*static_cast<const ocio::GradingPrimaryTransform*>(other));
+    return ocio_rs_bridge::get_real_grading_primary_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_grading_primary_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -10497,7 +10503,8 @@ bool ocio_grading_rgb_curve_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->equals(*static_cast<const ocio::GradingRGBCurveTransform*>(other));
+    return ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_grading_rgb_curve_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -10780,7 +10787,8 @@ bool ocio_grading_hue_curve_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->equals(*static_cast<const ocio::GradingHueCurveTransform*>(other));
+    return ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_grading_hue_curve_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -11063,7 +11071,8 @@ bool ocio_grading_tone_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_grading_tone_transform(handle)->equals(*static_cast<const ocio::GradingToneTransform*>(other));
+    return ocio_rs_bridge::get_real_grading_tone_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_grading_tone_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -11408,7 +11417,8 @@ bool ocio_log_affine_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_log_affine_transform(handle)->equals(*static_cast<const ocio::LogAffineTransform*>(other));
+    return ocio_rs_bridge::get_real_log_affine_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_log_affine_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -11486,7 +11496,8 @@ bool ocio_log_camera_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_log_camera_transform(handle)->equals(*static_cast<const ocio::LogCameraTransform*>(other));
+    return ocio_rs_bridge::get_real_log_camera_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_log_camera_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -11744,7 +11755,8 @@ bool ocio_log_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_log_transform(handle)->equals(*static_cast<const ocio::LogTransform*>(other));
+    return ocio_rs_bridge::get_real_log_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_log_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -11989,7 +12001,8 @@ bool ocio_lut1d_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_lut1d_transform(handle)->equals(*static_cast<const ocio::Lut1DTransform*>(other));
+    return ocio_rs_bridge::get_real_lut1d_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_lut1d_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -12210,7 +12223,8 @@ bool ocio_lut3d_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_lut3d_transform(handle)->equals(*static_cast<const ocio::Lut3DTransform*>(other));
+    return ocio_rs_bridge::get_real_lut3d_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_lut3d_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -12348,7 +12362,8 @@ bool ocio_matrix_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_matrix_transform(handle)->equals(*static_cast<const ocio::MatrixTransform*>(other));
+    return ocio_rs_bridge::get_real_matrix_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_matrix_transform(other));
   } catch (...) { return false; }
 #endif
 }
@@ -12498,7 +12513,8 @@ bool ocio_range_transform_equals(void* handle, void* other) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_range_transform(handle)->equals(*static_cast<const ocio::RangeTransform*>(other));
+    return ocio_rs_bridge::get_real_range_transform(handle)->equals(
+      *ocio_rs_bridge::get_real_range_transform(other));
   } catch (...) { return false; }
 #endif
 }
