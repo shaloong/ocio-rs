@@ -4200,6 +4200,10 @@ void ocio_config_set_config_io_proxy(void* handle, void* ciop) {
   return;
 #else
   try {
+    if (!ciop) {
+      ocio_rs_bridge::get_real_config(handle)->setConfigIOProxy(ocio::ConfigIOProxyRcPtr());
+      return;
+    }
     auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
     auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
     ocio_rs_bridge::get_real_config(handle)->setConfigIOProxy(ciop_ptr);
@@ -8598,6 +8602,9 @@ void* ocio_context_resolve_string_var_v1(void* handle, const char* string, void*
   return nullptr;
 #else
   try {
+    if (!usedContextVars) {
+      return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string)));
+    }
     auto* _usedContextVars_h = static_cast<ocio_rs_bridge::ContextHandle*>(usedContextVars);
     auto usedContextVars_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_usedContextVars_h->inner)->context;
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string, usedContextVars_ptr)));
@@ -8622,6 +8629,9 @@ void* ocio_context_resolve_file_location_v1(void* handle, const char* filename, 
   return nullptr;
 #else
   try {
+    if (!usedContextVars) {
+      return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename)));
+    }
     auto* _usedContextVars_h = static_cast<ocio_rs_bridge::ContextHandle*>(usedContextVars);
     auto usedContextVars_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_usedContextVars_h->inner)->context;
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename, usedContextVars_ptr)));
@@ -8635,6 +8645,10 @@ void ocio_context_set_config_io_proxy(void* handle, void* ciop) {
   return;
 #else
   try {
+    if (!ciop) {
+      ocio_rs_bridge::get_real_context(handle)->setConfigIOProxy(ocio::ConfigIOProxyRcPtr());
+      return;
+    }
     auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
     auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
     ocio_rs_bridge::get_real_context(handle)->setConfigIOProxy(ciop_ptr);
