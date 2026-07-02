@@ -132,3 +132,48 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         set_current_config(original_config);
     }
 }
+
+#[test]
+fn config_active_display_view_mutation_errors_surface_behavior() {
+    let _guard = config_runtime_settings_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let empty_display_err = config
+        .add_active_display("")
+        .expect_err("empty active display name should fail");
+    assert!(
+        matches!(empty_display_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {empty_display_err:?}"
+    );
+
+    let missing_display_err = config
+        .remove_active_display("MissingActiveDisplay")
+        .expect_err("removing missing active display should fail");
+    assert!(
+        matches!(missing_display_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_display_err:?}"
+    );
+
+    let empty_view_err = config
+        .add_active_view("")
+        .expect_err("empty active view name should fail");
+    assert!(
+        matches!(empty_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {empty_view_err:?}"
+    );
+
+    let missing_view_err = config
+        .remove_active_view("MissingActiveView")
+        .expect_err("removing missing active view should fail");
+    assert!(
+        matches!(missing_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_view_err:?}"
+    );
+}

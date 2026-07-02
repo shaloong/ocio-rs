@@ -3098,7 +3098,7 @@ void ocio_config_add_active_display(void* handle, const char* display) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addActiveDisplay(display);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3109,7 +3109,7 @@ void ocio_config_remove_active_display(void* handle, const char* display) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeActiveDisplay(display);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3175,7 +3175,7 @@ void ocio_config_add_active_view(void* handle, const char* view) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addActiveView(view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3186,7 +3186,7 @@ void ocio_config_remove_active_view(void* handle, const char* view) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeActiveView(view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

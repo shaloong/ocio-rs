@@ -2811,10 +2811,11 @@ impl Config {
 
     pub fn add_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_active_display(self.handle.as_ptr(), d.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn active_display(&self, index: i32) -> Option<String> {
@@ -2834,19 +2835,21 @@ impl Config {
 
     pub fn remove_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let display = cstring(display)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_remove_active_display(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn add_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_add_active_view(self.handle.as_ptr(), v.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn active_view(&self, index: i32) -> Option<String> {
@@ -2866,10 +2869,11 @@ impl Config {
 
     pub fn remove_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let view = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_remove_active_view(self.handle.as_ptr(), view.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear_active_displays(&self) {
