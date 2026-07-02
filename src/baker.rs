@@ -43,8 +43,9 @@ impl Baker {
 
     pub fn set_format(&self, format_name: impl AsRef<str>) -> Result<()> {
         let name = cstring(format_name)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_format(self.handle.as_ptr(), name.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn input_space(&self) -> Option<String> {
@@ -53,8 +54,9 @@ impl Baker {
 
     pub fn set_input_space(&self, space: impl AsRef<str>) -> Result<()> {
         let s = cstring(space)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_input_space(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn shaper_space(&self) -> Option<String> {
@@ -63,8 +65,9 @@ impl Baker {
 
     pub fn set_shaper_space(&self, space: impl AsRef<str>) -> Result<()> {
         let s = cstring(space)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_shaper_space(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn looks(&self) -> Option<String> {
@@ -73,8 +76,9 @@ impl Baker {
 
     pub fn set_looks(&self, looks: impl AsRef<str>) -> Result<()> {
         let s = cstring(looks)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_looks(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn target_space(&self) -> Option<String> {
@@ -83,8 +87,9 @@ impl Baker {
 
     pub fn set_target_space(&self, space: impl AsRef<str>) -> Result<()> {
         let s = cstring(space)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_target_space(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn display(&self) -> Option<String> {
@@ -98,6 +103,7 @@ impl Baker {
     pub fn set_display_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
         let v = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_baker_set_display_view(
                 self.handle.as_ptr(),
@@ -105,7 +111,7 @@ impl Baker {
                 v.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn shaper_size(&self) -> i32 {

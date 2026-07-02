@@ -8098,7 +8098,7 @@ void ocio_baker_set_format(void* handle, const char* formatName) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setFormat(formatName);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8185,7 +8185,7 @@ void ocio_baker_set_input_space(void* handle, const char* inputSpace) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setInputSpace(inputSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8207,7 +8207,7 @@ void ocio_baker_set_shaper_space(void* handle, const char* shaperSpace) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setShaperSpace(shaperSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8229,7 +8229,7 @@ void ocio_baker_set_looks(void* handle, const char* looks) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setLooks(looks);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8251,7 +8251,7 @@ void ocio_baker_set_target_space(void* handle, const char* targetSpace) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setTargetSpace(targetSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8284,7 +8284,7 @@ void ocio_baker_set_display_view(void* handle, const char* display, const char* 
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setDisplayView(display, view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

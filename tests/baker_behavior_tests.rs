@@ -118,3 +118,20 @@ fn baker_bake_to_string_and_file_behavior() {
 
     let _ = fs::remove_file(output_path);
 }
+
+#[test]
+fn baker_invalid_format_reports_error_behavior() {
+    let _guard = baker_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let baker = Baker::create().expect("baker create");
+    let err = baker
+        .set_format("definitely_not_a_real_bake_format")
+        .expect_err("invalid baker format should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
