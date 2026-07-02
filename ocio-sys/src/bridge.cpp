@@ -4676,7 +4676,7 @@ void ocio_viewing_rules_add_color_space(void* handle, size_t ruleIndex, const ch
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->addColorSpace(ruleIndex, colorSpace);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4687,7 +4687,7 @@ void ocio_viewing_rules_remove_color_space(void* handle, size_t ruleIndex, size_
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->removeColorSpace(ruleIndex, colorSpaceIndex);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4720,7 +4720,7 @@ void ocio_viewing_rules_add_encoding(void* handle, size_t ruleIndex, const char*
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->addEncoding(ruleIndex, encoding);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4731,7 +4731,7 @@ void ocio_viewing_rules_remove_encoding(void* handle, size_t ruleIndex, size_t e
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->removeEncoding(ruleIndex, encodingIndex);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4775,7 +4775,7 @@ void ocio_viewing_rules_set_custom_key(void* handle, size_t ruleIndex, const cha
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->setCustomKey(ruleIndex, key, value);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4786,7 +4786,7 @@ void ocio_viewing_rules_insert_rule(void* handle, size_t ruleIndex, const char* 
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->insertRule(ruleIndex, ruleName);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4797,7 +4797,7 @@ void ocio_viewing_rules_remove_rule(void* handle, size_t ruleIndex) {
 #else
   try {
     ocio_rs_bridge::get_real_viewing_rules(handle)->removeRule(ruleIndex);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
