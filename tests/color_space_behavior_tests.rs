@@ -222,3 +222,32 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
     assert_close(second_pixel[2] as f64, 0.25, 1e-6);
     assert_close(second_pixel[3] as f64, 1.0, 1e-6);
 }
+
+#[test]
+fn color_space_interop_and_interchange_errors_surface_behavior() {
+    let _guard = color_space_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let cs = ColorSpace::create().expect("color space create");
+
+    cs.set_interop_id("aces:cg").expect("set valid interop id");
+    assert_eq!(cs.interop_id().as_deref(), Some("aces:cg"));
+
+    let invalid_interop_id_err = cs
+        .set_interop_id("ACES bad namespace")
+        .expect_err("invalid interop id should fail");
+    assert!(
+        matches!(invalid_interop_id_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {invalid_interop_id_err:?}"
+    );
+
+    let invalid_interchange_attr_err = cs
+        .set_interchange_attribute("definitely_unknown_attr", "value")
+        .expect_err("unknown interchange attribute should fail");
+    assert!(
+        matches!(invalid_interchange_attr_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {invalid_interchange_attr_err:?}"
+    );
+}

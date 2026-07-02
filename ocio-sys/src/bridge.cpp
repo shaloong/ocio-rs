@@ -5006,7 +5006,7 @@ void ocio_color_space_set_interop_id(void* handle, const char* interopID) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setInteropID(interopID);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5017,7 +5017,7 @@ void ocio_color_space_set_interchange_attribute(void* handle, const char* attrNa
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setInterchangeAttribute(attrName, value);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
