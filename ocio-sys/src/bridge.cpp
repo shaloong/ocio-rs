@@ -3376,7 +3376,7 @@ void ocio_config_add_look(void* handle, void* look) {
     auto* _look_h = static_cast<ocio_rs_bridge::LookHandle*>(look);
     auto look_ptr = std::static_pointer_cast<ocio_rs_bridge::RealLook>(_look_h->inner)->look;
     ocio_rs_bridge::get_real_config(handle)->addLook(look_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3438,7 +3438,7 @@ void ocio_config_add_view_transform(void* handle, void* viewTransform) {
     auto* _viewTransform_h = static_cast<ocio_rs_bridge::ViewTransformHandle*>(viewTransform);
     auto viewTransform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealViewTransform>(_viewTransform_h->inner)->transform;
     ocio_rs_bridge::get_real_config(handle)->addViewTransform(viewTransform_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

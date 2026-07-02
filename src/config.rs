@@ -1852,12 +1852,18 @@ impl Config {
     }
 
     pub fn add_look(&self, look: &Look) {
+        self.try_add_look(look).expect("failed to add look");
+    }
+
+    pub fn try_add_look(&self, look: &Look) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_look(
                 self.handle.as_ptr(),
                 look.handle.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     // --- Clear collections ---
@@ -2484,12 +2490,19 @@ impl Config {
     }
 
     pub fn add_view_transform(&self, view_transform: &ViewTransform) {
+        self.try_add_view_transform(view_transform)
+            .expect("failed to add view transform");
+    }
+
+    pub fn try_add_view_transform(&self, view_transform: &ViewTransform) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_view_transform(
                 self.handle.as_ptr(),
                 view_transform.handle.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     // --- Search paths ---

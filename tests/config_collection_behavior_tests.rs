@@ -231,4 +231,23 @@ fn config_collection_registration_errors_surface_behavior() {
         matches!(add_named_transform_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {add_named_transform_err:?}"
     );
+
+    let unnamed_look = Look::create().expect("look create");
+    let add_look_err = config
+        .try_add_look(&unnamed_look)
+        .expect_err("unnamed look should fail");
+    assert!(
+        matches!(add_look_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_look_err:?}"
+    );
+
+    let empty_view_transform =
+        ViewTransform::create(ReferenceSpaceType::Scene).expect("view transform create");
+    let add_view_transform_err = config
+        .try_add_view_transform(&empty_view_transform)
+        .expect_err("view transform without name/transform should fail");
+    assert!(
+        matches!(add_view_transform_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_view_transform_err:?}"
+    );
 }
