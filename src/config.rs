@@ -2114,6 +2114,7 @@ impl Config {
         let looks = cstring(looks)?;
         let rule_name = cstring(rule_name)?;
         let description = cstring(description)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_virtual_display_view(
                 self.handle.as_ptr(),
@@ -2125,18 +2126,19 @@ impl Config {
                 description.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn add_virtual_display_shared_view(&self, shared_view: impl AsRef<str>) -> Result<()> {
         let shared_view = cstring(shared_view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_virtual_display_shared_view(
                 self.handle.as_ptr(),
                 shared_view.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn virtual_display_num_views(&self, reference_space: SearchReferenceSpaceType) -> i32 {

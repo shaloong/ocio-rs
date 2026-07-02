@@ -2896,7 +2896,7 @@ void ocio_config_add_virtual_display_view(void* handle, const char* view, const 
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addVirtualDisplayView(view, viewTransformName, colorSpaceName, looks, ruleName, description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2907,7 +2907,7 @@ void ocio_config_add_virtual_display_shared_view(void* handle, const char* share
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addVirtualDisplaySharedView(sharedView);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

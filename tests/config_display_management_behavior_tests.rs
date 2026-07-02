@@ -260,3 +260,48 @@ fn config_display_mutation_errors_surface_behavior() {
         "unexpected error variant: {duplicate_shared_view_err:?}"
     );
 }
+
+#[test]
+fn config_virtual_display_mutation_errors_surface_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let view_transform = identity_view_transform("UnitErrorVirtualTransform");
+    config.add_view_transform(&view_transform);
+    config
+        .add_shared_view(
+            "UnitErrorVirtualSharedView",
+            "UnitErrorVirtualTransform",
+            "raw",
+            "",
+            "",
+            "virtual error test",
+        )
+        .expect("add shared view");
+
+    let empty_view_err = config
+        .add_virtual_display_view("", "UnitErrorVirtualTransform", "raw", "", "", "")
+        .expect_err("empty virtual display view name should fail");
+    assert!(
+        matches!(empty_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {empty_view_err:?}"
+    );
+
+    config
+        .add_virtual_display_shared_view("UnitErrorVirtualSharedView")
+        .expect("add virtual display shared view");
+    let duplicate_shared_view_err = config
+        .add_virtual_display_shared_view("UnitErrorVirtualSharedView")
+        .expect_err("duplicate virtual display shared view should fail");
+    assert!(
+        matches!(duplicate_shared_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {duplicate_shared_view_err:?}"
+    );
+}
