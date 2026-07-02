@@ -186,3 +186,20 @@ fn view_transform_display_pipeline_round_trip_behavior() {
     assert_close(round_tripped[2] as f64, original[2] as f64, 1e-6);
     assert_close(round_tripped[3] as f64, original[3] as f64, 1e-6);
 }
+
+#[test]
+fn view_transform_interchange_attribute_errors_surface_behavior() {
+    let _guard = view_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let vt = ViewTransform::create(ReferenceSpaceType::Scene).expect("view transform create");
+    let invalid_attr_err = vt
+        .set_interchange_attribute("definitely_unknown_attr", "value")
+        .expect_err("unknown interchange attribute should fail");
+    assert!(
+        matches!(invalid_attr_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {invalid_attr_err:?}"
+    );
+}

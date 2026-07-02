@@ -5628,7 +5628,7 @@ void ocio_look_set_interchange_attribute(void* handle, const char* attrName, con
 #else
   try {
     ocio_rs_bridge::get_real_look(handle)->setInterchangeAttribute(attrName, value);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -6080,7 +6080,7 @@ void ocio_view_transform_set_interchange_attribute(void* handle, const char* att
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->setInterchangeAttribute(attrName, value);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

@@ -77,6 +77,7 @@ impl ViewTransform {
     ) -> Result<()> {
         let name = cstring(name)?;
         let value = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_view_transform_set_interchange_attribute(
                 self.handle.as_ptr(),
@@ -84,7 +85,7 @@ impl ViewTransform {
                 value.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
