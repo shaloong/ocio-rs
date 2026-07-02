@@ -7,6 +7,31 @@ on:
 
 jobs:
   stub:
+    name: Stub (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install C++ compiler
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
+
+      - name: Test
+        run: cargo test --workspace --no-default-features
+
+      - name: Test examples
+        run: cargo test --examples --no-default-features
+
+  stub-audit:
+    name: Stub Audit (ubuntu-latest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,12 +48,6 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-
-      - name: Test
-        run: cargo test --workspace --no-default-features
-
-      - name: Test examples
-        run: cargo test --examples --no-default-features
 
       - name: Docs
         env:

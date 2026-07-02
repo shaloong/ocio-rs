@@ -18,7 +18,8 @@ environment.
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
-| CI real-OCIO validation | Manual bundled and release-audit workflows |
+| CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
+| CI real-OCIO validation | Manual bundled and release-audit workflows on Ubuntu |
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
@@ -44,6 +45,9 @@ Current release checklist highlights:
 - `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
   passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
+- `cargo run --bin check_parity --quiet -- --check-l3` passes with
+  `822/822` L3 OCIO C++ methods bridged and only one intentional
+  compatibility-only FFI extra (`ocio_error_get_last`).
 - `cargo package -p ocio-sys --allow-dirty --offline` passes.
 - `cargo build --features bundled --offline` passes from the extracted
   `target/package/ocio-sys-0.2.0` package directory.
@@ -95,7 +99,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `379` crate tests plus forty-seven
+- The current bundled validation path exercises `383` crate tests plus forty-seven
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -120,10 +124,12 @@ Latest release-audit result:
   independence, and config attachment behavior in bundled mode, plus
   standalone and processor-extracted `ProcessorMetadata` behavior.
 
-GitHub Actions keeps bundled validation on manual workflows because it requires
-a recursive checkout and a slower native OCIO build. The manual paths now cover
-both the dedicated bundled test job in `ci.yml` and the broader `Release Audit`
-workflow, which also validates packaging and offline bundled compilation.
+GitHub Actions now runs stub-mode test coverage across Linux, macOS, and
+Windows for `--no-default-features`, while keeping the slower bundled native
+OCIO validation on manual Ubuntu workflows that use a recursive checkout. The
+manual paths cover both the dedicated bundled test job in `ci.yml` and the
+broader `Release Audit` workflow, which also validates packaging and offline
+bundled compilation.
 
 Current runtime semantics worth calling out explicitly:
 

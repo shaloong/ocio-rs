@@ -15,6 +15,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   `CPUProcessor`
 - Stronger `MatrixTransform` behavioral tests for `fit` and `view`
 - Release and contribution documentation for build, packaging, and verification
+- Multi-platform stub CI coverage across Linux, macOS, and Windows for
+  `--no-default-features` test and example execution
 
 ### Changed
 
@@ -24,6 +26,9 @@ Versioning as closely as practical for a still-maturing binding crate.
   OCIO mode
 - Project status and migration guidance now describe `0.2.0` as a broadly
   usable early-adopter OCIO 2.5 line rather than a placeholder cleanup release
+- Release-readiness guidance now reflects a clean parity report at
+  `822/822` bridged OCIO C++ methods and current green fmt/clippy/stub/bundled/doc
+  verification
 
 ### Fixed
 
