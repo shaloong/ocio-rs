@@ -171,4 +171,31 @@ fn file_rules_invalid_index_reports_error_behavior() {
         matches!(insert_path_search_error, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {insert_path_search_error:?}"
     );
+
+    let remove_default_error = rules
+        .try_remove_rule(0)
+        .expect_err("default rule removal should fail");
+    assert!(
+        matches!(remove_default_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {remove_default_error:?}"
+    );
+
+    let increase_default_error = rules
+        .try_increase_rule_priority(0)
+        .expect_err("default rule priority increase should fail");
+    assert!(
+        matches!(increase_default_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {increase_default_error:?}"
+    );
+
+    rules
+        .insert_rule(0, "PriorityRule", "raw", "*.exr", "exr")
+        .expect("insert priority test rule");
+    let decrease_front_rule_error = rules
+        .try_decrease_rule_priority(0)
+        .expect_err("front rule should not move onto default rule");
+    assert!(
+        matches!(decrease_front_rule_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {decrease_front_rule_error:?}"
+    );
 }

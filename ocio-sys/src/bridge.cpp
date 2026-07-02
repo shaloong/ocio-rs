@@ -4527,7 +4527,7 @@ void ocio_file_rules_remove_rule(void* handle, size_t ruleIndex) {
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->removeRule(ruleIndex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4538,7 +4538,7 @@ void ocio_file_rules_increase_rule_priority(void* handle, size_t ruleIndex) {
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->increaseRulePriority(ruleIndex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4549,7 +4549,7 @@ void ocio_file_rules_decrease_rule_priority(void* handle, size_t ruleIndex) {
 #else
   try {
     ocio_rs_bridge::get_real_file_rules(handle)->decreaseRulePriority(ruleIndex);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
