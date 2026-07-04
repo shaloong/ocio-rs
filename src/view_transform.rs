@@ -6,8 +6,7 @@ use ocio_sys;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, OcioError, ReferenceSpaceType, Result,
-    ViewTransformDirection,
+    cstr_from_mut, cstr_to_opt_string, cstring, ReferenceSpaceType, Result, ViewTransformDirection,
 };
 
 /// Describes a scene/display view transform entry stored in a [`Config`](crate::Config).
@@ -205,11 +204,10 @@ impl ViewTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_view_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 }
 

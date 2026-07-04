@@ -8,11 +8,23 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::{ReferenceSpaceType, ViewTransform};
+use ocio_rs::transform::MatrixTransform;
+use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
 
 fn config_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn configured_view_transform(name: &str) -> ViewTransform {
+    let view_transform =
+        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
+    view_transform.set_name(name).expect("set name");
+    let identity = MatrixTransform::identity().expect("identity matrix");
+    view_transform.set_transform(Some(&identity), ViewTransformDirection::ToReference);
+    view_transform
 }
 
 #[test]
@@ -131,9 +143,7 @@ fn config_display_view_metadata_round_trip_behavior() {
     }
 
     let config = create_test_config().expect("raw config");
-    let view_transform =
-        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
-    view_transform.set_name("UnitTestView").expect("set name");
+    let view_transform = configured_view_transform("UnitTestView");
     config.add_view_transform(&view_transform);
 
     config
@@ -183,11 +193,7 @@ fn config_display_shared_view_metadata_round_trip_behavior() {
     }
 
     let config = create_test_config().expect("raw config");
-    let view_transform =
-        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
-    view_transform
-        .set_name("SharedUnitViewTransform")
-        .expect("set name");
+    let view_transform = configured_view_transform("SharedUnitViewTransform");
     config.add_view_transform(&view_transform);
 
     config
@@ -232,11 +238,7 @@ fn config_virtual_display_metadata_round_trip_behavior() {
     }
 
     let config = create_test_config().expect("raw config");
-    let view_transform =
-        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
-    view_transform
-        .set_name("VirtualUnitView")
-        .expect("set name");
+    let view_transform = configured_view_transform("VirtualUnitView");
     config.add_view_transform(&view_transform);
 
     config
@@ -280,11 +282,7 @@ fn config_virtual_display_shared_view_behavior() {
     }
 
     let config = create_test_config().expect("raw config");
-    let view_transform =
-        ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
-    view_transform
-        .set_name("VirtualSharedUnitTransform")
-        .expect("set name");
+    let view_transform = configured_view_transform("VirtualSharedUnitTransform");
     config.add_view_transform(&view_transform);
 
     config
@@ -334,6 +332,46 @@ fn config_role_mutation_errors_surface_behavior() {
     let err = config
         .set_role("", "raw")
         .expect_err("empty role name should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
+
+#[test]
+fn config_processor_missing_color_space_errors_surface_behavior() {
+    let _guard = config_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let err = match config.processor("definitely_missing_colorspace", "raw") {
+        Ok(_) => panic!("missing color space should fail"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
+
+#[test]
+fn config_builtin_processor_invalid_builtin_errors_surface_behavior() {
+    let _guard = config_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let err = match config.processor_from_builtin_color_space(
+        "definitely_missing_builtin",
+        &config,
+        "raw",
+    ) {
+        Ok(_) => panic!("missing builtin color space should fail"),
+        Err(err) => err,
+    };
     assert!(
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"

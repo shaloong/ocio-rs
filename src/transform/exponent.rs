@@ -17,16 +17,20 @@ impl ExponentTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn value(&self) -> [f64; 4] {
+    pub fn value(&self) -> Result<[f64; 4]> {
         let mut v = [1.0f64; 4];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_transform_get_value(self.handle.as_ptr(), v.as_mut_ptr())
         };
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_value(&self, vec4: &[f64; 4]) {
+    pub fn set_value(&self, vec4: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_exponent_transform_set_value(self.handle.as_ptr(), vec4.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn negative_style(&self) -> NegativeStyle {
@@ -40,13 +44,15 @@ impl ExponentTransform {
         }
     }
 
-    pub fn set_negative_style(&self, style: NegativeStyle) {
+    pub fn set_negative_style(&self, style: NegativeStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_transform_set_negative_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -112,14 +118,14 @@ mod tests {
     fn value_no_crash() {
         let et = ExponentTransform::create().unwrap();
         let _ = et.value();
-        et.set_value(&[2.2, 2.2, 2.2, 1.0]);
+        let _ = et.set_value(&[2.2, 2.2, 2.2, 1.0]);
     }
 
     #[test]
     fn negative_style_no_crash() {
         let et = ExponentTransform::create().unwrap();
         let _ = et.negative_style();
-        et.set_negative_style(NegativeStyle::Mirror);
+        let _ = et.set_negative_style(NegativeStyle::Mirror);
     }
 
     #[test]

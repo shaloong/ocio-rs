@@ -17,44 +17,52 @@ impl ExponentWithLinearTransform {
             .ok_or(OcioError::AllocationFailed)
     }
 
-    pub fn gamma(&self) -> [f64; 4] {
+    pub fn gamma(&self) -> Result<[f64; 4]> {
         let mut vec4 = [1.0f64; 4];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_get_gamma(
                 self.handle.as_ptr(),
                 vec4.as_mut_ptr(),
             );
         }
-        vec4
+        crate::ocio_call_status()?;
+        Ok(vec4)
     }
 
-    pub fn set_gamma(&self, vec4: &[f64; 4]) {
+    pub fn set_gamma(&self, vec4: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_set_gamma(
                 self.handle.as_ptr(),
                 vec4.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn offset(&self) -> [f64; 4] {
+    pub fn offset(&self) -> Result<[f64; 4]> {
         let mut vec4 = [0.0f64; 4];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_get_offset(
                 self.handle.as_ptr(),
                 vec4.as_mut_ptr(),
             );
         }
-        vec4
+        crate::ocio_call_status()?;
+        Ok(vec4)
     }
 
-    pub fn set_offset(&self, vec4: &[f64; 4]) {
+    pub fn set_offset(&self, vec4: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_set_offset(
                 self.handle.as_ptr(),
                 vec4.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn negative_style(&self) -> NegativeStyle {
@@ -69,13 +77,15 @@ impl ExponentWithLinearTransform {
         }
     }
 
-    pub fn set_negative_style(&self, style: NegativeStyle) {
+    pub fn set_negative_style(&self, style: NegativeStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_set_negative_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -149,21 +159,21 @@ mod tests {
     fn gamma_no_crash() {
         let t = ExponentWithLinearTransform::create().unwrap();
         let _ = t.gamma();
-        t.set_gamma(&[1.0, 1.0, 1.0, 1.0]);
+        let _ = t.set_gamma(&[1.0, 1.0, 1.0, 1.0]);
     }
 
     #[test]
     fn offset_no_crash() {
         let t = ExponentWithLinearTransform::create().unwrap();
         let _ = t.offset();
-        t.set_offset(&[0.0, 0.0, 0.0, 0.0]);
+        let _ = t.set_offset(&[0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn negative_style_no_crash() {
         let t = ExponentWithLinearTransform::create().unwrap();
         let _ = t.negative_style();
-        t.set_negative_style(NegativeStyle::Mirror);
+        let _ = t.set_negative_style(NegativeStyle::Mirror);
     }
 
     #[test]

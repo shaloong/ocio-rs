@@ -1940,6 +1940,14 @@ impl DynamicProperty {
         }
     }
 
+    fn require_grading_rgb_curve_property(&self, operation: &'static str) -> Result<()> {
+        self.require_property_type(DynamicPropertyType::GradingRgbCurve, operation)
+    }
+
+    fn require_grading_hue_curve_property(&self, operation: &'static str) -> Result<()> {
+        self.require_property_type(DynamicPropertyType::GradingHueCurve, operation)
+    }
+
     pub fn property_type(&self) -> DynamicPropertyType {
         let t = unsafe {
             ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void)
@@ -2039,16 +2047,36 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
-    pub fn grading_rgb_curve_num_control_points(&self, curve_type: RGBCurveType) -> i32 {
-        unsafe {
+    pub fn grading_rgb_curve_num_control_points(&self, curve_type: RGBCurveType) -> Result<i32> {
+        self.require_grading_rgb_curve_property(
+            "DynamicProperty::grading_rgb_curve_num_control_points",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_num_control_points(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn grading_rgb_curve_set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
+    pub fn grading_rgb_curve_set_num_control_points(
+        &self,
+        curve_type: RGBCurveType,
+        num: i32,
+    ) -> Result<()> {
+        self.require_grading_rgb_curve_property(
+            "DynamicProperty::grading_rgb_curve_set_num_control_points",
+        )?;
+        if num < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_rgb_curve_set_num_control_points: num must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_num_control_points(
                 self.handle.as_ptr(),
@@ -2056,15 +2084,26 @@ impl DynamicProperty {
                 num,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn grading_rgb_curve_control_point(
         &self,
         curve_type: RGBCurveType,
         index: i32,
-    ) -> (f32, f32) {
+    ) -> Result<(f32, f32)> {
+        self.require_grading_rgb_curve_property(
+            "DynamicProperty::grading_rgb_curve_control_point",
+        )?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_rgb_curve_control_point: index must be non-negative"
+                    .to_string(),
+            ));
+        }
         let mut x = 0.0f32;
         let mut y = 0.0f32;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_control_point(
                 self.handle.as_ptr(),
@@ -2074,7 +2113,8 @@ impl DynamicProperty {
                 &mut y,
             );
         }
-        (x, y)
+        crate::ocio_call_status()?;
+        Ok((x, y))
     }
 
     pub fn grading_rgb_curve_set_control_point(
@@ -2083,7 +2123,17 @@ impl DynamicProperty {
         index: i32,
         x: f32,
         y: f32,
-    ) {
+    ) -> Result<()> {
+        self.require_grading_rgb_curve_property(
+            "DynamicProperty::grading_rgb_curve_set_control_point",
+        )?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_rgb_curve_set_control_point: index must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_control_point(
                 self.handle.as_ptr(),
@@ -2093,19 +2143,42 @@ impl DynamicProperty {
                 y,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn grading_rgb_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
-        unsafe {
+    pub fn grading_rgb_curve_slope(&self, curve_type: RGBCurveType, index: i32) -> Result<f32> {
+        self.require_grading_rgb_curve_property("DynamicProperty::grading_rgb_curve_slope")?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_rgb_curve_slope: index must be non-negative".to_string(),
+            ));
+        }
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_get_slope(
                 self.handle.as_ptr(),
                 curve_type as i32,
                 index,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn grading_rgb_curve_set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
+    pub fn grading_rgb_curve_set_slope(
+        &self,
+        curve_type: RGBCurveType,
+        index: i32,
+        slope: f32,
+    ) -> Result<()> {
+        self.require_grading_rgb_curve_property("DynamicProperty::grading_rgb_curve_set_slope")?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_rgb_curve_set_slope: index must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_set_slope(
                 self.handle.as_ptr(),
@@ -2114,27 +2187,54 @@ impl DynamicProperty {
                 slope,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn grading_rgb_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
-        unsafe {
+    pub fn grading_rgb_curve_slopes_are_default(&self, curve_type: RGBCurveType) -> Result<bool> {
+        self.require_grading_rgb_curve_property(
+            "DynamicProperty::grading_rgb_curve_slopes_are_default",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_rgb_curve_slopes_are_default(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn grading_hue_curve_num_control_points(&self, curve_type: HueCurveType) -> i32 {
-        unsafe {
+    pub fn grading_hue_curve_num_control_points(&self, curve_type: HueCurveType) -> Result<i32> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::grading_hue_curve_num_control_points",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_num_control_points(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn grading_hue_curve_set_num_control_points(&self, curve_type: HueCurveType, num: i32) {
+    pub fn grading_hue_curve_set_num_control_points(
+        &self,
+        curve_type: HueCurveType,
+        num: i32,
+    ) -> Result<()> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::grading_hue_curve_set_num_control_points",
+        )?;
+        if num < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_hue_curve_set_num_control_points: num must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_num_control_points(
                 self.handle.as_ptr(),
@@ -2142,15 +2242,26 @@ impl DynamicProperty {
                 num,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn grading_hue_curve_control_point(
         &self,
         curve_type: HueCurveType,
         index: i32,
-    ) -> (f32, f32) {
+    ) -> Result<(f32, f32)> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::grading_hue_curve_control_point",
+        )?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_hue_curve_control_point: index must be non-negative"
+                    .to_string(),
+            ));
+        }
         let mut x = 0.0f32;
         let mut y = 0.0f32;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_control_point(
                 self.handle.as_ptr(),
@@ -2160,7 +2271,8 @@ impl DynamicProperty {
                 &mut y,
             );
         }
-        (x, y)
+        crate::ocio_call_status()?;
+        Ok((x, y))
     }
 
     pub fn grading_hue_curve_set_control_point(
@@ -2169,7 +2281,17 @@ impl DynamicProperty {
         index: i32,
         x: f32,
         y: f32,
-    ) {
+    ) -> Result<()> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::grading_hue_curve_set_control_point",
+        )?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_hue_curve_set_control_point: index must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_control_point(
                 self.handle.as_ptr(),
@@ -2179,19 +2301,42 @@ impl DynamicProperty {
                 y,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn grading_hue_curve_slope(&self, curve_type: HueCurveType, index: i32) -> f32 {
-        unsafe {
+    pub fn grading_hue_curve_slope(&self, curve_type: HueCurveType, index: i32) -> Result<f32> {
+        self.require_grading_hue_curve_property("DynamicProperty::grading_hue_curve_slope")?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_hue_curve_slope: index must be non-negative".to_string(),
+            ));
+        }
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_get_slope(
                 self.handle.as_ptr(),
                 curve_type as i32,
                 index,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn grading_hue_curve_set_slope(&self, curve_type: HueCurveType, index: i32, slope: f32) {
+    pub fn grading_hue_curve_set_slope(
+        &self,
+        curve_type: HueCurveType,
+        index: i32,
+        slope: f32,
+    ) -> Result<()> {
+        self.require_grading_hue_curve_property("DynamicProperty::grading_hue_curve_set_slope")?;
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "DynamicProperty::grading_hue_curve_set_slope: index must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_set_slope(
                 self.handle.as_ptr(),
@@ -2200,15 +2345,22 @@ impl DynamicProperty {
                 slope,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn grading_hue_curve_slopes_are_default(&self, curve_type: HueCurveType) -> bool {
-        unsafe {
+    pub fn grading_hue_curve_slopes_are_default(&self, curve_type: HueCurveType) -> Result<bool> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::grading_hue_curve_slopes_are_default",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_dynamic_property_grading_hue_curve_slopes_are_default(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 }
 
@@ -2399,9 +2551,9 @@ mod tests {
                 let _ = dp.grading_rgb_curve_slope(ct, 0);
                 let _ = dp.grading_rgb_curve_slopes_are_default(ct);
             }
-            dp.grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 2);
-            dp.grading_rgb_curve_set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
-            dp.grading_rgb_curve_set_slope(RGBCurveType::Red, 0, 1.0);
+            let _ = dp.grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 2);
+            let _ = dp.grading_rgb_curve_set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
+            let _ = dp.grading_rgb_curve_set_slope(RGBCurveType::Red, 0, 1.0);
         }
     }
 
@@ -2421,9 +2573,9 @@ mod tests {
                 let _ = dp.grading_hue_curve_slope(ct, 0);
                 let _ = dp.grading_hue_curve_slopes_are_default(ct);
             }
-            dp.grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 2);
-            dp.grading_hue_curve_set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
-            dp.grading_hue_curve_set_slope(HueCurveType::HueHue, 0, 1.0);
+            let _ = dp.grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 2);
+            let _ = dp.grading_hue_curve_set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
+            let _ = dp.grading_hue_curve_set_slope(HueCurveType::HueHue, 0, 1.0);
         }
     }
 

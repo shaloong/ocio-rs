@@ -61,20 +61,37 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
     assert!(!transform.is_dynamic());
 
     let value = sample_rgb_curve_value();
-    transform.set_value(&value);
+    transform
+        .set_value(&value)
+        .expect("set grading rgb curve transform value");
     transform.set_bypass_lin_to_log(true);
 
-    let round_trip = transform.value();
+    let round_trip = transform.value().expect("grading rgb curve value");
     assert_eq!(round_trip.red, value.red);
     assert_eq!(round_trip.green, value.green);
     assert_eq!(round_trip.blue, value.blue);
     assert_eq!(round_trip.master, value.master);
-    assert_eq!(transform.num_control_points(RGBCurveType::Red), 3);
-    let (red_x, red_y) = transform.control_point(RGBCurveType::Red, 1);
+    assert_eq!(
+        transform
+            .num_control_points(RGBCurveType::Red)
+            .expect("grading rgb point count"),
+        3
+    );
+    let (red_x, red_y) = transform
+        .control_point(RGBCurveType::Red, 1)
+        .expect("grading rgb control point");
     assert_close(red_x as f64, 0.5, 1e-6);
     assert_close(red_y as f64, 0.6, 1e-6);
-    assert_close(transform.slope(RGBCurveType::Red, 1) as f64, 0.8, 1e-6);
-    assert!(!transform.slopes_are_default(RGBCurveType::Red));
+    assert_close(
+        transform
+            .slope(RGBCurveType::Red, 1)
+            .expect("grading rgb slope") as f64,
+        0.8,
+        1e-6,
+    );
+    assert!(!transform
+        .slopes_are_default(RGBCurveType::Red)
+        .expect("grading rgb slopes are default"));
     assert!(transform.bypass_lin_to_log());
 
     transform.make_dynamic();
@@ -87,18 +104,32 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
         .expect("grading rgb curve editable copy");
     copy.set_direction(TransformDirection::Inverse);
     copy.set_bypass_lin_to_log(false);
-    copy.set_slope(RGBCurveType::Blue, 1, 0.33);
+    copy.set_slope(RGBCurveType::Blue, 1, 0.33)
+        .expect("set copy rgb slope");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert!(!copy.bypass_lin_to_log());
-    assert_close(copy.slope(RGBCurveType::Blue, 1) as f64, 0.33, 1e-6);
+    assert_close(
+        copy.slope(RGBCurveType::Blue, 1).expect("copy rgb slope") as f64,
+        0.33,
+        1e-6,
+    );
     assert_eq!(transform.direction(), TransformDirection::Forward);
     assert!(transform.bypass_lin_to_log());
-    assert_close(transform.slope(RGBCurveType::Blue, 1) as f64, 1.1, 1e-6);
+    assert_close(
+        transform
+            .slope(RGBCurveType::Blue, 1)
+            .expect("original rgb slope") as f64,
+        1.1,
+        1e-6,
+    );
 
     transform.set_style(GradingStyle::Lin);
     assert_eq!(transform.style(), GradingStyle::Lin);
-    assert_eq!(transform.value(), baseline_lin.value());
+    assert_eq!(
+        transform.value().expect("rgb value after style reset"),
+        baseline_lin.value().expect("baseline lin rgb value")
+    );
     assert!(transform.bypass_lin_to_log());
 }
 
@@ -113,7 +144,9 @@ fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
     let seeded = sample_rgb_curve_value();
     let wrapper =
         GradingRGBCurveTransform::create(GradingStyle::Log).expect("wrapper grading rgb curve");
-    wrapper.set_value(&seeded);
+    wrapper
+        .set_value(&seeded)
+        .expect("seed wrapper grading rgb curve");
 
     unsafe {
         let handle = wrapper.raw_value_handle();
@@ -147,4 +180,49 @@ fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
         ocio_sys::ocio_grading_rgb_curve_destroy(handle);
         ocio_sys::ocio_grading_rgb_curve_transform_destroy(target);
     }
+}
+
+#[test]
+fn grading_rgb_curve_invalid_operations_surface_errors() {
+    let _guard = grading_rgb_curve_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform =
+        GradingRGBCurveTransform::create(GradingStyle::Log).expect("grading rgb curve create");
+
+    let negative_count_err = transform
+        .set_num_control_points(RGBCurveType::Red, -1)
+        .expect_err("negative rgb point count should fail");
+    assert!(
+        matches!(negative_count_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_count_err:?}"
+    );
+
+    let negative_index_err = transform
+        .control_point(RGBCurveType::Red, -1)
+        .expect_err("negative rgb point index should fail");
+    assert!(
+        matches!(negative_index_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_index_err:?}"
+    );
+
+    transform
+        .set_num_control_points(RGBCurveType::Red, 2)
+        .expect("seed rgb point count");
+
+    transform
+        .set_num_control_points(RGBCurveType::Red, 1)
+        .expect_err("too few rgb points should fail");
+    transform
+        .set_num_control_points(RGBCurveType::Red, 2)
+        .expect("restore rgb point count");
+
+    transform
+        .control_point(RGBCurveType::Red, 99)
+        .expect_err("out-of-range rgb point should fail");
+    transform
+        .set_slope(RGBCurveType::Red, 99, 0.5)
+        .expect_err("out-of-range rgb slope should fail");
 }

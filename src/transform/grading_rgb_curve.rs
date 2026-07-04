@@ -10,6 +10,28 @@ pub struct GradingRGBCurveTransform {
 }
 
 impl GradingRGBCurveTransform {
+    fn read_curve(&self, curve_type: RGBCurveType) -> Result<Vec<GradingCurvePoint>> {
+        let count = self.num_control_points(curve_type)?.max(0) as usize;
+        (0..count)
+            .map(|index| {
+                let index = index as i32;
+                let (x, y) = self.control_point(curve_type, index)?;
+                let slope = self.slope(curve_type, index)?;
+                Ok(GradingCurvePoint { x, y, slope })
+            })
+            .collect()
+    }
+
+    fn require_non_negative_index(index: i32, operation: &'static str) -> Result<()> {
+        if index < 0 {
+            Err(OcioError::InvalidInput(format!(
+                "{operation}: index must be non-negative"
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn create_with_style(style: GradingStyle) -> Result<Self> {
         Self::create(style)
     }
@@ -48,48 +70,34 @@ impl GradingRGBCurveTransform {
         }
     }
 
-    pub fn value(&self) -> GradingRGBCurveValue {
-        fn read_curve(
-            transform: &GradingRGBCurveTransform,
-            curve_type: RGBCurveType,
-        ) -> Vec<GradingCurvePoint> {
-            let count = transform.num_control_points(curve_type).max(0) as usize;
-            (0..count)
-                .map(|index| {
-                    let index = index as i32;
-                    let (x, y) = transform.control_point(curve_type, index);
-                    let slope = transform.slope(curve_type, index);
-                    GradingCurvePoint { x, y, slope }
-                })
-                .collect()
-        }
-
-        GradingRGBCurveValue {
-            red: read_curve(self, RGBCurveType::Red),
-            green: read_curve(self, RGBCurveType::Green),
-            blue: read_curve(self, RGBCurveType::Blue),
-            master: read_curve(self, RGBCurveType::Master),
-        }
+    pub fn value(&self) -> Result<GradingRGBCurveValue> {
+        Ok(GradingRGBCurveValue {
+            red: self.read_curve(RGBCurveType::Red)?,
+            green: self.read_curve(RGBCurveType::Green)?,
+            blue: self.read_curve(RGBCurveType::Blue)?,
+            master: self.read_curve(RGBCurveType::Master)?,
+        })
     }
 
-    pub fn set_value(&self, value: &GradingRGBCurveValue) {
+    pub fn set_value(&self, value: &GradingRGBCurveValue) -> Result<()> {
         fn write_curve(
             transform: &GradingRGBCurveTransform,
             curve_type: RGBCurveType,
             points: &[GradingCurvePoint],
-        ) {
-            transform.set_num_control_points(curve_type, points.len() as i32);
+        ) -> Result<()> {
+            transform.set_num_control_points(curve_type, points.len() as i32)?;
             for (index, point) in points.iter().enumerate() {
                 let index = index as i32;
-                transform.set_control_point(curve_type, index, point.x, point.y);
-                transform.set_slope(curve_type, index, point.slope);
+                transform.set_control_point(curve_type, index, point.x, point.y)?;
+                transform.set_slope(curve_type, index, point.slope)?;
             }
+            Ok(())
         }
 
-        write_curve(self, RGBCurveType::Red, &value.red);
-        write_curve(self, RGBCurveType::Green, &value.green);
-        write_curve(self, RGBCurveType::Blue, &value.blue);
-        write_curve(self, RGBCurveType::Master, &value.master);
+        write_curve(self, RGBCurveType::Red, &value.red)?;
+        write_curve(self, RGBCurveType::Green, &value.green)?;
+        write_curve(self, RGBCurveType::Blue, &value.blue)?;
+        write_curve(self, RGBCurveType::Master, &value.master)
     }
 
     #[deprecated(
@@ -112,18 +120,23 @@ impl GradingRGBCurveTransform {
         }
     }
 
-    pub fn num_control_points(&self, curve_type: RGBCurveType) -> i32 {
-        unsafe {
+    pub fn num_control_points(&self, curve_type: RGBCurveType) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_get_num_control_points(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn control_point(&self, curve_type: RGBCurveType, index: i32) -> (f32, f32) {
+    pub fn control_point(&self, curve_type: RGBCurveType, index: i32) -> Result<(f32, f32)> {
+        Self::require_non_negative_index(index, "GradingRGBCurveTransform::control_point")?;
         let mut x = 0.0f32;
         let mut y = 0.0f32;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_get_control_point(
                 self.handle.as_ptr(),
@@ -133,10 +146,18 @@ impl GradingRGBCurveTransform {
                 &mut y,
             );
         }
-        (x, y)
+        crate::ocio_call_status()?;
+        Ok((x, y))
     }
 
-    pub fn set_num_control_points(&self, curve_type: RGBCurveType, num: i32) {
+    pub fn set_num_control_points(&self, curve_type: RGBCurveType, num: i32) -> Result<()> {
+        if num < 0 {
+            return Err(OcioError::InvalidInput(
+                "GradingRGBCurveTransform::set_num_control_points: num must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_num_control_points(
                 self.handle.as_ptr(),
@@ -144,9 +165,18 @@ impl GradingRGBCurveTransform {
                 num,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn set_control_point(&self, curve_type: RGBCurveType, index: i32, x: f32, y: f32) {
+    pub fn set_control_point(
+        &self,
+        curve_type: RGBCurveType,
+        index: i32,
+        x: f32,
+        y: f32,
+    ) -> Result<()> {
+        Self::require_non_negative_index(index, "GradingRGBCurveTransform::set_control_point")?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_control_point(
                 self.handle.as_ptr(),
@@ -156,19 +186,26 @@ impl GradingRGBCurveTransform {
                 y,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn slope(&self, curve_type: RGBCurveType, index: i32) -> f32 {
-        unsafe {
+    pub fn slope(&self, curve_type: RGBCurveType, index: i32) -> Result<f32> {
+        Self::require_non_negative_index(index, "GradingRGBCurveTransform::slope")?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_get_slope(
                 self.handle.as_ptr(),
                 curve_type as i32,
                 index as usize,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) {
+    pub fn set_slope(&self, curve_type: RGBCurveType, index: i32, slope: f32) -> Result<()> {
+        Self::require_non_negative_index(index, "GradingRGBCurveTransform::set_slope")?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_slope(
                 self.handle.as_ptr(),
@@ -177,15 +214,19 @@ impl GradingRGBCurveTransform {
                 slope,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn slopes_are_default(&self, curve_type: RGBCurveType) -> bool {
-        unsafe {
+    pub fn slopes_are_default(&self, curve_type: RGBCurveType) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_slopes_are_default(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     pub fn bypass_lin_to_log(&self) -> bool {
@@ -301,10 +342,10 @@ mod tests {
     #[test]
     fn set_curve_no_crash() {
         let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_num_control_points(RGBCurveType::Red, 2);
-        t.set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
-        t.set_control_point(RGBCurveType::Red, 1, 1.0, 1.0);
-        t.set_slope(RGBCurveType::Red, 0, 1.0);
+        let _ = t.set_num_control_points(RGBCurveType::Red, 2);
+        let _ = t.set_control_point(RGBCurveType::Red, 0, 0.0, 0.0);
+        let _ = t.set_control_point(RGBCurveType::Red, 1, 1.0, 1.0);
+        let _ = t.set_slope(RGBCurveType::Red, 0, 1.0);
     }
 
     #[test]
@@ -315,11 +356,20 @@ mod tests {
                 crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
                 crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
             ],
-            green: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
-            blue: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
-            master: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            green: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            blue: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            master: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
         };
-        t.set_value(&value);
+        let _ = t.set_value(&value);
         let _ = t.value();
     }
 

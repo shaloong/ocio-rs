@@ -18,6 +18,10 @@ pub struct Config {
 }
 
 impl Config {
+    fn processor_handle_result(handle: *mut c_void) -> Result<Processor> {
+        crate::handle_result(handle).map(|handle| Processor { handle })
+    }
+
     /// Create a config from one of OCIO's built-in configuration presets.
     ///
     /// Use `BuiltinConfigRegistry` to enumerate the preset names exposed by the
@@ -838,6 +842,7 @@ impl Config {
     pub fn processor(&self, src: impl AsRef<str>, dst: impl AsRef<str>) -> Result<Processor> {
         let src = cstring(src)?;
         let dst = cstring(dst)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v2(
                 self.handle.as_ptr(),
@@ -845,9 +850,7 @@ impl Config {
                 dst.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     pub fn processor_from_color_spaces(
@@ -855,6 +858,7 @@ impl Config {
         src_color_space: &ColorSpace,
         dst_color_space: &ColorSpace,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v1(
                 self.handle.as_ptr(),
@@ -862,9 +866,7 @@ impl Config {
                 dst_color_space.handle.as_ptr(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -901,6 +903,7 @@ impl Config {
         let src = cstring(src)?;
         let display = cstring(display)?;
         let view = cstring(view)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v4(
                 self.handle.as_ptr(),
@@ -910,9 +913,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -932,6 +933,7 @@ impl Config {
         transform: &impl TransformHandle,
         direction: TransformDirection,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v11(
                 self.handle.as_ptr(),
@@ -939,9 +941,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     /// Create a processor from a transform using OCIO's default transform direction.
@@ -949,12 +949,11 @@ impl Config {
         &self,
         transform: &impl TransformHandle,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v10(self.handle.as_ptr(), transform.as_ptr())
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -987,6 +986,7 @@ impl Config {
     ) -> Result<Processor> {
         let src = cstring(src)?;
         let dst = cstring(dst)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v3(
                 self.handle.as_ptr(),
@@ -995,9 +995,7 @@ impl Config {
                 dst.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1026,6 +1024,7 @@ impl Config {
         let src = cstring(src)?;
         let display = cstring(display)?;
         let view = cstring(view)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v5(
                 self.handle.as_ptr(),
@@ -1036,9 +1035,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1064,6 +1061,7 @@ impl Config {
         transform: &impl TransformHandle,
         direction: TransformDirection,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v12(
                 self.handle.as_ptr(),
@@ -1072,9 +1070,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1097,6 +1093,7 @@ impl Config {
         named_transform: &NamedTransform,
         direction: TransformDirection,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v6(
                 self.handle.as_ptr(),
@@ -1104,9 +1101,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1129,6 +1124,7 @@ impl Config {
         named_transform: &NamedTransform,
         direction: TransformDirection,
     ) -> Result<Processor> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v7(
                 self.handle.as_ptr(),
@@ -1137,9 +1133,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1163,6 +1157,7 @@ impl Config {
         direction: TransformDirection,
     ) -> Result<Processor> {
         let named_transform_name = cstring(named_transform_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v8(
                 self.handle.as_ptr(),
@@ -1170,9 +1165,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1196,6 +1189,7 @@ impl Config {
         direction: TransformDirection,
     ) -> Result<Processor> {
         let named_transform_name = cstring(named_transform_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_v9(
                 self.handle.as_ptr(),
@@ -1204,9 +1198,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1231,6 +1223,7 @@ impl Config {
     ) -> Result<Processor> {
         let src_color_space_name = cstring(src_color_space_name)?;
         let builtin_color_space_name = cstring(builtin_color_space_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_to_builtin_color_space(
                 self.handle.as_ptr(),
@@ -1239,9 +1232,7 @@ impl Config {
                 builtin_color_space_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1270,6 +1261,7 @@ impl Config {
     ) -> Result<Processor> {
         let builtin_color_space_name = cstring(builtin_color_space_name)?;
         let src_color_space_name = cstring(src_color_space_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_builtin_color_space(
                 self.handle.as_ptr(),
@@ -1278,9 +1270,7 @@ impl Config {
                 src_color_space_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1309,6 +1299,7 @@ impl Config {
     ) -> Result<Processor> {
         let src_name = cstring(src_name)?;
         let dst_name = cstring(dst_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs(
                 src_config.handle.as_ptr(),
@@ -1318,9 +1309,7 @@ impl Config {
                 dst_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     pub fn processor_from_configs_with_contexts(
@@ -1334,6 +1323,7 @@ impl Config {
     ) -> Result<Processor> {
         let src_color_space_name = cstring(src_color_space_name)?;
         let dst_color_space_name = cstring(dst_color_space_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v1(
                 self.handle.as_ptr(),
@@ -1345,9 +1335,7 @@ impl Config {
                 dst_color_space_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1387,6 +1375,7 @@ impl Config {
         let src_interchange_name = cstring(src_interchange_name)?;
         let dst_color_space_name = cstring(dst_color_space_name)?;
         let dst_interchange_name = cstring(dst_interchange_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v2(
                 self.handle.as_ptr(),
@@ -1398,9 +1387,7 @@ impl Config {
                 dst_interchange_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1443,6 +1430,7 @@ impl Config {
         let src_interchange_name = cstring(src_interchange_name)?;
         let dst_color_space_name = cstring(dst_color_space_name)?;
         let dst_interchange_name = cstring(dst_interchange_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v3(
                 self.handle.as_ptr(),
@@ -1456,9 +1444,7 @@ impl Config {
                 dst_interchange_name.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1502,6 +1488,7 @@ impl Config {
         let src_color_space_name = cstring(src_color_space_name)?;
         let dst_display = cstring(dst_display)?;
         let dst_view = cstring(dst_view)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v4(
                 self.handle.as_ptr(),
@@ -1513,9 +1500,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[doc(hidden)]
@@ -1557,6 +1542,7 @@ impl Config {
         let src_color_space_name = cstring(src_color_space_name)?;
         let dst_display = cstring(dst_display)?;
         let dst_view = cstring(dst_view)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v5(
                 self.handle.as_ptr(),
@@ -1570,9 +1556,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1621,6 +1605,7 @@ impl Config {
         let dst_display = cstring(dst_display)?;
         let dst_view = cstring(dst_view)?;
         let dst_interchange_name = cstring(dst_interchange_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v6(
                 self.handle.as_ptr(),
@@ -1634,9 +1619,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1687,6 +1670,7 @@ impl Config {
         let dst_display = cstring(dst_display)?;
         let dst_view = cstring(dst_view)?;
         let dst_interchange_name = cstring(dst_interchange_name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_processor_from_configs_v7(
                 self.handle.as_ptr(),
@@ -1702,9 +1686,7 @@ impl Config {
                 direction as i32,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Processor { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        Self::processor_handle_result(handle)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2628,12 +2610,11 @@ impl Config {
 
     /// Create an editable clone of the config.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_create_editable_copy(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     // --- Context ---
@@ -2701,6 +2682,7 @@ impl Config {
     // --- ColorSpaceSet ---
 
     pub fn color_space_set<S: AsRef<str>>(&self, search: Option<S>) -> Result<ColorSpaceSet> {
+        crate::clear_last_error();
         let handle = match search {
             Some(ref s) => {
                 let s = cstring(s.as_ref())?;
@@ -2712,20 +2694,17 @@ impl Config {
                 ocio_sys::ocio_config_get_color_spaces(self.handle.as_ptr(), std::ptr::null())
             },
         };
-        NonNull::new(handle)
-            .map(|h| ColorSpaceSet { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| ColorSpaceSet { handle })
     }
 
     // --- FileRules ---
 
     /// Return the editable file-rules object attached to this config.
     pub fn file_rules(&self) -> Result<FileRules> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_config_get_file_rules(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(handle)
-            .map(|h| FileRules { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| FileRules { handle })
     }
 
     /// Attach a file-rules object to this config.
