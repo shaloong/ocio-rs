@@ -288,9 +288,8 @@ fn main() {
 
         // Primary OCIO library
         println!(
-            "cargo:rustc-link-lib={}={}",
-            link_mode.rustc_link_kind(),
-            "OpenColorIO"
+            "cargo:rustc-link-lib={}=OpenColorIO",
+            link_mode.rustc_link_kind()
         );
 
         if link_mode.is_static() {
