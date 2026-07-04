@@ -47,12 +47,23 @@ cargo test
 git clone --recursive https://github.com/shaloong/ocio-rs
 cargo build --features bundled
 
+# 将 bundled OCIO 编译为动态库
+OCIO_RS_LINK=dynamic cargo build --features bundled
+
 # 使用预装的 OCIO
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+
+# 使用预装的 OCIO 动态库，而不是静态库
+OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
 ```
 
 `OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
 OCIO 模式。
+
+`OCIO_RS_LINK` 默认是 `static`，以保持兼容性。如果 `OCIO_INSTALL_DIR` 指向的
+OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `shared` 和 `dylib`）。
+运行程序时仍需确保系统 loader 能找到 OCIO 动态库，例如通过 `LD_LIBRARY_PATH`、
+`DYLD_LIBRARY_PATH`、`PATH`，或包管理器提供的运行时配置。
 
 ## 架构
 

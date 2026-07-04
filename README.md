@@ -55,12 +55,25 @@ cargo test
 git clone --recursive https://github.com/shaloong/ocio-rs
 cargo build --features bundled
 
+# Build bundled OCIO as shared libraries
+OCIO_RS_LINK=dynamic cargo build --features bundled
+
 # Use a pre-installed OCIO
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+
+# Use a pre-installed shared OCIO library instead of static libs
+OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
 ```
 
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
+
+`OCIO_RS_LINK` defaults to `static` for compatibility. Set it to `dynamic`
+(`shared` and `dylib` are also accepted) when `OCIO_INSTALL_DIR` points at an
+OpenColorIO install with shared libraries. Make sure your platform loader can
+find the OCIO runtime library at execution time, for example via
+`LD_LIBRARY_PATH`, `DYLD_LIBRARY_PATH`, `PATH`, or your package manager's normal
+runtime setup.
 
 The published `ocio-sys` crate now vendors the upstream OpenColorIO source tree
 plus the transitive dependency sources used by the current bundled build

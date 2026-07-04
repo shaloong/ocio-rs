@@ -33,6 +33,9 @@ cargo build --features bundled
 # Pre-installed OCIO
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
+# Pre-installed OCIO, linked dynamically
+OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
+
 # OCIO source tree override for the bundled build path
 OCIO_RS_ENABLE_REAL=1 OCIO_SOURCE_DIR=/path/to/ocio cargo build --features bundled
 ```
@@ -42,7 +45,14 @@ consumed by the bundled build path, so use it together with
 `OCIO_RS_ENABLE_REAL=1` and `--features bundled` when overriding the vendored
 OpenColorIO source tree.
 
-Static linking (Windows) requires: OpenColorIO, expat, yaml-cpp, Imath, pystring, minizip-ng, zlib, plus system libs (gdi32, user32, etc.). With `--features bundled`, OCIO's cmake fetches and builds all transitive dependencies automatically.
+`OCIO_RS_LINK` controls how real OCIO is linked. It defaults to `static` for
+compatibility and accepts `dynamic`, `shared`, or `dylib` for shared-library
+linking. Static linking requires OpenColorIO, expat, yaml-cpp, Imath, pystring,
+minizip-ng, zlib, plus platform system libs. With `--features bundled`, OCIO's
+cmake fetches and builds all transitive dependencies automatically. Dynamic
+linking only links the primary OpenColorIO library from Rust; the platform
+loader must be able to find the OCIO runtime library when tests or applications
+run.
 
 ## Code Generator
 
