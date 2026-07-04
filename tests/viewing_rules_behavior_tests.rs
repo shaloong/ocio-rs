@@ -90,3 +90,66 @@ fn config_viewing_rules_attachment_behavior() {
     assert_eq!(attached.custom_key_name(0, 0).as_deref(), Some("camera"));
     assert_eq!(attached.custom_key_value(0, 0).as_deref(), Some("A001"));
 }
+
+#[test]
+fn viewing_rules_mutation_errors_surface_behavior() {
+    let _guard = viewing_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let rules = ViewingRules::create().expect("viewing rules create");
+    rules
+        .insert_rule(0, "ColorSpaceRule")
+        .expect("insert color-space rule");
+    rules
+        .add_color_space(0, "raw")
+        .expect("add initial color space");
+
+    let add_encoding_err = rules
+        .add_encoding(0, "scene-linear")
+        .expect_err("encoding should fail when colorspaces exist");
+    assert!(
+        matches!(add_encoding_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_encoding_err:?}"
+    );
+
+    let remove_missing_color_space_err = rules
+        .try_remove_color_space(0, 1)
+        .expect_err("missing color-space index should fail");
+    assert!(
+        matches!(remove_missing_color_space_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {remove_missing_color_space_err:?}"
+    );
+
+    rules
+        .insert_rule(1, "EncodingRule")
+        .expect("insert encoding rule");
+    rules
+        .add_encoding(1, "scene-linear")
+        .expect("add initial encoding");
+
+    let add_color_space_err = rules
+        .add_color_space(1, "raw")
+        .expect_err("colorspace should fail when encodings exist");
+    assert!(
+        matches!(add_color_space_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_color_space_err:?}"
+    );
+
+    let duplicate_rule_err = rules
+        .insert_rule(2, "EncodingRule")
+        .expect_err("duplicate rule name should fail");
+    assert!(
+        matches!(duplicate_rule_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {duplicate_rule_err:?}"
+    );
+
+    let remove_missing_rule_err = rules
+        .try_remove_rule(5)
+        .expect_err("missing rule index should fail");
+    assert!(
+        matches!(remove_missing_rule_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {remove_missing_rule_err:?}"
+    );
+}

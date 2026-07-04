@@ -21,6 +21,21 @@ fn grading_hue_curve_transform_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+fn identity_hue_curve() -> Vec<GradingCurvePoint> {
+    vec![
+        GradingCurvePoint::new(0.0, 0.0, 1.0),
+        GradingCurvePoint::new(1.0, 1.0, 1.0),
+    ]
+}
+
+fn periodic_hue_curve() -> Vec<GradingCurvePoint> {
+    vec![
+        GradingCurvePoint::new(0.0, 0.0, 1.0),
+        GradingCurvePoint::new(0.25, 0.2, 0.9),
+        GradingCurvePoint::new(0.5, 0.4, 1.0),
+    ]
+}
+
 #[test]
 fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
     let _guard = grading_hue_curve_transform_test_lock();
@@ -41,31 +56,56 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
         hue_hue: vec![
             GradingCurvePoint::new(0.0, 0.0, 1.0),
             GradingCurvePoint::new(1.0 / 6.0, 0.2, 0.5),
-            GradingCurvePoint::new(1.0 / 3.0, 0.0, 1.0),
+            GradingCurvePoint::new(1.0 / 3.0, 0.4, 1.0),
         ],
-        hue_sat: vec![],
-        hue_lum: vec![],
+        hue_sat: periodic_hue_curve(),
+        hue_lum: periodic_hue_curve(),
         lum_sat: vec![
             GradingCurvePoint::new(0.0, 0.0, 1.0),
             GradingCurvePoint::new(0.75, -0.1, 1.2),
             GradingCurvePoint::new(1.0, 0.0, 1.0),
         ],
     };
-    transform.set_value(&value);
+    transform
+        .set_value(&value)
+        .expect("set grading hue curve transform value");
     transform.set_rgb_to_hsy(HSYTransformStyle::None);
 
-    let round_trip = transform.value();
+    let round_trip = transform.value().expect("grading hue curve value");
     assert_eq!(round_trip.lum_sat, value.lum_sat);
-    assert_eq!(transform.num_control_points(HueCurveType::HueHue), 3);
-    let (hue_x, hue_y) = transform.control_point(HueCurveType::HueHue, 1);
+    assert_eq!(
+        transform
+            .num_control_points(HueCurveType::HueHue)
+            .expect("grading hue point count"),
+        3
+    );
+    let (hue_x, hue_y) = transform
+        .control_point(HueCurveType::HueHue, 1)
+        .expect("grading hue control point");
     assert_close(hue_x as f64, 1.0 / 6.0, 1e-6);
     assert_close(hue_y as f64, 0.2, 1e-6);
-    assert_close(transform.slope(HueCurveType::HueHue, 1) as f64, 0.5, 1e-6);
-    assert!(!transform.slopes_are_default(HueCurveType::HueHue));
-    let (lum_sat_x, lum_sat_y) = transform.control_point(HueCurveType::LumSat, 1);
+    assert_close(
+        transform
+            .slope(HueCurveType::HueHue, 1)
+            .expect("grading hue slope") as f64,
+        0.5,
+        1e-6,
+    );
+    assert!(!transform
+        .slopes_are_default(HueCurveType::HueHue)
+        .expect("grading hue slopes are default"));
+    let (lum_sat_x, lum_sat_y) = transform
+        .control_point(HueCurveType::LumSat, 1)
+        .expect("grading lum_sat control point");
     assert_close(lum_sat_x as f64, 0.75, 1e-6);
     assert_close(lum_sat_y as f64, -0.1, 1e-6);
-    assert_close(transform.slope(HueCurveType::LumSat, 1) as f64, 1.2, 1e-6);
+    assert_close(
+        transform
+            .slope(HueCurveType::LumSat, 1)
+            .expect("grading lum_sat slope") as f64,
+        1.2,
+        1e-6,
+    );
     assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::None);
 
     transform.make_dynamic();
@@ -78,18 +118,32 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
         .expect("grading hue curve editable copy");
     copy.set_direction(TransformDirection::Inverse);
     copy.set_rgb_to_hsy(HSYTransformStyle::Default);
-    copy.set_slope(HueCurveType::LumSat, 1, 0.25);
+    copy.set_slope(HueCurveType::LumSat, 1, 0.25)
+        .expect("set copy hue slope");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_eq!(copy.rgb_to_hsy(), HSYTransformStyle::Default);
-    assert_close(copy.slope(HueCurveType::LumSat, 1) as f64, 0.25, 1e-6);
+    assert_close(
+        copy.slope(HueCurveType::LumSat, 1).expect("copy hue slope") as f64,
+        0.25,
+        1e-6,
+    );
     assert_eq!(transform.direction(), TransformDirection::Forward);
     assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::None);
-    assert_close(transform.slope(HueCurveType::LumSat, 1) as f64, 1.2, 1e-6);
+    assert_close(
+        transform
+            .slope(HueCurveType::LumSat, 1)
+            .expect("original hue slope") as f64,
+        1.2,
+        1e-6,
+    );
 
     transform.set_style(GradingStyle::Lin);
     assert_eq!(transform.style(), GradingStyle::Lin);
-    assert_eq!(transform.value(), baseline_lin.value());
+    assert_eq!(
+        transform.value().expect("hue value after style reset"),
+        baseline_lin.value().expect("baseline lin hue value")
+    );
     assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::None);
 }
 
@@ -103,15 +157,17 @@ fn grading_hue_curve_raw_value_handle_survives_parent_drop() {
 
     let wrapper =
         GradingHueCurveTransform::create(GradingStyle::Log).expect("wrapper grading hue curve");
-    wrapper.set_value(&GradingHueCurveValue {
-        hue_hue: vec![
-            GradingCurvePoint::new(0.0, 0.0, 1.0),
-            GradingCurvePoint::new(0.25, 0.3, 0.7),
-        ],
-        hue_sat: vec![],
-        hue_lum: vec![],
-        lum_sat: vec![],
-    });
+    wrapper
+        .set_value(&GradingHueCurveValue {
+            hue_hue: vec![
+                GradingCurvePoint::new(0.0, 0.0, 1.0),
+                GradingCurvePoint::new(0.25, 0.3, 0.7),
+            ],
+            hue_sat: periodic_hue_curve(),
+            hue_lum: periodic_hue_curve(),
+            lum_sat: identity_hue_curve(),
+        })
+        .expect("seed wrapper grading hue curve");
 
     unsafe {
         let handle = wrapper.raw_value_handle();
@@ -145,4 +201,49 @@ fn grading_hue_curve_raw_value_handle_survives_parent_drop() {
         ocio_sys::ocio_grading_hue_curve_destroy(handle);
         ocio_sys::ocio_grading_hue_curve_transform_destroy(target);
     }
+}
+
+#[test]
+fn grading_hue_curve_invalid_operations_surface_errors() {
+    let _guard = grading_hue_curve_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform =
+        GradingHueCurveTransform::create(GradingStyle::Log).expect("grading hue curve create");
+
+    let negative_count_err = transform
+        .set_num_control_points(HueCurveType::HueHue, -1)
+        .expect_err("negative hue point count should fail");
+    assert!(
+        matches!(negative_count_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_count_err:?}"
+    );
+
+    let negative_index_err = transform
+        .control_point(HueCurveType::HueHue, -1)
+        .expect_err("negative hue point index should fail");
+    assert!(
+        matches!(negative_index_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_index_err:?}"
+    );
+
+    transform
+        .set_num_control_points(HueCurveType::HueHue, 2)
+        .expect("seed hue point count");
+
+    transform
+        .set_num_control_points(HueCurveType::HueHue, 1)
+        .expect_err("too few hue points should fail");
+    transform
+        .set_num_control_points(HueCurveType::HueHue, 2)
+        .expect("restore hue point count");
+
+    transform
+        .control_point(HueCurveType::HueHue, 99)
+        .expect_err("out-of-range hue point should fail");
+    transform
+        .set_slope(HueCurveType::HueHue, 99, 0.5)
+        .expect_err("out-of-range hue slope should fail");
 }

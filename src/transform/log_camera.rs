@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
-use crate::{OcioError, Result, TransformDirection};
+use crate::{Result, TransformDirection};
 use ocio_sys;
 
 pub struct LogCameraTransform {
@@ -14,161 +14,190 @@ impl LogCameraTransform {
     }
 
     pub fn create(lin_side_break_values: &[f64; 3]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_log_camera_transform_create_with_lin_side_break(
                 lin_side_break_values.as_ptr(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    pub fn base(&self) -> f64 {
-        unsafe { ocio_sys::ocio_log_camera_transform_get_base(self.handle.as_ptr()) }
+    pub fn base(&self) -> Result<f64> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_log_camera_transform_get_base(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn set_base(&self, base: f64) {
+    pub fn set_base(&self, base: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_base(self.handle.as_ptr(), base);
         }
+        crate::ocio_call_status()
     }
 
-    pub fn log_side_slope_value(&self) -> [f64; 3] {
+    pub fn log_side_slope_value(&self) -> Result<[f64; 3]> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_get_log_side_slope_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_log_side_slope_value(&self, values: &[f64; 3]) {
+    pub fn set_log_side_slope_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_log_side_slope_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn log_side_offset_value(&self) -> [f64; 3] {
+    pub fn log_side_offset_value(&self) -> Result<[f64; 3]> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_get_log_side_offset_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_log_side_offset_value(&self, values: &[f64; 3]) {
+    pub fn set_log_side_offset_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_log_side_offset_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn lin_side_slope_value(&self) -> [f64; 3] {
+    pub fn lin_side_slope_value(&self) -> Result<[f64; 3]> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_get_lin_side_slope_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_lin_side_slope_value(&self, values: &[f64; 3]) {
+    pub fn set_lin_side_slope_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_lin_side_slope_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn lin_side_offset_value(&self) -> [f64; 3] {
+    pub fn lin_side_offset_value(&self) -> Result<[f64; 3]> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_get_lin_side_offset_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_lin_side_offset_value(&self, values: &[f64; 3]) {
+    pub fn set_lin_side_offset_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_lin_side_offset_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn lin_side_break_value(&self) -> [f64; 3] {
+    pub fn lin_side_break_value(&self) -> Result<[f64; 3]> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_get_lin_side_break_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_lin_side_break_value(&self, values: &[f64; 3]) {
+    pub fn set_lin_side_break_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_lin_side_break_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn linear_slope_value(&self) -> Option<[f64; 3]> {
+    pub fn linear_slope_value(&self) -> Result<Option<[f64; 3]>> {
         let mut v = [0.0f64; 3];
+        crate::clear_last_error();
         let ok = unsafe {
             ocio_sys::ocio_log_camera_transform_get_linear_slope_value(
                 self.handle.as_ptr(),
                 v.as_mut_ptr(),
             )
         };
+        crate::ocio_call_status()?;
         if ok {
-            Some(v)
+            Ok(Some(v))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn set_linear_slope_value(&self, values: &[f64; 3]) {
+    pub fn set_linear_slope_value(&self, values: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_linear_slope_value(
                 self.handle.as_ptr(),
                 values.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn unset_linear_slope_value(&self) {
+    pub fn unset_linear_slope_value(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_unset_linear_slope_value(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -242,14 +271,14 @@ mod tests {
     #[test]
     fn set_values_no_crash() {
         let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
-        t.set_base(10.0);
-        t.set_log_side_slope_value(&[1.0, 1.0, 1.0]);
-        t.set_log_side_offset_value(&[0.0, 0.0, 0.0]);
-        t.set_lin_side_slope_value(&[1.0, 1.0, 1.0]);
-        t.set_lin_side_offset_value(&[0.0, 0.0, 0.0]);
-        t.set_lin_side_break_value(&[0.01, 0.01, 0.01]);
-        t.set_linear_slope_value(&[1.0, 1.0, 1.0]);
-        t.unset_linear_slope_value();
+        let _ = t.set_base(10.0);
+        let _ = t.set_log_side_slope_value(&[1.0, 1.0, 1.0]);
+        let _ = t.set_log_side_offset_value(&[0.0, 0.0, 0.0]);
+        let _ = t.set_lin_side_slope_value(&[1.0, 1.0, 1.0]);
+        let _ = t.set_lin_side_offset_value(&[0.0, 0.0, 0.0]);
+        let _ = t.set_lin_side_break_value(&[0.01, 0.01, 0.01]);
+        let _ = t.set_linear_slope_value(&[1.0, 1.0, 1.0]);
+        let _ = t.unset_linear_slope_value();
     }
 
     #[test]

@@ -10,6 +10,28 @@ pub struct GradingHueCurveTransform {
 }
 
 impl GradingHueCurveTransform {
+    fn read_curve(&self, curve_type: HueCurveType) -> Result<Vec<GradingCurvePoint>> {
+        let count = self.num_control_points(curve_type)?.max(0) as usize;
+        (0..count)
+            .map(|index| {
+                let index = index as i32;
+                let (x, y) = self.control_point(curve_type, index)?;
+                let slope = self.slope(curve_type, index)?;
+                Ok(GradingCurvePoint { x, y, slope })
+            })
+            .collect()
+    }
+
+    fn require_non_negative_index(index: i32, operation: &'static str) -> Result<()> {
+        if index < 0 {
+            Err(OcioError::InvalidInput(format!(
+                "{operation}: index must be non-negative"
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn create_with_style(style: GradingStyle) -> Result<Self> {
         Self::create(style)
     }
@@ -48,48 +70,34 @@ impl GradingHueCurveTransform {
         }
     }
 
-    pub fn value(&self) -> GradingHueCurveValue {
-        fn read_curve(
-            transform: &GradingHueCurveTransform,
-            curve_type: HueCurveType,
-        ) -> Vec<GradingCurvePoint> {
-            let count = transform.num_control_points(curve_type).max(0) as usize;
-            (0..count)
-                .map(|index| {
-                    let index = index as i32;
-                    let (x, y) = transform.control_point(curve_type, index);
-                    let slope = transform.slope(curve_type, index);
-                    GradingCurvePoint { x, y, slope }
-                })
-                .collect()
-        }
-
-        GradingHueCurveValue {
-            hue_hue: read_curve(self, HueCurveType::HueHue),
-            hue_sat: read_curve(self, HueCurveType::HueSat),
-            hue_lum: read_curve(self, HueCurveType::HueLum),
-            lum_sat: read_curve(self, HueCurveType::LumSat),
-        }
+    pub fn value(&self) -> Result<GradingHueCurveValue> {
+        Ok(GradingHueCurveValue {
+            hue_hue: self.read_curve(HueCurveType::HueHue)?,
+            hue_sat: self.read_curve(HueCurveType::HueSat)?,
+            hue_lum: self.read_curve(HueCurveType::HueLum)?,
+            lum_sat: self.read_curve(HueCurveType::LumSat)?,
+        })
     }
 
-    pub fn set_value(&self, value: &GradingHueCurveValue) {
+    pub fn set_value(&self, value: &GradingHueCurveValue) -> Result<()> {
         fn write_curve(
             transform: &GradingHueCurveTransform,
             curve_type: HueCurveType,
             points: &[GradingCurvePoint],
-        ) {
-            transform.set_num_control_points(curve_type, points.len() as i32);
+        ) -> Result<()> {
+            transform.set_num_control_points(curve_type, points.len() as i32)?;
             for (index, point) in points.iter().enumerate() {
                 let index = index as i32;
-                transform.set_control_point(curve_type, index, point.x, point.y);
-                transform.set_slope(curve_type, index, point.slope);
+                transform.set_control_point(curve_type, index, point.x, point.y)?;
+                transform.set_slope(curve_type, index, point.slope)?;
             }
+            Ok(())
         }
 
-        write_curve(self, HueCurveType::HueHue, &value.hue_hue);
-        write_curve(self, HueCurveType::HueSat, &value.hue_sat);
-        write_curve(self, HueCurveType::HueLum, &value.hue_lum);
-        write_curve(self, HueCurveType::LumSat, &value.lum_sat);
+        write_curve(self, HueCurveType::HueHue, &value.hue_hue)?;
+        write_curve(self, HueCurveType::HueSat, &value.hue_sat)?;
+        write_curve(self, HueCurveType::HueLum, &value.hue_lum)?;
+        write_curve(self, HueCurveType::LumSat, &value.lum_sat)
     }
 
     #[deprecated(
@@ -112,18 +120,23 @@ impl GradingHueCurveTransform {
         }
     }
 
-    pub fn num_control_points(&self, curve_type: HueCurveType) -> i32 {
-        unsafe {
+    pub fn num_control_points(&self, curve_type: HueCurveType) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_get_num_control_points(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn control_point(&self, curve_type: HueCurveType, index: i32) -> (f32, f32) {
+    pub fn control_point(&self, curve_type: HueCurveType, index: i32) -> Result<(f32, f32)> {
+        Self::require_non_negative_index(index, "GradingHueCurveTransform::control_point")?;
         let mut x = 0.0f32;
         let mut y = 0.0f32;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_get_control_point(
                 self.handle.as_ptr(),
@@ -133,10 +146,18 @@ impl GradingHueCurveTransform {
                 &mut y,
             );
         }
-        (x, y)
+        crate::ocio_call_status()?;
+        Ok((x, y))
     }
 
-    pub fn set_num_control_points(&self, curve_type: HueCurveType, num: i32) {
+    pub fn set_num_control_points(&self, curve_type: HueCurveType, num: i32) -> Result<()> {
+        if num < 0 {
+            return Err(OcioError::InvalidInput(
+                "GradingHueCurveTransform::set_num_control_points: num must be non-negative"
+                    .to_string(),
+            ));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_num_control_points(
                 self.handle.as_ptr(),
@@ -144,9 +165,18 @@ impl GradingHueCurveTransform {
                 num,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn set_control_point(&self, curve_type: HueCurveType, index: i32, x: f32, y: f32) {
+    pub fn set_control_point(
+        &self,
+        curve_type: HueCurveType,
+        index: i32,
+        x: f32,
+        y: f32,
+    ) -> Result<()> {
+        Self::require_non_negative_index(index, "GradingHueCurveTransform::set_control_point")?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_control_point(
                 self.handle.as_ptr(),
@@ -156,19 +186,26 @@ impl GradingHueCurveTransform {
                 y,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn slope(&self, curve_type: HueCurveType, index: i32) -> f32 {
-        unsafe {
+    pub fn slope(&self, curve_type: HueCurveType, index: i32) -> Result<f32> {
+        Self::require_non_negative_index(index, "GradingHueCurveTransform::slope")?;
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_get_slope(
                 self.handle.as_ptr(),
                 curve_type as i32,
                 index as usize,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
-    pub fn set_slope(&self, curve_type: HueCurveType, index: i32, slope: f32) {
+    pub fn set_slope(&self, curve_type: HueCurveType, index: i32, slope: f32) -> Result<()> {
+        Self::require_non_negative_index(index, "GradingHueCurveTransform::set_slope")?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_slope(
                 self.handle.as_ptr(),
@@ -177,15 +214,19 @@ impl GradingHueCurveTransform {
                 slope,
             );
         }
+        crate::ocio_call_status()
     }
 
-    pub fn slopes_are_default(&self, curve_type: HueCurveType) -> bool {
-        unsafe {
+    pub fn slopes_are_default(&self, curve_type: HueCurveType) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_slopes_are_default(
                 self.handle.as_ptr(),
                 curve_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     pub fn rgb_to_hsy(&self) -> HSYTransformStyle {
@@ -305,10 +346,10 @@ mod tests {
     #[test]
     fn set_curve_no_crash() {
         let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_num_control_points(HueCurveType::HueHue, 2);
-        t.set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
-        t.set_control_point(HueCurveType::HueHue, 1, 1.0, 1.0);
-        t.set_slope(HueCurveType::HueHue, 0, 1.0);
+        let _ = t.set_num_control_points(HueCurveType::HueHue, 2);
+        let _ = t.set_control_point(HueCurveType::HueHue, 0, 0.0, 0.0);
+        let _ = t.set_control_point(HueCurveType::HueHue, 1, 1.0, 1.0);
+        let _ = t.set_slope(HueCurveType::HueHue, 0, 1.0);
     }
 
     #[test]
@@ -319,11 +360,20 @@ mod tests {
                 crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
                 crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
             ],
-            hue_sat: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
-            hue_lum: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
-            lum_sat: vec![crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0)],
+            hue_sat: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            hue_lum: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
+            lum_sat: vec![
+                crate::grading::GradingCurvePoint::new(0.0, 0.0, 1.0),
+                crate::grading::GradingCurvePoint::new(1.0, 1.0, 1.0),
+            ],
         };
-        t.set_value(&value);
+        let _ = t.set_value(&value);
         let _ = t.value();
     }
 

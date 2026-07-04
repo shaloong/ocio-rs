@@ -159,3 +159,22 @@ fn config_color_space_set_category_filter_behavior() {
         .expect("missing category color spaces");
     assert_eq!(missing.num_color_spaces(), 0);
 }
+
+#[test]
+fn color_space_set_registration_errors_surface_behavior() {
+    let _guard = color_space_set_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let set = ColorSpaceSet::create().expect("color space set create");
+    let unnamed = ColorSpace::create().expect("color space create");
+
+    let add_err = set
+        .try_add_color_space(&unnamed)
+        .expect_err("unnamed color space should fail");
+    assert!(
+        matches!(add_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {add_err:?}"
+    );
+}

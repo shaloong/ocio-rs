@@ -291,6 +291,18 @@ impl ColorSpace {
         }
     }
 
+    pub fn set_interop_id(&self, interop_id: impl AsRef<str>) -> Result<()> {
+        let interop_id = cstring(interop_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_interop_id(
+                self.handle.as_ptr(),
+                interop_id.as_ptr().cast(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     pub fn set_interchange_attribute(
         &self,
         name: impl AsRef<str>,
@@ -298,6 +310,7 @@ impl ColorSpace {
     ) -> Result<()> {
         let name = cstring(name)?;
         let value = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_interchange_attribute(
                 self.handle.as_ptr(),
@@ -305,7 +318,7 @@ impl ColorSpace {
                 value.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {

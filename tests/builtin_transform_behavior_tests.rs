@@ -64,6 +64,23 @@ fn builtin_transform_style_description_and_copy_behavior() {
 }
 
 #[test]
+fn builtin_transform_invalid_style_surfaces_error_behavior() {
+    let _guard = builtin_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = BuiltinTransform::create().expect("builtin transform create");
+    let err = transform
+        .set_style("not-a-real-builtin-style")
+        .expect_err("invalid builtin style should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
+
+#[test]
 fn builtin_transform_processor_round_trip_behavior() {
     let _guard = builtin_transform_test_lock();
     if is_stub() {

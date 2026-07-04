@@ -99,6 +99,7 @@ impl ViewingRules {
     /// Append a color-space selector to a rule.
     pub fn add_color_space(&self, rule_index: u64, color_space: impl AsRef<str>) -> Result<()> {
         let color_space = cstring(color_space)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_add_color_space(
                 self.handle.as_ptr(),
@@ -106,11 +107,18 @@ impl ViewingRules {
                 color_space.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Remove one color-space selector from a rule.
     pub fn remove_color_space(&self, rule_index: u64, color_space_index: u64) {
+        self.try_remove_color_space(rule_index, color_space_index)
+            .expect("ViewingRules::remove_color_space failed");
+    }
+
+    /// Remove one color-space selector from a rule and surface any OCIO validation error.
+    pub fn try_remove_color_space(&self, rule_index: u64, color_space_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_remove_color_space(
                 self.handle.as_ptr(),
@@ -118,6 +126,7 @@ impl ViewingRules {
                 color_space_index as usize,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the number of encodings attached to a rule.
@@ -144,6 +153,7 @@ impl ViewingRules {
     /// Append an encoding selector to a rule.
     pub fn add_encoding(&self, rule_index: u64, encoding: impl AsRef<str>) -> Result<()> {
         let encoding = cstring(encoding)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_add_encoding(
                 self.handle.as_ptr(),
@@ -151,11 +161,18 @@ impl ViewingRules {
                 encoding.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Remove one encoding selector from a rule.
     pub fn remove_encoding(&self, rule_index: u64, encoding_index: u64) {
+        self.try_remove_encoding(rule_index, encoding_index)
+            .expect("ViewingRules::remove_encoding failed");
+    }
+
+    /// Remove one encoding selector from a rule and surface any OCIO validation error.
+    pub fn try_remove_encoding(&self, rule_index: u64, encoding_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_remove_encoding(
                 self.handle.as_ptr(),
@@ -163,6 +180,7 @@ impl ViewingRules {
                 encoding_index as usize,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the number of custom keys attached to a rule.
@@ -206,6 +224,7 @@ impl ViewingRules {
     ) -> Result<()> {
         let key = cstring(key)?;
         let value = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_set_custom_key(
                 self.handle.as_ptr(),
@@ -214,12 +233,13 @@ impl ViewingRules {
                 value.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Insert a new viewing rule at the requested index.
     pub fn insert_rule(&self, rule_index: u64, rule_name: impl AsRef<str>) -> Result<()> {
         let rule_name = cstring(rule_name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_insert_rule(
                 self.handle.as_ptr(),
@@ -227,14 +247,22 @@ impl ViewingRules {
                 rule_name.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Remove a viewing rule by index.
     pub fn remove_rule(&self, rule_index: u64) {
+        self.try_remove_rule(rule_index)
+            .expect("ViewingRules::remove_rule failed");
+    }
+
+    /// Remove a viewing rule by index and surface any OCIO validation error.
+    pub fn try_remove_rule(&self, rule_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_viewing_rules_remove_rule(self.handle.as_ptr(), rule_index as usize)
         };
+        crate::ocio_call_status()
     }
 }
 

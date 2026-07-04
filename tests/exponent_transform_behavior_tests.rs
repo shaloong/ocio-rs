@@ -22,8 +22,12 @@ fn exponent_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_exponent_transform() -> ExponentTransform {
     let transform = ExponentTransform::create().expect("exponent transform create");
-    transform.set_value(&[2.0, 2.0, 2.0, 1.0]);
-    transform.set_negative_style(NegativeStyle::PassThru);
+    transform
+        .set_value(&[2.0, 2.0, 2.0, 1.0])
+        .expect("set exponent transform value");
+    transform
+        .set_negative_style(NegativeStyle::PassThru)
+        .expect("set exponent negative style");
     transform
 }
 
@@ -36,24 +40,61 @@ fn exponent_transform_value_copy_and_direction_behavior() {
 
     let transform = configured_exponent_transform();
 
-    assert_vec_close(&transform.value(), &[2.0, 2.0, 2.0, 1.0], 1e-10);
+    assert_vec_close(
+        &transform.value().expect("exponent transform value"),
+        &[2.0, 2.0, 2.0, 1.0],
+        1e-10,
+    );
     assert_eq!(transform.negative_style(), NegativeStyle::PassThru);
     assert_eq!(transform.direction(), TransformDirection::Forward);
 
     let copy = transform
         .create_editable_copy()
         .expect("exponent transform editable copy");
-    copy.set_value(&[1.0, 1.0, 1.0, 1.0]);
-    copy.set_negative_style(NegativeStyle::Mirror);
+    copy.set_value(&[1.0, 1.0, 1.0, 1.0])
+        .expect("set exponent copy value");
+    copy.set_negative_style(NegativeStyle::Mirror)
+        .expect("set exponent copy negative style");
     copy.set_direction(TransformDirection::Inverse);
 
-    assert_vec_close(&copy.value(), &[1.0, 1.0, 1.0, 1.0], 1e-10);
+    assert_vec_close(
+        &copy.value().expect("exponent copy value"),
+        &[1.0, 1.0, 1.0, 1.0],
+        1e-10,
+    );
     assert_eq!(copy.negative_style(), NegativeStyle::Mirror);
     assert_eq!(copy.direction(), TransformDirection::Inverse);
 
-    assert_vec_close(&transform.value(), &[2.0, 2.0, 2.0, 1.0], 1e-10);
+    assert_vec_close(
+        &transform
+            .value()
+            .expect("exponent transform value after copy"),
+        &[2.0, 2.0, 2.0, 1.0],
+        1e-10,
+    );
     assert_eq!(transform.negative_style(), NegativeStyle::PassThru);
     assert_eq!(transform.direction(), TransformDirection::Forward);
+}
+
+#[test]
+fn exponent_transform_invalid_negative_style_surfaces_error() {
+    let _guard = exponent_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = ExponentTransform::create().expect("exponent transform create");
+    transform
+        .set_value(&[2.0, 2.0, 2.0, 1.0])
+        .expect("seed exponent value");
+
+    let err = transform
+        .set_negative_style(NegativeStyle::Linear)
+        .expect_err("linear negative style should be rejected for basic exponent");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
 }
 
 #[test]

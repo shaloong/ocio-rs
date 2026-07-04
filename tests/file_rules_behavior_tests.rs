@@ -145,3 +145,57 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
         Some("raw")
     );
 }
+
+#[test]
+fn file_rules_invalid_index_reports_error_behavior() {
+    let _guard = file_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let rules = FileRules::create().expect("file_rules create");
+    let invalid_index = rules.num_entries() + 100;
+
+    let set_pattern_error = rules
+        .set_pattern(invalid_index, "*.exr")
+        .expect_err("invalid index should fail");
+    assert!(
+        matches!(set_pattern_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {set_pattern_error:?}"
+    );
+
+    let insert_path_search_error = rules
+        .try_insert_path_search_rule(invalid_index)
+        .expect_err("invalid path-search insertion index should fail");
+    assert!(
+        matches!(insert_path_search_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {insert_path_search_error:?}"
+    );
+
+    let remove_default_error = rules
+        .try_remove_rule(0)
+        .expect_err("default rule removal should fail");
+    assert!(
+        matches!(remove_default_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {remove_default_error:?}"
+    );
+
+    let increase_default_error = rules
+        .try_increase_rule_priority(0)
+        .expect_err("default rule priority increase should fail");
+    assert!(
+        matches!(increase_default_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {increase_default_error:?}"
+    );
+
+    rules
+        .insert_rule(0, "PriorityRule", "raw", "*.exr", "exr")
+        .expect("insert priority test rule");
+    let decrease_front_rule_error = rules
+        .try_decrease_rule_priority(0)
+        .expect_err("front rule should not move onto default rule");
+    assert!(
+        matches!(decrease_front_rule_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {decrease_front_rule_error:?}"
+    );
+}

@@ -98,9 +98,23 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
         processor_prop.property_type(),
         DynamicPropertyType::Exposure
     );
-    assert_close(processor_prop.double_value(), 0.0, 1e-8);
-    processor_prop.set_double_value(1.0);
-    assert_close(processor_prop.double_value(), 1.0, 1e-8);
+    assert_close(
+        processor_prop
+            .double_value()
+            .expect("processor prop double value"),
+        0.0,
+        1e-8,
+    );
+    processor_prop
+        .set_double_value(1.0)
+        .expect("set processor prop double value");
+    assert_close(
+        processor_prop
+            .double_value()
+            .expect("processor prop double value after update"),
+        1.0,
+        1e-8,
+    );
 
     let cpu = processor
         .default_cpu_processor()
@@ -112,7 +126,11 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("cpu dynamic property");
     assert_eq!(cpu_prop.property_type(), DynamicPropertyType::Exposure);
-    assert_close(cpu_prop.double_value(), 1.0, 1e-8);
+    assert_close(
+        cpu_prop.double_value().expect("cpu prop double value"),
+        1.0,
+        1e-8,
+    );
 
     let mut pixel = [0.25f32, 0.5, 0.125, 1.0];
     cpu.apply_rgba(&mut pixel);
@@ -140,10 +158,22 @@ fn dynamic_exposure_cpu_property_round_trip_and_output_behavior() {
     assert!(cpu.is_dynamic());
     assert!(cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure));
     assert_eq!(cpu_prop.property_type(), DynamicPropertyType::Exposure);
-    assert_close(cpu_prop.double_value(), 0.0, 1e-8);
+    assert_close(
+        cpu_prop.double_value().expect("cpu prop double value"),
+        0.0,
+        1e-8,
+    );
 
-    cpu_prop.set_double_value(-1.0);
-    assert_close(cpu_prop.double_value(), -1.0, 1e-8);
+    cpu_prop
+        .set_double_value(-1.0)
+        .expect("set cpu prop double value");
+    assert_close(
+        cpu_prop
+            .double_value()
+            .expect("cpu prop double value after update"),
+        -1.0,
+        1e-8,
+    );
 
     let input = [0.25f32, 0.5, 0.125, 1.0];
 
@@ -181,7 +211,9 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     value.contrast.master = 1.15;
     value.gain.blue = 1.25;
     value.saturation = 0.9;
-    processor_prop.set_grading_primary_value(&value);
+    processor_prop
+        .set_grading_primary_value(&value)
+        .expect("set grading primary value");
 
     let round_trip = processor_prop
         .grading_primary_value()
@@ -210,7 +242,9 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
 
     let mut cpu_update = cpu_value.clone();
     cpu_update.offset.green = -0.05;
-    cpu_prop.set_grading_primary_value(&cpu_update);
+    cpu_prop
+        .set_grading_primary_value(&cpu_update)
+        .expect("set cpu grading primary value");
     let cpu_after_update = cpu_prop
         .grading_primary_value()
         .expect("cpu grading primary after cpu update");
@@ -247,7 +281,9 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     value.midtones.master = 1.1;
     value.highlights.width = 0.8;
     value.scontrast = 1.2;
-    processor_prop.set_grading_tone_value(&value);
+    processor_prop
+        .set_grading_tone_value(&value)
+        .expect("set grading tone value");
 
     let round_trip = processor_prop
         .grading_tone_value()
@@ -273,7 +309,9 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
 
     let mut cpu_update = cpu_value.clone();
     cpu_update.whites.start = 0.65;
-    cpu_prop.set_grading_tone_value(&cpu_update);
+    cpu_prop
+        .set_grading_tone_value(&cpu_update)
+        .expect("set cpu grading tone value");
     let cpu_after_update = cpu_prop
         .grading_tone_value()
         .expect("cpu grading tone after cpu update");
@@ -309,31 +347,40 @@ fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
         GradingCurvePoint::new(0.5, 0.6, 0.8),
         GradingCurvePoint::new(1.0, 1.0, 1.0),
     ];
-    processor_prop.grading_rgb_curve_set_num_control_points(RGBCurveType::Red, points.len() as i32);
+    processor_prop
+        .grading_rgb_curve_set_num_control_points(RGBCurveType::Red, points.len() as i32)
+        .expect("set processor rgb curve point count");
     for (index, point) in points.iter().enumerate() {
         let index = index as i32;
-        processor_prop.grading_rgb_curve_set_control_point(
-            RGBCurveType::Red,
-            index,
-            point.x,
-            point.y,
-        );
-        processor_prop.grading_rgb_curve_set_slope(RGBCurveType::Red, index, point.slope);
+        processor_prop
+            .grading_rgb_curve_set_control_point(RGBCurveType::Red, index, point.x, point.y)
+            .expect("set processor rgb curve control point");
+        processor_prop
+            .grading_rgb_curve_set_slope(RGBCurveType::Red, index, point.slope)
+            .expect("set processor rgb curve slope");
     }
 
     assert_eq!(
-        processor_prop.grading_rgb_curve_num_control_points(RGBCurveType::Red),
+        processor_prop
+            .grading_rgb_curve_num_control_points(RGBCurveType::Red)
+            .expect("processor rgb curve point count"),
         points.len() as i32
     );
-    let (x, y) = processor_prop.grading_rgb_curve_control_point(RGBCurveType::Red, 1);
+    let (x, y) = processor_prop
+        .grading_rgb_curve_control_point(RGBCurveType::Red, 1)
+        .expect("processor rgb curve control point");
     assert_close(x as f64, 0.5, 1e-6);
     assert_close(y as f64, 0.6, 1e-6);
     assert_close(
-        processor_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        processor_prop
+            .grading_rgb_curve_slope(RGBCurveType::Red, 1)
+            .expect("processor rgb curve slope") as f64,
         0.8,
         1e-6,
     );
-    assert!(!processor_prop.grading_rgb_curve_slopes_are_default(RGBCurveType::Red));
+    assert!(!processor_prop
+        .grading_rgb_curve_slopes_are_default(RGBCurveType::Red)
+        .expect("processor rgb slopes are default"));
 
     let cpu = processor
         .default_cpu_processor()
@@ -342,26 +389,38 @@ fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
         .dynamic_property(DynamicPropertyType::GradingRgbCurve)
         .expect("cpu grading rgb curve property");
     assert_eq!(
-        cpu_prop.grading_rgb_curve_num_control_points(RGBCurveType::Red),
+        cpu_prop
+            .grading_rgb_curve_num_control_points(RGBCurveType::Red)
+            .expect("cpu rgb curve point count"),
         points.len() as i32
     );
-    let (cpu_x, cpu_y) = cpu_prop.grading_rgb_curve_control_point(RGBCurveType::Red, 1);
+    let (cpu_x, cpu_y) = cpu_prop
+        .grading_rgb_curve_control_point(RGBCurveType::Red, 1)
+        .expect("cpu rgb curve control point");
     assert_close(cpu_x as f64, 0.5, 1e-6);
     assert_close(cpu_y as f64, 0.6, 1e-6);
     assert_close(
-        cpu_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        cpu_prop
+            .grading_rgb_curve_slope(RGBCurveType::Red, 1)
+            .expect("cpu rgb curve slope") as f64,
         0.8,
         1e-6,
     );
 
-    cpu_prop.grading_rgb_curve_set_slope(RGBCurveType::Red, 1, 0.33);
+    cpu_prop
+        .grading_rgb_curve_set_slope(RGBCurveType::Red, 1, 0.33)
+        .expect("set cpu rgb curve slope");
     assert_close(
-        cpu_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        cpu_prop
+            .grading_rgb_curve_slope(RGBCurveType::Red, 1)
+            .expect("cpu rgb curve slope after update") as f64,
         0.33,
         1e-6,
     );
     assert_close(
-        processor_prop.grading_rgb_curve_slope(RGBCurveType::Red, 1) as f64,
+        processor_prop
+            .grading_rgb_curve_slope(RGBCurveType::Red, 1)
+            .expect("processor rgb curve slope after cpu update") as f64,
         0.8,
         1e-6,
     );
@@ -390,34 +449,42 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
     let points = [
         GradingCurvePoint::new(0.0, 0.0, 1.0),
         GradingCurvePoint::new(1.0 / 6.0, 0.2, 0.5),
-        GradingCurvePoint::new(1.0 / 3.0, 0.0, 1.0),
+        GradingCurvePoint::new(1.0 / 3.0, 0.4, 1.0),
     ];
     processor_prop
-        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, points.len() as i32);
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, points.len() as i32)
+        .expect("set processor hue curve point count");
     for (index, point) in points.iter().enumerate() {
         let index = index as i32;
-        processor_prop.grading_hue_curve_set_control_point(
-            HueCurveType::HueHue,
-            index,
-            point.x,
-            point.y,
-        );
-        processor_prop.grading_hue_curve_set_slope(HueCurveType::HueHue, index, point.slope);
+        processor_prop
+            .grading_hue_curve_set_control_point(HueCurveType::HueHue, index, point.x, point.y)
+            .expect("set processor hue curve control point");
+        processor_prop
+            .grading_hue_curve_set_slope(HueCurveType::HueHue, index, point.slope)
+            .expect("set processor hue curve slope");
     }
 
     assert_eq!(
-        processor_prop.grading_hue_curve_num_control_points(HueCurveType::HueHue),
+        processor_prop
+            .grading_hue_curve_num_control_points(HueCurveType::HueHue)
+            .expect("processor hue curve point count"),
         points.len() as i32
     );
-    let (x, y) = processor_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
+    let (x, y) = processor_prop
+        .grading_hue_curve_control_point(HueCurveType::HueHue, 1)
+        .expect("processor hue curve control point");
     assert_close(x as f64, 1.0 / 6.0, 1e-6);
     assert_close(y as f64, 0.2, 1e-6);
     assert_close(
-        processor_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        processor_prop
+            .grading_hue_curve_slope(HueCurveType::HueHue, 1)
+            .expect("processor hue curve slope") as f64,
         0.5,
         1e-6,
     );
-    assert!(!processor_prop.grading_hue_curve_slopes_are_default(HueCurveType::HueHue));
+    assert!(!processor_prop
+        .grading_hue_curve_slopes_are_default(HueCurveType::HueHue)
+        .expect("processor hue slopes are default"));
 
     let cpu = processor
         .default_cpu_processor()
@@ -426,27 +493,204 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
         .dynamic_property(DynamicPropertyType::GradingHueCurve)
         .expect("cpu grading hue curve property");
     assert_eq!(
-        cpu_prop.grading_hue_curve_num_control_points(HueCurveType::HueHue),
+        cpu_prop
+            .grading_hue_curve_num_control_points(HueCurveType::HueHue)
+            .expect("cpu hue curve point count"),
         points.len() as i32
     );
-    let (cpu_x, cpu_y) = cpu_prop.grading_hue_curve_control_point(HueCurveType::HueHue, 1);
+    let (cpu_x, cpu_y) = cpu_prop
+        .grading_hue_curve_control_point(HueCurveType::HueHue, 1)
+        .expect("cpu hue curve control point");
     assert_close(cpu_x as f64, 1.0 / 6.0, 1e-6);
     assert_close(cpu_y as f64, 0.2, 1e-6);
     assert_close(
-        cpu_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        cpu_prop
+            .grading_hue_curve_slope(HueCurveType::HueHue, 1)
+            .expect("cpu hue curve slope") as f64,
         0.5,
         1e-6,
     );
 
-    cpu_prop.grading_hue_curve_set_slope(HueCurveType::HueHue, 1, 0.25);
+    cpu_prop
+        .grading_hue_curve_set_slope(HueCurveType::HueHue, 1, 0.25)
+        .expect("set cpu hue curve slope");
     assert_close(
-        cpu_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        cpu_prop
+            .grading_hue_curve_slope(HueCurveType::HueHue, 1)
+            .expect("cpu hue curve slope after update") as f64,
         0.25,
         1e-6,
     );
     assert_close(
-        processor_prop.grading_hue_curve_slope(HueCurveType::HueHue, 1) as f64,
+        processor_prop
+            .grading_hue_curve_slope(HueCurveType::HueHue, 1)
+            .expect("processor hue curve slope after cpu update") as f64,
         0.5,
         1e-6,
     );
+}
+
+#[test]
+fn dynamic_property_type_mismatch_surfaces_invalid_input_behavior() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let exposure_processor = dynamic_exposure_processor().expect("dynamic exposure processor");
+    let exposure_prop = exposure_processor
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .expect("exposure property");
+
+    let grading_primary_err = exposure_prop
+        .grading_primary_value()
+        .expect_err("reading grading primary from exposure property should fail");
+    assert!(
+        matches!(grading_primary_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {grading_primary_err:?}"
+    );
+
+    let set_grading_primary_err = exposure_prop
+        .set_grading_primary_value(&ocio_rs::grading::GradingPrimary::new(GradingStyle::Log))
+        .expect_err("setting grading primary on exposure property should fail");
+    assert!(
+        matches!(set_grading_primary_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {set_grading_primary_err:?}"
+    );
+
+    let grading_primary_processor =
+        dynamic_grading_primary_processor().expect("dynamic grading primary processor");
+    let grading_primary_prop = grading_primary_processor
+        .dynamic_property(DynamicPropertyType::GradingPrimary)
+        .expect("grading primary property");
+
+    let double_err = grading_primary_prop
+        .double_value()
+        .expect_err("reading double from grading primary property should fail");
+    assert!(
+        matches!(double_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {double_err:?}"
+    );
+
+    let set_double_err = grading_primary_prop
+        .set_double_value(1.0)
+        .expect_err("setting double on grading primary property should fail");
+    assert!(
+        matches!(set_double_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {set_double_err:?}"
+    );
+
+    let grading_rgb_curve_err = exposure_prop
+        .grading_rgb_curve_num_control_points(RGBCurveType::Red)
+        .expect_err("reading rgb curve from exposure property should fail");
+    assert!(
+        matches!(grading_rgb_curve_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {grading_rgb_curve_err:?}"
+    );
+
+    let grading_hue_curve_err = exposure_prop
+        .grading_hue_curve_num_control_points(HueCurveType::HueHue)
+        .expect_err("reading hue curve from exposure property should fail");
+    assert!(
+        matches!(grading_hue_curve_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {grading_hue_curve_err:?}"
+    );
+}
+
+#[test]
+fn dynamic_property_curve_invalid_operations_surface_errors() {
+    let _guard = dynamic_property_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let rgb_processor =
+        dynamic_grading_rgb_curve_processor().expect("dynamic grading rgb curve processor");
+    let rgb_prop = rgb_processor
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .expect("grading rgb curve property");
+
+    let negative_count_err = rgb_prop
+        .grading_rgb_curve_set_num_control_points(RGBCurveType::Red, -1)
+        .expect_err("negative rgb point count should fail");
+    assert!(
+        matches!(negative_count_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_count_err:?}"
+    );
+
+    let negative_index_err = rgb_prop
+        .grading_rgb_curve_control_point(RGBCurveType::Red, -1)
+        .expect_err("negative rgb control point index should fail");
+    assert!(
+        matches!(negative_index_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_index_err:?}"
+    );
+
+    rgb_prop
+        .grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 2)
+        .expect("seed rgb point count");
+
+    let too_few_points_err = rgb_prop
+        .grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 1)
+        .expect_err("too few rgb control points should fail in real OCIO");
+    assert!(
+        !matches!(too_few_points_err, ocio_rs::OcioError::InvalidInput(_)),
+        "expected OCIO runtime validation error, got: {too_few_points_err:?}"
+    );
+
+    rgb_prop
+        .grading_rgb_curve_set_num_control_points(RGBCurveType::Red, 2)
+        .expect("restore rgb point count");
+
+    rgb_prop
+        .grading_rgb_curve_control_point(RGBCurveType::Red, 99)
+        .expect_err("out-of-range rgb control point should fail");
+    rgb_prop
+        .grading_rgb_curve_set_slope(RGBCurveType::Red, 99, 0.5)
+        .expect_err("out-of-range rgb slope should fail");
+
+    let hue_processor =
+        dynamic_grading_hue_curve_processor().expect("dynamic grading hue curve processor");
+    let hue_prop = hue_processor
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .expect("grading hue curve property");
+
+    let negative_hue_count_err = hue_prop
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, -1)
+        .expect_err("negative hue point count should fail");
+    assert!(
+        matches!(negative_hue_count_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_hue_count_err:?}"
+    );
+
+    let negative_hue_index_err = hue_prop
+        .grading_hue_curve_control_point(HueCurveType::HueHue, -1)
+        .expect_err("negative hue control point index should fail");
+    assert!(
+        matches!(negative_hue_index_err, ocio_rs::OcioError::InvalidInput(_)),
+        "unexpected error variant: {negative_hue_index_err:?}"
+    );
+
+    hue_prop
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 2)
+        .expect("seed hue point count");
+
+    let too_few_hue_points_err = hue_prop
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 1)
+        .expect_err("too few hue control points should fail in real OCIO");
+    assert!(
+        !matches!(too_few_hue_points_err, ocio_rs::OcioError::InvalidInput(_)),
+        "expected OCIO runtime validation error, got: {too_few_hue_points_err:?}"
+    );
+
+    hue_prop
+        .grading_hue_curve_set_num_control_points(HueCurveType::HueHue, 2)
+        .expect("restore hue point count");
+
+    hue_prop
+        .grading_hue_curve_control_point(HueCurveType::HueHue, 99)
+        .expect_err("out-of-range hue control point should fail");
+    hue_prop
+        .grading_hue_curve_set_slope(HueCurveType::HueHue, 99, 0.5)
+        .expect_err("out-of-range hue slope should fail");
 }

@@ -11,7 +11,9 @@ use std::path::Path;
 fn main() {
     let mut include_paths = Vec::<PathBuf>::new();
     let mut link_paths = Vec::<PathBuf>::new();
+    let mut runtime_paths = Vec::<PathBuf>::new();
     let mut has_real_ocio = false;
+    let link_mode = LinkMode::from_env();
 
     // Real OCIO is enabled when:
     // 1. OCIO_RS_ENABLE_REAL=1 is explicitly set (manual override), OR
@@ -27,6 +29,11 @@ fn main() {
         include_paths.push(dir.join("include"));
         link_paths.push(dir.join("lib"));
         link_paths.push(dir.join("lib64"));
+        if link_mode.is_dynamic() {
+            push_existing_path(&mut runtime_paths, dir.join("bin"));
+            push_existing_path(&mut runtime_paths, dir.join("lib"));
+            push_existing_path(&mut runtime_paths, dir.join("lib64"));
+        }
         // Transitive deps may also be installed alongside OCIO
         for ext_candidate in &[
             dir.join("ext").join("dist"),
@@ -40,6 +47,10 @@ fn main() {
             if inc_dir.exists() {
                 include_paths.push(inc_dir);
             }
+            if link_mode.is_dynamic() {
+                push_existing_path(&mut runtime_paths, ext_candidate.join("bin"));
+                push_existing_path(&mut runtime_paths, ext_candidate.join("lib"));
+            }
         }
         has_real_ocio = true;
     } else if is_bundled {
@@ -48,7 +59,7 @@ fn main() {
                 let mut config = cmake::Config::new(&ocio_source);
                 config
                     .profile("Release")
-                    .define("BUILD_SHARED_LIBS", "OFF")
+                    .define("BUILD_SHARED_LIBS", link_mode.cmake_build_shared_libs())
                     .define("OCIO_BUILD_APPS", "OFF")
                     .define("OCIO_BUILD_OPENFX", "OFF")
                     .define("OCIO_BUILD_NUKE", "OFF")
@@ -121,15 +132,13 @@ fn main() {
                         .unwrap_or(false)
                         || (configured_generator.is_none() && find_windows_ninja().is_some());
 
-                    bundled_out_dir = bundled_cmake_out_dir(
-                        &bundled_out_dir,
-                        &ocio_source,
-                        if using_ninja {
-                            "cmake-ninja"
-                        } else {
-                            "cmake-vs"
-                        },
-                    );
+                    let generator_tag = if using_ninja {
+                        link_mode.cmake_out_dir_tag("cmake-ninja")
+                    } else {
+                        link_mode.cmake_out_dir_tag("cmake-vs")
+                    };
+                    bundled_out_dir =
+                        bundled_cmake_out_dir(&bundled_out_dir, &ocio_source, &generator_tag);
 
                     if !using_ninja {
                         // Visual Studio builds of bundled OCIO have shown
@@ -146,7 +155,7 @@ fn main() {
                 }
 
                 #[cfg(not(target_os = "windows"))]
-                bundled_out_dir.push("cmake");
+                bundled_out_dir.push(link_mode.cmake_out_dir_tag("cmake"));
 
                 config.out_dir(&bundled_out_dir);
                 config.build()
@@ -157,6 +166,9 @@ fn main() {
                     include_paths.push(dst.join("include"));
                     link_paths.push(dst.join("lib"));
                     link_paths.push(dst.join("lib64"));
+                    if link_mode.is_dynamic() {
+                        push_existing_path(&mut runtime_paths, dst.join("bin"));
+                    }
 
                     // OCIO_INSTALL_EXT_PACKAGES=ALL builds transitive deps
                     // under <build_dir>/ext/dist. The cmake crate uses
@@ -173,6 +185,17 @@ fn main() {
                         if inc_dir.exists() {
                             include_paths.push(inc_dir);
                         }
+                        if link_mode.is_dynamic() {
+                            push_existing_path(&mut runtime_paths, ext_candidate.join("bin"));
+                            push_existing_path(&mut runtime_paths, ext_candidate.join("lib"));
+                        }
+                    }
+
+                    if link_mode.is_dynamic() {
+                        collect_runtime_dll_dirs(
+                            &mut runtime_paths,
+                            &dst.join("build").join("ext").join("build"),
+                        );
                     }
 
                     has_real_ocio = true;
@@ -195,6 +218,10 @@ fn main() {
         panic!("Real OCIO requested but no OCIO_INSTALL_DIR was provided and bundled source is disabled.");
     }
 
+    if cfg!(target_os = "windows") && is_bundled && link_mode.is_dynamic() {
+        copy_runtime_dlls_to_cargo_target_dirs(&runtime_paths);
+    }
+
     let mut build = cc::Build::new();
     build
         .cpp(true)
@@ -203,7 +230,9 @@ fn main() {
         .flag_if_supported("-std=c++17");
 
     if cfg!(target_os = "windows") {
-        build.define("OpenColorIO_SKIP_IMPORTS", None);
+        if link_mode.is_static() {
+            build.define("OpenColorIO_SKIP_IMPORTS", None);
+        }
         // Enable asynchronous exception handling so the bridge can catch
         // structured exceptions (access violations, etc.) that OCIO's
         // C++ code might trigger on invalid input paths.
@@ -251,21 +280,31 @@ fn main() {
                 println!("cargo:rustc-link-search=native={}", lib_dir.display());
             }
         }
+        if link_mode.is_dynamic() {
+            for runtime_dir in &runtime_paths {
+                println!("cargo:rustc-link-search=native={}", runtime_dir.display());
+            }
+        }
 
         // Primary OCIO library
-        println!("cargo:rustc-link-lib=static=OpenColorIO");
+        println!(
+            "cargo:rustc-link-lib={}=OpenColorIO",
+            link_mode.rustc_link_kind()
+        );
 
-        // Static OpenColorIO does not embed its mandatory dependencies:
-        //   expat, yaml-cpp, Imath, pystring, minizip-ng, ZLIB
-        // They must be linked into the final binary explicitly.
-        //
-        // When OCIO_INSTALL_EXT_PACKAGES=ALL was used these libraries
-        // reside alongside OpenColorIO in the ext/dist/lib directory.
-        //
-        // Library file names vary by platform and build type; we emit the
-        // most common name for each. If a particular name is not found,
-        // the linker will report which library is missing.
-        link_transitive_deps(&link_paths);
+        if link_mode.is_static() {
+            // Static OpenColorIO does not embed its mandatory dependencies:
+            //   expat, yaml-cpp, Imath, pystring, minizip-ng, ZLIB
+            // They must be linked into the final binary explicitly.
+            //
+            // When OCIO_INSTALL_EXT_PACKAGES=ALL was used these libraries
+            // reside alongside OpenColorIO in the ext/dist/lib directory.
+            //
+            // Library file names vary by platform and build type; we emit the
+            // most common name for each. If a particular name is not found,
+            // the linker will report which library is missing.
+            link_transitive_deps(&link_paths);
+        }
 
         if cfg!(target_os = "linux") {
             println!("cargo:rustc-link-lib=stdc++");
@@ -284,7 +323,149 @@ fn main() {
     println!("cargo:rerun-if-env-changed=OCIO_SOURCE_DIR");
     println!("cargo:rerun-if-env-changed=OCIO_INSTALL_DIR");
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
+    println!("cargo:rerun-if-env-changed=OCIO_RS_LINK");
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LinkMode {
+    Static,
+    Dynamic,
+}
+
+impl LinkMode {
+    fn from_env() -> Self {
+        match env::var("OCIO_RS_LINK") {
+            Ok(value) => {
+                let normalized = value.trim().to_ascii_lowercase();
+                match normalized.as_str() {
+                    "" | "static" => Self::Static,
+                    "dynamic" | "dylib" | "shared" => Self::Dynamic,
+                    other => panic!(
+                        "unsupported OCIO_RS_LINK value '{other}'; expected 'static' or 'dynamic'"
+                    ),
+                }
+            }
+            Err(_) => Self::Static,
+        }
+    }
+
+    fn is_static(self) -> bool {
+        matches!(self, Self::Static)
+    }
+
+    fn is_dynamic(self) -> bool {
+        matches!(self, Self::Dynamic)
+    }
+
+    fn cmake_build_shared_libs(self) -> &'static str {
+        match self {
+            Self::Static => "OFF",
+            Self::Dynamic => "ON",
+        }
+    }
+
+    fn rustc_link_kind(self) -> &'static str {
+        match self {
+            Self::Static => "static",
+            Self::Dynamic => "dylib",
+        }
+    }
+
+    fn cmake_out_dir_tag(self, base: &str) -> String {
+        let suffix = match self {
+            Self::Static => "static",
+            Self::Dynamic => "dynamic",
+        };
+        format!("{base}-{suffix}")
+    }
+}
+
+fn push_existing_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if path.exists() && !paths.iter().any(|existing| existing == &path) {
+        paths.push(path);
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn collect_runtime_dll_dirs(paths: &mut Vec<PathBuf>, root: &std::path::Path) {
+    if !root.exists() {
+        return;
+    }
+
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+
+        let mut has_dll = false;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dll"))
+            {
+                has_dll = true;
+            }
+        }
+
+        if has_dll {
+            push_existing_path(paths, dir);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn collect_runtime_dll_dirs(_paths: &mut Vec<PathBuf>, _root: &std::path::Path) {}
+
+#[cfg(target_os = "windows")]
+fn copy_runtime_dlls_to_cargo_target_dirs(runtime_paths: &[PathBuf]) {
+    let Some(out_dir) = env::var_os("OUT_DIR").map(PathBuf::from) else {
+        return;
+    };
+    let Some(profile_dir) = out_dir.ancestors().nth(3).map(PathBuf::from) else {
+        return;
+    };
+
+    let mut destination_dirs = vec![profile_dir.clone(), profile_dir.join("deps")];
+    destination_dirs.retain(|dir| dir.exists());
+
+    for runtime_dir in runtime_paths {
+        let Ok(entries) = std::fs::read_dir(runtime_dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let source = entry.path();
+            if !source
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dll"))
+            {
+                continue;
+            }
+
+            for destination_dir in &destination_dirs {
+                let destination = destination_dir.join(entry.file_name());
+                if source == destination {
+                    continue;
+                }
+                if let Err(err) = std::fs::copy(&source, &destination) {
+                    panic!(
+                        "failed to copy runtime DLL '{}' to '{}': {err}",
+                        source.display(),
+                        destination.display()
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn copy_runtime_dlls_to_cargo_target_dirs(_runtime_paths: &[PathBuf]) {}
 
 #[cfg(target_os = "windows")]
 fn link_transitive_deps(link_paths: &[PathBuf]) {

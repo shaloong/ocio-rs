@@ -132,3 +132,77 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         set_current_config(original_config);
     }
 }
+
+#[test]
+fn config_active_display_view_mutation_errors_surface_behavior() {
+    let _guard = config_runtime_settings_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let empty_display_err = config
+        .add_active_display("")
+        .expect_err("empty active display name should fail");
+    assert!(
+        matches!(empty_display_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {empty_display_err:?}"
+    );
+
+    let missing_display_err = config
+        .remove_active_display("MissingActiveDisplay")
+        .expect_err("removing missing active display should fail");
+    assert!(
+        matches!(missing_display_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_display_err:?}"
+    );
+
+    let empty_view_err = config
+        .add_active_view("")
+        .expect_err("empty active view name should fail");
+    assert!(
+        matches!(empty_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {empty_view_err:?}"
+    );
+
+    let missing_view_err = config
+        .remove_active_view("MissingActiveView")
+        .expect_err("removing missing active view should fail");
+    assert!(
+        matches!(missing_view_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_view_err:?}"
+    );
+}
+
+#[test]
+fn config_default_display_view_compat_aliases_follow_active_lists_behavior() {
+    let _guard = config_runtime_settings_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+
+    let display = config.display(0).expect("first display");
+    let view = config.view(&display, 0).expect("first view");
+
+    #[allow(deprecated)]
+    {
+        config
+            .set_default_display(&display)
+            .expect("compat set_default_display");
+        config
+            .set_default_view(&view)
+            .expect("compat set_default_view");
+    }
+
+    assert_eq!(config.active_displays().as_deref(), Some(display.as_str()));
+    assert_eq!(config.active_views().as_deref(), Some(view.as_str()));
+}

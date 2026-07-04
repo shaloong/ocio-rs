@@ -22,11 +22,19 @@ fn log_affine_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_log_affine_transform() -> LogAffineTransform {
     let transform = LogAffineTransform::create().expect("log affine transform create");
-    transform.set_base(2.0);
-    transform.set_log_side_slope_value(&[1.0, 1.0, 1.0]);
-    transform.set_log_side_offset_value(&[0.0, 0.0, 0.0]);
-    transform.set_lin_side_slope_value(&[2.0, 2.0, 2.0]);
-    transform.set_lin_side_offset_value(&[0.5, 0.5, 0.5]);
+    transform.set_base(2.0).expect("set base");
+    transform
+        .set_log_side_slope_value(&[1.0, 1.0, 1.0])
+        .expect("set log-side slope");
+    transform
+        .set_log_side_offset_value(&[0.0, 0.0, 0.0])
+        .expect("set log-side offset");
+    transform
+        .set_lin_side_slope_value(&[2.0, 2.0, 2.0])
+        .expect("set lin-side slope");
+    transform
+        .set_lin_side_offset_value(&[0.5, 0.5, 0.5])
+        .expect("set lin-side offset");
     transform
 }
 
@@ -39,35 +47,111 @@ fn log_affine_transform_value_copy_and_direction_behavior() {
 
     let transform = configured_log_affine_transform();
 
-    assert_close(transform.base(), 2.0, 1e-10);
-    assert_vec_close(&transform.log_side_slope_value(), &[1.0, 1.0, 1.0], 1e-10);
-    assert_vec_close(&transform.log_side_offset_value(), &[0.0, 0.0, 0.0], 1e-10);
-    assert_vec_close(&transform.lin_side_slope_value(), &[2.0, 2.0, 2.0], 1e-10);
-    assert_vec_close(&transform.lin_side_offset_value(), &[0.5, 0.5, 0.5], 1e-10);
+    assert_close(transform.base().expect("read base"), 2.0, 1e-10);
+    assert_vec_close(
+        &transform
+            .log_side_slope_value()
+            .expect("read log-side slope"),
+        &[1.0, 1.0, 1.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .log_side_offset_value()
+            .expect("read log-side offset"),
+        &[0.0, 0.0, 0.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .lin_side_slope_value()
+            .expect("read lin-side slope"),
+        &[2.0, 2.0, 2.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .lin_side_offset_value()
+            .expect("read lin-side offset"),
+        &[0.5, 0.5, 0.5],
+        1e-10,
+    );
     assert_eq!(transform.direction(), TransformDirection::Forward);
 
     let copy = transform
         .create_editable_copy()
         .expect("log affine transform editable copy");
-    copy.set_base(10.0);
-    copy.set_log_side_slope_value(&[0.9, 0.9, 0.9]);
-    copy.set_log_side_offset_value(&[0.1, 0.1, 0.1]);
-    copy.set_lin_side_slope_value(&[1.0, 1.0, 1.0]);
-    copy.set_lin_side_offset_value(&[0.0, 0.0, 0.0]);
+    copy.set_base(10.0).expect("set copy base");
+    copy.set_log_side_slope_value(&[0.9, 0.9, 0.9])
+        .expect("set copy log-side slope");
+    copy.set_log_side_offset_value(&[0.1, 0.1, 0.1])
+        .expect("set copy log-side offset");
+    copy.set_lin_side_slope_value(&[1.0, 1.0, 1.0])
+        .expect("set copy lin-side slope");
+    copy.set_lin_side_offset_value(&[0.0, 0.0, 0.0])
+        .expect("set copy lin-side offset");
     copy.set_direction(TransformDirection::Inverse);
 
-    assert_close(copy.base(), 10.0, 1e-10);
-    assert_vec_close(&copy.log_side_slope_value(), &[0.9, 0.9, 0.9], 1e-10);
-    assert_vec_close(&copy.log_side_offset_value(), &[0.1, 0.1, 0.1], 1e-10);
-    assert_vec_close(&copy.lin_side_slope_value(), &[1.0, 1.0, 1.0], 1e-10);
-    assert_vec_close(&copy.lin_side_offset_value(), &[0.0, 0.0, 0.0], 1e-10);
+    assert_close(copy.base().expect("read copy base"), 10.0, 1e-10);
+    assert_vec_close(
+        &copy
+            .log_side_slope_value()
+            .expect("read copy log-side slope"),
+        &[0.9, 0.9, 0.9],
+        1e-10,
+    );
+    assert_vec_close(
+        &copy
+            .log_side_offset_value()
+            .expect("read copy log-side offset"),
+        &[0.1, 0.1, 0.1],
+        1e-10,
+    );
+    assert_vec_close(
+        &copy
+            .lin_side_slope_value()
+            .expect("read copy lin-side slope"),
+        &[1.0, 1.0, 1.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &copy
+            .lin_side_offset_value()
+            .expect("read copy lin-side offset"),
+        &[0.0, 0.0, 0.0],
+        1e-10,
+    );
     assert_eq!(copy.direction(), TransformDirection::Inverse);
 
-    assert_close(transform.base(), 2.0, 1e-10);
-    assert_vec_close(&transform.log_side_slope_value(), &[1.0, 1.0, 1.0], 1e-10);
-    assert_vec_close(&transform.log_side_offset_value(), &[0.0, 0.0, 0.0], 1e-10);
-    assert_vec_close(&transform.lin_side_slope_value(), &[2.0, 2.0, 2.0], 1e-10);
-    assert_vec_close(&transform.lin_side_offset_value(), &[0.5, 0.5, 0.5], 1e-10);
+    assert_close(transform.base().expect("re-read base"), 2.0, 1e-10);
+    assert_vec_close(
+        &transform
+            .log_side_slope_value()
+            .expect("re-read log-side slope"),
+        &[1.0, 1.0, 1.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .log_side_offset_value()
+            .expect("re-read log-side offset"),
+        &[0.0, 0.0, 0.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .lin_side_slope_value()
+            .expect("re-read lin-side slope"),
+        &[2.0, 2.0, 2.0],
+        1e-10,
+    );
+    assert_vec_close(
+        &transform
+            .lin_side_offset_value()
+            .expect("re-read lin-side offset"),
+        &[0.5, 0.5, 0.5],
+        1e-10,
+    );
     assert_eq!(transform.direction(), TransformDirection::Forward);
 }
 
@@ -111,4 +195,25 @@ fn log_affine_transform_processor_behavior() {
     assert_close(restored[1] as f64, original[1] as f64, 5e-5);
     assert_close(restored[2] as f64, original[2] as f64, 5e-5);
     assert_close(restored[3] as f64, original[3] as f64, 5e-5);
+}
+
+#[test]
+fn log_affine_transform_invalid_base_surfaces_real_error() {
+    let _guard = log_affine_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let transform = configured_log_affine_transform();
+    transform.set_base(1.0).expect("set invalid base");
+
+    let err = match config.processor_from_transform(&transform, TransformDirection::Forward) {
+        Ok(_) => panic!("base of 1.0 must be rejected by real OCIO"),
+        Err(err) => err,
+    };
+    assert!(
+        err.to_string().contains("base cannot be 1"),
+        "unexpected error: {err}"
+    );
 }

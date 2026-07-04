@@ -212,3 +212,20 @@ fn look_display_pipeline_and_looks_bypass_behavior() {
     assert_close(bypassed_pixel[2] as f64, original[2] as f64, 1e-6);
     assert_close(bypassed_pixel[3] as f64, original[3] as f64, 1e-6);
 }
+
+#[test]
+fn look_interchange_attribute_errors_surface_behavior() {
+    let _guard = look_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let look = Look::create().expect("look create");
+    let invalid_attr_err = look
+        .set_interchange_attribute("definitely_unknown_attr", "value")
+        .expect_err("unknown interchange attribute should fail");
+    assert!(
+        matches!(invalid_attr_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {invalid_attr_err:?}"
+    );
+}

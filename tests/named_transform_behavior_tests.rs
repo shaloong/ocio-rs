@@ -184,3 +184,24 @@ fn named_transform_config_registration_and_processor_behavior() {
     assert_close(inverse_pixel[2] as f64, 0.5, 1e-6);
     assert_close(inverse_pixel[3] as f64, 1.0, 1e-6);
 }
+
+#[test]
+fn named_transform_missing_name_errors_surface_behavior() {
+    let _guard = named_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = Config::raw().expect("raw config");
+    let err = match config.processor_named_transform_name(
+        "DefinitelyMissingNamedTransform",
+        TransformDirection::Forward,
+    ) {
+        Ok(_) => panic!("missing named transform should fail"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}

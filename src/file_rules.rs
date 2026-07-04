@@ -79,6 +79,7 @@ impl FileRules {
 
     pub fn set_pattern(&self, rule_index: u64, pattern: impl AsRef<str>) -> Result<()> {
         let pattern = cstring(pattern)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_pattern(
                 self.handle.as_ptr(),
@@ -86,7 +87,7 @@ impl FileRules {
                 pattern.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn extension(&self, rule_index: u64) -> Option<String> {
@@ -100,6 +101,7 @@ impl FileRules {
 
     pub fn set_extension(&self, rule_index: u64, extension: impl AsRef<str>) -> Result<()> {
         let extension = cstring(extension)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_extension(
                 self.handle.as_ptr(),
@@ -107,7 +109,7 @@ impl FileRules {
                 extension.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn regex(&self, rule_index: u64) -> Option<String> {
@@ -121,6 +123,7 @@ impl FileRules {
 
     pub fn set_regex(&self, rule_index: u64, regex: impl AsRef<str>) -> Result<()> {
         let regex = cstring(regex)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_regex(
                 self.handle.as_ptr(),
@@ -128,7 +131,7 @@ impl FileRules {
                 regex.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn color_space(&self, rule_index: u64) -> Option<String> {
@@ -142,6 +145,7 @@ impl FileRules {
 
     pub fn set_color_space(&self, rule_index: u64, color_space: impl AsRef<str>) -> Result<()> {
         let color_space = cstring(color_space)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_color_space(
                 self.handle.as_ptr(),
@@ -149,7 +153,7 @@ impl FileRules {
                 color_space.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
@@ -187,6 +191,7 @@ impl FileRules {
     ) -> Result<()> {
         let key = cstring(key)?;
         let value = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_custom_key(
                 self.handle.as_ptr(),
@@ -195,7 +200,7 @@ impl FileRules {
                 value.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn insert_rule(
@@ -210,6 +215,7 @@ impl FileRules {
         let color_space = cstring(color_space)?;
         let pattern = cstring(pattern)?;
         let extension = cstring(extension)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_insert_rule(
                 self.handle.as_ptr(),
@@ -220,7 +226,7 @@ impl FileRules {
                 extension.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn insert_rule_regex(
@@ -233,6 +239,7 @@ impl FileRules {
         let name = cstring(name)?;
         let color_space = cstring(color_space)?;
         let regex = cstring(regex)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_insert_rule_v1(
                 self.handle.as_ptr(),
@@ -242,7 +249,7 @@ impl FileRules {
                 regex.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer insert_rule_regex()")]
@@ -257,45 +264,78 @@ impl FileRules {
     }
 
     pub fn insert_path_search_rule(&self, rule_index: u64) {
+        self.try_insert_path_search_rule(rule_index)
+            .expect("FileRules::insert_path_search_rule failed");
+    }
+
+    /// Insert OCIO's built-in path-search rule at `rule_index`.
+    pub fn try_insert_path_search_rule(&self, rule_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_insert_path_search_rule(
                 self.handle.as_ptr(),
                 rule_index as usize,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn set_default_rule_color_space(&self, color_space: impl AsRef<str>) -> Result<()> {
         let color_space = cstring(color_space)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_set_default_rule_color_space(
                 self.handle.as_ptr(),
                 color_space.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_rule(&self, rule_index: u64) {
+        self.try_remove_rule(rule_index)
+            .expect("FileRules::remove_rule failed");
+    }
+
+    /// Remove the rule at `rule_index`.
+    pub fn try_remove_rule(&self, rule_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_file_rules_remove_rule(self.handle.as_ptr(), rule_index as usize) };
+        crate::ocio_call_status()
     }
 
     pub fn increase_rule_priority(&self, rule_index: u64) {
+        self.try_increase_rule_priority(rule_index)
+            .expect("FileRules::increase_rule_priority failed");
+    }
+
+    /// Move the rule at `rule_index` toward the front of the rule list.
+    pub fn try_increase_rule_priority(&self, rule_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_increase_rule_priority(
                 self.handle.as_ptr(),
                 rule_index as usize,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn decrease_rule_priority(&self, rule_index: u64) {
+        self.try_decrease_rule_priority(rule_index)
+            .expect("FileRules::decrease_rule_priority failed");
+    }
+
+    /// Move the rule at `rule_index` toward the end of the rule list.
+    pub fn try_decrease_rule_priority(&self, rule_index: u64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_rules_decrease_rule_priority(
                 self.handle.as_ptr(),
                 rule_index as usize,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn is_default(&self) -> bool {

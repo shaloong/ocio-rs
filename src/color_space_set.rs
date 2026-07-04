@@ -86,22 +86,38 @@ impl ColorSpaceSet {
 
     /// Insert one color space into the set.
     pub fn add_color_space(&self, color_space: &ColorSpace) {
+        self.try_add_color_space(color_space)
+            .expect("failed to add color space to set");
+    }
+
+    /// Insert one color space into the set and surface any OCIO validation error.
+    pub fn try_add_color_space(&self, color_space: &ColorSpace) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_add_color_space(
                 self.handle.as_ptr(),
                 color_space.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Insert every color space from `other` into the set.
     pub fn add_color_spaces(&self, other: &ColorSpaceSet) {
+        self.try_add_color_spaces(other)
+            .expect("failed to add color spaces to set");
+    }
+
+    /// Insert every color space from `other` and surface any OCIO validation error.
+    pub fn try_add_color_spaces(&self, other: &ColorSpaceSet) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_add_color_spaces(
                 self.handle.as_ptr(),
                 other.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Remove one color space by name.
