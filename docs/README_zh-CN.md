@@ -65,6 +65,10 @@ OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `share
 运行程序时仍需确保系统 loader 能找到 OCIO 动态库，例如通过 `LD_LIBRARY_PATH`、
 `DYLD_LIBRARY_PATH`、`PATH`，或包管理器提供的运行时配置。
 
+已发布的 `ocio-sys` crate 包含当前 bundled 构建配置所需的上游 OpenColorIO 源码树
+以及传递依赖源码。打包后的 `ocio-sys` crate 会在发布审计中通过
+`cargo build --features bundled --offline` 验证。
+
 ## 架构
 
 ```text

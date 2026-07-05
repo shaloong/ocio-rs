@@ -20,7 +20,7 @@ cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 cargo test --workspace --no-default-features
 cargo test --examples --no-default-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features
-cargo run --bin check_parity --quiet
+cargo run --bin check_parity --quiet -- --check-l3
 cargo package -p ocio-sys --allow-dirty
 ```
 
