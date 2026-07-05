@@ -7,6 +7,12 @@ It aligns the safe Rust layer with OpenColorIO 2.5.2 instead of preserving
 previously generated compatibility shims that did not reflect real upstream
 behavior.
 
+`0.2.0` should be treated as a practical early-usable version: core OCIO 2.5
+Rust bindings are broadly present, bridge-backed, and usable for early
+adopters, while deeper edge-case reliability work continues into follow-up
+releases. It is not yet claiming to be a drop-in replacement for every C++
+OpenColorIO workflow or every edge-case production environment.
+
 ### GPU shader descriptors
 
 `GpuShaderDesc` now exposes typed GPU resources:
@@ -38,6 +44,13 @@ current Rust wrapper semantics:
 - Use category APIs: `has_category`, `add_category`, `remove_category`, `num_categories`, `category(index)`, and `clear_categories`.
 
 Display/view/looks/rule helpers were removed from `ViewTransform`. Use `DisplayViewTransform` for display/view mappings.
+
+### Processor metadata
+
+`ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of
+being conflated with `FormatMetadata`. Use `Processor::processor_metadata()`
+to obtain it; bundled coverage validates standalone file/look mutation plus
+metadata extraction from a real processor.
 
 ### Config processors and file rules
 
@@ -155,6 +168,13 @@ The same treatment now applies to `Config` helpers that require external OCIO co
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
+
+Stub mode remains the default (`cargo build` without flags). Real OCIO mode
+is enabled either by setting `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`,
+or by building with `--features bundled`. `OCIO_SOURCE_DIR` alone does not
+enable real OCIO mode. The published `ocio-sys` crate vendors the upstream
+OpenColorIO source tree and transitive dependencies, and the packaged crate
+is validated with `cargo build --features bundled --offline`.
 
 ### Legacy GPU optimization
 

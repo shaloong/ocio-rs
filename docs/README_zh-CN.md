@@ -11,6 +11,10 @@
 real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但发布加固与长尾
 行为验证仍在继续。
 
+> [English](../README.md)
+
+> 破坏性 API 变更见 [MIGRATION_zh-CN.md](MIGRATION_zh-CN.md)。
+
 目前 bundled 验证已经不只是链接或 smoke test，下面这些高频运行时路径也有了
 真实行为覆盖：
 
@@ -21,10 +25,6 @@ real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但�
 - `GpuShaderDesc` 的提取结构、资源元数据、配置往返，以及手工 shader 片段 /
   texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
-
-> [English](../README.md)
-
-> 破坏性 API 变更见 [MIGRATION_zh-CN.md](MIGRATION_zh-CN.md)。
 
 ```toml
 [dependencies]

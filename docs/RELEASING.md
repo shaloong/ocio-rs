@@ -52,7 +52,7 @@ Current packaging caveat:
 
 Current audit status:
 
-- `./tools/release_audit.ps1 -IncludeBundled -Offline` passes.
+- `./tools/release_audit.ps1 -IncludeBundled -Offline` passes end to end.
 - The same audit now verifies the extracted `ocio-sys` package with
   `cargo build --features bundled --offline`.
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` reports only the
@@ -63,6 +63,33 @@ The repository also exposes the same flow as manual GitHub Actions workflows:
 
 - `CI` (workflow_dispatch bundled job)
 - `Release Audit`
+
+## CI workflows
+
+The CI workflow (`ci.yml`) runs two jobs automatically on push and pull
+request, plus one manual job:
+
+- **Stub** (automatic): runs `cargo test --workspace --no-default-features`
+  and `cargo test --examples --no-default-features` on Linux, macOS, and
+  Windows.
+- **Stub Audit** (automatic): runs fmt, clippy, docs, parity
+  (`check_parity --quiet -- --check-l3`), and `cargo package -p ocio-sys`
+  on Ubuntu.
+- **Bundled** (manual, `workflow_dispatch` only): runs
+  `cargo test --workspace --features bundled -- --test-threads=1` on Ubuntu
+  with a recursive submodule checkout. This job does **not** run
+  automatically on push or pull request.
+
+The Release Audit workflow (`release-audit.yml`) is also manual-only
+(`workflow_dispatch`). It runs the full `release_audit.ps1` script with
+`-IncludeBundled -IncludeTopLevelPackage -Offline`, which covers format,
+clippy, stub tests, stub examples, docs, parity, ocio-sys packaging,
+packaged bundled build verification, bundled tests, and top-level packaging.
+
+Note: the release audit script runs parity as `check_parity --quiet` without
+the `--check-l3` flag, while the CI stub-audit job uses `--check-l3`. Both
+should pass, but the `--check-l3` variant provides stricter validation of
+L3 OCIO C++ method coverage.
 
 ## Publish order
 

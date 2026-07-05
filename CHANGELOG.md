@@ -9,31 +9,57 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Broad OCIO 2.5 safe-wrapper and bridge parity, covering `Config`,
+  `Context`, `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc`,
+  `DynamicProperty`, `FormatMetadata`, `ProcessorMetadata`, `ViewingRules`,
+  `Baker`, `GroupTransform`, `NamedTransform`, `ColorSpace`, `ColorSpaceSet`,
+  and the full OCIO 2.5 transform family with real bridge-backed behavior
+- Bundled runtime validation for `DynamicProperty` interactions across
+  `Processor` and `CPUProcessor`, including per-`CPUProcessor` dynamic state
+  isolation and CPU pixel execution for exposure, grading, and matrix paths
+- Bundled runtime validation for `GpuShaderDesc` extraction: shader text,
+  uniforms, textures, descriptor configuration, dynamic-property access,
+  manual shader-text assembly, and manual texture/uniform insertion
+- Bundled runtime validation for `Config` collection mutation, display-view
+  management, runtime settings, `ConfigIOProxy`, `FileRules`, and
+  `ViewingRules` safe wrapper behavior
+- Bundled runtime validation for `Baker` output, `CDLTransform`,
+  `FileTransform`, `ExponentTransform`, `GradingPrimaryTransform`,
+  `GradingToneTransform`, `GradingRGBCurveTransform`,
+  `GradingHueCurveTransform`, `FixedFunctionTransform`, `LogTransform`,
+  `LogAffineTransform`, `LogCameraTransform`, `Lut1DTransform`,
+  `Lut3DTransform`, `RangeTransform`, `ExposureContrastTransform`,
+  `ViewTransform`, `DisplayViewTransform`, `Look`, and `LookTransform`
 - Real bundled-package validation for `ocio-sys`, including offline packaged
-  bundled builds for the current vendored configuration
-- Behavioral coverage for `DynamicProperty` interactions across `Processor` and
-  `CPUProcessor`
-- Stronger `MatrixTransform` behavioral tests for `fit` and `view`
-- Release and contribution documentation for build, packaging, and verification
+  bundled builds that exercise `cargo build --features bundled --offline`
+  from the extracted package directory
+- Parity checker reporting `822/822` OCIO C++ header methods bridged with
+  `1066` bridge.hpp functions, `1067` `lib.rs` declarations, and `1050`
+  bridge-backed safe-wrapper matches
 - Multi-platform stub CI coverage across Linux, macOS, and Windows for
   `--no-default-features` test and example execution
+- Release and contribution documentation for build, packaging, and
+  verification workflows
 
 ### Changed
 
-- Broad OCIO 2.5 wrapper and bridge parity work has replaced many placeholder
-  or stale APIs with real bridge-backed behavior
-- README and release guidance now match the actual build gating logic for real
-  OCIO mode
-- Project status and migration guidance now describe `0.2.0` as a broadly
-  usable early-adopter OCIO 2.5 line rather than a placeholder cleanup release
-- Release-readiness guidance now reflects a clean parity report at
-  `822/822` bridged OCIO C++ methods and current green fmt/clippy/stub/bundled/doc
-  verification
+- API surface now targets real OCIO 2.5 behavior: stubs have been replaced
+  with bridge-backed implementations across the exposed wrapper layer
+- Packaged `ocio-sys` crate vendors the upstream OpenColorIO source tree
+  plus transitive dependency sources, enabling offline bundled builds from
+  the published package
+- README and release guidance now match the actual build gating logic for
+  real OCIO mode (`OCIO_RS_ENABLE_REAL=1` or `--features bundled`)
+- Project status and migration guidance describe `0.2.0` as a broadly
+  usable early-adopter OCIO 2.5 line rather than a placeholder cleanup
+  release
+- Release-readiness guidance reflects a clean parity report and green
+  fmt/clippy/stub/bundled/doc verification
 
 ### Fixed
 
-- Packaged bundled builds no longer depend on cloning upstream OCIO dependency
-  sources for the current supported bundled configuration
+- Packaged bundled builds no longer depend on cloning upstream OCIO
+  dependency sources for the current supported bundled configuration
 
 ## [0.1.1] - 2026-05-20
 

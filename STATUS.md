@@ -1,10 +1,39 @@
 # Project Status
 
-ocio-rs now provides broad OCIO 2.5 Rust coverage and is approaching a
-practical "early-usable" release line for application developers. It is still
-under active release hardening and is not yet claiming to be a drop-in
-replacement for every C++ OpenColorIO workflow or every edge-case production
-environment.
+## At a glance
+
+**Core OCIO 2.5 Rust bindings are broadly in place.** The safe-wrapper
+surface, bridge parity, and bundled validation cover the major runtime
+paths — Config, Context, Processor, CPU/GPU execution, GPU shader
+extraction, dynamic properties, and the full transform family. The
+remaining work is release hardening and longer-tail behavioral validation
+rather than missing core binding coverage.
+
+| Mode | Status |
+|---|---|
+| Stub (`--no-default-features`) | Available — default for CI and API-shape testing |
+| Real OCIO via installed library | Available (`OCIO_RS_ENABLE_REAL=1`) |
+| Bundled OCIO from source | Available, validated via manual bundled and release-audit workflows (`--features bundled`) |
+
+| CI coverage | Runs |
+|---|---|
+| Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
+| Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
+| Bundled real-OCIO tests | **Manual** only (`workflow_dispatch`) |
+| Release audit (full packaging + offline bundled) | **Manual** only (`workflow_dispatch`) |
+
+## Known caveats
+
+- Error propagation is available but still being expanded case by case.
+- docs.rs documentation is seeded but still expanding.
+- Stub mode returns safe defaults; it is not a substitute for bundled
+  real-OCIO validation.
+- The crate is not yet claiming to be a drop-in replacement for every
+  C++ OpenColorIO workflow or every edge-case production environment.
+
+---
+
+## Detailed validation matrix
 
 | Area | Status |
 |---|---|
@@ -25,6 +54,8 @@ The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
 remaining surface with bundled and no-default-features test coverage so the
 crate can be treated as substantially complete for core OCIO 2.5 usage.
+
+## Release checklist
 
 Current release checklist highlights:
 
@@ -91,6 +122,8 @@ Current release checklist highlights:
   sources used by the current bundled build configuration, and the extracted
   package now passes offline bundled compilation in release audit.
 
+## Release-audit results
+
 Latest release-audit result:
 
 - `./tools/release_audit.ps1 -IncludeBundled -Offline` passes end to end.
@@ -124,12 +157,16 @@ Latest release-audit result:
   independence, and config attachment behavior in bundled mode, plus
   standalone and processor-extracted `ProcessorMetadata` behavior.
 
+## CI coverage
+
 GitHub Actions now runs stub-mode test coverage across Linux, macOS, and
 Windows for `--no-default-features`, while keeping the slower bundled native
 OCIO validation on manual Ubuntu workflows that use a recursive checkout. The
 manual paths cover both the dedicated bundled test job in `ci.yml` and the
 broader `Release Audit` workflow, which also validates packaging and offline
 bundled compilation.
+
+## Current runtime semantics
 
 Current runtime semantics worth calling out explicitly:
 

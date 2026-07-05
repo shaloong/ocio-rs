@@ -13,6 +13,10 @@ parity across the exposed API surface, and broad safe-wrapper coverage. The
 remaining work is mostly release hardening and longer-tail behavioral
 validation rather than missing core binding coverage.
 
+> [中文文档](docs/README_zh-CN.md)
+
+> Breaking API updates are tracked in [docs/MIGRATION.md](docs/MIGRATION.md).
+
 Recent bundled validation now covers more than linkability and smoke tests for
 several high-use runtime paths, including:
 
@@ -26,10 +30,6 @@ several high-use runtime paths, including:
   manual texture and uniform insertion
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
-
-> [中文文档](docs/README_zh-CN.md)
-
-> Breaking API updates are tracked in [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ```toml
 [dependencies]
