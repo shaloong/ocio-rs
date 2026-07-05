@@ -11,8 +11,36 @@ use ocio_sys;
 
 /// An OpenColorIO configuration.
 ///
-/// `Config` is the main entry point for color spaces, displays, views, file
-/// rules, and processor creation.
+/// `Config` is the central entry point for the crate. It holds color-space
+/// definitions, display/view mappings, file rules, looks, roles, and the
+/// metadata needed to build [`Processor`] pipelines.
+///
+/// A config can be loaded from a file, an environment variable, in-memory text,
+/// or one of OCIO's built-in presets:
+///
+/// ```rust,no_run
+/// # use ocio_rs::Config;
+/// # fn example() -> ocio_rs::Result<()> {
+/// // From a .ocio file
+/// let config = Config::from_file("config.ocio")?;
+///
+/// // From the OCIO environment variable
+/// let config = Config::from_env()?;
+///
+/// // From in-memory YAML text
+/// let config = Config::from_stream("ociofile_version: 2")?;
+///
+/// // From a built-in preset
+/// let config = Config::create_from_builtin_config("default")?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Once loaded, use the config to query color-space metadata, enumerate
+/// displays and views, and create [`Processor`] instances for color-space
+/// conversions or display-view pipelines.
+///
+/// [`Processor`]: crate::Processor
 pub struct Config {
     pub(crate) handle: NonNull<c_void>,
 }

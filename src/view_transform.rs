@@ -9,7 +9,27 @@ use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, ReferenceSpaceType, Result, ViewTransformDirection,
 };
 
-/// Describes a scene/display view transform entry stored in a [`Config`](crate::Config).
+/// A scene-to-display or display-to-scene view transform entry.
+///
+/// View transforms define the color-space mapping between a scene-referred
+/// reference space and a display-referred output. Each view in a display
+/// definition typically references a view transform that provides the
+/// scene-to-display mapping (e.g., an ACES output transform or a
+/// film-emulation LUT).
+///
+/// A `ViewTransform` holds:
+///
+/// - **Metadata**: name, family, description, categories, and interchange
+///   attributes (e.g., ACES transform IDs).
+/// - **Transforms**: a scene-to-display (`FromReference`) and optionally a
+///   display-to-scene (`ToReference`) transform, each of which may be any
+///   supported OCIO transform type.
+///
+/// View transforms are typically obtained from a [`Config`](crate::Config)
+/// via display/view queries, but can also be constructed independently and
+/// attached to a config.
+///
+/// [`Config`]: crate::Config
 pub struct ViewTransform {
     pub(crate) handle: NonNull<c_void>,
 }

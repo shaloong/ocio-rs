@@ -70,10 +70,27 @@ fn validate_packed_buffer_len(
     Ok(())
 }
 
-/// An immutable color-processing pipeline produced from a `Config`.
+/// An immutable color-processing pipeline produced from a [`Config`](crate::Config).
 ///
-/// Use `default_cpu_processor` or `default_gpu_processor` to execute or extract
-/// the processing implementation.
+/// A `Processor` wraps the result of asking a config for a conversion between
+/// two color spaces, a display/view pipeline, a transform, or a named
+/// transform. It is the bridge between configuration and execution.
+///
+/// Use [`default_cpu_processor`] or [`default_gpu_processor`] to obtain an
+/// execution-ready handle. For more control over optimization or bit depth,
+/// see [`optimized_cpu_processor`], [`optimized_gpu_processor`], and
+/// [`optimized_processor_bitdepth`].
+///
+/// The processor is immutable: once created, its pipeline does not change.
+/// Dynamic properties (if any) are accessed through
+/// [`dynamic_property`](Self::dynamic_property) and are scoped to the
+/// processor or its derived CPU/GPU execution handles.
+///
+/// [`default_cpu_processor`]: Self::default_cpu_processor
+/// [`default_gpu_processor`]: Self::default_gpu_processor
+/// [`optimized_cpu_processor`]: Self::optimized_cpu_processor
+/// [`optimized_gpu_processor`]: Self::optimized_gpu_processor
+/// [`optimized_processor_bitdepth`]: Self::optimized_processor_bitdepth
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -303,9 +320,25 @@ impl Drop for Processor {
 
 // --- CPUProcessor ---
 
-/// CPU implementation of a `Processor`.
+/// CPU implementation of a [`Processor`].
 ///
-/// Methods on this type apply color transforms to packed RGB/RGBA pixel data.
+/// Provides safe in-place pixel processing methods for `f32` RGB/RGBA
+/// buffers and packed byte buffers at various OCIO bit depths. Each method
+/// applies the color transform described by the originating `Processor`.
+///
+/// # Pixel layout
+///
+/// The scalar-stride methods ([`apply_rgba_pixels`](Self::apply_rgba_pixels),
+/// [`apply_rgb_pixels`](Self::apply_rgb_pixels)) accept `&mut [f32]` buffers
+/// and measure stride in `f32` elements, not bytes. Padding elements beyond
+/// the pixel stride are left untouched.
+///
+/// The packed-byte methods ([`apply_rgba_packed_bit_depth`](Self::apply_rgba_packed_bit_depth),
+/// [`apply_rgb_packed_bit_depth`](Self::apply_rgb_packed_bit_depth)) interpret
+/// the buffer according to the provided [`BitDepth`], with stride measured in
+/// channels (not bytes).
+///
+/// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
@@ -673,9 +706,34 @@ impl Drop for CPUProcessor {
 
 // --- GPUProcessor ---
 
-/// GPU implementation of a `Processor`.
+/// GPU implementation of a [`Processor`].
 ///
-/// Use this with `GpuShaderDesc` to extract shader text, textures, and uniforms.
+/// Wraps a GPU-ready color pipeline and provides [`extract_shader_info`] to
+/// populate a [`GpuShaderDesc`] with OCIO-generated shader text, textures,
+/// and uniforms.
+///
+/// The typical usage is:
+///
+/// ```rust,no_run
+/// # use ocio_rs::{Config, GpuShaderDesc, GpuLanguage};
+/// # fn example() -> ocio_rs::Result<()> {
+/// let config = Config::from_file("config.ocio")?;
+/// let processor = config.processor("scene_linear", "srgb_texture")?;
+/// let gpu = processor.default_gpu_processor()?;
+///
+/// let mut desc = GpuShaderDesc::create()?;
+/// desc.set_language(GpuLanguage::Glsl1_2);
+///
+/// gpu.extract_shader_info(&mut desc);
+///
+/// let shader_text = desc.shader_text().unwrap_or_default();
+/// // Use shader_text in your rendering pipeline...
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`extract_shader_info`]: Self::extract_shader_info
+/// [`GpuShaderDesc`]: crate::GpuShaderDesc
 pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
@@ -755,6 +813,25 @@ impl Drop for GPUProcessor {
 // --- GpuShaderDesc ---
 
 /// Collects parameters and emitted source for GPU shader extraction.
+///
+/// A `GpuShaderDesc` describes how OCIO should emit shader code for a given
+/// target language. Before extraction, configure the descriptor with a
+/// [`GpuLanguage`], entry-point name, pixel variable name, resource prefix,
+/// and optional descriptor-set binding offsets.
+///
+/// After calling [`GPUProcessor::extract_shader_info`], the descriptor
+/// contains the generated shader text (via [`shader_text`](Self::shader_text))
+/// and any textures ([`textures_2d`](Self::textures_2d)) or uniforms
+/// ([`uniforms`](Self::uniforms)) needed by the shader.
+///
+/// For manual shader assembly, the section-based helpers
+/// ([`add_to_function_shader_code`](Self::add_to_function_shader_code),
+/// [`add_to_parameter_declare_shader_code`](Self::add_to_parameter_declare_shader_code),
+/// etc.) and [`create_shader_text`](Self::create_shader_text) let you build
+/// the final shader string from OCIO-provided fragments.
+///
+/// [`GpuLanguage`]: crate::GpuLanguage
+/// [`GPUProcessor::extract_shader_info`]: crate::GPUProcessor::extract_shader_info
 pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }

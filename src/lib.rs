@@ -1,4 +1,28 @@
-//! Rust bindings for OpenColorIO.
+//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO v2.5).
+//!
+//! This crate wraps the OpenColorIO C++ API through a generated FFI layer
+//! ([`ocio_sys`]) and exposes safe Rust types for configuration, color-space
+//! queries, processor creation, CPU/GPU execution, GPU shader extraction, and
+//! transform composition.
+//!
+//! # Getting started
+//!
+//! ```rust,no_run
+//! use ocio_rs::Config;
+//!
+//! // Load an OCIO config from a file (real OCIO mode required).
+//! # fn example() -> ocio_rs::Result<()> {
+//! let config = Config::from_file("/path/to/config.ocio")?;
+//!
+//! // Create a processor between two color spaces.
+//! let processor = config.processor("scene_linear", "srgb_texture")?;
+//!
+//! // Apply the default CPU path to a single RGBA pixel.
+//! let mut pixel = [0.5f32, 0.5, 0.5, 1.0];
+//! processor.default_cpu_processor()?.apply_rgba(&mut pixel);
+//! # Ok(())
+//! # }
+//! ```
 //!
 //! # Project status
 //!
@@ -7,20 +31,33 @@
 //! while release hardening and long-tail behavioral validation are still in
 //! progress.
 //!
-//! # Stub mode
+//! # Build modes
 //!
-//! By default, the crate builds in stub mode for CI and API-shape testing.
-//! Stub mode does not perform real color management.
+//! | Mode | Feature flag | Notes |
+//! |------|-------------|-------|
+//! | **Stub** (default) | `--no-default-features` | APIs return safe defaults; no real color management |
+//! | **Real OCIO** | `OCIO_RS_ENABLE_REAL=1` | Links against an installed OpenColorIO |
+//! | **Bundled** | `--features bundled` | Builds OCIO from source and links statically |
 //!
-//! # Real OCIO mode
+//! ```bash
+//! # Stub mode (CI, API-shape testing)
+//! cargo build
 //!
-//! Use `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`, or build with
-//! `--features bundled`.
+//! # Bundled real-OCIO build
+//! cargo build --features bundled
 //!
-//! The published `ocio-sys` crate vendors the upstream OpenColorIO source tree
-//! plus the transitive dependency sources used by the current bundled build
-//! configuration, so the packaged `ocio-sys` crate can be validated with
-//! `cargo build --features bundled --offline`.
+//! # Use an installed OCIO
+//! OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+//! ```
+//!
+//! # Crate-level helpers
+//!
+//! Free functions such as [`current_config`], [`set_current_config`],
+//! [`version`], and [`clear_all_caches`] operate on the process-global OCIO
+//! config. Use them when your application maintains a single shared config
+//! rather than passing `Config` handles through every call site.
+//!
+//! [`ocio_sys`]: crate::ocio_sys
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(
