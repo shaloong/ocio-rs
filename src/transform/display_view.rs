@@ -26,10 +26,11 @@ impl DisplayViewTransform {
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn display(&self) -> Option<String> {
@@ -42,13 +43,14 @@ impl DisplayViewTransform {
 
     pub fn set_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_display(
                 self.handle.as_ptr(),
                 d.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn view(&self) -> Option<String> {
@@ -61,10 +63,11 @@ impl DisplayViewTransform {
 
     pub fn set_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_view(self.handle.as_ptr(), v.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn looks_bypass(&self) -> bool {

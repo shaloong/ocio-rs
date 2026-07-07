@@ -149,8 +149,9 @@ impl CDLTransform {
 
     pub fn set_id(&self, id: impl AsRef<str>) -> Result<()> {
         let id = cstring(id)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_cdl_transform_set_id(self.handle.as_ptr(), id.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -194,13 +195,14 @@ impl CDLTransform {
 
     pub fn set_first_sop_description(&self, desc: impl AsRef<str>) -> Result<()> {
         let d = cstring(desc)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_set_first_sop_description(
                 self.handle.as_ptr(),
                 d.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {

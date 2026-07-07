@@ -22,8 +22,9 @@ impl LookTransform {
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn dst(&self) -> Option<String> {
@@ -32,8 +33,9 @@ impl LookTransform {
 
     pub fn set_dst(&self, dst: impl AsRef<str>) -> Result<()> {
         let d = cstring(dst)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_transform_set_dst(self.handle.as_ptr(), d.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn looks(&self) -> Option<String> {
@@ -46,8 +48,9 @@ impl LookTransform {
 
     pub fn set_looks(&self, looks: impl AsRef<str>) -> Result<()> {
         let l = cstring(looks)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_transform_set_looks(self.handle.as_ptr(), l.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {

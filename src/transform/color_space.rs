@@ -26,10 +26,11 @@ impl ColorSpaceTransform {
 
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn dst(&self) -> Option<String> {
@@ -42,10 +43,11 @@ impl ColorSpaceTransform {
 
     pub fn set_dst(&self, dst: impl AsRef<str>) -> Result<()> {
         let d = cstring(dst)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_transform_set_dst(self.handle.as_ptr(), d.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn data_bypass(&self) -> bool {

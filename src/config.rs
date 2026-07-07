@@ -2834,6 +2834,7 @@ impl Config {
     ) -> Result<()> {
         let n = cstring(name)?;
         let v = cstring(default_val)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_environment_var(
                 self.handle.as_ptr(),
@@ -2841,7 +2842,7 @@ impl Config {
                 v.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn num_environment_vars(&self) -> i32 {

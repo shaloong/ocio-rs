@@ -30,8 +30,9 @@ impl FileTransform {
     /// Set the source path or URI used to load the external transform data.
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let src = cstring(src)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_file_transform_set_src(self.handle.as_ptr(), src.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the optional CCC identifier used with multi-grade CDL files.
@@ -46,10 +47,11 @@ impl FileTransform {
     /// Set the optional CCC identifier used with multi-grade CDL files.
     pub fn set_ccc_id(&self, id: impl AsRef<str>) -> Result<()> {
         let id = cstring(id)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_transform_set_ccc_id(self.handle.as_ptr(), id.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the interpolation mode requested for LUT sampling.

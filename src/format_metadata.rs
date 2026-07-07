@@ -20,13 +20,14 @@ impl FormatMetadata {
 
     pub fn set_element_name(&self, name: impl AsRef<str>) -> Result<()> {
         let name = cstring(name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_format_metadata_set_element_name(
                 self.handle.as_ptr(),
                 name.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn element_value(&self) -> Option<String> {
@@ -39,13 +40,14 @@ impl FormatMetadata {
 
     pub fn set_element_value(&self, value: impl AsRef<str>) -> Result<()> {
         let v = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_format_metadata_set_element_value(
                 self.handle.as_ptr(),
                 v.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn num_attributes(&self) -> i32 {
@@ -85,6 +87,7 @@ impl FormatMetadata {
     pub fn add_attribute(&self, name: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         let v = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_format_metadata_add_attribute(
                 self.handle.as_ptr(),
@@ -92,7 +95,7 @@ impl FormatMetadata {
                 v.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn num_children(&self) -> i32 {
@@ -112,6 +115,7 @@ impl FormatMetadata {
     pub fn add_child_element(&self, name: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         let v = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_format_metadata_add_child_element(
                 self.handle.as_ptr(),
@@ -119,7 +123,7 @@ impl FormatMetadata {
                 v.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear(&self) {
@@ -136,8 +140,9 @@ impl FormatMetadata {
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_format_metadata_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn id(&self) -> Option<String> {
@@ -146,8 +151,9 @@ impl FormatMetadata {
 
     pub fn set_id(&self, id: impl AsRef<str>) -> Result<()> {
         let i = cstring(id)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_format_metadata_set_id(self.handle.as_ptr(), i.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 }
 

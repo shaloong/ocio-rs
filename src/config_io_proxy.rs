@@ -23,10 +23,11 @@ impl ConfigIOProxy {
     /// Replace the primary OCIO config text payload.
     pub fn set_config_data(&self, data: impl AsRef<str>) -> Result<()> {
         let data = cstring(data)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_io_proxy_set_config_data(self.handle.as_ptr(), data.as_ptr())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the primary OCIO config text payload, if set.
@@ -49,7 +50,8 @@ impl ConfigIOProxy {
     ) -> Result<bool> {
         let filepath = cstring(filepath)?;
         let fast_hash = cstring(fast_hash)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let accepted = unsafe {
             ocio_sys::ocio_config_io_proxy_set_lut_data(
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
@@ -57,7 +59,15 @@ impl ConfigIOProxy {
                 data.len(),
                 fast_hash.as_ptr(),
             )
-        })
+        };
+        if accepted {
+            Ok(true)
+        } else {
+            match crate::ocio_call_status() {
+                Ok(()) => Ok(false),
+                Err(err) => Err(err),
+            }
+        }
     }
 
     /// Return the registered LUT payload for `filepath`, if present.
