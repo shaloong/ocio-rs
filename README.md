@@ -80,6 +80,16 @@ plus the transitive dependency sources used by the current bundled build
 configuration. The packaged `ocio-sys` crate is validated with
 `cargo build --features bundled --offline` during release hardening.
 
+## Examples
+
+```bash
+# Stub-friendly API walkthrough
+cargo run --example basic
+
+# Load a real sample config and run CPU processing
+cargo run --example real_config --features bundled
+```
+
 ## Architecture
 
 ```text
