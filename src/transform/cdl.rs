@@ -14,24 +14,22 @@ pub struct CDLTransform {
 
 impl CDLTransform {
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_cdl_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_from_file(src: impl AsRef<str>, ccc_id: impl AsRef<str>) -> Result<Self> {
         let src = cstring(src)?;
         let ccc_id = cstring(ccc_id)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_cdl_transform_create_from_file(
                 src.as_ptr().cast(),
                 ccc_id.as_ptr().cast(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     #[doc(hidden)]
@@ -39,21 +37,19 @@ impl CDLTransform {
     pub fn from_file(src: impl AsRef<str>, ccc_id: impl AsRef<str>) -> Result<Self> {
         let src = cstring(src)?;
         let ccc_id = cstring(ccc_id)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_cdl_transform_from_file(src.as_ptr().cast(), ccc_id.as_ptr().cast())
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_group_from_file(src: impl AsRef<str>) -> Result<GroupTransform> {
         let src = cstring(src)?;
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_cdl_transform_create_group_from_file(src.as_ptr().cast()) };
-        NonNull::new(handle)
-            .map(|h| GroupTransform { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| GroupTransform { handle })
     }
 
     pub fn slope(&self) -> [f64; 3] {
@@ -208,10 +204,9 @@ impl CDLTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

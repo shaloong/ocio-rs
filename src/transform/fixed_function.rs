@@ -11,6 +11,7 @@ pub struct FixedFunctionTransform {
 
 impl FixedFunctionTransform {
     pub fn create(style: FixedFunctionStyle) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_fixed_function_transform_create_with_params(
                 style as i32,
@@ -18,12 +19,11 @@ impl FixedFunctionTransform {
                 0,
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn create_with_params(style: FixedFunctionStyle, params: &[f64]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_fixed_function_transform_create_with_params(
                 style as i32,
@@ -31,9 +31,7 @@ impl FixedFunctionTransform {
                 params.len(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn style(&self) -> FixedFunctionStyle {
@@ -126,12 +124,11 @@ impl FixedFunctionTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {

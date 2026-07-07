@@ -15,10 +15,9 @@ pub struct MatrixTransform {
 impl MatrixTransform {
     /// Create a new identity matrix transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the current 4x4 matrix in row-major order.
@@ -88,12 +87,11 @@ impl MatrixTransform {
 
     /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the bit depth declared for file-based input serialization.
@@ -189,6 +187,7 @@ impl MatrixTransform {
         new_min: &[f64; 4],
         new_max: &[f64; 4],
     ) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_fit(
                 old_min.as_ptr(),
@@ -197,43 +196,37 @@ impl MatrixTransform {
                 new_max.as_ptr(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an identity matrix transform.
     pub fn identity() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_identity() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a saturation matrix using the provided luma coefficients.
     pub fn sat(sat: f64, luma: &[f64; 3]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_sat(sat, luma.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a per-channel scale matrix.
     pub fn scale(scale: &[f64; 4]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_scale(scale.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a matrix that remaps channels according to a canonical OCIO view mask.
     pub fn view(channels: &mut [i32; 4], luma: &[f64; 3]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_view(channels.as_mut_ptr(), luma.as_ptr())
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 }
 

@@ -93,3 +93,21 @@ fn fixed_function_rgb_to_hsv_processor_behavior() {
     assert_close(restored[2] as f64, original[2] as f64, 1e-6);
     assert_close(restored[3] as f64, original[3] as f64, 1e-6);
 }
+
+#[test]
+fn fixed_function_invalid_params_surface_real_error_behavior() {
+    let _guard = fixed_function_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let err = match FixedFunctionTransform::create_with_params(FixedFunctionStyle::RgbToHsv, &[1.0])
+    {
+        Ok(_) => panic!("RgbToHsv should reject unexpected parameters"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}

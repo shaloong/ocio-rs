@@ -122,6 +122,96 @@ fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
 }
 
 #[test]
+fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    let err = desc
+        .try_set_descriptor_set_index(3, 0)
+        .expect_err("zero texture binding start should fail");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+
+    desc.set_function_name("after_error_main")
+        .expect("set_function_name after error");
+    desc.set_pixel_name("after_error_pixel")
+        .expect("set_pixel_name after error");
+    desc.set_unique_id("after-error-uid")
+        .expect("set_unique_id after error");
+    desc.set_resource_prefix("after_error_")
+        .expect("set_resource_prefix after error");
+
+    desc.begin("after_error_uid").expect("begin after error");
+    desc.end();
+
+    desc.add_to_parameter_declare_shader_code("uniform float uAfter;\n")
+        .expect("parameter declarations after error");
+    desc.add_to_texture_declare_shader_code("uniform sampler2D texAfter;\n")
+        .expect("texture declarations after error");
+    desc.add_to_helper_shader_code("float pass_after(float x) { return x; }\n")
+        .expect("helper methods after error");
+    desc.add_to_function_header_shader_code("vec4 AfterMain(vec4 inPixel) {\n")
+        .expect("function header after error");
+    desc.add_to_function_shader_code("  return vec4(pass_after(inPixel.r), inPixel.gba);\n")
+        .expect("function body after error");
+    desc.add_to_function_footer_shader_code("}\n")
+        .expect("function footer after error");
+    desc.create_shader_text(
+        "uniform float uExplicit;\n",
+        "uniform sampler2D texExplicit;\n",
+        "float after_helper(float x) { return x; }\n",
+        "vec4 ExplicitAfter(vec4 inPixel) {\n",
+        "  return vec4(after_helper(inPixel.r), inPixel.g, inPixel.b, inPixel.a);\n",
+        "}\n",
+    )
+    .expect("create_shader_text after error");
+
+    assert!(desc
+        .add_uniform_f64("uExposure", 1.25)
+        .expect("add uniform after error"));
+    assert!(!desc
+        .add_uniform_f64("uExposure", 2.0)
+        .expect("duplicate uniform should remain Ok(false)"));
+
+    desc.set_descriptor_set_index(2, 5);
+
+    let values_2d = vec![0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
+    let binding_2d = desc
+        .add_texture_2d(
+            "afterErrorTex2D",
+            "afterErrorSampler2D",
+            2,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture1D,
+            Interpolation::Linear,
+            &values_2d,
+        )
+        .expect("add texture 2d after error");
+    assert_eq!(binding_2d, 5);
+
+    let values_3d = vec![
+        0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+        1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    ];
+    let binding_3d = desc
+        .add_texture_3d(
+            "afterErrorTex3D",
+            "afterErrorSampler3D",
+            2,
+            Interpolation::Nearest,
+            &values_3d,
+        )
+        .expect("add texture 3d after error");
+    assert_eq!(binding_3d, 6);
+}
+
+#[test]
 fn gpu_shader_desc_extraction_structural_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {

@@ -996,10 +996,31 @@ impl GpuShaderDesc {
     /// Creates an empty OCIO GPU shader descriptor that can be configured and
     /// passed to `GPUProcessor::extract_shader_info`.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_gpu_shader_desc_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    fn bool_call_result(ok: bool) -> Result<bool> {
+        if ok {
+            Ok(true)
+        } else {
+            match crate::ocio_call_status() {
+                Ok(()) => Ok(false),
+                Err(err) => Err(err),
+            }
+        }
+    }
+
+    fn binding_index_result(binding_index: u32) -> Result<u32> {
+        if binding_index != 0 {
+            Ok(binding_index)
+        } else {
+            match crate::ocio_call_status() {
+                Ok(()) => Err(OcioError::AllocationFailed),
+                Err(err) => Err(err),
+            }
+        }
     }
 
     /// Returns the extracted shader source text, if any.
@@ -1123,13 +1144,14 @@ impl GpuShaderDesc {
     /// Sets the shader entry-point name used during extraction.
     pub fn set_function_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_function_name(
                 self.handle.as_ptr(),
                 n.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Returns the configured pixel variable name, if any.
@@ -1144,10 +1166,11 @@ impl GpuShaderDesc {
     /// Sets the pixel variable name used in emitted shader code.
     pub fn set_pixel_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_pixel_name(self.handle.as_ptr(), n.as_ptr().cast());
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Returns the explicit unique identifier configured for shader extraction, if any.
@@ -1162,10 +1185,11 @@ impl GpuShaderDesc {
     /// Sets the unique identifier OCIO should use for generated shader resources.
     pub fn set_unique_id(&self, uid: impl AsRef<str>) -> Result<()> {
         let uid = cstring(uid)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_unique_id(self.handle.as_ptr(), uid.as_ptr().cast());
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Returns the configured resource-name prefix, if any.
@@ -1180,13 +1204,14 @@ impl GpuShaderDesc {
     /// Sets the prefix OCIO uses for generated resource names.
     pub fn set_resource_prefix(&self, prefix: impl AsRef<str>) -> Result<()> {
         let p = cstring(prefix)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_resource_prefix(
                 self.handle.as_ptr(),
                 p.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
@@ -1247,8 +1272,9 @@ impl GpuShaderDesc {
     /// Marks the beginning of shader-data collection with the provided OCIO resource UID.
     pub fn begin(&self, uid: impl AsRef<str>) -> Result<()> {
         let uid = cstring(uid)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_gpu_shader_desc_begin(self.handle.as_ptr(), uid.as_ptr()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Marks the end of shader-data collection.
@@ -1264,73 +1290,79 @@ impl GpuShaderDesc {
     /// Appends text to the shader's parameter-declaration section.
     pub fn add_to_parameter_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Appends text to the shader's texture-declaration section.
     pub fn add_to_texture_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_texture_declare_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Appends text to the shader's helper-method section.
     pub fn add_to_helper_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_helper_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Appends text to the shader function's header section.
     pub fn add_to_function_header_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_function_header_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Appends text to the shader function's body section.
     pub fn add_to_function_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_function_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Appends text to the shader function's footer section.
     pub fn add_to_function_footer_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_to_function_footer_shader_code(
                 self.handle.as_ptr(),
                 shader_code.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Returns the copied texel payload for a 1D/2D texture resource.
@@ -1362,6 +1394,7 @@ impl GpuShaderDesc {
         }
         let texture_name = cstring(texture_name)?;
         let sampler_name = cstring(sampler_name)?;
+        crate::clear_last_error();
         let binding_index = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_texture(
                 self.handle.as_ptr(),
@@ -1376,11 +1409,7 @@ impl GpuShaderDesc {
                 values.len(),
             )
         };
-        if binding_index == 0 {
-            Err(OcioError::AllocationFailed)
-        } else {
-            Ok(binding_index)
-        }
+        Self::binding_index_result(binding_index)
     }
 
     /// Rebuilds the full shader text from the provided OCIO shader sections.
@@ -1399,6 +1428,7 @@ impl GpuShaderDesc {
         let shader_function_header = cstring(shader_function_header)?;
         let shader_function_body = cstring(shader_function_body)?;
         let shader_function_footer = cstring(shader_function_footer)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_create_shader_text(
                 self.handle.as_ptr(),
@@ -1410,7 +1440,7 @@ impl GpuShaderDesc {
                 shader_function_footer.as_ptr(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Finalizes descriptor configuration before extraction when OCIO requires it.
@@ -1460,6 +1490,7 @@ impl GpuShaderDesc {
     /// `allow_texture_1d` may fall back to OCIO defaults on clone, and
     /// extracted shader payloads are not guaranteed to be copied into the clone.
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
+        crate::clear_last_error();
         let h =
             unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
         NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
@@ -1499,31 +1530,36 @@ impl GpuShaderDesc {
     /// Adds a scalar floating-point uniform and returns `false` when the name already exists.
     pub fn add_uniform_f64(&self, name: impl AsRef<str>, value: f64) -> Result<bool> {
         let name = cstring(name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_uniform_double(
                 self.handle.as_ptr(),
                 name.as_ptr(),
                 value,
             )
-        })
+        };
+        Self::bool_call_result(ok)
     }
 
     /// Adds a boolean uniform and returns `false` when the name already exists.
     pub fn add_uniform_bool(&self, name: impl AsRef<str>, value: bool) -> Result<bool> {
         let name = cstring(name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_uniform_bool(
                 self.handle.as_ptr(),
                 name.as_ptr(),
                 value,
             )
-        })
+        };
+        Self::bool_call_result(ok)
     }
 
     /// Adds a three-component floating-point uniform and returns `false` when the name already exists.
     pub fn add_uniform_float3(&self, name: impl AsRef<str>, value: [f32; 3]) -> Result<bool> {
         let name = cstring(name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_uniform_float3(
                 self.handle.as_ptr(),
                 name.as_ptr(),
@@ -1531,7 +1567,8 @@ impl GpuShaderDesc {
                 value[1],
                 value[2],
             )
-        })
+        };
+        Self::bool_call_result(ok)
     }
 
     /// Adds a floating-point array uniform and returns `false` when the name already exists.
@@ -1549,7 +1586,8 @@ impl GpuShaderDesc {
             )));
         }
         let name = cstring(name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_float(
                 self.handle.as_ptr(),
                 name.as_ptr(),
@@ -1557,7 +1595,8 @@ impl GpuShaderDesc {
                 values.len(),
                 max_size,
             )
-        })
+        };
+        Self::bool_call_result(ok)
     }
 
     /// Adds an integer array uniform and returns `false` when the name already exists.
@@ -1575,7 +1614,8 @@ impl GpuShaderDesc {
             )));
         }
         let name = cstring(name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_int(
                 self.handle.as_ptr(),
                 name.as_ptr(),
@@ -1583,7 +1623,8 @@ impl GpuShaderDesc {
                 values.len(),
                 max_size,
             )
-        })
+        };
+        Self::bool_call_result(ok)
     }
 
     /// Returns the number of dynamic properties attached to the descriptor.
@@ -1876,6 +1917,7 @@ impl GpuShaderDesc {
         }
         let texture_name = cstring(texture_name)?;
         let sampler_name = cstring(sampler_name)?;
+        crate::clear_last_error();
         let binding_index = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add3d_texture(
                 self.handle.as_ptr(),
@@ -1887,11 +1929,7 @@ impl GpuShaderDesc {
                 values.len(),
             )
         };
-        if binding_index == 0 {
-            Err(OcioError::AllocationFailed)
-        } else {
-            Ok(binding_index)
-        }
+        Self::binding_index_result(binding_index)
     }
 
     #[doc(hidden)]

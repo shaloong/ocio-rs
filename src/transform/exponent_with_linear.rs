@@ -11,10 +11,9 @@ pub struct ExponentWithLinearTransform {
 
 impl ExponentWithLinearTransform {
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_exponent_with_linear_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn gamma(&self) -> Result<[f64; 4]> {
@@ -108,10 +107,9 @@ impl ExponentWithLinearTransform {
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
