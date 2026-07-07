@@ -28,6 +28,14 @@ fn test_data_path(rel: &str) -> PathBuf {
         .join(rel)
 }
 
+fn packaged_context_test1_path() -> PathBuf {
+    if cfg!(windows) {
+        test_data_path("configs/context_test1/context_test1_windows.ocioz")
+    } else {
+        test_data_path("configs/context_test1/context_test1_linux.ocioz")
+    }
+}
+
 fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.major_version(), 2);
     assert_eq!(config.minor_version(), 0);
@@ -89,6 +97,19 @@ fn config_from_file_env_and_stream_load_context_test1_behavior() {
 }
 
 #[test]
+fn config_from_packaged_ocioz_loads_context_test1_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let packaged_path = packaged_context_test1_path();
+    let packaged =
+        Config::from_file(packaged_path.to_string_lossy()).expect("load packaged ocioz config");
+    assert_context_test1_metadata(&packaged);
+}
+
+#[test]
 fn config_search_paths_roles_and_serialization_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {
@@ -131,6 +152,25 @@ fn config_search_paths_roles_and_serialization_behavior() {
     assert!(serialized.contains("alpha"));
     assert!(serialized.contains("beta"));
     assert!(serialized.contains("gamma"));
+}
+
+#[test]
+fn config_archive_returns_payload_for_archivable_file_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+
+    assert!(config.is_archivable(), "context_test1 should be archivable");
+
+    let archived = config.archive().expect("archive config");
+    assert!(
+        !archived.trim().is_empty(),
+        "archive payload should not be empty"
+    );
 }
 
 #[test]
