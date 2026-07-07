@@ -667,7 +667,7 @@ struct RealTransform {
 };
 struct RealConfigIOProxy {
   ocio::ConfigIOProxyRcPtr proxy;
-  std::shared_ptr<void> owner;
+  std::shared_ptr<void> owner = nullptr;
 };
 struct RealViewingRules {
   ocio::ViewingRulesRcPtr rules;
@@ -988,6 +988,25 @@ static ocio::ConstBuiltinTransformRegistryRcPtr get_real_builtin_transform_regis
 static std::shared_ptr<ocio_rs_bridge::RealConfigIOProxy> get_real_config_io_proxy_handle(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(h->inner);
+}
+
+static const void* parse_color_space_from_string_deprecated(
+    const ocio::ConstConfigRcPtr& config,
+    const char* str) {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+  const void* result = static_cast<const void*>(config->parseColorSpaceFromString(str));
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+  return result;
 }
 
 static ocio::AllocationTransformRcPtr get_real_allocation_transform(void* handle) {
@@ -3677,14 +3696,10 @@ void* ocio_config_parse_color_space_from_string(void* handle, const char* str) {
   return nullptr;
 #else
   try {
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->parseColorSpaceFromString(str)));
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+    return const_cast<void*>(
+        ocio_rs_bridge::parse_color_space_from_string_deprecated(
+            ocio_rs_bridge::get_real_config(handle),
+            str));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }

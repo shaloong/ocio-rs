@@ -97,6 +97,34 @@ fn config_from_file_env_and_stream_load_context_test1_behavior() {
 }
 
 #[test]
+fn config_current_context_exposes_environment_defaults_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let working_dir = config_path.parent().expect("config parent");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+    config
+        .set_working_dir(working_dir.to_string_lossy())
+        .expect("set working dir");
+
+    let context = config.current_context().expect("current context");
+    assert_eq!(context.string_var("SHOT").as_deref(), Some("shot4"));
+    assert_eq!(
+        context.string_var("LUT_PATH").as_deref(),
+        Some("shot3/lut1.clf")
+    );
+    assert_eq!(context.string_var("CCCID").as_deref(), Some("look-02"));
+    assert_eq!(context.string_var("CAMERA").as_deref(), Some("arri"));
+    assert_eq!(
+        context.resolve_string_var("${SHOT}/lut1.clf").as_deref(),
+        Some("shot4/lut1.clf")
+    );
+}
+
+#[test]
 fn config_from_packaged_ocioz_loads_context_test1_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {
