@@ -9,7 +9,7 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::BuiltinConfigRegistry;
+use ocio_rs::{BuiltinConfigRegistry, Config, OcioError};
 
 fn builtin_config_registry_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -59,4 +59,48 @@ fn builtin_config_registry_round_trip_behavior() {
         .expect("serialize builtin config");
     assert!(serialized.contains("ocio_profile_version"));
     assert!(serialized.contains("colorspaces:"));
+}
+
+#[test]
+fn config_create_from_builtin_config_matches_registry_behavior() {
+    let _guard = builtin_config_registry_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let registry = BuiltinConfigRegistry::get().expect("builtin config registry");
+    let name = registry.config_name(0).expect("builtin config name");
+
+    let via_registry = registry.config_by_name(&name).expect("config by registry");
+    let via_config = Config::create_from_builtin_config(&name).expect("config by Config");
+
+    via_registry.validate().expect("registry config validate");
+    via_config.validate().expect("config validate");
+
+    assert_eq!(via_registry.cache_id(), via_config.cache_id());
+    assert_eq!(
+        via_registry.num_color_spaces(),
+        via_config.num_color_spaces()
+    );
+    assert_eq!(
+        via_registry.num_displays_all(),
+        via_config.num_displays_all()
+    );
+}
+
+#[test]
+fn config_create_from_builtin_config_invalid_name_reports_error_behavior() {
+    let _guard = builtin_config_registry_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let err = match Config::create_from_builtin_config("definitely_missing_builtin_config") {
+        Ok(_) => panic!("missing builtin config should fail"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(err, OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
 }
