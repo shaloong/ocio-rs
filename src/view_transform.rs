@@ -53,8 +53,9 @@ impl ViewTransform {
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_view_transform_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn family(&self) -> Option<String> {
@@ -67,10 +68,11 @@ impl ViewTransform {
 
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
         let f = cstring(family)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_view_transform_set_family(self.handle.as_ptr(), f.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn description(&self) -> Option<String> {
@@ -83,10 +85,11 @@ impl ViewTransform {
 
     pub fn set_description(&self, desc: impl AsRef<str>) -> Result<()> {
         let d = cstring(desc)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_view_transform_set_description(self.handle.as_ptr(), d.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn set_interchange_attribute(
@@ -161,18 +164,20 @@ impl ViewTransform {
 
     pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_view_transform_add_category(self.handle.as_ptr(), c.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_view_transform_remove_category(self.handle.as_ptr(), c.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn num_categories(&self) -> i32 {

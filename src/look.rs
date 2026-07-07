@@ -36,8 +36,9 @@ impl Look {
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn process_space(&self) -> Option<String> {
@@ -50,8 +51,9 @@ impl Look {
 
     pub fn set_process_space(&self, space: impl AsRef<str>) -> Result<()> {
         let s = cstring(space)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_set_process_space(self.handle.as_ptr(), s.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn description(&self) -> Option<String> {
@@ -64,8 +66,9 @@ impl Look {
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_set_description(self.handle.as_ptr(), d.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn set_interchange_attribute(

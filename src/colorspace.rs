@@ -34,8 +34,9 @@ impl ColorSpace {
 
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn family(&self) -> Option<String> {
@@ -44,8 +45,9 @@ impl ColorSpace {
 
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
         let f = cstring(family)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_family(self.handle.as_ptr(), f.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn equality_group(&self) -> Option<String> {
@@ -58,10 +60,11 @@ impl ColorSpace {
 
     pub fn set_equality_group(&self, group: impl AsRef<str>) -> Result<()> {
         let g = cstring(group)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_equality_group(self.handle.as_ptr(), g.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn description(&self) -> Option<String> {
@@ -74,10 +77,11 @@ impl ColorSpace {
 
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_description(self.handle.as_ptr(), d.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn bit_depth(&self) -> BitDepth {
@@ -127,8 +131,9 @@ impl ColorSpace {
 
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_add_category(self.handle.as_ptr(), c.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn allocation(&self) -> Allocation {
@@ -185,8 +190,9 @@ impl ColorSpace {
 
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
         let e = cstring(encoding)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_encoding(self.handle.as_ptr(), e.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
@@ -221,14 +227,16 @@ impl ColorSpace {
 
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_add_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_remove_alias(self.handle.as_ptr(), a.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear_aliases(&self) {
@@ -245,16 +253,18 @@ impl ColorSpace {
 
     pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_add_category(self.handle.as_ptr(), c.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_remove_category(self.handle.as_ptr(), c.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     pub fn clear_categories(&self) {

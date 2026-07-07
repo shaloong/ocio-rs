@@ -37,8 +37,9 @@ impl Context {
     /// Replace the concatenated search-path string used by OCIO.
     pub fn set_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_set_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the number of individual search-path entries.
@@ -64,8 +65,9 @@ impl Context {
     /// Append one search-path entry.
     pub fn add_search_path(&self, path: impl AsRef<str>) -> Result<()> {
         let p = cstring(path)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_add_search_path(self.handle.as_ptr(), p.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the working directory used for relative file resolution.
@@ -76,8 +78,9 @@ impl Context {
     /// Set the working directory used for relative file resolution.
     pub fn set_working_dir(&self, dirname: impl AsRef<str>) -> Result<()> {
         let d = cstring(dirname)?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_set_working_dir(self.handle.as_ptr(), d.as_ptr().cast()) };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return one named string variable from the context.
@@ -95,6 +98,7 @@ impl Context {
     pub fn set_string_var(&self, name: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         let v = cstring(value)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_set_string_var(
                 self.handle.as_ptr(),
@@ -102,7 +106,7 @@ impl Context {
                 v.as_ptr().cast(),
             );
         }
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Return the number of named string variables on the context.

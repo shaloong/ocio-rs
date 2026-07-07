@@ -10,7 +10,10 @@ use common::*;
 use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::{ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform};
+use ocio_rs::transform::MatrixTransform;
+use ocio_rs::{
+    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection,
+};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -23,6 +26,9 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     let view_transform =
         ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
     view_transform.set_name(name).expect("set name");
+    let identity = MatrixTransform::identity().expect("identity matrix");
+    view_transform.set_transform(Some(&identity), ViewTransformDirection::ToReference);
+    view_transform.set_transform(Some(&identity), ViewTransformDirection::FromReference);
     view_transform
 }
 

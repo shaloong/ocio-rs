@@ -123,13 +123,14 @@ impl ColorSpaceSet {
     /// Remove one color space by name.
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_remove_color_space(
                 self.handle.as_ptr(),
                 n.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Remove every color space found in `other` from this set.
