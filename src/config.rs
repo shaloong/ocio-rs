@@ -3419,6 +3419,7 @@ mod tests {
     fn add_look_no_crash() {
         let config = Config::raw().unwrap();
         let look = Look::create().unwrap();
+        look.set_name("MyLook").unwrap();
         config.add_look(&look);
     }
 
@@ -3557,6 +3558,9 @@ mod tests {
     fn add_remove_named_transform_no_crash() {
         let config = Config::raw().unwrap();
         let nt = NamedTransform::create().unwrap();
+        nt.set_name("MyNamedTransform").unwrap();
+        let identity = crate::transform::MatrixTransform::identity().unwrap();
+        nt.set_transform(&identity, crate::TransformDirection::Forward);
         config.add_named_transform(&nt);
         assert!(config.remove_named_transform("MyNamedTransform").is_ok());
     }
@@ -4138,6 +4142,11 @@ mod tests {
         let config = Config::raw().unwrap();
         let vt = crate::ViewTransform::create(crate::ReferenceSpaceType::Scene).unwrap();
         assert!(vt.set_name("MyViewTransform").is_ok());
+        let identity = crate::transform::MatrixTransform::identity().unwrap();
+        vt.set_transform(
+            Some(&identity),
+            crate::ViewTransformDirection::FromReference,
+        );
         config.add_view_transform(&vt);
 
         assert!(config
@@ -4156,6 +4165,11 @@ mod tests {
         let config = Config::raw().unwrap();
         let vt = crate::ViewTransform::create(crate::ReferenceSpaceType::Scene).unwrap();
         assert!(vt.set_name("MyViewTransform").is_ok());
+        let identity = crate::transform::MatrixTransform::identity().unwrap();
+        vt.set_transform(
+            Some(&identity),
+            crate::ViewTransformDirection::FromReference,
+        );
         config.add_view_transform(&vt);
 
         assert!(config

@@ -214,6 +214,7 @@ mod tests {
         let set = ColorSpaceSet::create().unwrap();
         let other = ColorSpaceSet::create().unwrap();
         let cs = ColorSpace::create().unwrap();
+        cs.set_name("UnitColorSpace").unwrap();
         set.add_color_space(&cs);
         set.add_color_spaces(&other);
         let _ = set.remove_color_space("raw");

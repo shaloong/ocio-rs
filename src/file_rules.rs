@@ -378,6 +378,9 @@ mod tests {
     #[test]
     fn set_pattern_extension_regex_no_crash() {
         let rules = FileRules::create().unwrap();
+        rules
+            .insert_rule(0, "TestRule", "ACEScg", "*.dpx", "dpx")
+            .unwrap();
         assert!(rules.set_pattern(0, "*.exr").is_ok());
         assert!(rules.set_extension(0, "exr").is_ok());
         assert!(rules.set_regex(0, ".*").is_ok());
@@ -401,6 +404,12 @@ mod tests {
     #[test]
     fn priority_no_crash() {
         let rules = FileRules::create().unwrap();
+        rules
+            .insert_rule(0, "TestRule", "ACEScg", "*.exr", "exr")
+            .unwrap();
+        rules
+            .insert_rule(1, "SecondRule", "ACEScg", "*.dpx", "dpx")
+            .unwrap();
         rules.increase_rule_priority(1);
         rules.decrease_rule_priority(0);
     }
