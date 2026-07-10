@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// Direction in which an OCIO transform or processor is evaluated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum TransformDirection {
@@ -16,6 +17,7 @@ impl fmt::Display for TransformDirection {
     }
 }
 
+/// Reference space domain used by a color space or view transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ReferenceSpaceType {
@@ -23,6 +25,7 @@ pub enum ReferenceSpaceType {
     Display = 1,
 }
 
+/// Domain filter used when searching for a color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum SearchReferenceSpaceType {
@@ -31,6 +34,7 @@ pub enum SearchReferenceSpaceType {
     All = 2,
 }
 
+/// Visibility filter for color-space enumeration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ColorSpaceVisibility {
@@ -39,6 +43,7 @@ pub enum ColorSpaceVisibility {
     All = 2,
 }
 
+/// Runtime OCIO transform subtype represented by a generic transform handle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum TransformType {
@@ -73,6 +78,7 @@ impl fmt::Display for TransformType {
     }
 }
 
+/// Interpolation algorithm used by LUT and related transforms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Interpolation {
@@ -85,6 +91,7 @@ pub enum Interpolation {
     Best = 6,
 }
 
+/// Pixel sample bit depth understood by OCIO processors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum BitDepth {
@@ -99,6 +106,7 @@ pub enum BitDepth {
     F32 = 8,
 }
 
+/// Allocation domain used to map image values for processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Allocation {
@@ -107,6 +115,7 @@ pub enum Allocation {
     Lg2 = 2,
 }
 
+/// Target shading language for OCIO GPU shader extraction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum GpuLanguage {
@@ -122,6 +131,7 @@ pub enum GpuLanguage {
     Msl2_0 = 9,
 }
 
+/// Policy used to populate OCIO context variables from the environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum EnvironmentMode {
@@ -129,6 +139,7 @@ pub enum EnvironmentMode {
     LoadAll = 1,
 }
 
+/// Whether a range transform clamps values at its domain boundaries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum RangeStyle {
@@ -136,6 +147,7 @@ pub enum RangeStyle {
     Clamp = 1,
 }
 
+/// Built-in OCIO fixed-function transform style.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum FixedFunctionStyle {
@@ -164,6 +176,7 @@ pub enum FixedFunctionStyle {
     RgbToHsyVid = 22,
 }
 
+/// Domain in which exposure/contrast parameters are applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ExposureContrastStyle {
@@ -172,6 +185,7 @@ pub enum ExposureContrastStyle {
     Logarithmic = 2,
 }
 
+/// ASC CDL clamping behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum CDLStyle {
@@ -179,6 +193,7 @@ pub enum CDLStyle {
     NoClamp = 1,
 }
 
+/// Treatment of negative values for transforms that require a policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum NegativeStyle {
@@ -188,6 +203,7 @@ pub enum NegativeStyle {
     Linear = 3,
 }
 
+/// One of the RGB or master curves in a grading RGB curve transform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum RGBCurveType {
@@ -197,6 +213,7 @@ pub enum RGBCurveType {
     Master = 3,
 }
 
+/// One of OCIO's hue-dependent grading curve families.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum HueCurveType {
@@ -210,6 +227,7 @@ pub enum HueCurveType {
     HueFx = 7,
 }
 
+/// HSY conversion style used by hue-curve operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum HSYTransformStyle {
@@ -217,6 +235,7 @@ pub enum HSYTransformStyle {
     Default = 1,
 }
 
+/// Grading domain used by OCIO grading transforms and values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum GradingStyle {
@@ -225,6 +244,7 @@ pub enum GradingStyle {
     Video = 2,
 }
 
+/// Bit flags selecting processor optimization passes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OptimizationFlags(pub u32);
 
@@ -258,6 +278,7 @@ impl std::ops::BitOr for OptimizationFlags {
     }
 }
 
+/// Verbosity level for OCIO's process-global diagnostic logging.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum LoggingLevel {
@@ -268,6 +289,7 @@ pub enum LoggingLevel {
     Trace = 4,
 }
 
+/// Bit flags controlling config-level processor-cache behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProcessorCacheFlags(pub u32);
 
@@ -285,6 +307,7 @@ impl std::ops::BitOr for ProcessorCacheFlags {
     }
 }
 
+/// Origin of a display/view entry in a config.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ViewType {
@@ -292,6 +315,7 @@ pub enum ViewType {
     DisplayDefined = 1,
 }
 
+/// Direction between a color space and its reference space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ColorSpaceDirection {
@@ -299,6 +323,7 @@ pub enum ColorSpaceDirection {
     FromReference = 1,
 }
 
+/// Direction between a view transform and its reference space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ViewTransformDirection {
@@ -306,6 +331,7 @@ pub enum ViewTransformDirection {
     FromReference = 1,
 }
 
+/// Visibility filter for named-transform enumeration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum NamedTransformVisibility {
@@ -314,6 +340,7 @@ pub enum NamedTransformVisibility {
     All = 2,
 }
 
+/// Runtime-adjustable OCIO processor property kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum DynamicPropertyType {
@@ -326,6 +353,7 @@ pub enum DynamicPropertyType {
     GradingHueCurve = 6,
 }
 
+/// Hue adjustment mode for one-dimensional LUT transforms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Lut1DHueAdjust {
@@ -334,6 +362,7 @@ pub enum Lut1DHueAdjust {
     Wypn = 2,
 }
 
+/// Channel memory ordering for OCIO packed image descriptors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum ChannelOrdering {
