@@ -56,7 +56,9 @@ metadata extraction from a real processor.
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
-`Config::serialize()` and `Config::archive()` now return the real OCIO text output when the crate is linked against a real OCIO build. In stub mode they return `None`.
+`Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.
+They return the real OCIO text output in a real OCIO build, `Ok(None)` in stub
+mode, and `Err` when OCIO cannot serialize or archive the config.
 
 `color_space_from_filepath_by_ref_type` has been replaced by:
 
@@ -94,7 +96,7 @@ Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-
 
 ### Baker output
 
-`Baker::bake()` now truly treats its argument as a filesystem path in Rust space. The OCIO stream output is collected with `Baker::bake_to_string()` first and then written to disk by Rust.
+`Baker::bake()` now truly treats its argument as a filesystem path in Rust space. The OCIO stream output is collected with `Baker::bake_to_string()` first and then written to disk by Rust. `bake_to_string()` returns `Result<Option<String>>`: `Ok(None)` is reserved for stub mode and OCIO bake failures are returned as `Err`.
 
 The older ABI wiring passed a path pointer into an `ostream*` slot, which was not reliable in real OCIO mode.
 

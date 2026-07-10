@@ -42,7 +42,8 @@ processor 提取元数据的行为。
 
 `Config::processor`、`Config::processor_with_context`、`Config::processor_from_configs` 现在调用真实 OCIO processor API。
 
-`Config::serialize()` 和 `Config::archive()` 在 linked real OCIO build 时返回真实 OCIO 文本输出。在 stub 模式下返回 `None`。
+`Config::serialize()` 和 `Config::archive()` 现在返回 `Result<Option<String>>`。
+在 real OCIO build 中返回真实 OCIO 文本，在 stub 模式下返回 `Ok(None)`；OCIO 无法序列化或归档时返回 `Err`。
 
 `color_space_from_filepath_by_ref_type` 替换为：
 
@@ -102,8 +103,9 @@ OCIO 模式。已发布的 `ocio-sys` crate 包含上游 OpenColorIO 源码树�
 ### Baker 输出
 
 `Baker::bake()` 现在真正将参数视为 Rust 空间中的文件系统路径。OCIO stream 输出
-先通过 `Baker::bake_to_string()` 收集，再由 Rust 写入磁盘。旧的 ABI 接线将路径指针
-传入 `ostream*` 槽位，在 real OCIO 模式下不可靠。
+先通过 `Baker::bake_to_string()` 收集，再由 Rust 写入磁盘。`bake_to_string()` 返回
+`Result<Option<String>>`：只有 stub 模式使用 `Ok(None)`，OCIO bake 失败会返回 `Err`。
+旧的 ABI 接线将路径指针传入 `ostream*` 槽位，在 real OCIO 模式下不可靠。
 
 ### GroupTransform 写入
 
