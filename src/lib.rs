@@ -166,16 +166,38 @@ pub fn get_current_config() -> Option<Config> {
 }
 
 /// Installs `config` as the process-global current OCIO config.
+#[deprecated(
+    since = "0.2.0",
+    note = "discarded OCIO errors; prefer try_set_current_config()"
+)]
 pub fn set_current_config(config: &Config) {
     unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
+}
+
+/// Try to install `config` as the process-global current OCIO config.
+pub fn try_set_current_config(config: &Config) -> Result<()> {
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
+    ocio_call_status()
 }
 
 /// Clears OCIO's process-global caches.
 ///
 /// This is mainly useful in tests and tooling that intentionally mutate config
 /// state and want subsequent processor creation to observe the new values.
+#[deprecated(
+    since = "0.2.0",
+    note = "discarded OCIO errors; prefer try_clear_all_caches()"
+)]
 pub fn clear_all_caches() {
     unsafe { ocio_sys::ocio_clear_all_caches() };
+}
+
+/// Try to clear OCIO's process-global caches.
+pub fn try_clear_all_caches() -> Result<()> {
+    clear_last_error();
+    unsafe { ocio_sys::ocio_clear_all_caches() };
+    ocio_call_status()
 }
 
 /// Returns the linked OpenColorIO version string, if available.
@@ -202,11 +224,26 @@ pub fn logging_level() -> crate::LoggingLevel {
 }
 
 /// Sets the OCIO global logging level.
+#[deprecated(
+    since = "0.2.0",
+    note = "discarded OCIO errors; prefer try_set_logging_level()"
+)]
 pub fn set_logging_level(level: crate::LoggingLevel) {
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
 }
 
+/// Try to set the OCIO global logging level.
+pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
+    ocio_call_status()
+}
+
 /// Compatibility alias for overriding the OCIO global logging level.
+#[deprecated(
+    since = "0.2.0",
+    note = "discarded OCIO errors; prefer try_set_logging_level()"
+)]
 pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
 }

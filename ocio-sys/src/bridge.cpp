@@ -1480,7 +1480,8 @@ void ocio_set_logging_level(int level) {
 #ifdef OCIO_RS_STUB
   (void)level;
 #else
-  try { ocio::SetLoggingLevel(static_cast<ocio::LoggingLevel>(level)); } catch (...) {}
+  try { ocio::SetLoggingLevel(static_cast<ocio::LoggingLevel>(level)); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -1505,14 +1506,15 @@ void ocio_set_current_config(void* config) {
 #else
   try {
     ocio::SetCurrentConfig(ocio_rs_bridge::get_real_config(config));
-  } catch (...) {}
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
 void ocio_clear_all_caches(void) {
 #ifdef OCIO_RS_STUB
 #else
-  try { ocio::ClearAllCaches(); } catch (...) {}
+  try { ocio::ClearAllCaches(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 

@@ -9,7 +9,7 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::{logging_level, set_logging_level, version, version_hex, Config, LoggingLevel};
+use ocio_rs::{logging_level, try_set_logging_level, version, version_hex, Config, LoggingLevel};
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -31,13 +31,13 @@ fn global_version_and_logging_helper_behavior() {
     assert!(version_hex() > 0);
 
     let original_level = logging_level();
-    set_logging_level(LoggingLevel::Warning);
+    try_set_logging_level(LoggingLevel::Warning).expect("set warning logging level");
     assert_eq!(logging_level(), LoggingLevel::Warning);
 
-    set_logging_level(LoggingLevel::Debug);
+    try_set_logging_level(LoggingLevel::Debug).expect("set debug logging level");
     assert_eq!(logging_level(), LoggingLevel::Debug);
 
-    set_logging_level(original_level);
+    try_set_logging_level(original_level).expect("restore logging level");
 }
 
 #[test]
