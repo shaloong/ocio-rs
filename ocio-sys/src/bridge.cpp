@@ -6401,7 +6401,7 @@ void* ocio_processor_create_group_transform(void* handle) {
     auto out_handle = std::make_unique<ocio_rs_bridge::GroupTransformHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGroupTransform>(ocio_rs_bridge::RealGroupTransform{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6416,7 +6416,7 @@ void* ocio_processor_get_dynamic_property(void* handle, int type) {
     auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6773,7 +6773,7 @@ void* ocio_cpu_processor_get_dynamic_property(void* handle, int type) {
     auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

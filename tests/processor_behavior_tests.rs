@@ -10,7 +10,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::{MatrixTransform, Transform};
-use ocio_rs::{GpuLanguage, GpuShaderDesc, TransformDirection};
+use ocio_rs::{DynamicPropertyType, GpuLanguage, GpuShaderDesc, OcioError, TransformDirection};
 
 fn processor_behavior_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -109,6 +109,36 @@ fn processor_group_transform_and_metadata_behavior() {
     assert_close(direct_pixel[1] as f64, group_pixel[1] as f64, 1e-6);
     assert_close(direct_pixel[2] as f64, group_pixel[2] as f64, 1e-6);
     assert_close(direct_pixel[3] as f64, group_pixel[3] as f64, 1e-6);
+}
+
+#[test]
+fn missing_dynamic_property_surfaces_ocio_error_behavior() {
+    let _guard = processor_behavior_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = scaled_matrix_processor().expect("scaled processor");
+    let processor_err = match processor.dynamic_property(DynamicPropertyType::Exposure) {
+        Ok(_) => panic!("matrix processor has no exposure property"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(processor_err, OcioError::Ocio(_)),
+        "unexpected processor error: {processor_err:?}"
+    );
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default CPU processor");
+    let cpu_err = match cpu.dynamic_property(DynamicPropertyType::Exposure) {
+        Ok(_) => panic!("matrix CPU processor has no exposure property"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(cpu_err, OcioError::Ocio(_)),
+        "unexpected CPU error: {cpu_err:?}"
+    );
 }
 
 #[test]

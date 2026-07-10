@@ -649,14 +649,17 @@ impl CPUProcessor {
 
     // ── v2.5.1 ──
     /// Borrow a runtime-adjustable dynamic property from the CPU processor.
-    pub fn dynamic_property(&self, prop_type: DynamicPropertyType) -> Option<DynamicProperty> {
-        let h = unsafe {
+    ///
+    /// Returns the OCIO error when the requested property is not available.
+    pub fn dynamic_property(&self, prop_type: DynamicPropertyType) -> Result<DynamicProperty> {
+        crate::clear_last_error();
+        let handle = unsafe {
             ocio_sys::ocio_cpu_processor_get_dynamic_property(
                 self.handle.as_ptr(),
                 prop_type as i32,
             )
         };
-        NonNull::new(h).map(|h| DynamicProperty { handle: h })
+        crate::handle_result(handle).map(|handle| DynamicProperty { handle })
     }
 
     #[doc(hidden)]
