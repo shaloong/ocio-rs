@@ -94,8 +94,10 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
     config.set_processor_cache_flags(custom_flags.0 as i32);
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
 
-    config.clear_active_displays();
-    config.clear_active_views();
+    config
+        .try_clear_active_displays()
+        .expect("clear active displays");
+    config.try_clear_active_views().expect("clear active views");
     config
         .clear_environment_vars()
         .expect("clear environment variables");

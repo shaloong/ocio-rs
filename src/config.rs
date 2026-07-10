@@ -2576,8 +2576,19 @@ impl Config {
     }
 
     /// Remove all configured search-path entries.
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_search_paths()"
+    )]
     pub fn clear_search_paths(&self) {
         unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    /// Try to remove all configured search-path entries.
+    pub fn try_clear_search_paths(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     /// Append one search-path entry to the config.
@@ -2970,12 +2981,34 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_active_displays()"
+    )]
     pub fn clear_active_displays(&self) {
         unsafe { ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr() as *mut c_void) };
     }
 
+    /// Try to clear all active display overrides.
+    pub fn try_clear_active_displays(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_active_views()"
+    )]
     pub fn clear_active_views(&self) {
         unsafe { ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    /// Try to clear all active view overrides.
+    pub fn try_clear_active_views(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     pub fn num_active_displays(&self) -> i32 {
@@ -4041,7 +4074,7 @@ mod tests {
     #[test]
     fn search_paths_no_crash() {
         let config = Config::raw().unwrap();
-        config.clear_search_paths();
+        assert!(config.try_clear_search_paths().is_ok());
         assert!(config.add_search_path("/some/path").is_ok());
     }
 

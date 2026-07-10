@@ -2281,7 +2281,7 @@ void ocio_config_clear_search_paths(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearSearchPaths();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3141,7 +3141,7 @@ void ocio_config_clear_active_displays(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearActiveDisplays();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3218,7 +3218,7 @@ void ocio_config_clear_active_views(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearActiveViews();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

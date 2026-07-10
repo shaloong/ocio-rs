@@ -203,7 +203,9 @@ fn config_search_paths_roles_and_serialization_behavior() {
         .set_description("Unit config description")
         .expect("set description");
 
-    config.clear_search_paths();
+    config
+        .try_clear_search_paths()
+        .expect("clear config search paths");
     config.set_search_path("alpha").expect("set search path");
     config.add_search_path("beta").expect("add search path");
     config.add_search_path("gamma").expect("add search path");
