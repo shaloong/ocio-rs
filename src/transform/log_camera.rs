@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{Result, TransformDirection};
 use ocio_sys;
 
+/// Camera log OCIO transform with per-channel log-domain parameters.
 pub struct LogCameraTransform {
     pub(crate) handle: NonNull<c_void>,
 }

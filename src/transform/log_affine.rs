@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{Result, TransformDirection};
 use ocio_sys;
 
+/// Affine logarithmic OCIO transform with per-channel offsets and slopes.
 pub struct LogAffineTransform {
     pub(crate) handle: NonNull<c_void>,
 }

@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{grading::GradingTone, GradingStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// OCIO grading transform that applies tone-region contrast adjustments.
 pub struct GradingToneTransform {
     pub(crate) handle: NonNull<c_void>,
 }

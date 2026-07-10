@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// Logarithmic OCIO transform with configurable base and direction.
 pub struct LogTransform {
     pub(crate) handle: NonNull<c_void>,
 }

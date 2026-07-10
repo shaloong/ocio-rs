@@ -5,6 +5,7 @@ use crate::grading::{GradingCurvePoint, GradingHueCurveValue};
 use crate::{GradingStyle, HSYTransformStyle, HueCurveType, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// OCIO grading transform that applies hue-dependent curve adjustments.
 pub struct GradingHueCurveTransform {
     pub(crate) handle: NonNull<c_void>,
 }

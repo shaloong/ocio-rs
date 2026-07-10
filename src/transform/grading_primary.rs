@@ -4,6 +4,7 @@ use std::ptr::NonNull;
 use crate::{grading::GradingPrimary, GradingStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+/// OCIO primary grading transform for lift/gamma/gain-style controls.
 pub struct GradingPrimaryTransform {
     pub(crate) handle: NonNull<c_void>,
 }

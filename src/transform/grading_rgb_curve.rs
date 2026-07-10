@@ -5,6 +5,7 @@ use crate::grading::{GradingCurvePoint, GradingRGBCurveValue};
 use crate::{GradingStyle, OcioError, RGBCurveType, Result, TransformDirection};
 use ocio_sys;
 
+/// OCIO grading transform that applies independent RGB curve adjustments.
 pub struct GradingRGBCurveTransform {
     pub(crate) handle: NonNull<c_void>,
 }
