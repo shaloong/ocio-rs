@@ -35,12 +35,14 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     let metadata = baker.format_metadata().expect("baker format metadata");
     let baseline_attributes = metadata.num_attributes();
     let baseline_children = metadata.num_children();
-    metadata
-        .set_element_name("Baker")
-        .expect("attempt to set root element name");
-    metadata
-        .set_element_value("unit-test-root")
-        .expect("attempt to set root element value");
+    assert!(matches!(
+        metadata.set_element_name("Baker"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(matches!(
+        metadata.set_element_value("unit-test-root"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
     metadata
         .add_attribute("origin", "ocio-rs")
         .expect("add origin attribute");
@@ -134,9 +136,10 @@ fn processor_transform_format_metadata_access_behavior() {
     let config = create_test_config().expect("raw config");
     let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).expect("matrix scale");
     let transform_metadata = transform.format_metadata().expect("matrix format metadata");
-    transform_metadata
-        .set_element_name("Matrix")
-        .expect("attempt to set root element name");
+    assert!(matches!(
+        transform_metadata.set_element_name("Matrix"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
     transform_metadata
         .add_attribute("test_attr", "matrix")
         .expect("set matrix attribute");

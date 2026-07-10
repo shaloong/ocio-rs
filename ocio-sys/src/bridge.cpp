@@ -12880,7 +12880,7 @@ void ocio_format_metadata_set_element_name(void* metadata, const char* name) {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->setElementName(name);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)name;
 #endif
@@ -12903,7 +12903,7 @@ void ocio_format_metadata_set_element_value(void* metadata, const char* value) {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->setElementValue(value);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)value;
 #endif
@@ -12959,7 +12959,7 @@ void ocio_format_metadata_add_attribute(void* metadata, const char* name, const 
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->addAttribute(name, value);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)name; (void)value;
 #endif
@@ -12982,7 +12982,7 @@ void ocio_format_metadata_add_child_element(void* metadata, const char* name, co
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->addChildElement(name, value);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)name; (void)value;
 #endif
@@ -13017,7 +13017,7 @@ void ocio_format_metadata_set_name(void* metadata, const char* name) {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->setName(name);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)name;
 #endif
@@ -13040,7 +13040,7 @@ void ocio_format_metadata_set_id(void* metadata, const char* id) {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       format_metadata->setID(id);
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata; (void)id;
 #endif
