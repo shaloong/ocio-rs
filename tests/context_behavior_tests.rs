@@ -78,7 +78,8 @@ fn context_add_string_vars_merges_other_context_behavior() {
     overlay.set_string_var("SHOT", "010").expect("set SHOT");
     overlay.set_string_var("TASK", "comp").expect("set TASK");
 
-    base.add_string_vars(&overlay);
+    base.try_add_string_vars(&overlay)
+        .expect("merge context string vars");
 
     assert_eq!(base.string_var("SHOW").as_deref(), Some("demo"));
     assert_eq!(base.string_var("SHOT").as_deref(), Some("010"));
@@ -93,7 +94,7 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
     }
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
 
     let dir_a = unique_test_dir("search-a");
     let dir_b = unique_test_dir("search-b");
@@ -153,7 +154,7 @@ fn context_resolve_file_location_uses_working_dir_as_fallback_behavior() {
     fs::write(&working_file, "# working file\n").expect("write working file");
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
     ctx.set_working_dir(path_str(&working_dir))
         .expect("set working dir");
 
@@ -183,7 +184,7 @@ fn context_resolve_file_location_uses_explicit_search_paths_behavior() {
     fs::write(&search_file, "# search file\n").expect("write search file");
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
     ctx.set_working_dir(path_str(&working_dir))
         .expect("set working dir");
     ctx.add_search_path(path_str(&search_dir))
@@ -227,7 +228,7 @@ fn context_load_environment_honors_selected_mode_behavior() {
     const VAR: &str = "OCIO_RS_CONTEXT_AUTHORED_TEST";
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_string_vars();
+    ctx.try_clear_string_vars().expect("clear string vars");
     ctx.set_string_var(VAR, "authored-default")
         .expect("set authored default");
     ctx.set_environment_mode(EnvironmentMode::LoadPredefined)
@@ -235,7 +236,7 @@ fn context_load_environment_honors_selected_mode_behavior() {
     ctx.load_environment().expect("load predefined environment");
     assert_eq!(ctx.string_var(VAR).as_deref(), Some("authored-default"));
 
-    ctx.clear_string_vars();
+    ctx.try_clear_string_vars().expect("clear string vars");
     ctx.load_environment()
         .expect("reload predefined environment");
     assert_eq!(ctx.num_string_vars(), 0);

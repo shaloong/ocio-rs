@@ -58,8 +58,19 @@ impl Context {
     }
 
     /// Remove every explicit search-path entry.
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_search_paths()"
+    )]
     pub fn clear_search_paths(&self) {
         unsafe { ocio_sys::ocio_context_clear_search_paths(self.handle.as_ptr()) };
+    }
+
+    /// Try to remove every explicit search-path entry.
+    pub fn try_clear_search_paths(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_context_clear_search_paths(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     /// Append one search-path entry.
@@ -205,14 +216,38 @@ impl Context {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_string_vars()"
+    )]
     pub fn clear_string_vars(&self) {
         unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
     }
 
+    /// Try to remove every string variable from this context.
+    pub fn try_clear_string_vars(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_add_string_vars()"
+    )]
     pub fn add_string_vars(&self, other: &Context) {
         unsafe {
             ocio_sys::ocio_context_add_string_vars(self.handle.as_ptr(), other.handle.as_ptr())
         };
+    }
+
+    /// Try to merge all string variables from `other` into this context.
+    pub fn try_add_string_vars(&self, other: &Context) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_add_string_vars(self.handle.as_ptr(), other.handle.as_ptr())
+        };
+        crate::ocio_call_status()
     }
 
     /// Select whether OCIO imports only declared variables or the full process environment.
@@ -322,7 +357,7 @@ mod tests {
     #[test]
     fn search_paths_no_crash() {
         let ctx = Context::create().unwrap();
-        ctx.clear_search_paths();
+        assert!(ctx.try_clear_search_paths().is_ok());
         assert!(ctx.add_search_path("/some/path").is_ok());
     }
 

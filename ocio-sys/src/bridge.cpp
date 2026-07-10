@@ -8453,7 +8453,7 @@ void ocio_context_clear_search_paths(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->clearSearchPaths();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8552,7 +8552,7 @@ void ocio_context_clear_string_vars(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->clearStringVars();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8565,7 +8565,7 @@ void ocio_context_add_string_vars(void* handle, void* ctx) {
     auto* _ctx_h = static_cast<ocio_rs_bridge::ContextHandle*>(ctx);
     auto ctx_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_ctx_h->inner)->context;
     ocio_rs_bridge::get_real_context(handle)->addStringVars(ctx_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
