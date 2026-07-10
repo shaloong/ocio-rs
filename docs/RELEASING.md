@@ -86,10 +86,9 @@ The Release Audit workflow (`release-audit.yml`) is also manual-only
 clippy, stub tests, stub examples, docs, parity, ocio-sys packaging,
 packaged bundled build verification, bundled tests, and top-level packaging.
 
-Note: the release audit script runs parity as `check_parity --quiet` without
-the `--check-l3` flag, while the CI stub-audit job uses `--check-l3`. Both
-should pass, but the `--check-l3` variant provides stricter validation of
-L3 OCIO C++ method coverage.
+The release audit and CI stub-audit both run
+`check_parity --quiet -- --check-l3`, so each requires the stricter L3 OCIO
+C++ method coverage check.
 
 ## Publish order
 

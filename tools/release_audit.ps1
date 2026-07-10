@@ -221,7 +221,7 @@ Invoke-Check `
     -Name "Docs (stub)" `
     -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features") `
     -Environment @{ RUSTDOCFLAGS = "-D warnings" }
-Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet")
+Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet", "--", "--check-l3")
 
 Clear-PackageArtifacts -CrateName "ocio-sys"
 $ocioSysPackageArgs = @("package", "-p", "ocio-sys", "--allow-dirty")
