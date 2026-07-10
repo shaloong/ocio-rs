@@ -255,13 +255,26 @@ impl Processor {
     }
 
     /// Materialize the processor back into an equivalent group transform, when available.
+    ///
+    /// This compatibility helper discards OCIO error details. Prefer
+    /// [`Self::try_create_group_transform`] in new code.
     pub fn create_group_transform(&self) -> Option<GroupTransform> {
+        self.try_create_group_transform().ok()
+    }
+
+    /// Materialize the processor back into an equivalent group transform.
+    pub fn try_create_group_transform(&self) -> Result<GroupTransform> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_create_group_transform(self.handle.as_ptr() as *mut c_void)
         };
-        match transform_from_raw_handle(handle) {
-            Some(Transform::Group(gt)) => Some(gt),
-            _ => None,
+        let handle = crate::handle_result(handle)?;
+        match transform_from_raw_handle(handle.as_ptr()) {
+            Some(Transform::Group(transform)) => Ok(transform),
+            Some(_) => Err(crate::OcioError::ValidationFailed(
+                "OCIO returned a non-group transform for Processor::createGroupTransform".into(),
+            )),
+            None => Err(crate::OcioError::AllocationFailed),
         }
     }
 

@@ -74,7 +74,7 @@ fn processor_group_transform_and_metadata_behavior() {
     );
 
     let group = processor
-        .create_group_transform()
+        .try_create_group_transform()
         .expect("group transform from processor");
     assert!(group.num_transforms() > 0);
     assert_eq!(group.direction(), TransformDirection::Forward);
