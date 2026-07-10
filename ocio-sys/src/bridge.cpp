@@ -9416,7 +9416,7 @@ void ocio_display_view_transform_set_src(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setSrc(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9438,7 +9438,7 @@ void ocio_display_view_transform_set_display(void* handle, const char* display) 
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setDisplay(display);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9460,7 +9460,7 @@ void ocio_display_view_transform_set_view(void* handle, const char* view) {
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setView(view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
