@@ -6347,7 +6347,7 @@ void* ocio_processor_get_processor_metadata(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::ProcessorMetadata>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6360,7 +6360,7 @@ void* ocio_processor_get_format_metadata(void* handle) {
     auto processor = ocio_rs_bridge::get_real_processor(handle);
     auto owner = std::make_shared<ocio::ProcessorRcPtr>(processor);
     return ocio_rs_bridge::make_format_metadata_handle(owner, &((*owner)->getFormatMetadata()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6386,7 +6386,7 @@ void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
     return ocio_rs_bridge::make_format_metadata_handle(
       owner,
       &((*owner)->getTransformFormatMetadata(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6616,7 +6616,7 @@ void* ocio_processor_metadata_create(void) {
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorMetadataHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

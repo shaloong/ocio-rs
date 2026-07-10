@@ -60,18 +60,17 @@ fn processor_group_transform_and_metadata_behavior() {
     assert!(!cache_id.trim().is_empty());
 
     let format_metadata = processor
-        .format_metadata()
+        .try_format_metadata()
         .expect("processor format metadata");
     assert!(format_metadata.num_children() >= 0);
     let processor_metadata = processor
-        .processor_metadata()
+        .try_processor_metadata()
         .expect("processor metadata handle");
     assert!(processor_metadata.num_files() >= 0);
     assert!(processor_metadata.num_looks() >= 0);
-    assert!(
-        processor.transform_format_metadata(0).is_some(),
-        "expected transform metadata for first op"
-    );
+    processor
+        .try_transform_format_metadata(0)
+        .expect("transform metadata for first op");
 
     let group = processor
         .try_create_group_transform()

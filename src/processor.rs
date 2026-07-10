@@ -281,26 +281,44 @@ impl Processor {
     // ── v2.5.1 ──
     /// Return the top-level format metadata attached to the processor.
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
+        self.try_format_metadata().ok()
+    }
+
+    /// Return the top-level format metadata attached to the processor.
+    pub fn try_format_metadata(&self) -> Result<FormatMetadata> {
+        crate::clear_last_error();
         let h = unsafe {
             ocio_sys::ocio_processor_get_format_metadata(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+        crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
     /// Return format metadata for the transform at `index`, when exposed by OCIO.
     pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
+        self.try_transform_format_metadata(index).ok()
+    }
+
+    /// Return format metadata for the transform at `index`.
+    pub fn try_transform_format_metadata(&self, index: i32) -> Result<FormatMetadata> {
+        crate::clear_last_error();
         let h = unsafe {
             ocio_sys::ocio_processor_get_transform_format_metadata(self.handle.as_ptr(), index)
         };
-        NonNull::new(h).map(|h| FormatMetadata { handle: h })
+        crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
     /// Return technical processor metadata such as contributing files and looks.
     pub fn processor_metadata(&self) -> Option<ProcessorMetadata> {
+        self.try_processor_metadata().ok()
+    }
+
+    /// Return technical processor metadata such as contributing files and looks.
+    pub fn try_processor_metadata(&self) -> Result<ProcessorMetadata> {
+        crate::clear_last_error();
         let h = unsafe {
             ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(h).map(|h| ProcessorMetadata { handle: h })
+        crate::handle_result(h).map(|handle| ProcessorMetadata { handle })
     }
 
     /// Return whether the processor exposes a dynamic property of `prop_type`.
