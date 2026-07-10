@@ -212,6 +212,41 @@ fn context_cache_id_changes_with_mutation_behavior() {
     let after_string_var = ctx.cache_id().expect("cache id after string var");
     assert_ne!(after_string_var, initial_cache_id);
 
-    ctx.set_environment_mode(EnvironmentMode::LoadAll);
+    ctx.set_environment_mode(EnvironmentMode::LoadAll)
+        .expect("set environment mode");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+}
+
+#[test]
+fn context_load_environment_honors_selected_mode_behavior() {
+    let _guard = context_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    const VAR: &str = "OCIO_RS_CONTEXT_AUTHORED_TEST";
+
+    let ctx = Context::create().expect("context create");
+    ctx.clear_string_vars();
+    ctx.set_string_var(VAR, "authored-default")
+        .expect("set authored default");
+    ctx.set_environment_mode(EnvironmentMode::LoadPredefined)
+        .expect("select predefined mode");
+    ctx.load_environment().expect("load predefined environment");
+    assert_eq!(ctx.string_var(VAR).as_deref(), Some("authored-default"));
+
+    ctx.clear_string_vars();
+    ctx.load_environment()
+        .expect("reload predefined environment");
+    assert_eq!(ctx.num_string_vars(), 0);
+    let predefined_cache_id = ctx.cache_id().expect("predefined cache id");
+
+    ctx.set_environment_mode(EnvironmentMode::LoadAll)
+        .expect("select all mode");
+    ctx.load_environment().expect("load complete environment");
+    assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    assert_ne!(
+        ctx.cache_id().as_deref(),
+        Some(predefined_cache_id.as_str())
+    );
 }

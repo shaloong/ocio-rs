@@ -2147,7 +2147,7 @@ void ocio_config_add_environment_var(void* handle, const char* name, const char*
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addEnvironmentVar(name, defaultValue);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2191,7 +2191,7 @@ void ocio_config_clear_environment_vars(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearEnvironmentVars();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2202,7 +2202,7 @@ void ocio_config_set_environment_mode(void* handle, int mode) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setEnvironmentMode(static_cast<ocio::EnvironmentMode>(mode));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2224,7 +2224,7 @@ void ocio_config_load_environment(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->loadEnvironment();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8574,7 +8574,7 @@ void ocio_context_set_environment_mode(void* handle, int mode) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->setEnvironmentMode(static_cast<ocio::EnvironmentMode>(mode));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8596,7 +8596,7 @@ void ocio_context_load_environment(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->loadEnvironment();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

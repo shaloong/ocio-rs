@@ -2758,10 +2758,13 @@ impl Config {
 
     // --- Environment mode ---
 
-    pub fn set_environment_mode(&self, mode: crate::EnvironmentMode) {
+    /// Select whether OCIO imports only declared variables or the full process environment.
+    pub fn set_environment_mode(&self, mode: crate::EnvironmentMode) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_environment_mode(self.handle.as_ptr(), mode as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn environment_mode(&self) -> crate::EnvironmentMode {
@@ -2774,8 +2777,11 @@ impl Config {
         }
     }
 
-    pub fn load_environment(&self) {
+    /// Refresh this config's context variables from the process environment.
+    pub fn load_environment(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_load_environment(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     // --- Inactive color spaces ---
@@ -2870,10 +2876,13 @@ impl Config {
         }
     }
 
-    pub fn clear_environment_vars(&self) {
+    /// Remove every environment-variable declaration authored on this config.
+    pub fn clear_environment_vars(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_clear_environment_vars(self.handle.as_ptr() as *mut c_void)
         };
+        crate::ocio_call_status()
     }
 
     // --- v2.5.1: Active display/view management ---
@@ -4014,9 +4023,13 @@ mod tests {
     fn environment_mode_no_crash() {
         let config = Config::raw().unwrap();
         let _ = config.environment_mode();
-        config.set_environment_mode(crate::EnvironmentMode::LoadAll);
-        config.set_environment_mode(crate::EnvironmentMode::LoadPredefined);
-        config.load_environment();
+        config
+            .set_environment_mode(crate::EnvironmentMode::LoadAll)
+            .unwrap();
+        config
+            .set_environment_mode(crate::EnvironmentMode::LoadPredefined)
+            .unwrap();
+        config.load_environment().unwrap();
     }
 
     #[test]

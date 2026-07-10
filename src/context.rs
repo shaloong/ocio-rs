@@ -84,6 +84,10 @@ impl Context {
     }
 
     /// Return one named string variable from the context.
+    ///
+    /// In real OCIO builds, an unknown name is represented as `Some("")`,
+    /// matching OCIO's non-null empty-string ABI return. `None` indicates that
+    /// this binding could not obtain a C string (for example, in stub mode).
     pub fn string_var(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -115,6 +119,8 @@ impl Context {
     }
 
     /// Return one string-variable name by index.
+    ///
+    /// An out-of-range index is represented as `Some("")` in real OCIO builds.
     pub fn string_var_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_name_by_index(
@@ -125,6 +131,8 @@ impl Context {
     }
 
     /// Return one string-variable value by index.
+    ///
+    /// An out-of-range index is represented as `Some("")` in real OCIO builds.
     pub fn string_var_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_by_index(
@@ -207,10 +215,13 @@ impl Context {
         };
     }
 
-    pub fn set_environment_mode(&self, mode: EnvironmentMode) {
+    /// Select whether OCIO imports only declared variables or the full process environment.
+    pub fn set_environment_mode(&self, mode: EnvironmentMode) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_set_environment_mode(self.handle.as_ptr(), mode as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn environment_mode(&self) -> EnvironmentMode {
@@ -221,8 +232,11 @@ impl Context {
         }
     }
 
-    pub fn load_environment(&self) {
+    /// Refresh this context's string variables from the process environment.
+    pub fn load_environment(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_load_environment(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) {

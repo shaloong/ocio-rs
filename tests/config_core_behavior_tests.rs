@@ -125,6 +125,55 @@ fn config_current_context_exposes_environment_defaults_behavior() {
 }
 
 #[test]
+fn config_environment_declarations_and_loading_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    const SHOT: &str = "SHOT";
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+
+    assert_eq!(config.num_environment_vars(), 4);
+    assert_eq!(
+        config.environment_var_default(SHOT).as_deref(),
+        Some("shot4")
+    );
+    assert_eq!(
+        config.environment_var_default("LUT_PATH").as_deref(),
+        Some("shot3/lut1.clf")
+    );
+
+    config
+        .set_environment_mode(ocio_rs::EnvironmentMode::LoadPredefined)
+        .expect("select predefined mode");
+    config
+        .load_environment()
+        .expect("load configured environment");
+    assert_eq!(
+        config
+            .current_context()
+            .expect("current context")
+            .string_var(SHOT)
+            .as_deref(),
+        Some("shot4")
+    );
+
+    config
+        .clear_environment_vars()
+        .expect("clear environment declarations");
+    assert_eq!(config.num_environment_vars(), 0);
+    assert_eq!(
+        config
+            .current_context()
+            .expect("current context")
+            .string_var(SHOT),
+        Some(String::new())
+    );
+}
+
+#[test]
 fn config_from_packaged_ocioz_loads_context_test1_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {

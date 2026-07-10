@@ -96,7 +96,9 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
 
     config.clear_active_displays();
     config.clear_active_views();
-    config.clear_environment_vars();
+    config
+        .clear_environment_vars()
+        .expect("clear environment variables");
     assert_eq!(config.num_active_displays(), 0);
     assert_eq!(config.num_active_views(), 0);
     assert_eq!(config.num_environment_vars(), 0);
