@@ -253,7 +253,15 @@ impl Context {
     }
 
     /// # Safety
-    /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    /// The caller must pass a valid OCIO config-IO proxy pointer for the
+    /// active ABI and keep it alive for as long as OCIO may use it. Prefer
+    /// [`Self::set_config_io_proxy_object`] for a typed wrapper.
+    #[doc(hidden)]
+    /// Return a borrowed raw OCIO config-IO proxy handle.
+    ///
+    /// The pointer is owned by OCIO and must not be freed. It is only valid
+    /// while this context remains alive and continues to reference the proxy.
+    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"

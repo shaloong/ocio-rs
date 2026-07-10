@@ -3127,8 +3127,12 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return a borrowed raw OCIO viewing-rules handle.
+    ///
     /// # Safety
-    /// The returned pointer is owned by OCIO; `set_viewing_rules` requires a valid OCIO viewing-rules pointer.
+    /// The pointer is owned by this config and must not be freed. It is valid
+    /// only while this config remains alive and has not replaced its viewing
+    /// rules. Prefer [`Self::viewing_rules`] for a typed wrapper.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -3139,7 +3143,13 @@ impl Config {
     }
 
     /// # Safety
-    /// `viewing_rules` must be a valid OCIO viewing-rules pointer for the active ABI.
+    /// `viewing_rules` must be a valid OCIO viewing-rules pointer for the
+    /// active ABI and must remain valid for as long as OCIO retains it. Prefer
+    /// [`Self::set_viewing_rules_object`] for a typed wrapper.
+    /// Return a borrowed raw OCIO config-IO proxy handle.
+    ///
+    /// The pointer is owned by OCIO and must not be freed. It is only valid
+    /// while this config remains alive and continues to reference the proxy.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -3214,7 +3224,9 @@ impl Config {
     }
 
     /// # Safety
-    /// The caller must pass a valid OCIO config-IO proxy pointer for the active ABI.
+    /// The caller must pass a valid OCIO config-IO proxy pointer for the
+    /// active ABI and keep it alive for as long as OCIO may use it. Prefer
+    /// [`Self::set_config_io_proxy_object`] for a typed wrapper.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
