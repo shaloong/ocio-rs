@@ -5745,7 +5745,7 @@ void ocio_named_transform_set_name(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->setName(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5789,7 +5789,7 @@ void ocio_named_transform_add_alias(void* handle, const char* alias) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->addAlias(alias);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5800,7 +5800,7 @@ void ocio_named_transform_remove_alias(void* handle, const char* alias) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->removeAlias(alias);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5833,7 +5833,7 @@ void ocio_named_transform_set_family(void* handle, const char* family) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->setFamily(family);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5855,7 +5855,7 @@ void ocio_named_transform_set_description(void* handle, const char* description)
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->setDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5877,7 +5877,7 @@ void ocio_named_transform_add_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->addCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5888,7 +5888,7 @@ void ocio_named_transform_remove_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->removeCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5943,7 +5943,7 @@ void ocio_named_transform_set_encoding(void* handle, const char* encoding) {
 #else
   try {
     ocio_rs_bridge::get_real_named_transform(handle)->setEncoding(encoding);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
