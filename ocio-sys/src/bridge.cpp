@@ -1684,7 +1684,7 @@ void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) return;
     rustProxy->configData = data ? data : "";
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -1733,7 +1733,7 @@ bool ocio_config_io_proxy_set_lut_data(
     rustProxy->fastHashes[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '\\')] =
       rustProxy->fastHashes[filepath];
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
