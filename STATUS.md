@@ -25,7 +25,8 @@ rather than missing core binding coverage.
 ## Known caveats
 
 - Error propagation is available but still being expanded case by case.
-- docs.rs documentation is seeded but still expanding.
+- docs.rs documentation is seeded but still expanding; full `missing_docs`
+  enforcement is not yet a release gate.
 - Stub mode returns safe defaults; it is not a substitute for bundled
   real-OCIO validation.
 - The crate is not yet claiming to be a drop-in replacement for every
@@ -40,7 +41,7 @@ rather than missing core binding coverage.
 | Low-level FFI declarations | Broadly generated and linked to real bridge implementations |
 | Stub mode | Available |
 | Real OCIO build via installed OCIO | Available |
-| Bundled OCIO build | Available, continuously validated |
+| Bundled OCIO build | Available, validated by manual bundled and release-audit workflows |
 | Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture/uniform insertion |
