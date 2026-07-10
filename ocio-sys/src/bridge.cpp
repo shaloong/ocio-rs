@@ -8407,7 +8407,7 @@ void ocio_context_set_search_path(void* handle, const char* path) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->setSearchPath(path);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8462,7 +8462,7 @@ void ocio_context_add_search_path(void* handle, const char* path) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->addSearchPath(path);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8473,7 +8473,7 @@ void ocio_context_set_working_dir(void* handle, const char* dirname) {
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->setWorkingDir(dirname);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8495,7 +8495,7 @@ void ocio_context_set_string_var(void* handle, const char* name, const char* val
 #else
   try {
     ocio_rs_bridge::get_real_context(handle)->setStringVar(name, value);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
