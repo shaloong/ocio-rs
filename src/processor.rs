@@ -761,24 +761,30 @@ impl GPUProcessor {
     }
 
     /// Fill `shader_desc` with OCIO-generated shader text, uniforms, and textures.
+    ///
+    /// Panics when OCIO rejects extraction. Use [`Self::try_extract_shader_info`]
+    /// when extraction failures should be handled by the caller.
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
+        self.try_extract_shader_info(shader_desc)
+            .expect("GPUProcessor::extract_shader_info failed");
+    }
+
+    /// Try to fill `shader_desc` with OCIO-generated shader text, uniforms, and textures.
+    pub fn try_extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v1(
                 self.handle.as_ptr(),
                 shader_desc.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
     pub fn extract_gpu_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
-        unsafe {
-            ocio_sys::ocio_gpu_processor_extract_gpu_shader_info(
-                self.handle.as_ptr(),
-                shader_desc.handle.as_ptr(),
-            );
-        }
+        self.extract_shader_info(shader_desc);
     }
 
     #[doc(hidden)]

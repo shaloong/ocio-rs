@@ -39,7 +39,7 @@ fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
     desc.set_pixel_name("ocio_test_pixel").ok()?;
     desc.set_resource_prefix("ocio_test_").ok()?;
     let mut desc = desc;
-    gpu.extract_shader_info(&mut desc);
+    gpu.try_extract_shader_info(&mut desc).ok()?;
     Some(desc)
 }
 
@@ -58,7 +58,7 @@ fn extracted_dynamic_gpu_shader_desc() -> Option<(ocio_rs::Processor, GpuShaderD
     let gpu = processor.default_gpu_processor().ok()?;
     let desc = GpuShaderDesc::create().ok()?;
     let mut desc = desc;
-    gpu.extract_shader_info(&mut desc);
+    gpu.try_extract_shader_info(&mut desc).ok()?;
     Some((processor, desc))
 }
 

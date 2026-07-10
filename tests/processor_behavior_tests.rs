@@ -38,7 +38,7 @@ fn extract_shader_text(
     desc.set_pixel_name(pixel_name).ok()?;
     desc.set_resource_prefix("ocio_processor_test_").ok()?;
     let mut desc = desc;
-    gpu.extract_shader_info(&mut desc);
+    gpu.try_extract_shader_info(&mut desc).ok()?;
     Some(desc)
 }
 

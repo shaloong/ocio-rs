@@ -7018,7 +7018,7 @@ void ocio_gpu_processor_extract_gpu_shader_info(void* handle, void* shaderDesc) 
     auto* _shaderDesc_h = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shaderDesc);
     auto shaderDesc_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGpuShaderDesc>(_shaderDesc_h->inner)->gpuShaderDesc;
     ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(shaderDesc_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -7031,7 +7031,7 @@ void ocio_gpu_processor_extract_gpu_shader_info_v1(void* handle, void* shaderDes
     auto* _shaderDesc_h = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(shaderDesc);
     auto shaderDesc_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGpuShaderDesc>(_shaderDesc_h->inner)->gpuShaderDesc;
     ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(shaderDesc_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -7044,7 +7044,7 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
     auto* _shaderCreator_h = static_cast<ocio_rs_bridge::GpuShaderCreatorHandle*>(shaderCreator);
     auto shaderCreator_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGpuShaderCreator>(_shaderCreator_h->inner)->shader;
     ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(shaderCreator_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
