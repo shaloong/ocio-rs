@@ -128,6 +128,30 @@ fn config_current_context_exposes_environment_defaults_behavior() {
 }
 
 #[test]
+fn config_current_context_survives_parent_drop_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let context = {
+        let config =
+            Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+        config
+            .try_current_context()
+            .expect("read current context")
+            .expect("current context")
+    };
+
+    assert_eq!(context.string_var("SHOT").as_deref(), Some("shot4"));
+    assert_eq!(
+        context.resolve_string_var("${SHOT}/lut1.clf").as_deref(),
+        Some("shot4/lut1.clf")
+    );
+}
+
+#[test]
 fn config_environment_declarations_and_loading_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {
