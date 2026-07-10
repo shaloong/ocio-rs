@@ -79,7 +79,8 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     desc.set_unique_id("ocio-test-uid").expect("set_unique_id");
     desc.set_resource_prefix("ocio_test_")
         .expect("set_resource_prefix");
-    desc.set_descriptor_set_index(3, 7);
+    desc.try_set_descriptor_set_index(3, 7)
+        .expect("set descriptor set index");
     desc.set_texture_max_width(64)
         .expect("set_texture_max_width");
     desc.set_allow_texture_1d(false)
@@ -181,7 +182,8 @@ fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
         .add_uniform_f64("uExposure", 2.0)
         .expect("duplicate uniform should remain Ok(false)"));
 
-    desc.set_descriptor_set_index(2, 5);
+    desc.try_set_descriptor_set_index(2, 5)
+        .expect("set descriptor set index");
 
     let values_2d = vec![0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
     let binding_2d = desc
@@ -444,7 +446,8 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     }
 
     let desc = GpuShaderDesc::create().expect("gpu shader desc create");
-    desc.set_descriptor_set_index(2, 5);
+    desc.try_set_descriptor_set_index(2, 5)
+        .expect("set descriptor set index");
 
     let values_2d = vec![0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
     let binding_2d = desc

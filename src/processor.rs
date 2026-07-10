@@ -1282,6 +1282,10 @@ impl GpuShaderDesc {
     }
 
     /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_set_descriptor_set_index()"
+    )]
     pub fn set_descriptor_set_index(&self, index: u32, texture_binding_start: u32) {
         self.try_set_descriptor_set_index(index, texture_binding_start)
             .expect("GpuShaderDesc::set_descriptor_set_index failed");
