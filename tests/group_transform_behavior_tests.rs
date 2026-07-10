@@ -26,7 +26,7 @@ fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
 
 fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {
     let matrix = MatrixTransform::identity().expect("identity matrix");
-    matrix.set_offset(&offset);
+    matrix.set_offset(&offset).expect("set matrix offset");
     matrix
 }
 

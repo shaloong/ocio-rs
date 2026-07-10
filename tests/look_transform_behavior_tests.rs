@@ -38,8 +38,10 @@ fn swapped_color_space(name: &str) -> ColorSpace {
         0.0, 1.0, 0.0, 0.0, //
         1.0, 0.0, 0.0, 0.0, //
         0.0, 0.0, 0.0, 1.0,
-    ]);
-    swap.set_offset(&[0.0, 0.0, 0.0, 0.0]);
+    ])
+    .expect("set channel-swap matrix");
+    swap.set_offset(&[0.0, 0.0, 0.0, 0.0])
+        .expect("set channel-swap offset");
     cs.set_transform(&swap, ocio_rs::ColorSpaceDirection::ToReference);
     cs.set_transform(&swap, ocio_rs::ColorSpaceDirection::FromReference);
     cs

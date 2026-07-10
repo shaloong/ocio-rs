@@ -36,13 +36,15 @@ impl MatrixTransform {
     }
 
     /// Replace the current 4x4 matrix in row-major order.
-    pub fn set_matrix(&self, m44: &[f64; 16]) {
+    pub fn set_matrix(&self, m44: &[f64; 16]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_matrix(
                 self.handle.as_ptr(),
                 m44.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the current RGBA offset vector.
@@ -58,13 +60,15 @@ impl MatrixTransform {
     }
 
     /// Replace the current RGBA offset vector.
-    pub fn set_offset(&self, offset4: &[f64; 4]) {
+    pub fn set_offset(&self, offset4: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_offset(
                 self.handle.as_ptr(),
                 offset4.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the transform direction used when this op is evaluated.

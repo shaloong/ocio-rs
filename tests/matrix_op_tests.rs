@@ -157,7 +157,7 @@ fn matrix_set_get_matrix_no_crash() {
     let m44: [f64; 16] = [
         1.1, 0.2, 0.3, 0.4, 0.5, 1.6, 0.7, 0.8, 0.2, 0.1, 1.1, 0.2, 0.3, 0.4, 0.5, 1.6,
     ];
-    t.set_matrix(&m44);
+    t.set_matrix(&m44).expect("set matrix");
     let result = t.matrix();
     // In stub mode, setter is a no-op so matrix stays as identity.
     // Only check that get doesn't crash and returns 16 values.
@@ -173,7 +173,7 @@ fn matrix_set_get_matrix_no_crash() {
 fn matrix_set_get_offset_no_crash() {
     let t = MatrixTransform::create().unwrap();
     let offset: [f64; 4] = [0.1, -0.2, 0.3, 0.0];
-    t.set_offset(&offset);
+    t.set_offset(&offset).expect("set offset");
     let result = t.offset();
     // In stub mode, setter is a no-op. Only verify no-crash.
     if !is_stub() {
@@ -208,7 +208,7 @@ fn matrix_create_editable_copy_no_crash() {
     let m44: [f64; 16] = [
         1.1, 0.2, 0.3, 0.4, 0.5, 1.6, 0.7, 0.8, 0.2, 0.1, 1.1, 0.2, 0.3, 0.4, 0.5, 1.6,
     ];
-    t.set_matrix(&m44);
+    t.set_matrix(&m44).expect("set matrix");
     let copy_result = t.create_editable_copy();
     // In stub mode, copy creation may fail (returns null handle)
     if !is_stub() {
@@ -365,8 +365,9 @@ fn matrix_combined_scale_offset_behavior() {
 
     t.set_matrix(&[
         2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-    ]);
-    t.set_offset(&[0.5, 0.25, 0.0, 0.0]);
+    ])
+    .expect("set matrix");
+    t.set_offset(&[0.5, 0.25, 0.0, 0.0]).expect("set offset");
 
     if is_stub() {
         return;

@@ -12427,7 +12427,7 @@ void ocio_matrix_transform_set_matrix(void* handle, const double* m44) {
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->setMatrix(m44);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12449,7 +12449,7 @@ void ocio_matrix_transform_set_offset(void* handle, const double* offset4) {
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->setOffset(offset4);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
