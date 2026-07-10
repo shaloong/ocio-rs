@@ -56,7 +56,8 @@ fn builtin_config_registry_round_trip_behavior() {
 
     let serialized = config_by_index
         .serialize()
-        .expect("serialize builtin config");
+        .expect("serialize builtin config")
+        .expect("real serialized builtin config");
     assert!(serialized.contains("ocio_profile_version"));
     assert!(serialized.contains("colorspaces:"));
 }

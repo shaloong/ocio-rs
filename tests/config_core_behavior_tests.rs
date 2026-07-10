@@ -221,7 +221,10 @@ fn config_search_paths_roles_and_serialization_behavior() {
         Some("raw")
     );
 
-    let serialized = config.serialize().expect("serialize config");
+    let serialized = config
+        .serialize()
+        .expect("serialize config")
+        .expect("real serialized config");
     assert!(serialized.contains("ocio_profile_version"));
     assert!(serialized.contains("name: UnitConfig"));
     assert!(serialized.contains("description: Unit config description"));
@@ -243,11 +246,29 @@ fn config_archive_returns_payload_for_archivable_file_behavior() {
 
     assert!(config.is_archivable(), "context_test1 should be archivable");
 
-    let archived = config.archive().expect("archive config");
+    let archived = config
+        .archive()
+        .expect("archive config")
+        .expect("real archived config");
     assert!(
         !archived.trim().is_empty(),
         "archive payload should not be empty"
     );
+}
+
+#[test]
+fn config_unarchivable_archive_surfaces_ocio_error_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = Config::raw().expect("raw config");
+    assert!(!config.is_archivable());
+    let err = config
+        .archive()
+        .expect_err("unarchivable config must report an OCIO error");
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }
 
 #[test]

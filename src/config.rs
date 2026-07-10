@@ -2637,20 +2637,25 @@ impl Config {
 
     /// Serialize the config to OCIO YAML text.
     ///
-    /// Returns `None` in stub builds where no real OCIO serializer is linked.
-    pub fn serialize(&self) -> Option<String> {
+    /// Returns `Ok(None)` in stub builds where no real OCIO serializer is linked.
+    pub fn serialize(&self) -> Result<Option<String>> {
         self.serialize_to_string()
     }
 
     /// Serialize the config to OCIO YAML text.
     ///
-    /// Returns `None` in stub builds where no real OCIO serializer is linked.
-    pub fn serialize_to_string(&self) -> Option<String> {
-        unsafe {
+    /// Returns `Ok(None)` in stub builds where no real OCIO serializer is linked.
+    ///
+    /// Returns an error when OCIO cannot serialize this config.
+    pub fn serialize_to_string(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let text = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_serialize_to_string(
                 self.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(text)
     }
 
     // --- Editable copy ---
@@ -3148,20 +3153,25 @@ impl Config {
 
     /// Archive the config to OCIO's textual archive representation.
     ///
-    /// Returns `None` in stub builds where no real OCIO archiver is linked.
-    pub fn archive(&self) -> Option<String> {
+    /// Returns `Ok(None)` in stub builds where no real OCIO archiver is linked.
+    pub fn archive(&self) -> Result<Option<String>> {
         self.archive_to_string()
     }
 
     /// Archive the config to OCIO's textual archive representation.
     ///
-    /// Returns `None` in stub builds where no real OCIO archiver is linked.
-    pub fn archive_to_string(&self) -> Option<String> {
-        unsafe {
+    /// Returns `Ok(None)` in stub builds where no real OCIO archiver is linked.
+    ///
+    /// Returns an error when OCIO cannot archive this config.
+    pub fn archive_to_string(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let text = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_archive_to_string(
                 self.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(text)
     }
 
     /// Return the attached typed config IO proxy when it originated from a Rust-managed proxy.
@@ -3475,7 +3485,7 @@ mod tests {
     #[test]
     fn serialize_no_crash() {
         let config = Config::raw().unwrap();
-        let serialized = config.serialize();
+        let serialized = config.serialize().unwrap();
         if crate::is_stub_build() {
             assert!(serialized.is_none());
         } else {
@@ -3494,7 +3504,7 @@ mod tests {
     #[test]
     fn archive_no_crash() {
         let config = Config::raw().unwrap();
-        let archived = config.archive();
+        let archived = config.archive().unwrap();
         if crate::is_stub_build() {
             assert!(archived.is_none());
         } else if config.is_archivable() {

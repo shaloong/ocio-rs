@@ -4261,11 +4261,11 @@ void* ocio_config_serialize_to_string(void* handle) {
   return nullptr;
 #else
   try {
-    std::ostringstream stream;
-    ocio_rs_bridge::get_real_config(handle)->serialize(stream);
-    ocio_rs_bridge::g_serialized_text = stream.str();
+    std::ostringstream config_stream;
+    ocio_rs_bridge::get_real_config(handle)->serialize(config_stream);
+    ocio_rs_bridge::g_serialized_text = config_stream.str();
     return (void*)ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4301,11 +4301,11 @@ void* ocio_config_archive_to_string(void* handle) {
   return nullptr;
 #else
   try {
-    std::ostringstream stream;
-    ocio_rs_bridge::get_real_config(handle)->archive(stream);
-    ocio_rs_bridge::g_serialized_text = stream.str();
+    std::ostringstream archive_stream;
+    ocio_rs_bridge::get_real_config(handle)->archive(archive_stream);
+    ocio_rs_bridge::g_serialized_text = archive_stream.str();
     return (void*)ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
