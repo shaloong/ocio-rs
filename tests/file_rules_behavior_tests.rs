@@ -80,7 +80,7 @@ fn config_file_rules_attachment_round_trip_behavior() {
         .set_default_rule_color_space("raw")
         .expect("set_default_rule_color_space");
 
-    config.set_file_rules(&rules);
+    config.set_file_rules(&rules).expect("attach file rules");
 
     let attached = config.file_rules().expect("config file_rules");
     assert!(attached.num_entries() >= 1);
@@ -110,7 +110,7 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
         .set_default_rule_color_space("raw")
         .expect("set default rule color space");
 
-    config.set_file_rules(&rules);
+    config.set_file_rules(&rules).expect("attach file rules");
 
     assert_eq!(
         config

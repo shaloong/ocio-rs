@@ -79,7 +79,9 @@ fn config_viewing_rules_attachment_behavior() {
         .set_custom_key(0, "camera", "A001")
         .expect("set custom key");
 
-    config.set_viewing_rules_object(&rules);
+    config
+        .set_viewing_rules_object(&rules)
+        .expect("attach viewing rules");
 
     let attached = config.viewing_rules().expect("attached viewing rules");
     assert_eq!(attached.num_entries(), 1);

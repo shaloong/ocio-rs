@@ -2747,13 +2747,15 @@ impl Config {
     }
 
     /// Attach a file-rules object to this config.
-    pub fn set_file_rules(&self, file_rules: &FileRules) {
+    pub fn set_file_rules(&self, file_rules: &FileRules) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_file_rules(
                 self.handle.as_ptr(),
                 file_rules.handle.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     // --- Environment mode ---
@@ -3095,13 +3097,15 @@ impl Config {
     }
 
     /// Attach a viewing-rules object to this config.
-    pub fn set_viewing_rules_object(&self, viewing_rules: &ViewingRules) {
+    pub fn set_viewing_rules_object(&self, viewing_rules: &ViewingRules) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_viewing_rules(
                 self.handle.as_ptr(),
                 viewing_rules.handle.as_ptr(),
             )
         };
+        crate::ocio_call_status()
     }
 
     /// # Safety
@@ -3601,7 +3605,7 @@ mod tests {
         let config = Config::raw().unwrap();
         // Stub mode creates a default FileRules, real mode gets from config
         if let Ok(rules) = config.file_rules() {
-            config.set_file_rules(&rules);
+            config.set_file_rules(&rules).unwrap();
         }
     }
 

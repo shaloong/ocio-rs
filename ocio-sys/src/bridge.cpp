@@ -3322,7 +3322,7 @@ void ocio_config_set_viewing_rules(void* handle, void* viewingRules) {
     auto* _viewingRules_h = static_cast<ocio_rs_bridge::ViewingRulesHandle*>(viewingRules);
     auto viewingRules_ptr = std::static_pointer_cast<ocio_rs_bridge::RealViewingRules>(_viewingRules_h->inner)->rules;
     ocio_rs_bridge::get_real_config(handle)->setViewingRules(viewingRules_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3641,7 +3641,7 @@ void ocio_config_set_file_rules(void* handle, void* fileRules) {
     auto* _fileRules_h = static_cast<ocio_rs_bridge::FileRulesHandle*>(fileRules);
     auto fileRules_ptr = std::static_pointer_cast<ocio_rs_bridge::RealFileRules>(_fileRules_h->inner)->rules;
     ocio_rs_bridge::get_real_config(handle)->setFileRules(fileRules_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
