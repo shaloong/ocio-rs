@@ -92,7 +92,12 @@ impl FixedFunctionTransform {
         params
     }
 
-    pub fn set_params(&self, params: &[f64]) {
+    /// Set the style-specific parameters for this transform.
+    ///
+    /// OCIO validates the parameter count for the current style. Invalid
+    /// parameter lists are returned as [`OcioError::Ocio`].
+    pub fn set_params(&self, params: &[f64]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_fixed_function_transform_set_params(
                 self.handle.as_ptr(),
@@ -100,6 +105,7 @@ impl FixedFunctionTransform {
                 params.len() as usize,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -183,10 +189,10 @@ mod tests {
 
     #[test]
     fn params_no_crash() {
-        let ft = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
+        let ft = FixedFunctionTransform::create(FixedFunctionStyle::Rec2100Surround).unwrap();
         let _ = ft.num_params();
         let _ = ft.params();
-        ft.set_params(&[1.0, 2.0, 3.0]);
+        ft.set_params(&[1.0]).unwrap();
     }
 
     #[test]

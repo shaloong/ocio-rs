@@ -38,7 +38,7 @@ fn fixed_function_style_params_and_copy_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("fixed function editable copy");
-    copy.set_params(&[0.75]);
+    copy.set_params(&[0.75]).expect("fixed function parameters");
     copy.set_direction(TransformDirection::Inverse);
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
@@ -110,4 +110,25 @@ fn fixed_function_invalid_params_surface_real_error_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+}
+
+#[test]
+fn fixed_function_set_params_surfaces_real_error_without_mutating() {
+    let _guard = fixed_function_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = FixedFunctionTransform::create(FixedFunctionStyle::RgbToHsv)
+        .expect("fixed function create");
+    let err = transform
+        .set_params(&[1.0])
+        .expect_err("RgbToHsv should reject unexpected parameters");
+
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+    assert_eq!(transform.style(), FixedFunctionStyle::RgbToHsv);
+    assert!(transform.params().is_empty());
 }

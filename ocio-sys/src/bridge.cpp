@@ -10273,7 +10273,7 @@ void ocio_fixed_function_transform_set_params(void* handle, const double* params
 #else
   try {
     ocio_rs_bridge::get_real_fixed_function_transform(handle)->setParams(params, num);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
