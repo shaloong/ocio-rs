@@ -6040,7 +6040,7 @@ void ocio_view_transform_set_name(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->setName(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -6062,7 +6062,7 @@ void ocio_view_transform_set_family(void* handle, const char* family) {
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->setFamily(family);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -6084,7 +6084,7 @@ void ocio_view_transform_set_description(void* handle, const char* description) 
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->setDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -6165,7 +6165,7 @@ void ocio_view_transform_add_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->addCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -6176,7 +6176,7 @@ void ocio_view_transform_remove_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->removeCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
