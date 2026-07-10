@@ -1529,7 +1529,7 @@ void* ocio_builtin_config_registry_get(void) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinConfigRegistry>(
       ocio_rs_bridge::RealBuiltinConfigRegistry{&registry});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1611,7 +1611,7 @@ void* ocio_builtin_transform_registry_get(void) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealBuiltinTransformRegistry>(
       ocio_rs_bridge::RealBuiltinTransformRegistry{registry});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
