@@ -263,6 +263,10 @@ impl FileRules {
         self.insert_rule_regex(rule_index, name, color_space, regex)
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_insert_path_search_rule()"
+    )]
     pub fn insert_path_search_rule(&self, rule_index: u64) {
         self.try_insert_path_search_rule(rule_index)
             .expect("FileRules::insert_path_search_rule failed");
@@ -292,6 +296,10 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_remove_rule()"
+    )]
     pub fn remove_rule(&self, rule_index: u64) {
         self.try_remove_rule(rule_index)
             .expect("FileRules::remove_rule failed");
@@ -304,6 +312,10 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_increase_rule_priority()"
+    )]
     pub fn increase_rule_priority(&self, rule_index: u64) {
         self.try_increase_rule_priority(rule_index)
             .expect("FileRules::increase_rule_priority failed");
@@ -321,6 +333,10 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_decrease_rule_priority()"
+    )]
     pub fn decrease_rule_priority(&self, rule_index: u64) {
         self.try_decrease_rule_priority(rule_index)
             .expect("FileRules::decrease_rule_priority failed");
@@ -396,9 +412,9 @@ mod tests {
         assert!(rules
             .insert_rule_regex(1, "RegexRule", "ACEScg", ".*\\.exr")
             .is_ok());
-        rules.insert_path_search_rule(2);
+        rules.try_insert_path_search_rule(2).unwrap();
         assert!(rules.set_default_rule_color_space("ACEScg").is_ok());
-        rules.remove_rule(0);
+        rules.try_remove_rule(0).unwrap();
     }
 
     #[test]
@@ -410,8 +426,8 @@ mod tests {
         rules
             .insert_rule(1, "SecondRule", "ACEScg", "*.dpx", "dpx")
             .unwrap();
-        rules.increase_rule_priority(1);
-        rules.decrease_rule_priority(0);
+        rules.try_increase_rule_priority(1).unwrap();
+        rules.try_decrease_rule_priority(0).unwrap();
     }
 
     #[test]
