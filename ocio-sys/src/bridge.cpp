@@ -9156,7 +9156,7 @@ void ocio_cdl_transform_set_id(void* handle, const char* id) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setID(id);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9178,7 +9178,7 @@ void ocio_cdl_transform_set_first_sop_description(void* handle, const char* desc
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setFirstSOPDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
