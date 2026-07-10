@@ -488,6 +488,9 @@ impl CPUProcessor {
     }
 
     /// Apply the processor to packed RGBA bytes using an explicit OCIO bit depth.
+    ///
+    /// `bit_depth` must match the CPU processor's finalized bit-depth contract.
+    /// In particular, a default CPU processor commonly expects `BitDepth::F32`.
     pub fn apply_rgba_packed_bit_depth(
         &self,
         rgba: &mut [u8],
@@ -500,6 +503,9 @@ impl CPUProcessor {
     }
 
     /// Apply the processor to packed RGBA bytes using an explicit OCIO bit depth.
+    ///
+    /// `bit_depth` must match the CPU processor's finalized bit-depth contract.
+    /// In particular, a default CPU processor commonly expects `BitDepth::F32`.
     pub fn try_apply_rgba_packed_bit_depth(
         &self,
         rgba: &mut [u8],
@@ -548,6 +554,9 @@ impl CPUProcessor {
     }
 
     /// Apply the processor to packed RGB bytes using an explicit OCIO bit depth.
+    ///
+    /// `bit_depth` must match the CPU processor's finalized bit-depth contract.
+    /// In particular, a default CPU processor commonly expects `BitDepth::F32`.
     pub fn apply_rgb_packed_bit_depth(
         &self,
         rgb: &mut [u8],
@@ -560,6 +569,9 @@ impl CPUProcessor {
     }
 
     /// Apply the processor to packed RGB bytes using an explicit OCIO bit depth.
+    ///
+    /// `bit_depth` must match the CPU processor's finalized bit-depth contract.
+    /// In particular, a default CPU processor commonly expects `BitDepth::F32`.
     pub fn try_apply_rgb_packed_bit_depth(
         &self,
         rgb: &mut [u8],
