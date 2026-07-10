@@ -11,7 +11,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
-    current_config, processor_cache_flags, set_processor_cache_flags, try_clear_all_caches,
+    processor_cache_flags, set_processor_cache_flags, try_clear_all_caches, try_current_config,
     try_set_current_config, ProcessorCacheFlags,
 };
 
@@ -111,7 +111,7 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         return;
     }
 
-    let original = current_config();
+    let original = try_current_config().expect("read current config");
 
     let config = create_test_config()
         .expect("raw config")
@@ -120,7 +120,9 @@ fn global_current_config_and_processor_cache_flag_behavior() {
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
 
     try_set_current_config(&config).expect("install current config");
-    let installed = current_config().expect("current config after install");
+    let installed = try_current_config()
+        .expect("read current config after install")
+        .expect("current config after install");
     assert_eq!(
         installed.processor_cache_flags(),
         config.processor_cache_flags()

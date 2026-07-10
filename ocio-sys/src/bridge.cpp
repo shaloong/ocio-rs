@@ -1496,7 +1496,7 @@ void* ocio_get_current_config(void) {
     auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(cfg)});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

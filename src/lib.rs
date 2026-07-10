@@ -148,16 +148,22 @@ pub fn is_stub_build() -> bool {
 /// Returns the process-global current OCIO config, if one is installed.
 ///
 /// The returned handle follows OCIO's shared ownership semantics and can be
-/// queried or copied like any other `Config`.
+/// queried or copied like any other `Config`. This compatibility helper
+/// returns `None` both when no config is installed and when OCIO reports an
+/// error. Use [`try_current_config`] when those cases must be distinguished.
 pub fn current_config() -> Option<Config> {
+    try_current_config().ok().flatten()
+}
+
+/// Try to get the process-global current OCIO config.
+///
+/// Returns `Ok(None)` when no config is installed, and surfaces OCIO bridge
+/// errors separately.
+pub fn try_current_config() -> Result<Option<Config>> {
+    clear_last_error();
     let handle = unsafe { ocio_sys::ocio_get_current_config() };
-    if handle.is_null() {
-        None
-    } else {
-        Some(Config {
-            handle: std::ptr::NonNull::new(handle).unwrap(),
-        })
-    }
+    ocio_call_status()?;
+    Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
 }
 
 #[deprecated(since = "0.2.0", note = "compat alias; prefer current_config()")]
@@ -326,6 +332,11 @@ mod tests {
     #[test]
     fn current_config_no_crash() {
         let _ = current_config();
+    }
+
+    #[test]
+    fn try_current_config_no_crash() {
+        let _ = try_current_config();
     }
 
     #[test]
