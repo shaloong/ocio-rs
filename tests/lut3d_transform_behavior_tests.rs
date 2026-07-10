@@ -22,14 +22,16 @@ fn lut3d_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_lut3d_transform() -> Lut3DTransform {
     let transform = Lut3DTransform::create().expect("lut3d transform create");
-    transform.set_grid_size(2);
+    transform.set_grid_size(2).expect("set LUT grid size");
     transform.set_interpolation(Interpolation::Linear);
     transform.set_file_output_bit_depth(BitDepth::F32);
 
     for r in 0..2u64 {
         for g in 0..2u64 {
             for b in 0..2u64 {
-                transform.set_value(r, g, b, [2.0 * r as f32, 3.0 * g as f32, 4.0 * b as f32]);
+                transform
+                    .set_value(r, g, b, [2.0 * r as f32, 3.0 * g as f32, 4.0 * b as f32])
+                    .expect("set LUT entry");
             }
         }
     }
@@ -60,7 +62,8 @@ fn lut3d_transform_value_copy_and_direction_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("lut3d transform editable copy");
-    copy.set_value(1, 1, 1, [1.0, 1.0, 1.0]);
+    copy.set_value(1, 1, 1, [1.0, 1.0, 1.0])
+        .expect("set LUT entry");
     copy.set_direction(TransformDirection::Inverse);
     copy.set_file_output_bit_depth(BitDepth::Uint16);
 
@@ -71,6 +74,25 @@ fn lut3d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.value(1, 1, 1), Some([2.0, 3.0, 4.0]));
     assert_eq!(transform.direction(), TransformDirection::Forward);
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
+}
+
+#[test]
+fn lut3d_transform_rejects_invalid_write_inputs() {
+    let _guard = lut3d_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = configured_lut3d_transform();
+    assert!(matches!(
+        transform.set_values(&[0.0; 23]),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        transform.set_value(2, 0, 0, [1.0, 1.0, 1.0]),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(transform.value(1, 1, 1), Some([2.0, 3.0, 4.0]));
 }
 
 #[test]

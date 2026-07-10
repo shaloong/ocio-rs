@@ -12086,7 +12086,7 @@ void ocio_lut1d_transform_set_length_u64(void* handle, uint64_t length) {
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(static_cast<unsigned long>(length));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12111,7 +12111,7 @@ void ocio_lut1d_transform_set_value(void* handle, void* index, float r, float g,
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setValue(
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)), r, g, b);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12310,7 +12310,7 @@ void ocio_lut3d_transform_set_grid_size_u64(void* handle, uint64_t gridSize) {
 #else
   try {
     ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(static_cast<unsigned long>(gridSize));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12340,7 +12340,7 @@ void ocio_lut3d_transform_set_value(void* handle, void* indexR, void* indexG, vo
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
         r, g, b);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -13172,7 +13172,7 @@ void ocio_lut1d_transform_set_values(void* transform, const double* data) {
     for (unsigned long i = 0; i < length; ++i) {
       lut->setValue(i, static_cast<float>(data[i * 3 + 0]), static_cast<float>(data[i * 3 + 1]), static_cast<float>(data[i * 3 + 2]));
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform; (void)data;
 #endif
@@ -13215,7 +13215,7 @@ void ocio_lut3d_transform_set_values(void* transform, const double* data) {
         }
       }
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform; (void)data;
 #endif
