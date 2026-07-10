@@ -170,14 +170,22 @@ impl ColorSpace {
         vars
     }
 
-    pub fn set_allocation_vars(&self, vars: &[f32]) {
+    /// Set allocation-domain parameters for this color space.
+    pub fn set_allocation_vars(&self, vars: &[f32]) -> Result<()> {
+        let num_vars = i32::try_from(vars.len()).map_err(|_| {
+            OcioError::InvalidInput(
+                "ColorSpace::set_allocation_vars: too many allocation values".to_owned(),
+            )
+        })?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_allocation_vars(
                 self.handle.as_ptr(),
-                vars.len() as i32,
+                num_vars,
                 vars.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn encoding(&self) -> Option<String> {

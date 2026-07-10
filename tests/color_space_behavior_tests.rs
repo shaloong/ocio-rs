@@ -38,7 +38,8 @@ fn scaled_color_space(
     cs.set_encoding("scene-linear").expect("set encoding");
     cs.set_is_data(false);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
     cs.add_alias(alias).expect("add alias");
     cs.add_category(category).expect("add category");
     cs.set_interchange_attribute("amf_transform_ids", "urn:test:colorspace")

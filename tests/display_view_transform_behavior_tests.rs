@@ -32,7 +32,8 @@ fn identity_color_space(name: &str, is_data: bool) -> ColorSpace {
         .expect("set description");
     cs.set_is_data(is_data);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
     cs
 }
 

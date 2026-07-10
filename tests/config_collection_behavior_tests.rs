@@ -31,7 +31,8 @@ fn identity_color_space(name: &str) -> ColorSpace {
         .expect("set description");
     cs.set_is_data(false);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
 
     let identity = MatrixTransform::identity().expect("identity matrix");
     cs.set_transform(&identity, ColorSpaceDirection::ToReference);

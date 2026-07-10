@@ -5278,7 +5278,7 @@ void ocio_color_space_set_allocation_vars(void* handle, int numvars, const float
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setAllocationVars(numvars, vars);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8815,7 +8815,7 @@ void ocio_allocation_transform_set_vars(void* handle, int numvars, const float* 
 #else
   try {
     ocio_rs_bridge::get_real_allocation_transform(handle)->setVars(numvars, vars);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

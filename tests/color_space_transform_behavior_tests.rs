@@ -38,7 +38,8 @@ fn scaled_color_space(
     cs.set_encoding("scene-linear").expect("set encoding");
     cs.set_is_data(is_data);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
 
     let to_reference = MatrixTransform::scale(&scale).expect("to-reference matrix");
     let from_reference = MatrixTransform::scale(&inverse_scale).expect("from-reference matrix");

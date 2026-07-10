@@ -53,14 +53,22 @@ impl AllocationTransform {
         v
     }
 
-    pub fn set_vars(&self, vars: &[f32]) {
+    /// Set allocation-domain parameters.
+    pub fn set_vars(&self, vars: &[f32]) -> Result<()> {
+        let num_vars = i32::try_from(vars.len()).map_err(|_| {
+            OcioError::InvalidInput(
+                "AllocationTransform::set_vars: too many allocation values".to_owned(),
+            )
+        })?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_vars(
                 self.handle.as_ptr(),
-                vars.len() as i32,
+                num_vars,
                 vars.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -137,7 +145,7 @@ mod tests {
     fn set_vars_no_crash() {
         let t = AllocationTransform::create().unwrap();
         let vars: [f32; 3] = [1.0, 2.0, 3.0];
-        t.set_vars(&vars);
+        t.set_vars(&vars).unwrap();
     }
 
     #[test]
