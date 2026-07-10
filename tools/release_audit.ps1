@@ -190,7 +190,7 @@ function New-PackageTargetDir {
         [string]$CrateName
     )
 
-    $auditRoot = Join-Path $repoRoot "t\ra"
+    $auditRoot = Join-Path $repoRoot "target/release-audit"
     Join-Path $auditRoot $CrateName
 }
 
