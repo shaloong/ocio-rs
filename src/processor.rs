@@ -768,7 +768,7 @@ impl Drop for CPUProcessor {
 /// let gpu = processor.default_gpu_processor()?;
 ///
 /// let mut desc = GpuShaderDesc::create()?;
-/// desc.set_language(GpuLanguage::Glsl1_2);
+/// desc.set_language(GpuLanguage::Glsl1_2)?;
 ///
 /// gpu.extract_shader_info(&mut desc);
 ///
@@ -1178,10 +1178,12 @@ impl GpuShaderDesc {
     }
 
     /// Sets the shader language OCIO should target during extraction.
-    pub fn set_language(&self, language: GpuLanguage) {
+    pub fn set_language(&self, language: GpuLanguage) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_language(self.handle.as_ptr(), language as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Returns the configured shader entry-point name, if any.
@@ -1300,20 +1302,24 @@ impl GpuShaderDesc {
     }
 
     /// Sets the maximum width OCIO may use when laying out extracted 1D textures.
-    pub fn set_texture_max_width(&self, max_width: u32) {
+    pub fn set_texture_max_width(&self, max_width: u32) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_texture_max_width_u32(
                 self.handle.as_ptr(),
                 max_width,
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Controls whether OCIO may use native 1D textures instead of always promoting to 2D.
-    pub fn set_allow_texture_1d(&self, allowed: bool) {
+    pub fn set_allow_texture_1d(&self, allowed: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_allow_texture_1d(self.handle.as_ptr(), allowed);
         }
+        crate::ocio_call_status()
     }
 
     /// Returns whether OCIO may use native 1D textures during extraction.
@@ -1330,8 +1336,10 @@ impl GpuShaderDesc {
     }
 
     /// Marks the end of shader-data collection.
-    pub fn end(&self) {
+    pub fn end(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_gpu_shader_desc_end(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     /// Returns the next OCIO-managed resource index and advances the internal counter.
@@ -1496,10 +1504,12 @@ impl GpuShaderDesc {
     }
 
     /// Finalizes descriptor configuration before extraction when OCIO requires it.
-    pub fn finalize(&self) {
+    pub fn finalize(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_finalize(self.handle.as_ptr() as *mut c_void);
         }
+        crate::ocio_call_status()
     }
 
     /// Returns the maximum width OCIO would like to use for the given texture.
@@ -2604,11 +2614,11 @@ mod tests {
             let _ = desc.function_name();
             let _ = desc.pixel_name();
             let _ = desc.resource_prefix();
-            desc.set_language(GpuLanguage::Glsl1_2);
+            desc.set_language(GpuLanguage::Glsl1_2).unwrap();
             let _ = desc.set_function_name("main");
             let _ = desc.set_pixel_name("outColor");
             let _ = desc.set_resource_prefix("ocio_");
-            desc.finalize();
+            desc.finalize().unwrap();
         }
     }
 

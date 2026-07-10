@@ -34,7 +34,7 @@ fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
         .ok()?;
     let gpu = processor.default_gpu_processor().ok()?;
     let desc = GpuShaderDesc::create().ok()?;
-    desc.set_language(GpuLanguage::Glsl4_0);
+    desc.set_language(GpuLanguage::Glsl4_0).ok()?;
     desc.set_function_name("ocio_test_main").ok()?;
     desc.set_pixel_name("ocio_test_pixel").ok()?;
     desc.set_resource_prefix("ocio_test_").ok()?;
@@ -70,7 +70,8 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     }
 
     let desc = GpuShaderDesc::create().expect("gpu shader desc create");
-    desc.set_language(GpuLanguage::Glsl4_0);
+    desc.set_language(GpuLanguage::Glsl4_0)
+        .expect("set_language");
     desc.set_function_name("ocio_test_main")
         .expect("set_function_name");
     desc.set_pixel_name("ocio_test_pixel")
@@ -79,8 +80,10 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     desc.set_resource_prefix("ocio_test_")
         .expect("set_resource_prefix");
     desc.set_descriptor_set_index(3, 7);
-    desc.set_texture_max_width(64);
-    desc.set_allow_texture_1d(false);
+    desc.set_texture_max_width(64)
+        .expect("set_texture_max_width");
+    desc.set_allow_texture_1d(false)
+        .expect("set_allow_texture_1d");
 
     assert_eq!(desc.language(), GpuLanguage::Glsl4_0);
     assert_eq!(desc.function_name().as_deref(), Some("ocio_test_main"));
@@ -147,7 +150,7 @@ fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
         .expect("set_resource_prefix after error");
 
     desc.begin("after_error_uid").expect("begin after error");
-    desc.end();
+    desc.end().expect("end shader collection");
 
     desc.add_to_parameter_declare_shader_code("uniform float uAfter;\n")
         .expect("parameter declarations after error");
@@ -392,7 +395,7 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     desc.begin("manual_uid").expect("begin");
     assert_eq!(desc.next_resource_index(), 0);
     assert_eq!(desc.next_resource_index(), 1);
-    desc.end();
+    desc.end().expect("end shader collection");
 
     desc.add_to_parameter_declare_shader_code("uniform float uGain;\n")
         .expect("parameter declarations");
@@ -406,7 +409,7 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
         .expect("function body");
     desc.add_to_function_footer_shader_code("}\n")
         .expect("function footer");
-    desc.finalize();
+    desc.finalize().expect("finalize shader descriptor");
 
     let shader_text = desc.shader_text().expect("shader_text after finalize");
     assert!(shader_text.contains("uniform float uGain;"));

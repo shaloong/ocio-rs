@@ -33,7 +33,8 @@ fn extract_shader_text(
     pixel_name: &str,
 ) -> Option<GpuShaderDesc> {
     let desc = GpuShaderDesc::create().ok()?;
-    desc.set_language(GpuLanguage::Glsl4_0);
+    desc.set_language(GpuLanguage::Glsl4_0)
+        .expect("set shader language");
     desc.set_function_name(function_name).ok()?;
     desc.set_pixel_name(pixel_name).ok()?;
     desc.set_resource_prefix("ocio_processor_test_").ok()?;
