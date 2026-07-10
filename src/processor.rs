@@ -376,7 +376,11 @@ pub struct CPUProcessor {
 
 impl CPUProcessor {
     /// # Safety
-    /// `img_desc` must point to a valid OCIO image descriptor compatible with the active ABI.
+    /// `img_desc` must point to a valid mutable OCIO image descriptor compatible
+    /// with the active ABI. Every pixel buffer referenced by the descriptor must
+    /// remain allocated, writable, and correctly strided for the full call. The
+    /// descriptor is borrowed only; this method does not take ownership of it or
+    /// of its pixel memory.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -400,7 +404,11 @@ impl CPUProcessor {
     }
 
     /// # Safety
-    /// `src_img_desc` and `dst_img_desc` must point to valid OCIO image descriptors.
+    /// `src_img_desc` and `dst_img_desc` must point to valid OCIO image
+    /// descriptors for the active ABI. Their referenced buffers must remain
+    /// allocated for the call; the destination buffer must be writable. Unless
+    /// the upstream descriptor contract explicitly permits it, source and
+    /// destination memory must not overlap. Both descriptors are borrowed only.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -840,7 +848,12 @@ impl GPUProcessor {
     }
 
     /// # Safety
-    /// `shader_creator` must point to a valid OCIO shader creator object for the active ABI.
+    /// `shader_creator` must point to a valid mutable OCIO shader creator object
+    /// for the active ABI and remain alive for the duration of the call. OCIO
+    /// writes generated resources through that object, but neither this method
+    /// nor the Rust binding takes ownership of or destroys it. Prefer
+    /// [`Self::try_extract_shader_info`] with [`GpuShaderDesc`] for a typed,
+    /// Rust-owned descriptor.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
