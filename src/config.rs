@@ -3159,10 +3159,12 @@ impl Config {
     }
 
     /// Attach a typed config IO proxy used to serve the config and LUT assets.
-    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) {
+    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn default_family_separator(&self) -> char {
@@ -4076,7 +4078,7 @@ mod tests {
         let config = Config::raw().unwrap();
         let proxy = ConfigIOProxy::create().unwrap();
         proxy.set_config_data("ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n").unwrap();
-        config.set_config_io_proxy_object(&proxy);
+        config.set_config_io_proxy_object(&proxy).unwrap();
         let _ = config.config_io_proxy_object();
     }
 

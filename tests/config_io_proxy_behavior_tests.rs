@@ -132,7 +132,9 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     assert_eq!(proxy.lut_data("E:/virtual/context/missing.spi1d"), None);
 
     let config = Config::raw().expect("raw config");
-    config.set_config_io_proxy_object(&proxy);
+    config
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach config proxy");
     let config_proxy = config
         .config_io_proxy_object()
         .expect("config proxy object");
@@ -143,7 +145,9 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     );
 
     let context = Context::create().expect("context create");
-    context.set_config_io_proxy_object(&proxy);
+    context
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach context proxy");
     let context_proxy = context
         .config_io_proxy_object()
         .expect("context proxy object");
@@ -252,7 +256,9 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
 
     let config_proxy = {
         let config = Config::raw().expect("raw config");
-        config.set_config_io_proxy_object(&proxy);
+        config
+            .set_config_io_proxy_object(&proxy)
+            .expect("attach config proxy");
         config
             .config_io_proxy_object()
             .expect("config proxy object")
@@ -265,7 +271,9 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
 
     let context_proxy = {
         let context = Context::create().expect("context create");
-        context.set_config_io_proxy_object(&proxy);
+        context
+            .set_config_io_proxy_object(&proxy)
+            .expect("attach context proxy");
         context
             .config_io_proxy_object()
             .expect("context proxy object")

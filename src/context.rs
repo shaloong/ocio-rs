@@ -239,10 +239,12 @@ impl Context {
         crate::ocio_call_status()
     }
 
-    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) {
+    pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn config_io_proxy_object(&self) -> Option<ConfigIOProxy> {
@@ -348,7 +350,7 @@ mod tests {
                 "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
             )
             .unwrap();
-        ctx.set_config_io_proxy_object(&proxy);
+        ctx.set_config_io_proxy_object(&proxy).unwrap();
         let _ = ctx.config_io_proxy_object();
     }
 }

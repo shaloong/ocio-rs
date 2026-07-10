@@ -4222,7 +4222,7 @@ void ocio_config_set_config_io_proxy(void* handle, void* ciop) {
     auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
     auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
     ocio_rs_bridge::get_real_config(handle)->setConfigIOProxy(ciop_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8667,7 +8667,7 @@ void ocio_context_set_config_io_proxy(void* handle, void* ciop) {
     auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
     auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
     ocio_rs_bridge::get_real_context(handle)->setConfigIOProxy(ciop_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
