@@ -778,7 +778,7 @@ impl Drop for CPUProcessor {
 /// let mut desc = GpuShaderDesc::create()?;
 /// desc.set_language(GpuLanguage::Glsl1_2)?;
 ///
-/// gpu.extract_shader_info(&mut desc);
+/// gpu.try_extract_shader_info(&mut desc)?;
 ///
 /// let shader_text = desc.shader_text().unwrap_or_default();
 /// // Use shader_text in your rendering pipeline...
@@ -818,6 +818,10 @@ impl GPUProcessor {
     ///
     /// Panics when OCIO rejects extraction. Use [`Self::try_extract_shader_info`]
     /// when extraction failures should be handled by the caller.
+    #[deprecated(
+        since = "0.2.0",
+        note = "panics on OCIO errors; prefer try_extract_shader_info()"
+    )]
     pub fn extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
         self.try_extract_shader_info(shader_desc)
             .expect("GPUProcessor::extract_shader_info failed");
@@ -836,15 +840,23 @@ impl GPUProcessor {
     }
 
     #[doc(hidden)]
-    #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer try_extract_shader_info()"
+    )]
     pub fn extract_gpu_shader_info(&self, shader_desc: &mut GpuShaderDesc) {
-        self.extract_shader_info(shader_desc);
+        self.try_extract_shader_info(shader_desc)
+            .expect("GPUProcessor::extract_gpu_shader_info failed");
     }
 
     #[doc(hidden)]
-    #[deprecated(since = "0.2.0", note = "compat alias; prefer extract_shader_info()")]
+    #[deprecated(
+        since = "0.2.0",
+        note = "compat alias; prefer try_extract_shader_info()"
+    )]
     pub fn extract_gpu_shader_info_v1(&self, shader_desc: &mut GpuShaderDesc) {
-        self.extract_shader_info(shader_desc);
+        self.try_extract_shader_info(shader_desc)
+            .expect("GPUProcessor::extract_gpu_shader_info_v1 failed");
     }
 
     /// # Safety
@@ -2644,7 +2656,7 @@ mod tests {
         let config = Config::raw().unwrap();
         let proc = config.processor("raw", "raw").unwrap();
         if let (Ok(gpu), Ok(mut desc)) = (proc.default_gpu_processor(), GpuShaderDesc::create()) {
-            gpu.extract_shader_info(&mut desc);
+            gpu.try_extract_shader_info(&mut desc).unwrap();
         }
     }
 
