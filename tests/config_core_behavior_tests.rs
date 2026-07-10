@@ -110,7 +110,10 @@ fn config_current_context_exposes_environment_defaults_behavior() {
         .set_working_dir(working_dir.to_string_lossy())
         .expect("set working dir");
 
-    let context = config.current_context().expect("current context");
+    let context = config
+        .try_current_context()
+        .expect("read current context")
+        .expect("current context");
     assert_eq!(context.string_var("SHOT").as_deref(), Some("shot4"));
     assert_eq!(
         context.string_var("LUT_PATH").as_deref(),

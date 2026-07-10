@@ -2138,7 +2138,7 @@ void* ocio_config_get_current_context(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::Context>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealContext>(ocio_rs_bridge::RealContext{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

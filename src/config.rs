@@ -2683,11 +2683,25 @@ impl Config {
     // --- Context ---
 
     /// Return the current context associated with this config, if available.
+    ///
+    /// This compatibility helper returns `None` both when no context is
+    /// available and when OCIO reports an error. Use [`Self::try_current_context`]
+    /// when those cases must be distinguished.
     pub fn current_context(&self) -> Option<Context> {
+        self.try_current_context().ok().flatten()
+    }
+
+    /// Try to get the current context associated with this config.
+    ///
+    /// The returned context owns an independent OCIO shared reference and may
+    /// outlive this `Config` wrapper.
+    pub fn try_current_context(&self) -> Result<Option<Context>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_current_context(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle).map(|h| Context { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| Context { handle }))
     }
 
     // --- Clear all ---
