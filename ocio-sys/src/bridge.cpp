@@ -11909,7 +11909,7 @@ void ocio_look_transform_set_src(void* handle, const char* src) {
 #else
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->setSrc(src);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -11931,7 +11931,7 @@ void ocio_look_transform_set_dst(void* handle, const char* dst) {
 #else
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->setDst(dst);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -11953,7 +11953,7 @@ void ocio_look_transform_set_looks(void* handle, const char* looks) {
 #else
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->setLooks(looks);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
