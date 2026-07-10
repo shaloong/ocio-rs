@@ -2027,7 +2027,7 @@ void ocio_config_set_name(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setName(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2060,7 +2060,7 @@ void ocio_config_set_family_separator(void* handle, char separator) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setFamilySeparator(separator);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2082,7 +2082,7 @@ void ocio_config_set_description(void* handle, const char* description) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2246,7 +2246,7 @@ void ocio_config_set_search_path(void* handle, const char* path) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setSearchPath(path);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2290,7 +2290,7 @@ void ocio_config_add_search_path(void* handle, const char* path) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->addSearchPath(path);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2312,7 +2312,7 @@ void ocio_config_set_working_dir(void* handle, const char* dirname) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setWorkingDir(dirname);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
