@@ -3504,15 +3504,19 @@ mod tests {
     #[test]
     fn archive_no_crash() {
         let config = Config::raw().unwrap();
-        let archived = config.archive().unwrap();
         if crate::is_stub_build() {
-            assert!(archived.is_none());
+            assert!(config.archive().unwrap().is_none());
         } else if config.is_archivable() {
-            let archived = archived.expect("real archivable config should archive");
+            let archived = config
+                .archive()
+                .unwrap()
+                .expect("real archivable config should archive");
             assert!(
                 !archived.trim().is_empty(),
                 "real OCIO config archive should not be empty"
             );
+        } else {
+            assert!(matches!(config.archive(), Err(OcioError::Ocio(_))));
         }
     }
 

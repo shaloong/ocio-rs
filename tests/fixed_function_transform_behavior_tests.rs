@@ -113,7 +113,7 @@ fn fixed_function_invalid_params_surface_real_error_behavior() {
 }
 
 #[test]
-fn fixed_function_set_params_surfaces_real_error_without_mutating() {
+fn fixed_function_set_params_uses_ocio_delayed_validation() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
         return;
@@ -121,14 +121,17 @@ fn fixed_function_set_params_surfaces_real_error_without_mutating() {
 
     let transform = FixedFunctionTransform::create(FixedFunctionStyle::RgbToHsv)
         .expect("fixed function create");
-    let err = transform
+    transform
         .set_params(&[1.0])
-        .expect_err("RgbToHsv should reject unexpected parameters");
+        .expect("OCIO accepts setter parameters before transform validation");
 
-    assert!(
-        matches!(err, ocio_rs::OcioError::Ocio(_)),
-        "unexpected error variant: {err:?}"
-    );
     assert_eq!(transform.style(), FixedFunctionStyle::RgbToHsv);
-    assert!(transform.params().is_empty());
+    assert_vec_close(&transform.params(), &[1.0], 1e-10);
+
+    let config = create_test_config().expect("raw config");
+    let err = match config.processor_from_transform(&transform, TransformDirection::Forward) {
+        Ok(_) => panic!("an invalid fixed-function parameter list must fail validation"),
+        Err(err) => err,
+    };
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }

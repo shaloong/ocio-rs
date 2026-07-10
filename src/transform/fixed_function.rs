@@ -189,7 +189,9 @@ mod tests {
 
     #[test]
     fn params_no_crash() {
-        let ft = FixedFunctionTransform::create(FixedFunctionStyle::Rec2100Surround).unwrap();
+        let ft =
+            FixedFunctionTransform::create_with_params(FixedFunctionStyle::Rec2100Surround, &[1.0])
+                .unwrap();
         let _ = ft.num_params();
         let _ = ft.params();
         ft.set_params(&[1.0]).unwrap();
