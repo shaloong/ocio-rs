@@ -111,6 +111,13 @@ impl ViewingRules {
     }
 
     /// Remove one color-space selector from a rule.
+    ///
+    /// This compatibility method panics when OCIO rejects the indices. Prefer
+    /// [`Self::try_remove_color_space`] to handle errors explicitly.
+    #[deprecated(
+        since = "0.2.0",
+        note = "panic-on-error compatibility method; prefer try_remove_color_space()"
+    )]
     pub fn remove_color_space(&self, rule_index: u64, color_space_index: u64) {
         self.try_remove_color_space(rule_index, color_space_index)
             .expect("ViewingRules::remove_color_space failed");
@@ -165,6 +172,13 @@ impl ViewingRules {
     }
 
     /// Remove one encoding selector from a rule.
+    ///
+    /// This compatibility method panics when OCIO rejects the indices. Prefer
+    /// [`Self::try_remove_encoding`] to handle errors explicitly.
+    #[deprecated(
+        since = "0.2.0",
+        note = "panic-on-error compatibility method; prefer try_remove_encoding()"
+    )]
     pub fn remove_encoding(&self, rule_index: u64, encoding_index: u64) {
         self.try_remove_encoding(rule_index, encoding_index)
             .expect("ViewingRules::remove_encoding failed");
@@ -251,6 +265,13 @@ impl ViewingRules {
     }
 
     /// Remove a viewing rule by index.
+    ///
+    /// This compatibility method panics when OCIO rejects the index. Prefer
+    /// [`Self::try_remove_rule`] to handle errors explicitly.
+    #[deprecated(
+        since = "0.2.0",
+        note = "panic-on-error compatibility method; prefer try_remove_rule()"
+    )]
     pub fn remove_rule(&self, rule_index: u64) {
         self.try_remove_rule(rule_index)
             .expect("ViewingRules::remove_rule failed");
@@ -301,11 +322,11 @@ mod tests {
         let rules = ViewingRules::create().unwrap();
         assert!(rules.insert_rule(0, "RuleA").is_ok());
         assert!(rules.add_color_space(0, "raw").is_ok());
-        rules.remove_color_space(0, 0);
+        rules.try_remove_color_space(0, 0).unwrap();
         assert!(rules.add_encoding(0, "scene-linear").is_ok());
-        rules.remove_encoding(0, 0);
+        rules.try_remove_encoding(0, 0).unwrap();
         assert!(rules.set_custom_key(0, "camera", "A001").is_ok());
         let _ = rules.create_editable_copy();
-        rules.remove_rule(0);
+        rules.try_remove_rule(0).unwrap();
     }
 }
