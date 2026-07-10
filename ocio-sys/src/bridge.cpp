@@ -1133,7 +1133,7 @@ static std::unique_ptr<FileTransformHandle> make_real_file_transform() {
     obj->transform = ocio::FileTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<AllocationTransformHandle> make_real_allocation_transform() {
@@ -1143,7 +1143,7 @@ static std::unique_ptr<AllocationTransformHandle> make_real_allocation_transform
     obj->transform = ocio::AllocationTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<LookHandle> make_real_look() {
@@ -1153,7 +1153,7 @@ static std::unique_ptr<LookHandle> make_real_look() {
     obj->look = ocio::Look::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<NamedTransformHandle> make_real_named_transform() {
@@ -1163,7 +1163,7 @@ static std::unique_ptr<NamedTransformHandle> make_real_named_transform() {
     obj->transform = ocio::NamedTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ContextHandle> make_real_context() {
@@ -1173,7 +1173,7 @@ static std::unique_ptr<ContextHandle> make_real_context() {
     obj->context = ocio::Context::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<Lut1DTransformHandle> make_real_lut1d_transform() {
@@ -1183,7 +1183,7 @@ static std::unique_ptr<Lut1DTransformHandle> make_real_lut1d_transform() {
     obj->transform = ocio::Lut1DTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ColorSpaceTransformHandle> make_real_color_space_transform() {
@@ -1193,7 +1193,7 @@ static std::unique_ptr<ColorSpaceTransformHandle> make_real_color_space_transfor
     obj->transform = ocio::ColorSpaceTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<FileRulesHandle> make_real_file_rules() {
@@ -1203,7 +1203,7 @@ static std::unique_ptr<FileRulesHandle> make_real_file_rules() {
     obj->rules = ocio::FileRules::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<LogTransformHandle> make_real_log_transform() {
@@ -1213,7 +1213,7 @@ static std::unique_ptr<LogTransformHandle> make_real_log_transform() {
     obj->transform = ocio::LogTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ExposureContrastTransformHandle> make_real_exposure_contrast_transform() {
@@ -1223,7 +1223,7 @@ static std::unique_ptr<ExposureContrastTransformHandle> make_real_exposure_contr
     obj->transform = ocio::ExposureContrastTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<GroupTransformHandle> make_real_group_transform() {
@@ -1233,7 +1233,7 @@ static std::unique_ptr<GroupTransformHandle> make_real_group_transform() {
     obj->transform = ocio::GroupTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<LogAffineTransformHandle> make_real_log_affine_transform() {
@@ -1243,7 +1243,7 @@ static std::unique_ptr<LogAffineTransformHandle> make_real_log_affine_transform(
     obj->transform = ocio::LogAffineTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<LookTransformHandle> make_real_look_transform() {
@@ -1253,7 +1253,7 @@ static std::unique_ptr<LookTransformHandle> make_real_look_transform() {
     obj->transform = ocio::LookTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<RangeTransformHandle> make_real_range_transform() {
@@ -1263,7 +1263,7 @@ static std::unique_ptr<RangeTransformHandle> make_real_range_transform() {
     obj->transform = ocio::RangeTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ExponentTransformHandle> make_real_exponent_transform() {
@@ -1273,7 +1273,7 @@ static std::unique_ptr<ExponentTransformHandle> make_real_exponent_transform() {
     obj->transform = ocio::ExponentTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<DisplayViewTransformHandle> make_real_display_view_transform() {
@@ -1283,7 +1283,7 @@ static std::unique_ptr<DisplayViewTransformHandle> make_real_display_view_transf
     obj->transform = ocio::DisplayViewTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ExponentWithLinearTransformHandle> make_real_exponent_with_linear_transform() {
@@ -1293,7 +1293,7 @@ static std::unique_ptr<ExponentWithLinearTransformHandle> make_real_exponent_wit
     obj->transform = ocio::ExponentWithLinearTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<MatrixTransformHandle> make_real_matrix_transform() {
@@ -1303,7 +1303,7 @@ static std::unique_ptr<MatrixTransformHandle> make_real_matrix_transform() {
     obj->transform = ocio::MatrixTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<BuiltinTransformHandle> make_real_builtin_transform() {
@@ -1313,7 +1313,7 @@ static std::unique_ptr<BuiltinTransformHandle> make_real_builtin_transform() {
     obj->transform = ocio::BuiltinTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ColorSpaceSetHandle> make_real_color_space_set() {
@@ -1323,7 +1323,7 @@ static std::unique_ptr<ColorSpaceSetHandle> make_real_color_space_set() {
     obj->set = ocio::ColorSpaceSet::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<BakerHandle> make_real_baker() {
@@ -1333,7 +1333,7 @@ static std::unique_ptr<BakerHandle> make_real_baker() {
     obj->baker = ocio::Baker::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<CDLTransformHandle> make_real_cdl_transform() {
@@ -1343,7 +1343,7 @@ static std::unique_ptr<CDLTransformHandle> make_real_cdl_transform() {
     obj->transform = ocio::CDLTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<Lut3DTransformHandle> make_real_lut3d_transform() {
@@ -1353,7 +1353,7 @@ static std::unique_ptr<Lut3DTransformHandle> make_real_lut3d_transform() {
     obj->transform = ocio::Lut3DTransform::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ColorSpaceHandle> make_real_color_space() {
@@ -1363,7 +1363,7 @@ static std::unique_ptr<ColorSpaceHandle> make_real_color_space() {
     obj->colorSpace = ocio::ColorSpace::Create();
     handle->inner = obj;
     return handle;
-  } catch (...) { return nullptr; }
+  } catch (...) { capture_current_exception(); return nullptr; }
 }
 
 static std::unique_ptr<ConfigHandle> make_real_config_raw() {
