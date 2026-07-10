@@ -2466,7 +2466,7 @@ void ocio_config_set_inactive_color_spaces(void* handle, const char* inactiveCol
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setInactiveColorSpaces(inactiveColorSpaces);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -3722,7 +3722,7 @@ void ocio_config_set_strict_parsing_enabled(void* handle, bool enabled) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setStrictParsingEnabled(enabled);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
