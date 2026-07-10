@@ -264,10 +264,26 @@ pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
 }
 
 /// Updates the processor cache flags on the current global config, if any.
+#[deprecated(
+    since = "0.2.0",
+    note = "discarded OCIO errors; prefer try_set_processor_cache_flags()"
+)]
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
     if let Some(config) = current_config() {
-        config.set_processor_cache_flags(flags.0 as i32);
+        unsafe {
+            ocio_sys::ocio_config_set_processor_cache_flags(config.handle.as_ptr(), flags.0 as i32)
+        };
     }
+}
+
+/// Try to update processor-cache flags on the current global config.
+///
+/// This returns `Ok(())` when no global config is installed.
+pub fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
+    if let Some(config) = try_current_config()? {
+        config.try_set_processor_cache_flags(flags.0 as i32)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {
@@ -326,7 +342,7 @@ mod tests {
     #[test]
     fn processor_cache_flags_no_crash() {
         let f = processor_cache_flags();
-        set_processor_cache_flags(f);
+        assert!(try_set_processor_cache_flags(f).is_ok());
     }
 
     #[test]

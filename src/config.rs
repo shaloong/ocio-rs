@@ -2854,8 +2854,19 @@ impl Config {
 
     // --- Processor cache ---
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_clear_processor_cache()"
+    )]
     pub fn clear_processor_cache(&self) {
         unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr() as *mut c_void) };
+    }
+
+    /// Try to invalidate this config's processor cache.
+    pub fn try_clear_processor_cache(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     // --- v2.5.1: Environment variables ---
@@ -3290,6 +3301,10 @@ impl Config {
         }
     }
 
+    #[deprecated(
+        since = "0.2.0",
+        note = "discarded OCIO errors; prefer try_set_processor_cache_flags()"
+    )]
     pub fn set_processor_cache_flags(&self, flags: i32) {
         unsafe {
             ocio_sys::ocio_config_set_processor_cache_flags(
@@ -3297,6 +3312,18 @@ impl Config {
                 flags,
             )
         };
+    }
+
+    /// Try to set OCIO's processor-cache behavior flags for this config.
+    pub fn try_set_processor_cache_flags(&self, flags: i32) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_set_processor_cache_flags(
+                self.handle.as_ptr() as *mut c_void,
+                flags,
+            )
+        };
+        crate::ocio_call_status()
     }
 }
 
@@ -3705,7 +3732,7 @@ mod tests {
     #[test]
     fn clear_processor_cache_no_crash() {
         let config = Config::raw().unwrap();
-        config.clear_processor_cache();
+        assert!(config.try_clear_processor_cache().is_ok());
     }
 
     #[test]

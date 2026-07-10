@@ -11,8 +11,8 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
-    processor_cache_flags, set_processor_cache_flags, try_clear_all_caches, try_current_config,
-    try_set_current_config, ProcessorCacheFlags,
+    processor_cache_flags, try_clear_all_caches, try_current_config, try_set_current_config,
+    try_set_processor_cache_flags, ProcessorCacheFlags,
 };
 
 fn config_runtime_settings_test_lock() -> MutexGuard<'static, ()> {
@@ -91,7 +91,9 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
         (ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES).0 as i32
     );
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
-    config.set_processor_cache_flags(custom_flags.0 as i32);
+    config
+        .try_set_processor_cache_flags(custom_flags.0 as i32)
+        .expect("set processor cache flags");
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
 
     config
@@ -130,7 +132,7 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         config.processor_cache_flags()
     );
 
-    set_processor_cache_flags(custom_flags);
+    try_set_processor_cache_flags(custom_flags).expect("set global processor cache flags");
     assert_eq!(processor_cache_flags(), custom_flags);
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
     try_clear_all_caches().expect("clear global caches");

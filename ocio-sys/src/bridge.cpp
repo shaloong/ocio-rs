@@ -4196,7 +4196,7 @@ void ocio_config_set_processor_cache_flags(void* handle, int flags) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setProcessorCacheFlags(static_cast<ocio::ProcessorCacheFlags>(flags));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -4207,7 +4207,7 @@ void ocio_config_clear_processor_cache(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearProcessorCache();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
