@@ -6675,7 +6675,7 @@ void ocio_processor_metadata_add_file(void* handle, const char* fileName) {
 #else
   try {
     ocio_rs_bridge::get_real_processor_metadata(handle)->addFile(fileName);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -6686,7 +6686,7 @@ void ocio_processor_metadata_add_look(void* handle, const char* look) {
 #else
   try {
     ocio_rs_bridge::get_real_processor_metadata(handle)->addLook(look);
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
