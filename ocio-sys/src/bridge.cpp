@@ -3073,7 +3073,7 @@ void ocio_config_set_active_displays(void* handle, const char* displays) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setActiveDisplays(displays);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3150,7 +3150,7 @@ void ocio_config_set_active_views(void* handle, const char* views) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setActiveViews(views);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3495,7 +3495,7 @@ void ocio_config_set_default_view_transform_name(void* handle, const char* defau
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setDefaultViewTransformName(defaultName);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
