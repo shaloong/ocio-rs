@@ -141,9 +141,15 @@ impl Baker {
 
     /// Bake the configured output to an in-memory string.
     ///
-    /// Returns `None` in stub builds where no real OCIO baker is linked.
-    pub fn bake_to_string(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_baker_bake_to_string(self.handle.as_ptr())) }
+    /// Returns `Ok(None)` in stub builds where no real OCIO baker is linked.
+    ///
+    /// Returns an error when OCIO cannot bake the configured output.
+    pub fn bake_to_string(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let text =
+            unsafe { cstr_from_mut(ocio_sys::ocio_baker_bake_to_string(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(text)
     }
 
     /// Bake the configured output and write it to `output_path`.
@@ -151,7 +157,7 @@ impl Baker {
     /// In stub builds, no output text is generated and this method returns `Ok(())`
     /// without writing a file.
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {
-        let Some(contents) = self.bake_to_string() else {
+        let Some(contents) = self.bake_to_string()? else {
             return Ok(());
         };
         fs::write(output_path.as_ref(), contents).map_err(|e| OcioError::Ocio(e.to_string()))?;
@@ -258,7 +264,7 @@ mod tests {
             let _ = baker.set_input_space("raw");
             let _ = baker.set_target_space("raw");
         }
-        let baked = baker.bake_to_string();
+        let baked = baker.bake_to_string().unwrap();
         if crate::is_stub_build() {
             assert!(baked.is_none());
         }

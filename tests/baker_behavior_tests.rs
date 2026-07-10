@@ -104,7 +104,10 @@ fn baker_bake_to_string_and_file_behavior() {
     baker.set_target_space("raw").expect("set target");
     baker.set_cube_size(2).expect("set cube size");
 
-    let baked = baker.bake_to_string().expect("bake_to_string");
+    let baked = baker
+        .bake_to_string()
+        .expect("bake_to_string")
+        .expect("real baker output");
     assert!(!baked.trim().is_empty());
     assert!(baked.contains("LUT_1D_SIZE 2"));
     assert!(baked.lines().any(|line| line.contains("0.000000")));
@@ -134,4 +137,18 @@ fn baker_invalid_format_reports_error_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+}
+
+#[test]
+fn baker_unconfigured_bake_surfaces_ocio_error_behavior() {
+    let _guard = baker_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let baker = Baker::create().expect("baker create");
+    let err = baker
+        .bake_to_string()
+        .expect_err("unconfigured Baker must not silently produce no output");
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }

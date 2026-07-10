@@ -8364,11 +8364,11 @@ void* ocio_baker_bake_to_string(void* handle) {
   return nullptr;
 #else
   try {
-    std::ostringstream stream;
-    ocio_rs_bridge::get_real_baker(handle)->bake(stream);
-    ocio_rs_bridge::g_serialized_text = stream.str();
+    std::ostringstream baker_stream;
+    ocio_rs_bridge::get_real_baker(handle)->bake(baker_stream);
+    ocio_rs_bridge::g_serialized_text = baker_stream.str();
     return (void*)ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
