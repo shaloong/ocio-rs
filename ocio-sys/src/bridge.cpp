@@ -10027,7 +10027,7 @@ void ocio_file_transform_set_src(void* handle, const char* src) {
 #else
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->setSrc(src);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -10049,7 +10049,7 @@ void ocio_file_transform_set_ccc_id(void* handle, const char* id) {
 #else
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->setCCCId(id);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
