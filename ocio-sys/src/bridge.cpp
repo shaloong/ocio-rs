@@ -4867,7 +4867,7 @@ void ocio_color_space_set_name(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setName(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4911,7 +4911,7 @@ void ocio_color_space_add_alias(void* handle, const char* alias) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->addAlias(alias);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4922,7 +4922,7 @@ void ocio_color_space_remove_alias(void* handle, const char* alias) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->removeAlias(alias);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4955,7 +4955,7 @@ void ocio_color_space_set_family(void* handle, const char* family) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setFamily(family);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4977,7 +4977,7 @@ void ocio_color_space_set_equality_group(void* handle, const char* equalityGroup
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setEqualityGroup(equalityGroup);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -4999,7 +4999,7 @@ void ocio_color_space_set_description(void* handle, const char* description) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5135,7 +5135,7 @@ void ocio_color_space_add_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->addCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5146,7 +5146,7 @@ void ocio_color_space_remove_category(void* handle, const char* category) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->removeCategory(category);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5201,7 +5201,7 @@ void ocio_color_space_set_encoding(void* handle, const char* encoding) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setEncoding(encoding);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
