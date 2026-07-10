@@ -68,7 +68,9 @@ fn config_version_mutation_and_upgrade_behavior() {
     assert_eq!(config.major_version(), 2);
     assert_eq!(config.minor_version(), 0);
 
-    config.upgrade_to_latest_version();
+    config
+        .upgrade_to_latest_version()
+        .expect("upgrade config version");
     assert_eq!(config.major_version(), 2);
     assert_eq!(config.minor_version(), 0);
 }

@@ -189,8 +189,11 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    pub fn upgrade_to_latest_version(&self) {
+    /// Upgrade this config to the newest OCIO profile version it supports.
+    pub fn upgrade_to_latest_version(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_upgrade_to_latest_version(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn family_separator(&self) -> char {
@@ -611,24 +614,30 @@ impl Config {
 
     // --- Luma coefficients ---
 
-    pub fn default_luma_coefs(&self) -> [f64; 3] {
+    /// Return the default luminance coefficients used by display transforms.
+    pub fn default_luma_coefs(&self) -> Result<[f64; 3]> {
         let mut coefs = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_get_default_luma_coefs(
                 self.handle.as_ptr(),
                 coefs.as_mut_ptr() as *mut c_void,
             );
         }
-        coefs
+        crate::ocio_call_status()?;
+        Ok(coefs)
     }
 
-    pub fn set_default_luma_coefs(&self, coefs: &[f64; 3]) {
+    /// Set the default luminance coefficients used by display transforms.
+    pub fn set_default_luma_coefs(&self, coefs: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_default_luma_coefs(
                 self.handle.as_ptr(),
                 coefs.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     // --- Roles ---
@@ -3331,7 +3340,7 @@ mod tests {
     #[test]
     fn config_luma_coefs() {
         let config = Config::raw().unwrap();
-        let coefs = config.default_luma_coefs();
+        let coefs = config.default_luma_coefs().unwrap();
         // Stub mode returns zeros
         assert_eq!(coefs.len(), 3);
     }
@@ -3525,7 +3534,9 @@ mod tests {
     #[test]
     fn set_default_luma_coefs_no_crash() {
         let config = Config::raw().unwrap();
-        config.set_default_luma_coefs(&[0.2126, 0.7152, 0.0722]);
+        config
+            .set_default_luma_coefs(&[0.2126, 0.7152, 0.0722])
+            .unwrap();
     }
 
     #[test]
@@ -4049,7 +4060,7 @@ mod tests {
         let _ = config.get_num_color_spaces_v1();
         let _ = config.get_color_space_name_by_index_v1(0);
         assert!(config.set_version(2, 5).is_ok());
-        config.upgrade_to_latest_version();
+        config.upgrade_to_latest_version().unwrap();
     }
 
     #[test]

@@ -270,8 +270,12 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
     assert_eq!(config.is_strict_parsing_enabled(), initial_strict);
 
     let custom_luma = [0.3, 0.59, 0.11];
-    config.set_default_luma_coefs(&custom_luma);
-    let round_trip = config.default_luma_coefs();
+    config
+        .set_default_luma_coefs(&custom_luma)
+        .expect("set default luma coefficients");
+    let round_trip = config
+        .default_luma_coefs()
+        .expect("get default luma coefficients");
     assert_close(round_trip[0], custom_luma[0], 1e-12);
     assert_close(round_trip[1], custom_luma[1], 1e-12);
     assert_close(round_trip[2], custom_luma[2], 1e-12);

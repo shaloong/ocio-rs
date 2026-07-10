@@ -1989,7 +1989,7 @@ void ocio_config_upgrade_to_latest_version(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->upgradeToLatestVersion();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3333,7 +3333,7 @@ void ocio_config_get_default_luma_coefs(void* handle, void* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->getDefaultLumaCoefs(static_cast<double*>(rgb));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3344,7 +3344,7 @@ void ocio_config_set_default_luma_coefs(void* handle, const double* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setDefaultLumaCoefs(rgb);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
