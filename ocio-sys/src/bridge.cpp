@@ -8321,7 +8321,7 @@ void ocio_baker_set_shaper_size(void* handle, int shapersize) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setShaperSize(shapersize);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8343,7 +8343,7 @@ void ocio_baker_set_cube_size(void* handle, int cubesize) {
 #else
   try {
     ocio_rs_bridge::get_real_baker(handle)->setCubeSize(cubesize);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

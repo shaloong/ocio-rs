@@ -45,8 +45,8 @@ fn baker_property_round_trip_behavior() {
     baker.set_target_space("raw").expect("set target");
     baker.set_shaper_space("raw").expect("set shaper");
     baker.set_looks("").expect("set looks");
-    baker.set_shaper_size(8);
-    baker.set_cube_size(2);
+    baker.set_shaper_size(8).expect("set shaper size");
+    baker.set_cube_size(2).expect("set cube size");
 
     assert_eq!(baker.format().as_deref(), Some("resolve_cube"));
     assert_eq!(baker.input_space().as_deref(), Some("raw"));
@@ -102,7 +102,7 @@ fn baker_bake_to_string_and_file_behavior() {
     baker.set_format("resolve_cube").expect("set format");
     baker.set_input_space("raw").expect("set input");
     baker.set_target_space("raw").expect("set target");
-    baker.set_cube_size(2);
+    baker.set_cube_size(2).expect("set cube size");
 
     let baked = baker.bake_to_string().expect("bake_to_string");
     assert!(!baked.trim().is_empty());

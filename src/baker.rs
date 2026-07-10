@@ -121,16 +121,22 @@ impl Baker {
         unsafe { ocio_sys::ocio_baker_get_shaper_size(self.handle.as_ptr()) }
     }
 
-    pub fn set_shaper_size(&self, size: i32) {
+    /// Set the number of samples used for the optional shaper LUT.
+    pub fn set_shaper_size(&self, size: i32) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_shaper_size(self.handle.as_ptr(), size) };
+        crate::ocio_call_status()
     }
 
     pub fn cube_size(&self) -> i32 {
         unsafe { ocio_sys::ocio_baker_get_cube_size(self.handle.as_ptr()) }
     }
 
-    pub fn set_cube_size(&self, size: i32) {
+    /// Set the edge length used for the generated cube LUT.
+    pub fn set_cube_size(&self, size: i32) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_baker_set_cube_size(self.handle.as_ptr(), size) };
+        crate::ocio_call_status()
     }
 
     /// Bake the configured output to an in-memory string.
