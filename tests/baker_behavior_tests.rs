@@ -38,7 +38,7 @@ fn baker_property_round_trip_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
 
     baker.set_format("resolve_cube").expect("set format");
     baker.set_input_space("raw").expect("set input");
@@ -98,7 +98,7 @@ fn baker_bake_to_string_and_file_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
     baker.set_format("resolve_cube").expect("set format");
     baker.set_input_space("raw").expect("set input");
     baker.set_target_space("raw").expect("set target");

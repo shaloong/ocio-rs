@@ -25,10 +25,13 @@ impl Baker {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    pub fn set_config(&self, config: &Config) {
+    /// Attach the OCIO config used to resolve Baker color spaces and views.
+    pub fn set_config(&self, config: &Config) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_baker_set_config(self.handle.as_ptr(), config.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn config(&self) -> Result<Config> {
@@ -240,7 +243,7 @@ mod tests {
         let baker = Baker::create().unwrap();
         if !crate::is_stub_build() {
             let config = Config::raw().unwrap();
-            baker.set_config(&config);
+            baker.set_config(&config).unwrap();
             if Baker::num_formats() > 0 {
                 if let Some(format) = Baker::format_name_by_index(0) {
                     let _ = baker.set_format(format);

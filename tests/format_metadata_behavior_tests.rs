@@ -29,7 +29,7 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
     baker.set_format("resolve_cube").expect("set baker format");
 
     let metadata = baker.format_metadata().expect("baker format metadata");
@@ -183,7 +183,7 @@ fn format_metadata_remains_usable_after_parent_drop() {
     let baker_metadata = {
         let baker = Baker::create().expect("baker create");
         let config = Config::raw().expect("raw config");
-        baker.set_config(&config);
+        baker.set_config(&config).expect("attach config");
         baker.set_format("resolve_cube").expect("set baker format");
         let metadata = baker.format_metadata().expect("baker format metadata");
         metadata

@@ -8091,7 +8091,7 @@ void ocio_baker_set_config(void* handle, void* config) {
     auto* _config_h = static_cast<ocio_rs_bridge::ConfigHandle*>(config);
     auto config_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_config_h->inner)->config;
     ocio_rs_bridge::get_real_baker(handle)->setConfig(config_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
