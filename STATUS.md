@@ -13,13 +13,13 @@ rather than missing core binding coverage.
 |---|---|
 | Stub (`--no-default-features`) | Available — default for CI and API-shape testing |
 | Real OCIO via installed library | Available (`OCIO_RS_ENABLE_REAL=1`) |
-| Bundled OCIO from source | Available, validated via manual bundled and release-audit workflows (`--features bundled`) |
+| Bundled OCIO from source | Available, validated by weekly bundled CI plus manual workflows (`--features bundled`) |
 
 | CI coverage | Runs |
 |---|---|
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
-| Bundled real-OCIO tests | **Manual** only (`workflow_dispatch`) |
+| Bundled real-OCIO tests | **Weekly** on Ubuntu, plus manual `workflow_dispatch` |
 | Release audit (full packaging + offline bundled) | **Manual** only (`workflow_dispatch`) |
 
 ## Known caveats
@@ -41,7 +41,7 @@ rather than missing core binding coverage.
 | Low-level FFI declarations | Broadly generated and linked to real bridge implementations |
 | Stub mode | Available |
 | Real OCIO build via installed OCIO | Available |
-| Bundled OCIO build | Available, validated by manual bundled and release-audit workflows |
+| Bundled OCIO build | Available, validated by weekly bundled CI plus manual workflows |
 | Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture/uniform insertion |
@@ -49,7 +49,7 @@ rather than missing core binding coverage.
 | Error propagation | Available, still being expanded case by case |
 | docs.rs documentation | Seeded, still expanding |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
-| CI real-OCIO validation | Manual bundled and release-audit workflows on Ubuntu |
+| CI real-OCIO validation | Weekly bundled tests plus manual bundled and release-audit workflows on Ubuntu |
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the

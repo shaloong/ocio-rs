@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -61,7 +63,7 @@ jobs:
         run: cargo package -p ocio-sys --allow-dirty
 
   bundled:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

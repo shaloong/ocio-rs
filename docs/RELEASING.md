@@ -61,7 +61,7 @@ Current audit status:
 
 The repository also exposes the same flow as manual GitHub Actions workflows:
 
-- `CI` (workflow_dispatch bundled job)
+- `CI` (weekly and workflow-dispatch bundled job)
 - `Release Audit`
 
 ## CI workflows
@@ -75,10 +75,10 @@ request, plus one manual job:
 - **Stub Audit** (automatic): runs fmt, clippy, docs, parity
   (`check_parity --quiet -- --check-l3`), and `cargo package -p ocio-sys`
   on Ubuntu.
-- **Bundled** (manual, `workflow_dispatch` only): runs
+- **Bundled** (weekly plus manual `workflow_dispatch`): runs
   `cargo test --workspace --features bundled -- --test-threads=1` on Ubuntu
-  with a recursive submodule checkout. This job does **not** run
-  automatically on push or pull request.
+  with a recursive submodule checkout. This job runs weekly, but does **not**
+  run automatically on push or pull request.
 
 The Release Audit workflow (`release-audit.yml`) is also manual-only
 (`workflow_dispatch`). It runs the full `release_audit.ps1` script with
