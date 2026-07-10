@@ -3031,10 +3031,15 @@ impl Config {
         unsafe { ocio_sys::ocio_config_is_display_temporary(self.handle.as_ptr(), index) }
     }
 
-    pub fn set_display_temporary(&self, index: i32, temporary: bool) {
+    /// Mark the display at `index` as temporary or persistent.
+    ///
+    /// Returns an error when `index` does not identify an existing display.
+    pub fn set_display_temporary(&self, index: i32, temporary: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_display_temporary(self.handle.as_ptr(), index, temporary)
         };
+        crate::ocio_call_status()
     }
 
     pub fn num_views_by_reference_space(

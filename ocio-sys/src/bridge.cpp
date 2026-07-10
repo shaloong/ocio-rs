@@ -3271,7 +3271,7 @@ void ocio_config_set_display_temporary(void* handle, int index, bool isTemporary
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->setDisplayTemporary(index, isTemporary);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

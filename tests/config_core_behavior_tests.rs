@@ -269,6 +269,16 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
     config.set_strict_parsing_enabled(initial_strict);
     assert_eq!(config.is_strict_parsing_enabled(), initial_strict);
 
+    if config.num_displays_all() > 0 {
+        config
+            .set_display_temporary(0, true)
+            .expect("mark display temporary");
+        assert!(config.is_display_temporary(0));
+        config
+            .set_display_temporary(0, false)
+            .expect("clear temporary display marker");
+    }
+
     let custom_luma = [0.3, 0.59, 0.11];
     config
         .set_default_luma_coefs(&custom_luma)
