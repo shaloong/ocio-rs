@@ -5530,7 +5530,7 @@ void ocio_look_set_name(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_look(handle)->setName(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5552,7 +5552,7 @@ void ocio_look_set_process_space(void* handle, const char* processSpace) {
 #else
   try {
     ocio_rs_bridge::get_real_look(handle)->setProcessSpace(processSpace);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -5632,7 +5632,7 @@ void ocio_look_set_description(void* handle, const char* description) {
 #else
   try {
     ocio_rs_bridge::get_real_look(handle)->setDescription(description);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
