@@ -42,8 +42,8 @@ fn group_transform_order_copy_and_mutation_behavior() {
     let offset = offset_matrix([0.1, 0.0, 0.0, 0.0]);
 
     let group = GroupTransform::create().expect("group create");
-    group.append_transform(&scale);
-    group.append_transform(&offset);
+    group.append_transform(&scale).expect("append scale");
+    group.append_transform(&offset).expect("append offset");
 
     assert_eq!(group.num_transforms(), 2);
     assert_eq!(group.direction(), TransformDirection::Forward);
@@ -64,8 +64,10 @@ fn group_transform_order_copy_and_mutation_behavior() {
     assert_close(appended_pixel[3] as f64, 1.0, 1e-6);
 
     let prepended = GroupTransform::create().expect("prepended group create");
-    prepended.append_transform(&scale);
-    prepended.prepend_transform(&offset);
+    prepended.append_transform(&scale).expect("append scale");
+    prepended
+        .prepend_transform(&offset)
+        .expect("prepend offset");
 
     assert_eq!(prepended.num_transforms(), 2);
     let prepended_cpu = config
@@ -85,15 +87,21 @@ fn group_transform_order_copy_and_mutation_behavior() {
         .create_editable_copy()
         .expect("editable copy from group");
     copy.set_direction(TransformDirection::Inverse);
-    copy.remove_transform(1);
+    copy.remove_transform(1).expect("remove child");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_eq!(copy.num_transforms(), 1);
     assert_eq!(group.direction(), TransformDirection::Forward);
     assert_eq!(group.num_transforms(), 2);
 
-    copy.clear_transforms();
+    copy.clear_transforms().expect("clear children");
     assert_eq!(copy.num_transforms(), 0);
+    assert_eq!(group.num_transforms(), 2);
+
+    let err = group
+        .remove_transform(2)
+        .expect_err("out-of-range child removal must fail");
+    assert!(err.to_string().contains("out of range"));
     assert_eq!(group.num_transforms(), 2);
 }
 
@@ -113,8 +121,8 @@ fn group_transform_writer_and_format_query_behavior() {
     range.set_max_out_value(1.0);
 
     let group = GroupTransform::create().expect("group create");
-    group.append_transform(&scale);
-    group.append_transform(&range);
+    group.append_transform(&scale).expect("append scale");
+    group.append_transform(&range).expect("append range");
 
     let formats = GroupTransform::num_write_formats();
     assert!(formats > 0);

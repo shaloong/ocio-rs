@@ -11335,7 +11335,7 @@ void ocio_group_transform_append_transform(void* handle, void* transform) {
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_group_transform(handle)->appendTransform(transform_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -11348,7 +11348,7 @@ void ocio_group_transform_prepend_transform(void* handle, void* transform) {
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_group_transform(handle)->prependTransform(transform_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -11377,7 +11377,7 @@ void* ocio_group_transform_write_to_string(void* handle, void* config, const cha
     ocio_rs_bridge::get_real_group_transform(handle)->write(config_ptr, formatName, stream);
     ocio_rs_bridge::g_serialized_text = stream.str();
     return (void*)ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -13318,6 +13318,9 @@ void ocio_group_transform_remove_transform(void* transform, uint64_t index) {
   try {
     auto* handle = static_cast<ocio_rs_bridge::GroupTransformHandle*>(transform);
     auto obj = std::static_pointer_cast<ocio_rs_bridge::RealGroupTransform>(handle->inner);
+    if (index >= static_cast<uint64_t>(obj->transform->getNumTransforms())) {
+      throw std::out_of_range("GroupTransform child index is out of range");
+    }
     auto replacement = ocio::GroupTransform::Create();
     replacement->setDirection(obj->transform->getDirection());
     replacement->getFormatMetadata() = obj->transform->getFormatMetadata();
@@ -13328,7 +13331,7 @@ void ocio_group_transform_remove_transform(void* transform, uint64_t index) {
       if (child) replacement->appendTransform(child);
     }
     obj->transform = replacement;
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform; (void)index;
 #endif
@@ -13343,7 +13346,7 @@ void ocio_group_transform_clear_transforms(void* transform) {
     replacement->setDirection(obj->transform->getDirection());
     replacement->getFormatMetadata() = obj->transform->getFormatMetadata();
     obj->transform = replacement;
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform;
 #endif
