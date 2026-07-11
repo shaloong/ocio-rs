@@ -261,6 +261,7 @@ impl Config {
         }
     }
 
+    /// Test whether a named color space is linear with respect to a reference space type.
     pub fn is_color_space_linear(
         &self,
         color_space: impl AsRef<str>,
@@ -424,6 +425,7 @@ impl Config {
         }
     }
 
+    /// Return the default view for a display, filtered by color-space name.
     pub fn default_view_with_color_space(
         &self,
         display: impl AsRef<str>,
@@ -473,6 +475,7 @@ impl Config {
         }
     }
 
+    /// Return the number of views for a display, filtered by color-space name.
     pub fn num_views_with_color_space(
         &self,
         display: impl AsRef<str>,
@@ -520,6 +523,7 @@ impl Config {
         }
     }
 
+    /// Return the view name at a given index for a display, filtered by color-space name.
     pub fn view_with_color_space(
         &self,
         display: impl AsRef<str>,
@@ -552,6 +556,7 @@ impl Config {
         self.view_with_color_space(display, color_space_name, index)
     }
 
+    /// Return whether a given view is a shared view for a specific display.
     pub fn is_view_shared(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
         let display = match cstring(display) {
             Ok(v) => v,
@@ -605,10 +610,12 @@ impl Config {
 
     // --- Looks ---
 
+    /// Return the total number of looks registered in the config.
     pub fn num_looks(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_looks(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return the look name at a given index, or `None` if out of range.
     pub fn look_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_look_name_by_index(
@@ -618,6 +625,7 @@ impl Config {
         }
     }
 
+    /// Return a comma-separated string of all look names.
     pub fn looks(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_look(
@@ -657,10 +665,12 @@ impl Config {
 
     // --- Roles ---
 
+    /// Return the total number of roles defined in the config.
     pub fn num_roles(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_roles(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return whether a role with the given name exists.
     pub fn has_role(&self, role: impl AsRef<str>) -> bool {
         let role = match cstring(role) {
             Ok(r) => r,
@@ -669,6 +679,7 @@ impl Config {
         unsafe { ocio_sys::ocio_config_has_role(self.handle.as_ptr(), role.as_ptr().cast()) }
     }
 
+    /// Return the role name at a given index.
     pub fn role_name(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_role_name(
@@ -678,6 +689,7 @@ impl Config {
         }
     }
 
+    /// Return the color-space name bound to the role at a given index.
     pub fn role_color_space_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_role_color_space_by_index(
@@ -700,6 +712,7 @@ impl Config {
 
     // --- Active displays / views ---
 
+    /// Return the comma-separated string of active display names.
     pub fn active_displays(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_displays(
@@ -708,6 +721,7 @@ impl Config {
         }
     }
 
+    /// Return the comma-separated string of active view names.
     pub fn active_views(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_views(
@@ -716,6 +730,7 @@ impl Config {
         }
     }
 
+    /// Replace the active displays list from a comma-separated string.
     pub fn set_active_displays(&self, displays: impl AsRef<str>) -> Result<()> {
         let d = cstring(displays)?;
         crate::clear_last_error();
@@ -725,6 +740,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Replace the active views list from a comma-separated string.
     pub fn set_active_views(&self, views: impl AsRef<str>) -> Result<()> {
         let v = cstring(views)?;
         crate::clear_last_error();
@@ -768,6 +784,7 @@ impl Config {
         }
     }
 
+    /// Return the looks string associated with a display/view pair.
     pub fn display_view_looks(
         &self,
         display: impl AsRef<str>,
@@ -784,6 +801,7 @@ impl Config {
         }
     }
 
+    /// Return the rule name associated with a display/view pair.
     pub fn display_view_rule(
         &self,
         display: impl AsRef<str>,
@@ -810,6 +828,7 @@ impl Config {
         self.display_view_rule(display, view)
     }
 
+    /// Return the description string for a display/view pair.
     pub fn display_view_description(
         &self,
         display: impl AsRef<str>,
@@ -858,6 +877,7 @@ impl Config {
         }
     }
 
+    /// Return the default scene-to-display view-transform object.
     pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
         let handle = unsafe {
             ocio_sys::ocio_config_get_default_scene_to_display_view_transform(
@@ -867,6 +887,7 @@ impl Config {
         NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
     }
 
+    /// Return the name of the default view transform.
     pub fn default_view_transform_name(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_view_transform_name(
@@ -884,6 +905,7 @@ impl Config {
         self.default_view_transform_name()
     }
 
+    /// Set the name of the default view transform.
     pub fn set_default_view_transform_name(&self, default_name: impl AsRef<str>) -> Result<()> {
         let default_name = cstring(default_name)?;
         crate::clear_last_error();
@@ -913,6 +935,7 @@ impl Config {
         Self::processor_handle_result(handle)
     }
 
+    /// Create a processor between two `ColorSpace` object handles.
     pub fn processor_from_color_spaces(
         &self,
         src_color_space: &ColorSpace,
@@ -988,6 +1011,7 @@ impl Config {
         self.processor_display(src, display, view, direction)
     }
 
+    /// Create a processor from a transform with an explicit direction.
     pub fn processor_from_transform(
         &self,
         transform: &impl TransformHandle,
@@ -1276,6 +1300,7 @@ impl Config {
         self.processor_named_transform_name_with_context(context, named_transform_name, direction)
     }
 
+    /// Create a processor from a source config color space to a built-in color space.
     pub fn processor_to_builtin_color_space(
         &self,
         src_config: &Config,
@@ -1314,6 +1339,7 @@ impl Config {
         )
     }
 
+    /// Create a processor from a built-in color space to a source config color space.
     pub fn processor_from_builtin_color_space(
         &self,
         builtin_color_space_name: impl AsRef<str>,
@@ -1352,6 +1378,7 @@ impl Config {
         )
     }
 
+    /// Create a processor between two color spaces in two different configs.
     pub fn processor_from_configs(
         src_config: &Config,
         src_name: impl AsRef<str>,
@@ -1373,6 +1400,7 @@ impl Config {
         Self::processor_handle_result(handle)
     }
 
+    /// Create a processor between two configs with explicit context objects.
     pub fn processor_from_configs_with_contexts(
         &self,
         src_context: &Context,
@@ -1423,6 +1451,7 @@ impl Config {
         )
     }
 
+    /// Create a processor between two configs using interchange color spaces for matching.
     pub fn processor_from_configs_with_interchange(
         &self,
         src_config: &Config,
@@ -1475,6 +1504,7 @@ impl Config {
         )
     }
 
+    /// Create a processor between two configs with explicit contexts and interchange spaces.
     #[allow(clippy::too_many_arguments)]
     pub fn processor_from_configs_with_contexts_and_interchange(
         &self,
@@ -1537,6 +1567,7 @@ impl Config {
         )
     }
 
+    /// Create a processor from a source color space to a destination display/view pair across configs.
     pub fn processor_from_configs_to_display(
         &self,
         src_config: &Config,
@@ -1588,6 +1619,7 @@ impl Config {
         )
     }
 
+    /// Create a processor to a display/view pair with explicit context objects for both configs.
     #[allow(clippy::too_many_arguments)]
     pub fn processor_from_configs_to_display_with_contexts(
         &self,
@@ -1649,6 +1681,7 @@ impl Config {
         )
     }
 
+    /// Create a processor to a display/view pair with interchange spaces for matching.
     #[allow(clippy::too_many_arguments)]
     pub fn processor_from_configs_to_display_with_interchange(
         &self,
@@ -1712,6 +1745,7 @@ impl Config {
         )
     }
 
+    /// Create a processor to a display/view pair with contexts and interchange spaces.
     #[allow(clippy::too_many_arguments)]
     pub fn processor_from_configs_to_display_with_contexts_and_interchange(
         &self,
@@ -1860,11 +1894,13 @@ impl Config {
         self.color_space_index(name)
     }
 
+    /// Add a color space to the config; panics on failure.
     pub fn add_color_space(&self, cs: &ColorSpace) {
         self.try_add_color_space(cs)
             .expect("failed to add color space");
     }
 
+    /// Add a color space to the config, returning an error on failure.
     pub fn try_add_color_space(&self, cs: &ColorSpace) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -1876,6 +1912,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Remove a named color space from the config.
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -1885,6 +1922,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return whether a named color space is referenced by any other part of the config.
     pub fn is_color_space_used(&self, name: impl AsRef<str>) -> bool {
         let n = cstring(name);
         match n {
@@ -1895,6 +1933,7 @@ impl Config {
         }
     }
 
+    /// Look up a `Look` by its authored name.
     pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
         let n = cstring(name).ok()?;
         let handle =
@@ -2483,6 +2522,7 @@ impl Config {
 
     // --- Named transforms ---
 
+    /// Return the total number of named transforms in the config.
     pub fn num_named_transforms(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_named_transforms_v1(self.handle.as_ptr() as *mut c_void)
@@ -2495,6 +2535,7 @@ impl Config {
         self.num_named_transforms()
     }
 
+    /// Return the named-transform name at a given index.
     pub fn named_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_named_transform_name_by_index_v1(
@@ -2513,6 +2554,7 @@ impl Config {
         self.named_transform_name_by_index(index)
     }
 
+    /// Look up a `NamedTransform` by name.
     pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
@@ -2527,6 +2569,7 @@ impl Config {
         self.named_transform(name)
     }
 
+    /// Return the index of a named transform, or -1 if not found.
     pub fn named_transform_index(&self, name: impl AsRef<str>) -> i32 {
         let name = match cstring(name) {
             Ok(v) => v,
@@ -2546,11 +2589,13 @@ impl Config {
         self.named_transform_index(name)
     }
 
+    /// Add a named transform to the config; panics on failure.
     pub fn add_named_transform(&self, named_transform: &NamedTransform) {
         self.try_add_named_transform(named_transform)
             .expect("failed to add named transform");
     }
 
+    /// Add a named transform to the config, returning an error on failure.
     pub fn try_add_named_transform(&self, named_transform: &NamedTransform) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -2562,6 +2607,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Remove a named transform by name.
     pub fn remove_named_transform(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -2573,12 +2619,14 @@ impl Config {
 
     // --- View transforms ---
 
+    /// Return the total number of view transforms in the config.
     pub fn num_view_transforms(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_view_transforms(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return the view-transform name at a given index.
     pub fn view_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view_transform_name_by_index(
@@ -2588,6 +2636,7 @@ impl Config {
         }
     }
 
+    /// Look up a `ViewTransform` by name.
     pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         let n = cstring(name).ok()?;
         let handle = unsafe {
@@ -2602,11 +2651,13 @@ impl Config {
         self.view_transform(name)
     }
 
+    /// Add a view transform to the config; panics on failure.
     pub fn add_view_transform(&self, view_transform: &ViewTransform) {
         self.try_add_view_transform(view_transform)
             .expect("failed to add view transform");
     }
 
+    /// Add a view transform to the config, returning an error on failure.
     pub fn try_add_view_transform(&self, view_transform: &ViewTransform) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -2637,10 +2688,12 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the number of individual search-path entries.
     pub fn num_search_paths(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_search_paths(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return the search-path string at a given index.
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_search_path_by_index(
@@ -2838,6 +2891,7 @@ impl Config {
 
     // --- Working directory ---
 
+    /// Return the config's working directory.
     pub fn working_dir(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_working_dir(
@@ -2846,6 +2900,7 @@ impl Config {
         }
     }
 
+    /// Set the config's working directory.
     pub fn set_working_dir(&self, dir_name: impl AsRef<str>) -> Result<()> {
         let d = cstring(dir_name)?;
         crate::clear_last_error();
@@ -2855,6 +2910,7 @@ impl Config {
 
     // --- ColorSpaceSet ---
 
+    /// Return a `ColorSpaceSet` filtered by an optional search string.
     pub fn color_space_set<S: AsRef<str>>(&self, search: Option<S>) -> Result<ColorSpaceSet> {
         crate::clear_last_error();
         let handle = match search {
@@ -2904,6 +2960,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the current environment mode.
     pub fn environment_mode(&self) -> crate::EnvironmentMode {
         let m = unsafe {
             ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr() as *mut c_void)
@@ -2923,6 +2980,7 @@ impl Config {
 
     // --- Inactive color spaces ---
 
+    /// Return the comma-separated list of inactive color-space names.
     pub fn inactive_color_spaces(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_inactive_color_spaces(
@@ -2931,6 +2989,7 @@ impl Config {
         }
     }
 
+    /// Set the comma-separated list of inactive color-space names.
     pub fn set_inactive_color_spaces(&self, inactive: impl AsRef<str>) -> Result<()> {
         let s = cstring(inactive)?;
         crate::clear_last_error();
@@ -2943,6 +3002,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Test whether a given color space name is in the inactive set.
     pub fn is_inactive_color_space(&self, color_space: impl AsRef<str>) -> bool {
         let color_space = match cstring(color_space) {
             Ok(v) => v,
@@ -2958,6 +3018,7 @@ impl Config {
 
     // --- Archivable ---
 
+    /// Return whether the config can be serialized as an OCIO archive.
     pub fn is_archivable(&self) -> bool {
         unsafe { ocio_sys::ocio_config_is_archivable(self.handle.as_ptr() as *mut c_void) }
     }
@@ -2981,6 +3042,7 @@ impl Config {
 
     // --- v2.5.1: Environment variables ---
 
+    /// Add an environment-variable declaration with a name and default value.
     pub fn add_environment_var(
         &self,
         name: impl AsRef<str>,
@@ -2999,12 +3061,14 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the number of environment-variable declarations.
     pub fn num_environment_vars(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_environment_vars(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Return the environment-variable name at a given index.
     pub fn environment_var_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_environment_var_name_by_index(
@@ -3014,6 +3078,7 @@ impl Config {
         }
     }
 
+    /// Return the default value for a named environment variable.
     pub fn environment_var_default(&self, name: impl AsRef<str>) -> Option<String> {
         let n = cstring(name).ok()?;
         unsafe {
@@ -3035,6 +3100,7 @@ impl Config {
 
     // --- v2.5.1: Active display/view management ---
 
+    /// Append a single display name to the active displays list.
     pub fn add_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
         crate::clear_last_error();
@@ -3044,6 +3110,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the active display name at a given index.
     pub fn active_display(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_display(
@@ -3059,6 +3126,7 @@ impl Config {
         self.active_display(index)
     }
 
+    /// Remove a single display name from the active displays list.
     pub fn remove_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let display = cstring(display)?;
         crate::clear_last_error();
@@ -3071,6 +3139,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Append a single view name to the active views list.
     pub fn add_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
         crate::clear_last_error();
@@ -3078,6 +3147,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the active view name at a given index.
     pub fn active_view(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_view(
@@ -3093,6 +3163,7 @@ impl Config {
         self.active_view(index)
     }
 
+    /// Remove a single view name from the active views list.
     pub fn remove_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let view = cstring(view)?;
         crate::clear_last_error();
@@ -3132,6 +3203,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the count of active displays.
     pub fn num_active_displays(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_active_displays(self.handle.as_ptr() as *mut c_void)
@@ -3142,6 +3214,7 @@ impl Config {
         unsafe { ocio_sys::ocio_config_get_num_active_views(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return the total number of all displays (including inactive).
     pub fn num_displays_all(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_displays_all(self.handle.as_ptr()) }
     }
@@ -3152,6 +3225,7 @@ impl Config {
         self.num_displays_all()
     }
 
+    /// Return the display name at a given index from all displays (including inactive).
     pub fn display_all(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_display_all(
@@ -3186,6 +3260,7 @@ impl Config {
         self.display_all_index(display)
     }
 
+    /// Return whether the display at a given index is marked as temporary.
     pub fn is_display_temporary(&self, index: i32) -> bool {
         unsafe { ocio_sys::ocio_config_is_display_temporary(self.handle.as_ptr(), index) }
     }
@@ -3201,6 +3276,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the number of views for a display, filtered by reference space type.
     pub fn num_views_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -3232,6 +3308,7 @@ impl Config {
         self.num_views_by_reference_space(reference_space, display)
     }
 
+    /// Return the view name at a given index for a display, filtered by reference space type.
     pub fn view_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -3355,6 +3432,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the default family separator character for this OCIO version.
     pub fn default_family_separator(&self) -> char {
         unsafe {
             ocio_sys::ocio_config_get_default_family_separator(self.handle.as_ptr() as *mut c_void)
@@ -3390,6 +3468,7 @@ impl Config {
         unsafe { ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), proxy) };
     }
 
+    /// Return whether a file path matches only the default file rule.
     pub fn filepath_only_matches_default_rule(&self, filepath: impl AsRef<str>) -> bool {
         let fp = match cstring(filepath) {
             Ok(f) => f,
@@ -3405,6 +3484,7 @@ impl Config {
 
     // --- v2.5.1: Processor cache flags ---
 
+    /// Return the current processor-cache behavior flags.
     pub fn processor_cache_flags(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_processor_cache_flags(self.handle.as_ptr() as *mut c_void)
