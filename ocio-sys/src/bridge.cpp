@@ -5104,7 +5104,7 @@ void ocio_color_space_set_bit_depth(void* handle, int bitDepth) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setBitDepth(static_cast<ocio::BitDepth>(bitDepth));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5225,7 +5225,7 @@ void ocio_color_space_set_is_data(void* handle, bool isData) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setIsData(isData);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5247,7 +5247,7 @@ void ocio_color_space_set_allocation(void* handle, int allocation) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->setAllocation(static_cast<ocio::Allocation>(allocation));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

@@ -11,7 +11,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{Allocation, ColorSpace, ColorSpaceDirection, Config, ReferenceSpaceType};
+use ocio_rs::{Allocation, BitDepth, ColorSpace, ColorSpaceDirection, Config, ReferenceSpaceType};
 
 fn color_space_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -36,8 +36,10 @@ fn scaled_color_space(
     cs.set_equality_group(equality_group)
         .expect("set equality group");
     cs.set_encoding("scene-linear").expect("set encoding");
-    cs.set_is_data(false);
-    cs.set_allocation(Allocation::Lg2);
+    cs.try_set_bit_depth(BitDepth::F32).expect("set bit depth");
+    cs.try_set_is_data(false).expect("set data flag");
+    cs.try_set_allocation(Allocation::Lg2)
+        .expect("set allocation");
     cs.set_allocation_vars(&[-8.0, 8.0])
         .expect("set allocation variables");
     cs.add_alias(alias).expect("add alias");
@@ -79,6 +81,7 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert_eq!(cs.equality_group().as_deref(), Some("unit-group-a"));
     assert_eq!(cs.encoding().as_deref(), Some("scene-linear"));
     assert_eq!(cs.reference_space_type(), ReferenceSpaceType::Scene);
+    assert_eq!(cs.bit_depth(), BitDepth::F32);
     assert!(!cs.is_data());
     assert_eq!(cs.allocation(), Allocation::Lg2);
     assert_eq!(cs.allocation_vars(), vec![-8.0, 8.0]);

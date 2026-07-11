@@ -100,7 +100,15 @@ impl ColorSpace {
     }
 
     pub fn set_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_bit_depth(bit_depth)
+            .expect("failed to set color space bit depth");
+    }
+
+    /// Set the color space bit depth and surface any OCIO validation error.
+    pub fn try_set_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_bit_depth(self.handle.as_ptr(), bit_depth as i32) };
+        crate::ocio_call_status()
     }
 
     pub fn reference_space_type(&self) -> ReferenceSpaceType {
@@ -117,7 +125,15 @@ impl ColorSpace {
     }
 
     pub fn set_is_data(&self, is_data: bool) {
+        self.try_set_is_data(is_data)
+            .expect("failed to set color space data flag");
+    }
+
+    /// Set the color space data flag and surface any OCIO validation error.
+    pub fn try_set_is_data(&self, is_data: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_is_data(self.handle.as_ptr(), is_data) };
+        crate::ocio_call_status()
     }
 
     pub fn category(&self) -> Option<String> {
@@ -146,9 +162,17 @@ impl ColorSpace {
     }
 
     pub fn set_allocation(&self, allocation: Allocation) {
+        self.try_set_allocation(allocation)
+            .expect("failed to set color space allocation");
+    }
+
+    /// Set the allocation mode and surface any OCIO validation error.
+    pub fn try_set_allocation(&self, allocation: Allocation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_allocation(self.handle.as_ptr(), allocation as i32)
         };
+        crate::ocio_call_status()
     }
 
     pub fn allocation_num_vars(&self) -> i32 {
