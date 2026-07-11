@@ -13058,7 +13058,7 @@ int prefix##_get_direction(void* transform) { \
   try { return static_cast<int>(ocio_rs_bridge::getter(transform)->getDirection()); } catch (...) { return 0; } \
 } \
 void prefix##_set_direction(void* transform, int direction) { \
-  try { ocio_rs_bridge::getter(transform)->setDirection(static_cast<ocio::TransformDirection>(direction)); } catch (...) { return; } \
+  try { ocio_rs_bridge::getter(transform)->setDirection(static_cast<ocio::TransformDirection>(direction)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; } \
 }
 #endif
 

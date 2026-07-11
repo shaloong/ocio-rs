@@ -42,9 +42,17 @@ impl BuiltinTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set builtin transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_builtin_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn description(&self) -> Option<String> {

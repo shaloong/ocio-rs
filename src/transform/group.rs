@@ -74,9 +74,17 @@ impl GroupTransform {
 
     /// Set the transform direction used when this group is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set group transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Create an editable copy that is independent from the original transform.
