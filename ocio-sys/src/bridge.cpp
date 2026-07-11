@@ -9745,7 +9745,7 @@ void ocio_exposure_contrast_transform_make_exposure_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeExposureDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9756,7 +9756,7 @@ void ocio_exposure_contrast_transform_make_exposure_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeExposureNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9800,7 +9800,7 @@ void ocio_exposure_contrast_transform_make_contrast_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeContrastDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9811,7 +9811,7 @@ void ocio_exposure_contrast_transform_make_contrast_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeContrastNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9855,7 +9855,7 @@ void ocio_exposure_contrast_transform_make_gamma_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeGammaDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9866,7 +9866,7 @@ void ocio_exposure_contrast_transform_make_gamma_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->makeGammaNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

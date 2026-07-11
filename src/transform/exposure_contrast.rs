@@ -120,9 +120,17 @@ impl ExposureContrastTransform {
     }
 
     pub fn make_exposure_dynamic(&self) {
+        self.try_make_exposure_dynamic()
+            .expect("failed to make exposure dynamic");
+    }
+
+    /// Mark exposure as dynamic and surface any OCIO validation error.
+    pub fn try_make_exposure_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_exposure_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn is_contrast_dynamic(&self) -> bool {
@@ -132,25 +140,49 @@ impl ExposureContrastTransform {
     }
 
     pub fn make_contrast_dynamic(&self) {
+        self.try_make_contrast_dynamic()
+            .expect("failed to make contrast dynamic");
+    }
+
+    /// Mark contrast as dynamic and surface any OCIO validation error.
+    pub fn try_make_contrast_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_contrast_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn make_exposure_non_dynamic(&self) {
+        self.try_make_exposure_non_dynamic()
+            .expect("failed to make exposure non-dynamic");
+    }
+
+    /// Mark exposure as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_exposure_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_exposure_non_dynamic(
                 self.handle.as_ptr(),
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn make_contrast_non_dynamic(&self) {
+        self.try_make_contrast_non_dynamic()
+            .expect("failed to make contrast non-dynamic");
+    }
+
+    /// Mark contrast as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_contrast_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_contrast_non_dynamic(
                 self.handle.as_ptr(),
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn is_gamma_dynamic(&self) -> bool {
@@ -158,15 +190,31 @@ impl ExposureContrastTransform {
     }
 
     pub fn make_gamma_dynamic(&self) {
+        self.try_make_gamma_dynamic()
+            .expect("failed to make gamma dynamic");
+    }
+
+    /// Mark gamma as dynamic and surface any OCIO validation error.
+    pub fn try_make_gamma_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_gamma_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn make_gamma_non_dynamic(&self) {
+        self.try_make_gamma_non_dynamic()
+            .expect("failed to make gamma non-dynamic");
+    }
+
+    /// Mark gamma as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_gamma_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_gamma_non_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
     pub fn log_exposure_step(&self) -> f64 {
@@ -305,12 +353,12 @@ mod tests {
     #[test]
     fn make_dynamic_no_crash() {
         let t = ExposureContrastTransform::create().unwrap();
-        t.make_exposure_dynamic();
-        t.make_contrast_dynamic();
-        t.make_gamma_dynamic();
-        t.make_exposure_non_dynamic();
-        t.make_contrast_non_dynamic();
-        t.make_gamma_non_dynamic();
+        t.try_make_exposure_dynamic().unwrap();
+        t.try_make_contrast_dynamic().unwrap();
+        t.try_make_gamma_dynamic().unwrap();
+        t.try_make_exposure_non_dynamic().unwrap();
+        t.try_make_contrast_non_dynamic().unwrap();
+        t.try_make_gamma_non_dynamic().unwrap();
         let _ = t.log_exposure_step();
         t.set_log_exposure_step(0.088);
         let _ = t.log_mid_gray();

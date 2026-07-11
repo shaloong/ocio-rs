@@ -59,16 +59,28 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     assert!(!transform.is_contrast_dynamic());
     assert!(!transform.is_gamma_dynamic());
 
-    transform.make_exposure_dynamic();
-    transform.make_contrast_dynamic();
-    transform.make_gamma_dynamic();
+    transform
+        .try_make_exposure_dynamic()
+        .expect("make exposure dynamic");
+    transform
+        .try_make_contrast_dynamic()
+        .expect("make contrast dynamic");
+    transform
+        .try_make_gamma_dynamic()
+        .expect("make gamma dynamic");
     assert!(transform.is_exposure_dynamic());
     assert!(transform.is_contrast_dynamic());
     assert!(transform.is_gamma_dynamic());
 
-    transform.make_exposure_non_dynamic();
-    transform.make_contrast_non_dynamic();
-    transform.make_gamma_non_dynamic();
+    transform
+        .try_make_exposure_non_dynamic()
+        .expect("make exposure non-dynamic");
+    transform
+        .try_make_contrast_non_dynamic()
+        .expect("make contrast non-dynamic");
+    transform
+        .try_make_gamma_non_dynamic()
+        .expect("make gamma non-dynamic");
     assert!(!transform.is_exposure_dynamic());
     assert!(!transform.is_contrast_dynamic());
     assert!(!transform.is_gamma_dynamic());
