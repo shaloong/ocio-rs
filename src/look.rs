@@ -12,12 +12,14 @@ pub struct Look {
 }
 
 impl Look {
+    /// Create a new default look.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_look_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create an editable copy of this look.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -26,6 +28,7 @@ impl Look {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Get the name of this look.
     pub fn name(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_name(
@@ -34,6 +37,7 @@ impl Look {
         }
     }
 
+    /// Set the name of this look.
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -41,6 +45,7 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Get the process space of this look.
     pub fn process_space(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_process_space(
@@ -49,6 +54,7 @@ impl Look {
         }
     }
 
+    /// Set the process space of this look.
     pub fn set_process_space(&self, space: impl AsRef<str>) -> Result<()> {
         let s = cstring(space)?;
         crate::clear_last_error();
@@ -56,6 +62,7 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Get the description of this look.
     pub fn description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_description(
@@ -64,6 +71,7 @@ impl Look {
         }
     }
 
+    /// Set the description of this look.
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
         crate::clear_last_error();
@@ -71,6 +79,7 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Set an interchange attribute by name and value.
     pub fn set_interchange_attribute(
         &self,
         name: impl AsRef<str>,
@@ -89,6 +98,7 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Get an interchange attribute value by name.
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -99,6 +109,7 @@ impl Look {
         }
     }
 
+    /// Get all interchange attributes as a map.
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
         let mut attrs = BTreeMap::new();
         let count =
@@ -125,12 +136,14 @@ impl Look {
         attrs
     }
 
+    /// Get the forward transform for this look.
     pub fn transform(&self) -> Option<Transform> {
         let handle =
             unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
         transform_from_raw_handle(handle)
     }
 
+    /// Set the forward transform for this look.
     pub fn set_transform(&self, transform: &impl TransformHandle) {
         unsafe {
             ocio_sys::ocio_look_set_transform(
@@ -152,6 +165,7 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Get the inverse transform for this look.
     pub fn inverse_transform(&self) -> Option<Transform> {
         let handle = unsafe {
             ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr() as *mut c_void)
@@ -159,6 +173,7 @@ impl Look {
         transform_from_raw_handle(handle)
     }
 
+    /// Set the inverse transform for this look.
     pub fn set_inverse_transform(&self, transform: &impl TransformHandle) {
         unsafe {
             ocio_sys::ocio_look_set_inverse_transform(

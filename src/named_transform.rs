@@ -11,12 +11,14 @@ pub struct NamedTransform {
 }
 
 impl NamedTransform {
+    /// Create a new default named transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_named_transform_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create an editable copy of this named transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -25,6 +27,7 @@ impl NamedTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Get the name of this named transform.
     pub fn name(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_name(
@@ -33,6 +36,7 @@ impl NamedTransform {
         }
     }
 
+    /// Set the name of this named transform.
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -40,6 +44,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the family of this named transform.
     pub fn family(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_family(
@@ -48,6 +53,7 @@ impl NamedTransform {
         }
     }
 
+    /// Set the family of this named transform.
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
         let f = cstring(family)?;
         crate::clear_last_error();
@@ -57,6 +63,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the description of this named transform.
     pub fn description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_description(
@@ -65,6 +72,7 @@ impl NamedTransform {
         }
     }
 
+    /// Set the description of this named transform.
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
         crate::clear_last_error();
@@ -74,6 +82,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the encoding of this named transform.
     pub fn encoding(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_encoding(
@@ -82,6 +91,7 @@ impl NamedTransform {
         }
     }
 
+    /// Set the encoding of this named transform.
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
         let e = cstring(encoding)?;
         crate::clear_last_error();
@@ -91,10 +101,12 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the number of aliases for this named transform.
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) as i32 }
     }
 
+    /// Get the alias at the given index.
     pub fn alias(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_alias(
@@ -104,6 +116,7 @@ impl NamedTransform {
         }
     }
 
+    /// Add an alias for this named transform.
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
         crate::clear_last_error();
@@ -113,6 +126,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Remove an alias from this named transform.
     pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
         crate::clear_last_error();
@@ -122,6 +136,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Returns whether this named transform has the given alias.
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
         let a = match cstring(alias) {
             Ok(a) => a,
@@ -130,6 +145,7 @@ impl NamedTransform {
         unsafe { ocio_sys::ocio_named_transform_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
     }
 
+    /// Clear all aliases, panicking on error.
     pub fn clear_aliases(&self) {
         self.try_clear_aliases()
             .expect("failed to clear named transform aliases");
@@ -144,10 +160,12 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the number of categories for this named transform.
     pub fn num_categories(&self) -> i32 {
         unsafe { ocio_sys::ocio_named_transform_get_num_categories(self.handle.as_ptr()) }
     }
 
+    /// Get the category at the given index.
     pub fn category(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_category(
@@ -157,6 +175,7 @@ impl NamedTransform {
         }
     }
 
+    /// Returns whether this named transform has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
         let c = match cstring(category) {
             Ok(c) => c,
@@ -167,6 +186,7 @@ impl NamedTransform {
         }
     }
 
+    /// Add a category to this named transform.
     pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
         crate::clear_last_error();
@@ -176,6 +196,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Remove a category from this named transform.
     pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
         crate::clear_last_error();
@@ -185,6 +206,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Clear all categories, panicking on error.
     pub fn clear_categories(&self) {
         self.try_clear_categories()
             .expect("failed to clear named transform categories");
@@ -197,6 +219,7 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
+    /// Get the transform for the given direction.
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
         let handle = unsafe {
             ocio_sys::ocio_named_transform_get_transform(self.handle.as_ptr(), direction as i32)
@@ -204,6 +227,7 @@ impl NamedTransform {
         transform_from_raw_handle(handle)
     }
 
+    /// Set the transform for the given direction.
     pub fn set_transform(&self, transform: &impl TransformHandle, direction: TransformDirection) {
         unsafe {
             ocio_sys::ocio_named_transform_set_transform(

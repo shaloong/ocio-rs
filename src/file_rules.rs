@@ -10,12 +10,14 @@ pub struct FileRules {
 }
 
 impl FileRules {
+    /// Create a new, empty set of file rules.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_file_rules_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create an editable deep copy of these file rules.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -24,6 +26,7 @@ impl FileRules {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Get the total number of rule entries.
     pub fn num_entries(&self) -> u64 {
         unsafe { ocio_sys::ocio_file_rules_get_num_entries(self.handle.as_ptr()) as u64 }
     }
@@ -59,6 +62,7 @@ impl FileRules {
         }
     }
 
+    /// Get the rule name at the given index.
     pub fn name(&self, rule_index: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_name(
@@ -68,6 +72,7 @@ impl FileRules {
         }
     }
 
+    /// Get the filename pattern for the rule at the given index.
     pub fn pattern(&self, rule_index: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(
@@ -77,6 +82,7 @@ impl FileRules {
         }
     }
 
+    /// Set the filename pattern for the rule at the given index.
     pub fn set_pattern(&self, rule_index: u64, pattern: impl AsRef<str>) -> Result<()> {
         let pattern = cstring(pattern)?;
         crate::clear_last_error();
@@ -90,6 +96,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Get the file extension for the rule at the given index.
     pub fn extension(&self, rule_index: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(
@@ -99,6 +106,7 @@ impl FileRules {
         }
     }
 
+    /// Set the file extension for the rule at the given index.
     pub fn set_extension(&self, rule_index: u64, extension: impl AsRef<str>) -> Result<()> {
         let extension = cstring(extension)?;
         crate::clear_last_error();
@@ -112,6 +120,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Get the regex pattern for the rule at the given index.
     pub fn regex(&self, rule_index: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(
@@ -121,6 +130,7 @@ impl FileRules {
         }
     }
 
+    /// Set the regex pattern for the rule at the given index.
     pub fn set_regex(&self, rule_index: u64, regex: impl AsRef<str>) -> Result<()> {
         let regex = cstring(regex)?;
         crate::clear_last_error();
@@ -134,6 +144,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Get the color space name for the rule at the given index.
     pub fn color_space(&self, rule_index: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(
@@ -143,6 +154,7 @@ impl FileRules {
         }
     }
 
+    /// Set the color space name for the rule at the given index.
     pub fn set_color_space(&self, rule_index: u64, color_space: impl AsRef<str>) -> Result<()> {
         let color_space = cstring(color_space)?;
         crate::clear_last_error();
@@ -156,6 +168,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Get the number of custom keys on the rule at the given index.
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
         unsafe {
             ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize)
@@ -163,6 +176,7 @@ impl FileRules {
         }
     }
 
+    /// Get the name of the custom key at the given key index.
     pub fn custom_key_name(&self, rule_index: u64, key: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_name(
@@ -173,6 +187,7 @@ impl FileRules {
         }
     }
 
+    /// Get the value of the custom key at the given key index.
     pub fn custom_key_value(&self, rule_index: u64, key: u64) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_value(
@@ -183,6 +198,7 @@ impl FileRules {
         }
     }
 
+    /// Set a custom key-value pair on the rule at the given index.
     pub fn set_custom_key(
         &self,
         rule_index: u64,
@@ -203,6 +219,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Insert a new rule with a filename pattern and extension at the given index.
     pub fn insert_rule(
         &self,
         rule_index: u64,
@@ -229,6 +246,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Insert a new rule with a regex pattern at the given index.
     pub fn insert_rule_regex(
         &self,
         rule_index: u64,
@@ -284,6 +302,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Set the default color space used when no rule matches.
     pub fn set_default_rule_color_space(&self, color_space: impl AsRef<str>) -> Result<()> {
         let color_space = cstring(color_space)?;
         crate::clear_last_error();
@@ -354,6 +373,7 @@ impl FileRules {
         crate::ocio_call_status()
     }
 
+    /// Check whether the file rules are in their default (empty) state.
     pub fn is_default(&self) -> bool {
         unsafe { ocio_sys::ocio_file_rules_is_default(self.handle.as_ptr() as *mut c_void) }
     }

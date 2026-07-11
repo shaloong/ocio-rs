@@ -10,16 +10,19 @@ pub struct LookTransform {
 }
 
 impl LookTransform {
+    /// Create a look transform with default settings.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_look_transform_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the source color space name.
     pub fn src(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_look_transform_get_src(self.handle.as_ptr())) }
     }
 
+    /// Set the source color space name.
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
         crate::clear_last_error();
@@ -27,10 +30,12 @@ impl LookTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the destination color space name.
     pub fn dst(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_look_transform_get_dst(self.handle.as_ptr())) }
     }
 
+    /// Set the destination color space name.
     pub fn set_dst(&self, dst: impl AsRef<str>) -> Result<()> {
         let d = cstring(dst)?;
         crate::clear_last_error();
@@ -38,6 +43,7 @@ impl LookTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the comma-separated look names.
     pub fn looks(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_look_transform_get_looks(
@@ -46,6 +52,7 @@ impl LookTransform {
         }
     }
 
+    /// Set the comma-separated look names.
     pub fn set_looks(&self, looks: impl AsRef<str>) -> Result<()> {
         let l = cstring(looks)?;
         crate::clear_last_error();
@@ -53,6 +60,7 @@ impl LookTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the evaluation direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_look_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -61,6 +69,7 @@ impl LookTransform {
         }
     }
 
+    /// Set the evaluation direction, panicking on validation error.
     pub fn set_direction(&self, direction: TransformDirection) {
         self.try_set_direction(direction)
             .expect("failed to set look transform direction");
@@ -75,6 +84,7 @@ impl LookTransform {
         crate::ocio_call_status()
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =
@@ -82,17 +92,20 @@ impl LookTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
+    /// Return whether color-space conversion is skipped for this look.
     pub fn skip_color_space_conversion(&self) -> bool {
         unsafe {
             ocio_sys::ocio_look_transform_get_skip_color_space_conversion(self.handle.as_ptr())
         }
     }
 
+    /// Set whether to skip color-space conversion, panicking on validation error.
     pub fn set_skip_color_space_conversion(&self, skip: bool) {
         self.try_set_skip_color_space_conversion(skip)
             .expect("failed to set look color space conversion bypass");
@@ -110,6 +123,7 @@ impl LookTransform {
         crate::ocio_call_status()
     }
 
+    /// Validate the transform configuration and return any errors.
     pub fn validate(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_look_transform_validate(self.handle.as_ptr()) };

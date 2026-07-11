@@ -10,6 +10,7 @@ pub struct FixedFunctionTransform {
 }
 
 impl FixedFunctionTransform {
+    /// Create a fixed-function transform with the given style using default parameters.
     pub fn create(style: FixedFunctionStyle) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -22,6 +23,7 @@ impl FixedFunctionTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create a fixed-function transform with the given style and custom parameters.
     pub fn create_with_params(style: FixedFunctionStyle, params: &[f64]) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -34,6 +36,7 @@ impl FixedFunctionTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current fixed-function style.
     pub fn style(&self) -> FixedFunctionStyle {
         let s = unsafe {
             ocio_sys::ocio_fixed_function_transform_get_style(self.handle.as_ptr() as *mut c_void)
@@ -65,6 +68,7 @@ impl FixedFunctionTransform {
         }
     }
 
+    /// Set the fixed-function style, panicking on validation error.
     pub fn set_style(&self, style: FixedFunctionStyle) {
         self.try_set_style(style)
             .expect("failed to set fixed-function style");
@@ -79,12 +83,14 @@ impl FixedFunctionTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the number of parameters required by the current style.
     pub fn num_params(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) as i32
         }
     }
 
+    /// Return the style-specific parameter values.
     pub fn params(&self) -> Vec<f64> {
         let n = self.num_params();
         if n <= 0 {
@@ -116,6 +122,7 @@ impl FixedFunctionTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the evaluation direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe {
             ocio_sys::ocio_fixed_function_transform_get_direction(
@@ -128,6 +135,7 @@ impl FixedFunctionTransform {
         }
     }
 
+    /// Set the evaluation direction, panicking on validation error.
     pub fn set_direction(&self, direction: TransformDirection) {
         self.try_set_direction(direction)
             .expect("failed to set fixed function transform direction");
@@ -145,6 +153,7 @@ impl FixedFunctionTransform {
         crate::ocio_call_status()
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -153,6 +162,7 @@ impl FixedFunctionTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -168,6 +178,7 @@ impl FixedFunctionTransform {
         self.format_metadata()
     }
 
+    /// Return whether `other` is equivalent to this transform.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_fixed_function_transform_equals(

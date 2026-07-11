@@ -15,12 +15,14 @@ pub struct ColorSpace {
 }
 
 impl ColorSpace {
+    /// Create a new default color space.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_color_space_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create an editable copy of this color space.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =
@@ -28,10 +30,12 @@ impl ColorSpace {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Get the name of this color space.
     pub fn name(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_name(self.handle.as_ptr())) }
     }
 
+    /// Set the name of this color space.
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -39,10 +43,12 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the family of this color space.
     pub fn family(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_color_space_get_family(self.handle.as_ptr())) }
     }
 
+    /// Set the family of this color space.
     pub fn set_family(&self, family: impl AsRef<str>) -> Result<()> {
         let f = cstring(family)?;
         crate::clear_last_error();
@@ -50,6 +56,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the equality group name for this color space.
     pub fn equality_group(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_equality_group(
@@ -58,6 +65,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the equality group name for this color space.
     pub fn set_equality_group(&self, group: impl AsRef<str>) -> Result<()> {
         let g = cstring(group)?;
         crate::clear_last_error();
@@ -67,6 +75,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the description of this color space.
     pub fn description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_description(
@@ -75,6 +84,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the description of this color space.
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
         let d = cstring(description)?;
         crate::clear_last_error();
@@ -84,6 +94,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the bit depth of this color space.
     pub fn bit_depth(&self) -> BitDepth {
         let b = unsafe { ocio_sys::ocio_color_space_get_bit_depth(self.handle.as_ptr()) };
         match b {
@@ -99,6 +110,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the bit depth of this color space, panicking on error.
     pub fn set_bit_depth(&self, bit_depth: BitDepth) {
         self.try_set_bit_depth(bit_depth)
             .expect("failed to set color space bit depth");
@@ -111,6 +123,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the reference space type of this color space.
     pub fn reference_space_type(&self) -> ReferenceSpaceType {
         let r =
             unsafe { ocio_sys::ocio_color_space_get_reference_space_type(self.handle.as_ptr()) };
@@ -120,10 +133,12 @@ impl ColorSpace {
         }
     }
 
+    /// Returns whether this color space is a data-only transform.
     pub fn is_data(&self) -> bool {
         unsafe { ocio_sys::ocio_color_space_is_data(self.handle.as_ptr()) }
     }
 
+    /// Set the data flag, panicking on error.
     pub fn set_is_data(&self, is_data: bool) {
         self.try_set_is_data(is_data)
             .expect("failed to set color space data flag");
@@ -136,6 +151,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the category of this color space.
     pub fn category(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_category(
@@ -145,6 +161,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the category of this color space.
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
         crate::clear_last_error();
@@ -152,6 +169,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the allocation mode of this color space.
     pub fn allocation(&self) -> Allocation {
         let a = unsafe { ocio_sys::ocio_color_space_get_allocation(self.handle.as_ptr()) };
         match a {
@@ -161,6 +179,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the allocation mode, panicking on error.
     pub fn set_allocation(&self, allocation: Allocation) {
         self.try_set_allocation(allocation)
             .expect("failed to set color space allocation");
@@ -175,10 +194,12 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the number of allocation variables.
     pub fn allocation_num_vars(&self) -> i32 {
         unsafe { ocio_sys::ocio_color_space_get_allocation_num_vars(self.handle.as_ptr()) }
     }
 
+    /// Get the allocation variables as a slice of floats.
     pub fn allocation_vars(&self) -> Vec<f32> {
         let n = self.allocation_num_vars();
         if n <= 0 {
@@ -212,6 +233,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the encoding of this color space.
     pub fn encoding(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_encoding(
@@ -220,6 +242,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the encoding of this color space.
     pub fn set_encoding(&self, encoding: impl AsRef<str>) -> Result<()> {
         let e = cstring(encoding)?;
         crate::clear_last_error();
@@ -227,6 +250,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the transform for the given direction.
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
         let handle = unsafe {
             ocio_sys::ocio_color_space_get_transform(self.handle.as_ptr(), direction as i32)
@@ -234,6 +258,7 @@ impl ColorSpace {
         transform_from_raw_handle(handle)
     }
 
+    /// Set the transform for the given direction.
     pub fn set_transform(&self, transform: &impl TransformHandle, direction: ColorSpaceDirection) {
         unsafe {
             ocio_sys::ocio_color_space_set_transform(
@@ -264,10 +289,12 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get the number of aliases for this color space.
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }
     }
 
+    /// Get the alias at the given index.
     pub fn alias(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_alias(
@@ -277,6 +304,7 @@ impl ColorSpace {
         }
     }
 
+    /// Add an alias for this color space.
     pub fn add_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
         crate::clear_last_error();
@@ -284,6 +312,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Remove an alias from this color space.
     pub fn remove_alias(&self, alias: impl AsRef<str>) -> Result<()> {
         let a = cstring(alias)?;
         crate::clear_last_error();
@@ -291,6 +320,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Clear all aliases, panicking on error.
     pub fn clear_aliases(&self) {
         self.try_clear_aliases()
             .expect("failed to clear color space aliases");
@@ -303,6 +333,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Returns whether a transform is defined for the given direction.
     pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
         unsafe {
             ocio_sys::ocio_color_space_is_transform_defined(self.handle.as_ptr(), direction as i32)
@@ -311,6 +342,7 @@ impl ColorSpace {
 
     // ── v2.5.1 new methods ──
 
+    /// Add a category to this color space.
     pub fn add_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
         crate::clear_last_error();
@@ -318,6 +350,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Remove a category from this color space.
     pub fn remove_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
         crate::clear_last_error();
@@ -327,6 +360,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Clear all categories, panicking on error.
     pub fn clear_categories(&self) {
         self.try_clear_categories()
             .expect("failed to clear color space categories");
@@ -339,6 +373,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Returns whether this color space has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
         let c = match cstring(category) {
             Ok(c) => c,
@@ -347,12 +382,14 @@ impl ColorSpace {
         unsafe { ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), c.as_ptr().cast()) }
     }
 
+    /// Get the number of categories for this color space.
     pub fn num_categories(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void)
         }
     }
 
+    /// Returns whether this color space has the given alias.
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
         let a = match cstring(alias) {
             Ok(a) => a,
@@ -361,6 +398,7 @@ impl ColorSpace {
         unsafe { ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
     }
 
+    /// Get the interop identifier for this color space.
     pub fn interop_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_interop_id(
@@ -369,6 +407,7 @@ impl ColorSpace {
         }
     }
 
+    /// Set the interop identifier for this color space.
     pub fn set_interop_id(&self, interop_id: impl AsRef<str>) -> Result<()> {
         let interop_id = cstring(interop_id)?;
         crate::clear_last_error();
@@ -381,6 +420,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Set an interchange attribute by name and value.
     pub fn set_interchange_attribute(
         &self,
         name: impl AsRef<str>,
@@ -399,6 +439,7 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Get an interchange attribute value by name.
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -409,6 +450,7 @@ impl ColorSpace {
         }
     }
 
+    /// Get all interchange attributes as a map.
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
         let mut attrs = BTreeMap::new();
         let count = unsafe {
