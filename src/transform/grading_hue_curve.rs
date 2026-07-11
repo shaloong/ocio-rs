@@ -61,12 +61,20 @@ impl GradingHueCurveTransform {
     }
 
     pub fn set_style(&self, style: GradingStyle) {
+        self.try_set_style(style)
+            .expect("failed to set grading hue curve style");
+    }
+
+    /// Set the grading style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: GradingStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn value(&self) -> Result<GradingHueCurveValue> {
@@ -239,12 +247,20 @@ impl GradingHueCurveTransform {
     }
 
     pub fn set_rgb_to_hsy(&self, style: HSYTransformStyle) {
+        self.try_set_rgb_to_hsy(style)
+            .expect("failed to set grading hue curve rgb to hsy");
+    }
+
+    /// Set the RGB-to-HSY conversion style and surface any OCIO validation error.
+    pub fn try_set_rgb_to_hsy(&self, style: HSYTransformStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_rgb_to_hsy(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn is_dynamic(&self) -> bool {
@@ -252,15 +268,31 @@ impl GradingHueCurveTransform {
     }
 
     pub fn make_dynamic(&self) {
+        self.try_make_dynamic()
+            .expect("failed to make grading hue curve dynamic");
+    }
+
+    /// Make this transform dynamic and surface any OCIO validation error.
+    pub fn try_make_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_make_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn make_non_dynamic(&self) {
+        self.try_make_non_dynamic()
+            .expect("failed to make grading hue curve non-dynamic");
+    }
+
+    /// Make this transform non-dynamic and surface any OCIO validation error.
+    pub fn try_make_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_make_non_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -274,12 +306,20 @@ impl GradingHueCurveTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set grading hue curve direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -339,7 +379,7 @@ mod tests {
     #[test]
     fn set_style_no_crash() {
         let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_style(GradingStyle::Lin);
+        t.try_set_style(GradingStyle::Lin).unwrap();
     }
 
     #[test]
@@ -379,21 +419,21 @@ mod tests {
     #[test]
     fn rgb_to_hsy_no_crash() {
         let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_rgb_to_hsy(HSYTransformStyle::None);
-        t.set_rgb_to_hsy(HSYTransformStyle::Default);
+        t.try_set_rgb_to_hsy(HSYTransformStyle::None).unwrap();
+        t.try_set_rgb_to_hsy(HSYTransformStyle::Default).unwrap();
     }
 
     #[test]
     fn make_dynamic_no_crash() {
         let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
-        t.make_dynamic();
-        t.make_non_dynamic();
+        t.try_make_dynamic().unwrap();
+        t.try_make_non_dynamic().unwrap();
     }
 
     #[test]
     fn direction_no_crash() {
         let t = GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]

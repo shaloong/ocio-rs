@@ -69,7 +69,9 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
     transform
         .set_value(&value)
         .expect("set grading hue curve transform value");
-    transform.set_rgb_to_hsy(HSYTransformStyle::None);
+    transform
+        .try_set_rgb_to_hsy(HSYTransformStyle::None)
+        .expect("set rgb to hsy");
 
     let round_trip = transform.value().expect("grading hue curve value");
     assert_eq!(round_trip.lum_sat, value.lum_sat);
@@ -108,16 +110,18 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
     );
     assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::None);
 
-    transform.make_dynamic();
+    transform.try_make_dynamic().expect("make dynamic");
     assert!(transform.is_dynamic());
-    transform.make_non_dynamic();
+    transform.try_make_non_dynamic().expect("make non dynamic");
     assert!(!transform.is_dynamic());
 
     let copy = transform
         .create_editable_copy()
         .expect("grading hue curve editable copy");
-    copy.set_direction(TransformDirection::Inverse);
-    copy.set_rgb_to_hsy(HSYTransformStyle::Default);
+    copy.try_set_direction(TransformDirection::Inverse)
+        .expect("set copy direction");
+    copy.try_set_rgb_to_hsy(HSYTransformStyle::Default)
+        .expect("set copy rgb to hsy");
     copy.set_slope(HueCurveType::LumSat, 1, 0.25)
         .expect("set copy hue slope");
 
@@ -138,7 +142,9 @@ fn grading_hue_curve_round_trip_style_reset_and_copy_behavior() {
         1e-6,
     );
 
-    transform.set_style(GradingStyle::Lin);
+    transform
+        .try_set_style(GradingStyle::Lin)
+        .expect("set style lin");
     assert_eq!(transform.style(), GradingStyle::Lin);
     assert_eq!(
         transform.value().expect("hue value after style reset"),
@@ -246,4 +252,60 @@ fn grading_hue_curve_invalid_operations_surface_errors() {
     transform
         .set_slope(HueCurveType::HueHue, 99, 0.5)
         .expect_err("out-of-range hue slope should fail");
+}
+
+#[test]
+fn grading_hue_curve_try_setters_surface_errors() {
+    let _guard = grading_hue_curve_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform =
+        GradingHueCurveTransform::create(GradingStyle::Log).expect("grading hue curve create");
+
+    // Valid operations should succeed with readback
+    transform
+        .try_set_style(GradingStyle::Lin)
+        .expect("try_set_style Lin");
+    assert_eq!(transform.style(), GradingStyle::Lin);
+
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("try_set_direction Inverse");
+    assert_eq!(transform.direction(), TransformDirection::Inverse);
+
+    transform.try_make_dynamic().expect("try_make_dynamic");
+    assert!(transform.is_dynamic());
+
+    transform
+        .try_make_non_dynamic()
+        .expect("try_make_non_dynamic");
+    assert!(!transform.is_dynamic());
+
+    transform
+        .try_set_rgb_to_hsy(HSYTransformStyle::None)
+        .expect("try_set_rgb_to_hsy None");
+    assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::None);
+
+    transform
+        .try_set_rgb_to_hsy(HSYTransformStyle::Default)
+        .expect("try_set_rgb_to_hsy Default");
+    assert_eq!(transform.rgb_to_hsy(), HSYTransformStyle::Default);
+
+    // Verify all state transitions round-trip correctly
+    transform
+        .try_set_style(GradingStyle::Video)
+        .expect("try_set_style Video");
+    assert_eq!(transform.style(), GradingStyle::Video);
+
+    transform
+        .try_set_style(GradingStyle::Log)
+        .expect("try_set_style Log");
+    assert_eq!(transform.style(), GradingStyle::Log);
+
+    transform
+        .try_set_direction(TransformDirection::Forward)
+        .expect("try_set_direction Forward");
+    assert_eq!(transform.direction(), TransformDirection::Forward);
 }
