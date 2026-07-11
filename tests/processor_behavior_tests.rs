@@ -238,6 +238,37 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     );
 }
 
+#[test]
+fn processor_execution_handles_survive_parent_drop_behavior() {
+    let _guard = processor_behavior_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let (cpu, gpu) = {
+        let processor = scaled_matrix_processor().expect("scaled processor");
+        (
+            processor.default_cpu_processor().expect("default cpu"),
+            processor.default_gpu_processor().expect("default gpu"),
+        )
+    };
+
+    let mut pixel = [0.25f32, 0.5, 0.75, 1.0];
+    cpu.try_apply_rgba(&mut pixel)
+        .expect("apply after processor drop");
+    assert_close(pixel[0] as f64, 0.275, 1e-6);
+    assert_close(pixel[1] as f64, 0.45, 1e-6);
+    assert_close(pixel[2] as f64, 0.9, 1e-6);
+    assert_close(pixel[3] as f64, 1.0, 1e-6);
+
+    let desc = extract_shader_text(&gpu, "ocio_owned_gpu_main", "ocio_owned_gpu_pixel")
+        .expect("extract shader after processor drop");
+    let shader = desc
+        .shader_text()
+        .expect("shader text after processor drop");
+    assert!(shader.contains("ocio_owned_gpu_main"));
+}
+
 #[allow(deprecated)]
 #[test]
 fn processor_legacy_gpu_helper_emits_real_shader_behavior() {
