@@ -2662,7 +2662,15 @@ impl Config {
     }
 
     pub fn set_strict_parsing_enabled(&self, enabled: bool) {
+        self.try_set_strict_parsing_enabled(enabled)
+            .expect("failed to set strict parsing enabled");
+    }
+
+    /// Enable or disable strict parsing and surface any OCIO validation error.
+    pub fn try_set_strict_parsing_enabled(&self, enabled: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_strict_parsing_enabled(self.handle.as_ptr(), enabled) };
+        crate::ocio_call_status()
     }
 
     // --- Roles (mutable) ---
@@ -2684,9 +2692,17 @@ impl Config {
     // --- Family separator ---
 
     pub fn set_family_separator(&self, separator: char) {
+        self.try_set_family_separator(separator)
+            .expect("failed to set family separator");
+    }
+
+    /// Set the family separator character and surface any OCIO validation error.
+    pub fn try_set_family_separator(&self, separator: char) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_family_separator(self.handle.as_ptr(), separator as i8);
         }
+        crate::ocio_call_status()
     }
 
     // --- Validate ---
@@ -2761,16 +2777,21 @@ impl Config {
     // --- Clear all ---
 
     pub fn clear_all(&self) {
-        self.clear_color_spaces();
-        self.clear_looks();
-        self.clear_named_transforms();
-        self.clear_view_transforms();
-        unsafe {
-            ocio_sys::ocio_config_clear_shared_views(self.handle.as_ptr());
-            ocio_sys::ocio_config_clear_displays(self.handle.as_ptr());
-            ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr());
-            ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr());
-        }
+        self.try_clear_all()
+            .expect("failed to clear all config collections");
+    }
+
+    /// Clear all config collections and surface any OCIO validation error.
+    pub fn try_clear_all(&self) -> Result<()> {
+        self.try_clear_color_spaces()?;
+        self.try_clear_looks()?;
+        self.try_clear_named_transforms()?;
+        self.try_clear_view_transforms()?;
+        self.try_clear_shared_views()?;
+        self.try_clear_displays()?;
+        self.try_clear_active_displays()?;
+        self.try_clear_active_views()?;
+        Ok(())
     }
 
     // --- Version setters ---
