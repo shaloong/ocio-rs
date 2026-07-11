@@ -143,14 +143,10 @@ impl Look {
         transform_from_raw_handle(handle)
     }
 
-    /// Set the forward transform for this look.
+    /// Set the forward transform for this look (panics on error).
     pub fn set_transform(&self, transform: &impl TransformHandle) {
-        unsafe {
-            ocio_sys::ocio_look_set_transform(
-                self.handle.as_ptr(),
-                transform.as_ptr() as *mut c_void,
-            );
-        }
+        self.try_set_transform(transform)
+            .expect("failed to set look transform");
     }
 
     /// Try to set the forward transform used by this look.
@@ -173,14 +169,10 @@ impl Look {
         transform_from_raw_handle(handle)
     }
 
-    /// Set the inverse transform for this look.
+    /// Set the inverse transform for this look (panics on error).
     pub fn set_inverse_transform(&self, transform: &impl TransformHandle) {
-        unsafe {
-            ocio_sys::ocio_look_set_inverse_transform(
-                self.handle.as_ptr(),
-                transform.as_ptr() as *mut c_void,
-            );
-        }
+        self.try_set_inverse_transform(transform)
+            .expect("failed to set look inverse transform");
     }
 
     /// Try to set the inverse transform used by this look.

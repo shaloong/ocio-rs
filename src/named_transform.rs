@@ -227,15 +227,10 @@ impl NamedTransform {
         transform_from_raw_handle(handle)
     }
 
-    /// Set the transform for the given direction.
+    /// Set the transform for the given direction (panics on error).
     pub fn set_transform(&self, transform: &impl TransformHandle, direction: TransformDirection) {
-        unsafe {
-            ocio_sys::ocio_named_transform_set_transform(
-                self.handle.as_ptr(),
-                transform.as_ptr() as *mut c_void,
-                direction as i32,
-            );
-        }
+        self.try_set_transform(transform, direction)
+            .expect("failed to set named transform");
     }
 
     /// Try to attach a transform for the given direction.

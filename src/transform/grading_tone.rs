@@ -10,10 +10,12 @@ pub struct GradingToneTransform {
 }
 
 impl GradingToneTransform {
+    /// Create a tone grading transform with the given style (alias for [`Self::create`]).
     pub fn create_with_style(style: GradingStyle) -> Result<Self> {
         Self::create(style)
     }
 
+    /// Create a new tone grading transform with the given style.
     pub fn create(style: GradingStyle) -> Result<Self> {
         crate::clear_last_error();
         let handle =
@@ -21,12 +23,14 @@ impl GradingToneTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create an independent, editable copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current grading style (Log, Lin, or Video).
     pub fn style(&self) -> GradingStyle {
         let v = unsafe { ocio_sys::ocio_grading_tone_transform_get_style(self.handle.as_ptr()) };
         match v {
@@ -36,6 +40,7 @@ impl GradingToneTransform {
         }
     }
 
+    /// Set the grading style, panicking on failure.
     pub fn set_style(&self, style: GradingStyle) {
         self.try_set_style(style)
             .expect("failed to set grading tone style");
@@ -50,6 +55,7 @@ impl GradingToneTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the current tone grading control values.
     pub fn value(&self) -> GradingTone {
         let mut flat = [0.0f64; 31];
         let copied = unsafe {
@@ -70,6 +76,7 @@ impl GradingToneTransform {
         self.value()
     }
 
+    /// Set the tone grading control values, panicking on failure.
     pub fn set_value(&self, value: &GradingTone) {
         self.try_set_value(value)
             .expect("failed to set grading tone value");
@@ -101,10 +108,12 @@ impl GradingToneTransform {
         self.set_value(value);
     }
 
+    /// Return `true` if this transform is dynamic (values can be updated at runtime).
     pub fn is_dynamic(&self) -> bool {
         unsafe { ocio_sys::ocio_grading_tone_transform_is_dynamic(self.handle.as_ptr()) }
     }
 
+    /// Make this transform dynamic, panicking on failure.
     pub fn make_dynamic(&self) {
         self.try_make_dynamic()
             .expect("failed to make grading tone dynamic");
@@ -119,6 +128,7 @@ impl GradingToneTransform {
         crate::ocio_call_status()
     }
 
+    /// Make this transform non-dynamic, panicking on failure.
     pub fn make_non_dynamic(&self) {
         self.try_make_non_dynamic()
             .expect("failed to make grading tone non-dynamic");
@@ -133,6 +143,7 @@ impl GradingToneTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the current transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir =
             unsafe { ocio_sys::ocio_grading_tone_transform_get_direction(self.handle.as_ptr()) };
@@ -142,6 +153,7 @@ impl GradingToneTransform {
         }
     }
 
+    /// Set the transform direction, panicking on failure.
     pub fn set_direction(&self, direction: TransformDirection) {
         self.try_set_direction(direction)
             .expect("failed to set grading tone direction");
@@ -159,6 +171,7 @@ impl GradingToneTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the format metadata associated with this transform, if any.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -174,6 +187,7 @@ impl GradingToneTransform {
         self.format_metadata()
     }
 
+    /// Return `true` if this transform is equal to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_grading_tone_transform_equals(

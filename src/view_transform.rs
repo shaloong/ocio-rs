@@ -246,14 +246,8 @@ impl ViewTransform {
         transform: Option<&impl TransformHandle>,
         direction: ViewTransformDirection,
     ) {
-        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
-        unsafe {
-            ocio_sys::ocio_view_transform_set_transform(
-                self.handle.as_ptr(),
-                transform,
-                direction as i32,
-            );
-        }
+        self.try_set_transform(transform, direction)
+            .expect("failed to set view transform");
     }
 
     /// Try to attach or clear a transform for the given direction.
