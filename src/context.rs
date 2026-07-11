@@ -221,7 +221,7 @@ impl Context {
         note = "discarded OCIO errors; prefer try_clear_string_vars()"
     )]
     pub fn clear_string_vars(&self) {
-        unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
+        let _ = self.try_clear_string_vars();
     }
 
     /// Try to remove every string variable from this context.
@@ -236,9 +236,7 @@ impl Context {
         note = "discarded OCIO errors; prefer try_add_string_vars()"
     )]
     pub fn add_string_vars(&self, other: &Context) {
-        unsafe {
-            ocio_sys::ocio_context_add_string_vars(self.handle.as_ptr(), other.handle.as_ptr())
-        };
+        let _ = self.try_add_string_vars(other);
     }
 
     /// Try to merge all string variables from `other` into this context.
