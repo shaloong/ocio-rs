@@ -197,6 +197,23 @@ impl NamedTransform {
             );
         }
     }
+
+    /// Try to attach a transform for the given direction.
+    pub fn try_set_transform(
+        &self,
+        transform: &impl TransformHandle,
+        direction: TransformDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_transform_set_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *mut c_void,
+                direction as i32,
+            );
+        }
+        crate::ocio_call_status()
+    }
 }
 
 impl Drop for NamedTransform {

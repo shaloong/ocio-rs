@@ -140,6 +140,18 @@ impl Look {
         }
     }
 
+    /// Try to set the forward transform used by this look.
+    pub fn try_set_transform(&self, transform: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_look_set_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *mut c_void,
+            );
+        }
+        crate::ocio_call_status()
+    }
+
     pub fn inverse_transform(&self) -> Option<Transform> {
         let handle = unsafe {
             ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr() as *mut c_void)
@@ -154,6 +166,18 @@ impl Look {
                 transform.as_ptr() as *mut c_void,
             );
         }
+    }
+
+    /// Try to set the inverse transform used by this look.
+    pub fn try_set_inverse_transform(&self, transform: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_look_set_inverse_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *mut c_void,
+            );
+        }
+        crate::ocio_call_status()
     }
 }
 

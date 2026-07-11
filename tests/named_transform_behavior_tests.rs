@@ -32,8 +32,10 @@ fn configured_named_transform() -> NamedTransform {
 
     let forward = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).expect("forward matrix");
     let inverse = MatrixTransform::scale(&[0.5, 1.0, 2.0, 1.0]).expect("inverse matrix");
-    nt.set_transform(&forward, TransformDirection::Forward);
-    nt.set_transform(&inverse, TransformDirection::Inverse);
+    nt.try_set_transform(&forward, TransformDirection::Forward)
+        .expect("attach forward named transform");
+    nt.try_set_transform(&inverse, TransformDirection::Inverse)
+        .expect("attach inverse named transform");
     nt
 }
 

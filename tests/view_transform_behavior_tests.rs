@@ -36,8 +36,10 @@ fn scaled_view_transform() -> ViewTransform {
     let to_reference = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).expect("to-reference matrix");
     let from_reference =
         MatrixTransform::scale(&[0.5, 1.0, 2.0, 1.0]).expect("from-reference matrix");
-    vt.set_transform(Some(&to_reference), ViewTransformDirection::ToReference);
-    vt.set_transform(Some(&from_reference), ViewTransformDirection::FromReference);
+    vt.try_set_transform(Some(&to_reference), ViewTransformDirection::ToReference)
+        .expect("attach to-reference view transform");
+    vt.try_set_transform(Some(&from_reference), ViewTransformDirection::FromReference)
+        .expect("attach from-reference view transform");
     vt
 }
 

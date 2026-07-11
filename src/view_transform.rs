@@ -228,6 +228,24 @@ impl ViewTransform {
         }
     }
 
+    /// Try to attach or clear a transform for the given direction.
+    pub fn try_set_transform(
+        &self,
+        transform: Option<&impl TransformHandle>,
+        direction: ViewTransformDirection,
+    ) -> Result<()> {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_view_transform_set_transform(
+                self.handle.as_ptr(),
+                transform,
+                direction as i32,
+            );
+        }
+        crate::ocio_call_status()
+    }
+
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =

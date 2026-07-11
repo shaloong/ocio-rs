@@ -5583,7 +5583,7 @@ void ocio_look_set_transform(void* handle, void* transform) {
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_look(handle)->setTransform(transform_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5612,7 +5612,7 @@ void ocio_look_set_inverse_transform(void* handle, void* transform) {
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_look(handle)->setInverseTransform(transform_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5974,7 +5974,7 @@ void ocio_named_transform_set_transform(void* handle, void* transform, int dir) 
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_named_transform(handle)->setTransform(transform_ptr, static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -6254,7 +6254,7 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir) {
       transform_ptr = _transform_h->get_ocio_transform();
     }
     ocio_rs_bridge::get_real_view_transform(handle)->setTransform(transform_ptr, static_cast<ocio::ViewTransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

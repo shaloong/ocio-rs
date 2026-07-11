@@ -43,8 +43,10 @@ fn swapped_color_space(name: &str) -> ColorSpace {
     .expect("set channel-swap matrix");
     swap.set_offset(&[0.0, 0.0, 0.0, 0.0])
         .expect("set channel-swap offset");
-    cs.set_transform(&swap, ocio_rs::ColorSpaceDirection::ToReference);
-    cs.set_transform(&swap, ocio_rs::ColorSpaceDirection::FromReference);
+    cs.try_set_transform(&swap, ocio_rs::ColorSpaceDirection::ToReference)
+        .expect("attach to-reference transform");
+    cs.try_set_transform(&swap, ocio_rs::ColorSpaceDirection::FromReference)
+        .expect("attach from-reference transform");
     cs
 }
 
@@ -72,8 +74,10 @@ fn red_scale_look(name: &str, process_space: &str) -> Look {
 
     let forward = MatrixTransform::scale(&[1.5, 1.0, 1.0, 1.0]).expect("forward look matrix");
     let inverse = MatrixTransform::scale(&[2.0 / 3.0, 1.0, 1.0, 1.0]).expect("inverse look matrix");
-    look.set_transform(&forward);
-    look.set_inverse_transform(&inverse);
+    look.try_set_transform(&forward)
+        .expect("attach forward look transform");
+    look.try_set_inverse_transform(&inverse)
+        .expect("attach inverse look transform");
     look
 }
 
