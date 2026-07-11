@@ -10177,7 +10177,7 @@ void ocio_fixed_function_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_fixed_function_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12135,7 +12135,7 @@ void ocio_lut1d_transform_set_input_half_domain(void* handle, bool isHalfDomain)
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setInputHalfDomain(isHalfDomain);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12157,7 +12157,7 @@ void ocio_lut1d_transform_set_output_raw_halfs(void* handle, bool isRawHalfs) {
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setOutputRawHalfs(isRawHalfs);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12179,7 +12179,7 @@ void ocio_lut1d_transform_set_hue_adjust(void* handle, int algo) {
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setHueAdjust(static_cast<ocio::Lut1DHueAdjust>(algo));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

@@ -212,9 +212,17 @@ impl Lut1DTransform {
     }
 
     pub fn set_input_half_domain(&self, half_domain: bool) {
+        self.try_set_input_half_domain(half_domain)
+            .expect("failed to set LUT1D input half domain");
+    }
+
+    /// Set the input half-domain flag and surface any OCIO validation error.
+    pub fn try_set_input_half_domain(&self, half_domain: bool) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain)
-        };
+            ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain);
+        }
+        crate::ocio_call_status()
     }
 
     pub fn output_raw_halfs(&self) -> bool {
@@ -222,9 +230,17 @@ impl Lut1DTransform {
     }
 
     pub fn set_output_raw_halfs(&self, raw_halfs: bool) {
+        self.try_set_output_raw_halfs(raw_halfs)
+            .expect("failed to set LUT1D output raw halfs");
+    }
+
+    /// Set the output-raw-halfs flag and surface any OCIO validation error.
+    pub fn try_set_output_raw_halfs(&self, raw_halfs: bool) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs)
-        };
+            ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs);
+        }
+        crate::ocio_call_status()
     }
 
     pub fn hue_adjust(&self) -> Lut1DHueAdjust {
@@ -236,9 +252,17 @@ impl Lut1DTransform {
     }
 
     pub fn set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) {
+        self.try_set_hue_adjust(hue_adjust)
+            .expect("failed to set LUT1D hue adjust");
+    }
+
+    /// Set the hue-adjust algorithm and surface any OCIO validation error.
+    pub fn try_set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32)
-        };
+            ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32);
+        }
+        crate::ocio_call_status()
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
