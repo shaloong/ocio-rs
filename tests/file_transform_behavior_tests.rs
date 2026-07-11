@@ -41,9 +41,15 @@ fn file_transform_round_trip_and_copy_behavior() {
         .set_src(matrix_path.to_string_lossy())
         .expect("set src");
     transform.set_ccc_id("cc0002").expect("set ccc id");
-    transform.set_interpolation(Interpolation::Tetrahedral);
-    transform.set_cdl_style(CDLStyle::NoClamp);
-    transform.set_direction(TransformDirection::Inverse);
+    transform
+        .try_set_interpolation(Interpolation::Tetrahedral)
+        .expect("set interpolation");
+    transform
+        .try_set_cdl_style(CDLStyle::NoClamp)
+        .expect("set CDL style");
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("set direction");
 
     assert_eq!(
         transform.src().as_deref(),
@@ -58,9 +64,12 @@ fn file_transform_round_trip_and_copy_behavior() {
         .create_editable_copy()
         .expect("file transform editable copy");
     copy.set_ccc_id("cc0003").expect("set copy ccc id");
-    copy.set_interpolation(Interpolation::Linear);
-    copy.set_cdl_style(CDLStyle::Asc);
-    copy.set_direction(TransformDirection::Forward);
+    copy.try_set_interpolation(Interpolation::Linear)
+        .expect("set copy interpolation");
+    copy.try_set_cdl_style(CDLStyle::Asc)
+        .expect("set copy CDL style");
+    copy.try_set_direction(TransformDirection::Forward)
+        .expect("set copy direction");
 
     assert_eq!(copy.ccc_id().as_deref(), Some("cc0003"));
     assert_eq!(copy.interpolation(), Interpolation::Linear);
@@ -134,8 +143,12 @@ fn file_transform_ccc_id_and_default_direction_behavior() {
         .set_src(ccc_path.to_string_lossy())
         .expect("set ccc src");
     file_transform.set_ccc_id("cc0002").expect("set ccc id");
-    file_transform.set_cdl_style(CDLStyle::NoClamp);
-    file_transform.set_direction(TransformDirection::Inverse);
+    file_transform
+        .try_set_cdl_style(CDLStyle::NoClamp)
+        .expect("set CDL style");
+    file_transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("set direction");
 
     let cdl = CDLTransform::create_from_file(ccc_path.to_string_lossy(), "cc0002")
         .expect("load cdl from ccc");

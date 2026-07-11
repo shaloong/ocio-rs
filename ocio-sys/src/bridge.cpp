@@ -9991,7 +9991,7 @@ void ocio_file_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -10073,7 +10073,7 @@ void ocio_file_transform_set_cdl_style(void* handle, int arg) {
 #else
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->setCDLStyle(static_cast<ocio::CDLStyle>(arg));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -10095,7 +10095,7 @@ void ocio_file_transform_set_interpolation(void* handle, int interp) {
 #else
   try {
     ocio_rs_bridge::get_real_file_transform(handle)->setInterpolation(static_cast<ocio::Interpolation>(interp));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

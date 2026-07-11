@@ -71,9 +71,17 @@ impl FileTransform {
 
     /// Set the interpolation mode requested for LUT sampling.
     pub fn set_interpolation(&self, interp: Interpolation) {
+        self.try_set_interpolation(interp)
+            .expect("failed to set file transform interpolation");
+    }
+
+    /// Set interpolation and surface any OCIO validation error.
+    pub fn try_set_interpolation(&self, interp: Interpolation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_transform_set_interpolation(self.handle.as_ptr(), interp as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Return the CDL style used when the file source is CDL-based.
@@ -87,9 +95,17 @@ impl FileTransform {
 
     /// Set the CDL style used when the file source is CDL-based.
     pub fn set_cdl_style(&self, style: CDLStyle) {
+        self.try_set_cdl_style(style)
+            .expect("failed to set file transform CDL style");
+    }
+
+    /// Set the CDL style and surface any OCIO validation error.
+    pub fn try_set_cdl_style(&self, style: CDLStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_transform_set_cdl_style(self.handle.as_ptr(), style as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Return the transform direction used when this op is evaluated.
@@ -103,9 +119,17 @@ impl FileTransform {
 
     /// Set the transform direction used when this op is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set file transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_file_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Create an editable copy that is independent from the original transform.
@@ -189,14 +213,14 @@ mod tests {
     #[test]
     fn interpolation_no_crash() {
         let ft = FileTransform::create().unwrap();
-        ft.set_interpolation(Interpolation::Linear);
+        ft.try_set_interpolation(Interpolation::Linear).unwrap();
         let _ = ft.interpolation();
     }
 
     #[test]
     fn direction_no_crash() {
         let ft = FileTransform::create().unwrap();
-        ft.set_direction(TransformDirection::Inverse);
+        ft.try_set_direction(TransformDirection::Inverse).unwrap();
         let _ = ft.direction();
     }
 
@@ -204,7 +228,7 @@ mod tests {
     fn cdl_style_no_crash() {
         let ft = FileTransform::create().unwrap();
         let _ = ft.cdl_style();
-        ft.set_cdl_style(CDLStyle::NoClamp);
+        ft.try_set_cdl_style(CDLStyle::NoClamp).unwrap();
     }
 
     #[test]
