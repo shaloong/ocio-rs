@@ -118,12 +118,20 @@ impl GradingRGBCurveTransform {
         since = "0.2.0",
         note = "prefer value() to read a safe Rust snapshot of the grading curve"
     )]
+    /// Returns an owned legacy OCIO grading-curve handle.
+    ///
+    /// The caller must eventually release a non-null handle with
+    /// [`ocio_sys::ocio_grading_rgb_curve_destroy`]. The returned handle owns
+    /// an independent OCIO value snapshot and remains valid after this
+    /// transform is dropped.
     pub fn raw_value_handle(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_grading_rgb_curve_transform_get_value(self.handle.as_ptr()) }
     }
 
     /// # Safety
-    /// `values` must point to a valid OCIO grading-RGB-curve value object for the active ABI.
+    /// `values` must point to a valid OCIO grading-RGB-curve value object for
+    /// the active ABI. It remains owned by the caller; this method borrows it
+    /// only for the duration of the call and never destroys it.
     #[deprecated(
         since = "0.2.0",
         note = "prefer set_value(&GradingRGBCurveValue) instead of passing a raw OCIO handle"
