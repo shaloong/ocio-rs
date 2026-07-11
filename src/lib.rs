@@ -185,7 +185,7 @@ pub fn get_current_config() -> Option<Config> {
     note = "discarded OCIO errors; prefer try_set_current_config()"
 )]
 pub fn set_current_config(config: &Config) {
-    unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
+    let _ = try_set_current_config(config);
 }
 
 /// Try to install `config` as the process-global current OCIO config.
@@ -205,7 +205,7 @@ pub fn try_set_current_config(config: &Config) -> Result<()> {
     note = "discarded OCIO errors; prefer try_clear_all_caches()"
 )]
 pub fn clear_all_caches() {
-    unsafe { ocio_sys::ocio_clear_all_caches() };
+    let _ = try_clear_all_caches();
 }
 
 /// Try to clear OCIO's process-global caches.
@@ -247,7 +247,7 @@ pub fn logging_level() -> crate::LoggingLevel {
     note = "discarded OCIO errors; prefer try_set_logging_level()"
 )]
 pub fn set_logging_level(level: crate::LoggingLevel) {
-    unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
+    let _ = try_set_logging_level(level);
 }
 
 /// Try to set the OCIO global logging level.
@@ -263,7 +263,7 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
     note = "discarded OCIO errors; prefer try_set_logging_level()"
 )]
 pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
-    unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
+    let _ = try_set_logging_level(level);
 }
 
 /// Returns the processor cache flags from the current global config.
@@ -281,11 +281,7 @@ pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
     note = "discarded OCIO errors; prefer try_set_processor_cache_flags()"
 )]
 pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
-    if let Some(config) = current_config() {
-        unsafe {
-            ocio_sys::ocio_config_set_processor_cache_flags(config.handle.as_ptr(), flags.0 as i32)
-        };
-    }
+    let _ = try_set_processor_cache_flags(flags);
 }
 
 /// Try to update processor-cache flags on the current global config.
