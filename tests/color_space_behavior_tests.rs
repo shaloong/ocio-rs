@@ -140,10 +140,16 @@ fn color_space_attached_transform_and_copy_behavior() {
         .expect("remove alias from copy");
     copy.remove_category("unit_category")
         .expect("remove category from copy");
+    copy.add_alias("copy_alias").expect("add alias to copy");
+    copy.add_category("copy_category")
+        .expect("add category to copy");
+    copy.try_clear_aliases().expect("clear aliases from copy");
+    copy.try_clear_categories()
+        .expect("clear categories from copy");
 
     assert_eq!(copy.name().as_deref(), Some("UnitColorSpaceCopy"));
-    assert!(!copy.has_alias("unit_cs_a"));
-    assert!(!copy.has_category("unit_category"));
+    assert_eq!(copy.num_aliases(), 0);
+    assert_eq!(copy.num_categories(), 0);
 
     assert_eq!(cs.name().as_deref(), Some("UnitColorSpaceA"));
     assert!(cs.has_alias("unit_cs_a"));

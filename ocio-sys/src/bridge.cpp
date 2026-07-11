@@ -4935,7 +4935,7 @@ void ocio_color_space_clear_aliases(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->clearAliases();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5181,7 +5181,7 @@ void ocio_color_space_clear_categories(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->clearCategories();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

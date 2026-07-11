@@ -292,7 +292,15 @@ impl ColorSpace {
     }
 
     pub fn clear_aliases(&self) {
+        self.try_clear_aliases()
+            .expect("failed to clear color space aliases");
+    }
+
+    /// Clear all aliases and surface any OCIO validation error.
+    pub fn try_clear_aliases(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_clear_aliases(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn is_transform_defined(&self, direction: ColorSpaceDirection) -> bool {
@@ -320,7 +328,15 @@ impl ColorSpace {
     }
 
     pub fn clear_categories(&self) {
+        self.try_clear_categories()
+            .expect("failed to clear color space categories");
+    }
+
+    /// Clear all categories and surface any OCIO validation error.
+    pub fn try_clear_categories(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_clear_categories(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
@@ -486,7 +502,7 @@ mod tests {
         let _ = cs.alias(0);
         assert!(cs.add_alias("test_alias").is_ok());
         assert!(cs.remove_alias("test_alias").is_ok());
-        cs.clear_aliases();
+        cs.try_clear_aliases().unwrap();
     }
 
     #[test]
