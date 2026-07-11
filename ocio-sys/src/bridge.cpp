@@ -11553,7 +11553,7 @@ void ocio_log_camera_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_log_camera_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

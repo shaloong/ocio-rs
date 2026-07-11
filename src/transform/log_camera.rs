@@ -211,12 +211,20 @@ impl LogCameraTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set log camera transform direction");
+    }
+
+    /// Set evaluation direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_log_camera_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -299,7 +307,7 @@ mod tests {
     fn direction_no_crash() {
         let t = LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]

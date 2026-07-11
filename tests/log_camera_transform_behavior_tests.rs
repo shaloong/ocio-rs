@@ -104,7 +104,8 @@ fn log_camera_transform_value_copy_and_direction_behavior() {
         .expect("set copy lin-side break");
     copy.set_linear_slope_value(&[2.0, 2.0, 2.0])
         .expect("set copy linear slope");
-    copy.set_direction(TransformDirection::Inverse);
+    copy.try_set_direction(TransformDirection::Inverse)
+        .expect("set copy direction");
 
     assert_close(copy.base().expect("read copy base"), 10.0, 1e-10);
     assert_vec_close(
