@@ -94,6 +94,29 @@ fn config_viewing_rules_attachment_behavior() {
 }
 
 #[test]
+fn config_viewing_rules_handle_survives_parent_drop_behavior() {
+    let _guard = viewing_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let attached = {
+        let config = create_test_config().expect("raw config");
+        let rules = ViewingRules::create().expect("viewing rules create");
+        rules
+            .insert_rule(0, "SurvivesParentDrop")
+            .expect("insert rule");
+        config
+            .set_viewing_rules_object(&rules)
+            .expect("attach viewing rules");
+        config.viewing_rules().expect("attached viewing rules")
+    };
+
+    assert_eq!(attached.num_entries(), 1);
+    assert_eq!(attached.name(0).as_deref(), Some("SurvivesParentDrop"));
+}
+
+#[test]
 fn viewing_rules_mutation_errors_surface_behavior() {
     let _guard = viewing_rules_test_lock();
     if is_stub() {

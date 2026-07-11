@@ -292,11 +292,6 @@ impl Context {
     /// active ABI and keep it alive for as long as OCIO may use it. Prefer
     /// [`Self::set_config_io_proxy_object`] for a typed wrapper.
     #[doc(hidden)]
-    /// Return a borrowed raw OCIO config-IO proxy handle.
-    ///
-    /// The pointer is owned by OCIO and must not be freed. It is only valid
-    /// while this context remains alive and continues to reference the proxy.
-    #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
@@ -309,6 +304,10 @@ impl Context {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
     )]
+    /// Returns a borrowed raw OCIO config-IO proxy handle.
+    ///
+    /// The pointer is owned by OCIO and must not be freed. It is only valid
+    /// while this context remains alive and continues to reference the proxy.
     pub fn config_io_proxy(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
     }

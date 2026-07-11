@@ -3377,10 +3377,6 @@ impl Config {
     /// `viewing_rules` must be a valid OCIO viewing-rules pointer for the
     /// active ABI and must remain valid for as long as OCIO retains it. Prefer
     /// [`Self::set_viewing_rules_object`] for a typed wrapper.
-    /// Return a borrowed raw OCIO config-IO proxy handle.
-    ///
-    /// The pointer is owned by OCIO and must not be freed. It is only valid
-    /// while this config remains alive and continues to reference the proxy.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -3445,6 +3441,10 @@ impl Config {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
     )]
+    /// Returns a borrowed raw OCIO config-IO proxy handle.
+    ///
+    /// The pointer is owned by OCIO and must not be freed. It is only valid
+    /// while this config remains alive and continues to reference the proxy.
     pub fn config_io_proxy(&self) -> *mut std::ffi::c_void {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
     }
