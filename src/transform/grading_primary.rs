@@ -71,13 +71,28 @@ impl GradingPrimaryTransform {
     }
 
     pub fn set_value(&self, value: &GradingPrimary) {
+        self.try_set_value(value)
+            .expect("failed to set primary grading value");
+    }
+
+    /// Replace the primary grading controls and surface any OCIO validation error.
+    pub fn try_set_value(&self, value: &GradingPrimary) -> Result<()> {
         let flat = value.to_flat_array();
-        unsafe {
+        crate::clear_last_error();
+        let accepted = unsafe {
             ocio_sys::ocio_grading_primary_transform_set_value_from_f64(
                 self.handle.as_ptr(),
                 flat.as_ptr(),
                 flat.len(),
-            );
+            )
+        };
+        if accepted {
+            crate::ocio_call_status()
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "GradingPrimaryTransform::set_value was rejected".to_owned(),
+            ))
         }
     }
 
@@ -200,7 +215,7 @@ mod tests {
     fn set_value_no_crash() {
         let t = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
         let v = GradingPrimary::new(GradingStyle::Log);
-        t.set_value(&v);
+        t.try_set_value(&v).unwrap();
     }
 
     #[test]

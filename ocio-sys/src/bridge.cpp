@@ -10423,7 +10423,7 @@ bool ocio_grading_primary_transform_copy_value(void* handle, double* values, siz
 bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)values; (void)len;
-  return false;
+  return true;
 #else
   try {
     if (!values || len < 34) return false;
@@ -10453,7 +10453,7 @@ bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const doubl
     v.m_clampWhite = values[off++];
     transform->setValue(v);
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
