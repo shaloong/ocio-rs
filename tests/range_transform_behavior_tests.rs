@@ -27,8 +27,12 @@ fn configured_range_transform(style: RangeStyle) -> RangeTransform {
     transform.try_set_max_in_value(1.0).expect("set max in");
     transform.try_set_min_out_value(0.25).expect("set min out");
     transform.try_set_max_out_value(0.75).expect("set max out");
-    transform.set_file_input_bit_depth(BitDepth::F32);
-    transform.set_file_output_bit_depth(BitDepth::F32);
+    transform
+        .try_set_file_input_bit_depth(BitDepth::F32)
+        .expect("set file input bit depth");
+    transform
+        .try_set_file_output_bit_depth(BitDepth::F32)
+        .expect("set file output bit depth");
     transform
 }
 

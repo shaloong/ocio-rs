@@ -202,12 +202,20 @@ impl RangeTransform {
     }
 
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_input_bit_depth(bit_depth)
+            .expect("failed to set range file input bit depth");
+    }
+
+    /// Set the serialized input bit depth and surface any OCIO validation error.
+    pub fn try_set_file_input_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_range_transform_set_file_input_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
@@ -228,12 +236,20 @@ impl RangeTransform {
     }
 
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set range file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_range_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -304,9 +320,9 @@ mod tests {
     fn bit_depth_no_crash() {
         let rt = RangeTransform::create().unwrap();
         let _ = rt.file_input_bit_depth();
-        rt.set_file_input_bit_depth(BitDepth::F32);
+        rt.try_set_file_input_bit_depth(BitDepth::F32).unwrap();
         let _ = rt.file_output_bit_depth();
-        rt.set_file_output_bit_depth(BitDepth::F32);
+        rt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]
