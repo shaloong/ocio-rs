@@ -390,6 +390,11 @@ impl CPUProcessor {
     /// descriptor is borrowed only; this method does not take ownership of it or
     /// of its pixel memory.
     #[doc(hidden)]
+    /// # Safety
+    /// `img_desc` must point to a valid OCIO image descriptor for the active
+    /// ABI. The pixel buffers referenced by the descriptor must remain
+    /// allocated, writable, and correctly strided for the full call. The
+    /// descriptor is borrowed only; this method does not take ownership.
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
@@ -400,6 +405,9 @@ impl CPUProcessor {
         }
     }
 
+    /// # Safety
+    /// Same invariants as [`apply`](CPUProcessor::apply). This is a
+    /// compatibility alias for older ABI versions.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
