@@ -104,8 +104,12 @@ fn look_transform_field_copy_and_validate_behavior() {
     transform.set_src("UnitLookSource").expect("set src");
     transform.set_dst("UnitLookSource").expect("set dst");
     transform.set_looks("UnitLook").expect("set looks");
-    transform.set_direction(TransformDirection::Inverse);
-    transform.set_skip_color_space_conversion(true);
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("set direction");
+    transform
+        .try_set_skip_color_space_conversion(true)
+        .expect("set color space conversion bypass");
     transform.validate().expect("validate look transform");
 
     assert_eq!(transform.src().as_deref(), Some("UnitLookSource"));
@@ -118,8 +122,10 @@ fn look_transform_field_copy_and_validate_behavior() {
         .create_editable_copy()
         .expect("look transform editable copy");
     copy.set_dst("UnitLookProcess").expect("set copy dst");
-    copy.set_direction(TransformDirection::Forward);
-    copy.set_skip_color_space_conversion(false);
+    copy.try_set_direction(TransformDirection::Forward)
+        .expect("set copy direction");
+    copy.try_set_skip_color_space_conversion(false)
+        .expect("set copy color space conversion bypass");
 
     assert_eq!(copy.dst().as_deref(), Some("UnitLookProcess"));
     assert_eq!(copy.direction(), TransformDirection::Forward);
@@ -149,7 +155,9 @@ fn look_transform_skip_color_space_conversion_behavior() {
     with_conversion
         .set_looks("UnitLook")
         .expect("set looks with conversion");
-    with_conversion.set_skip_color_space_conversion(false);
+    with_conversion
+        .try_set_skip_color_space_conversion(false)
+        .expect("set conversion mode");
 
     let without_conversion = LookTransform::create().expect("look transform without conversion");
     without_conversion
@@ -161,7 +169,9 @@ fn look_transform_skip_color_space_conversion_behavior() {
     without_conversion
         .set_looks("UnitLook")
         .expect("set looks without conversion");
-    without_conversion.set_skip_color_space_conversion(true);
+    without_conversion
+        .try_set_skip_color_space_conversion(true)
+        .expect("set bypass mode");
 
     let with_cpu = config
         .processor_from_transform(&with_conversion, TransformDirection::Forward)

@@ -11873,7 +11873,7 @@ void ocio_look_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -11977,7 +11977,7 @@ void ocio_look_transform_set_skip_color_space_conversion(void* handle, bool skip
 #else
   try {
     ocio_rs_bridge::get_real_look_transform(handle)->setSkipColorSpaceConversion(skip);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

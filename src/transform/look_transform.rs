@@ -62,9 +62,17 @@ impl LookTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set look transform direction");
+    }
+
+    /// Set evaluation direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_look_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
@@ -86,12 +94,20 @@ impl LookTransform {
     }
 
     pub fn set_skip_color_space_conversion(&self, skip: bool) {
+        self.try_set_skip_color_space_conversion(skip)
+            .expect("failed to set look color space conversion bypass");
+    }
+
+    /// Set color-space conversion bypass and surface any OCIO validation error.
+    pub fn try_set_skip_color_space_conversion(&self, skip: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_look_transform_set_skip_color_space_conversion(
                 self.handle.as_ptr(),
                 skip,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -138,7 +154,7 @@ mod tests {
     fn direction_no_crash() {
         let t = LookTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]
