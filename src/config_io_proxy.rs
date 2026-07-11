@@ -72,11 +72,45 @@ impl ConfigIOProxy {
 
     /// Return the registered LUT payload for `filepath`, if present.
     pub fn lut_data(&self, filepath: impl AsRef<str>) -> Option<Vec<u8>> {
+        self.try_lut_data(filepath).ok().flatten()
+    }
+
+    /// Return the registered LUT payload for `filepath`, distinguishing
+    /// "not found" (`Ok(None)`) from "internal error" (`Err`).
+    pub fn try_lut_data(&self, filepath: impl AsRef<str>) -> Result<Option<Vec<u8>>> {
         let filepath = filepath.as_ref();
-        let len = self.get_lut_data_size(filepath) as usize;
+        let len = self.try_get_lut_data_size(filepath)? as usize;
+        if len == 0 {
+            return Ok(None);
+        }
         let mut bytes = vec![0u8; len];
-        let copied = self.copy_lut_data(filepath, &mut bytes);
-        copied.then_some(bytes)
+        let copied = self.try_copy_lut_data(filepath, &mut bytes)?;
+        Ok(copied.then_some(bytes))
+    }
+
+    /// Copy the LUT payload into `data`, returning whether the copy succeeded.
+    ///
+    /// Returns `Ok(true)` if data was copied, `Ok(false)` if the LUT was not
+    /// found, and `Err` if an internal error occurred.
+    pub fn try_copy_lut_data(&self, filepath: impl AsRef<str>, data: &mut [u8]) -> Result<bool> {
+        let filepath = cstring(filepath)?;
+        crate::clear_last_error();
+        let copied = unsafe {
+            ocio_sys::ocio_config_io_proxy_copy_lut_data(
+                self.handle.as_ptr(),
+                filepath.as_ptr(),
+                data.as_mut_ptr(),
+                data.len(),
+            )
+        };
+        if copied {
+            Ok(true)
+        } else {
+            match crate::ocio_call_status() {
+                Ok(()) => Ok(false),
+                Err(err) => Err(err),
+            }
+        }
     }
 
     /// Return the upstream fast hash associated with `filepath`, if present.
@@ -92,32 +126,26 @@ impl ConfigIOProxy {
 
     #[doc(hidden)]
     pub fn get_lut_data_size(&self, filepath: impl AsRef<str>) -> u64 {
-        let filepath = match cstring(filepath) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        unsafe {
+        self.try_get_lut_data_size(filepath).unwrap_or(0)
+    }
+
+    /// Return the size of the registered LUT payload, or 0 if not found.
+    pub fn try_get_lut_data_size(&self, filepath: impl AsRef<str>) -> Result<u64> {
+        let filepath = cstring(filepath)?;
+        crate::clear_last_error();
+        let size = unsafe {
             ocio_sys::ocio_config_io_proxy_get_lut_data_size(
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
-            ) as u64
-        }
+            )
+        } as u64;
+        crate::ocio_call_status()?;
+        Ok(size)
     }
 
     #[doc(hidden)]
     pub fn copy_lut_data(&self, filepath: impl AsRef<str>, data: &mut [u8]) -> bool {
-        let filepath = match cstring(filepath) {
-            Ok(value) => value,
-            Err(_) => return false,
-        };
-        unsafe {
-            ocio_sys::ocio_config_io_proxy_copy_lut_data(
-                self.handle.as_ptr(),
-                filepath.as_ptr(),
-                data.as_mut_ptr(),
-                data.len(),
-            )
-        }
+        self.try_copy_lut_data(filepath, data).unwrap_or(false)
     }
 }
 
@@ -171,5 +199,33 @@ mod tests {
             proxy.lut_data("E:/virtual/context/lut1.clf").as_deref(),
             Some(lut.as_slice())
         );
+
+        // try_lut_data returns Ok(None) for missing LUTs, Ok(Some(..)) for found ones
+        assert!(
+            proxy
+                .try_lut_data("E:/virtual/context/missing.clf")
+                .unwrap()
+                .is_none(),
+            "missing LUT should return None"
+        );
+        assert!(
+            proxy
+                .try_lut_data("E:/virtual/context/lut1.clf")
+                .unwrap()
+                .is_some(),
+            "found LUT should return Some"
+        );
+
+        // try_copy_lut_data returns Ok(true) for found, Ok(false) for missing
+        let mut buf = vec![0u8; lut.len()];
+        assert!(proxy
+            .try_copy_lut_data("E:/virtual/context/lut1.clf", &mut buf)
+            .unwrap());
+        assert_eq!(buf, lut);
+
+        let mut empty_buf = vec![0u8; 1];
+        assert!(!proxy
+            .try_copy_lut_data("E:/virtual/context/missing.clf", &mut empty_buf)
+            .unwrap());
     }
 }

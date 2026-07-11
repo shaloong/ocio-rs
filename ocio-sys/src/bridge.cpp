@@ -1751,7 +1751,7 @@ size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath
     if (!rustProxy) return 0;
     const auto* data = rustProxy->findLutData(filepath);
     return data ? data->size() : 0;
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -1775,7 +1775,7 @@ bool ocio_config_io_proxy_copy_lut_data(
       std::memcpy(data, bytes->data(), bytes->size());
     }
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
