@@ -12540,7 +12540,7 @@ void ocio_range_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->setStyle(static_cast<ocio::RangeStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12626,7 +12626,7 @@ void ocio_range_transform_set_min_in_value(void* handle, double val) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->setMinInValue(val);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12648,7 +12648,7 @@ void ocio_range_transform_unset_min_in_value(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->unsetMinInValue();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12659,7 +12659,7 @@ void ocio_range_transform_set_max_in_value(void* handle, double val) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->setMaxInValue(val);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12692,7 +12692,7 @@ void ocio_range_transform_unset_max_in_value(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->unsetMaxInValue();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12703,7 +12703,7 @@ void ocio_range_transform_set_min_out_value(void* handle, double val) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->setMinOutValue(val);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12736,7 +12736,7 @@ void ocio_range_transform_unset_min_out_value(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->unsetMinOutValue();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12747,7 +12747,7 @@ void ocio_range_transform_set_max_out_value(void* handle, double val) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->setMaxOutValue(val);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12780,7 +12780,7 @@ void ocio_range_transform_unset_max_out_value(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_range_transform(handle)->unsetMaxOutValue();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

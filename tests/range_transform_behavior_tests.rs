@@ -22,11 +22,11 @@ fn range_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_range_transform(style: RangeStyle) -> RangeTransform {
     let transform = RangeTransform::create().expect("range transform create");
-    transform.set_style(style);
-    transform.set_min_in_value(0.0);
-    transform.set_max_in_value(1.0);
-    transform.set_min_out_value(0.25);
-    transform.set_max_out_value(0.75);
+    transform.try_set_style(style).expect("set style");
+    transform.try_set_min_in_value(0.0).expect("set min in");
+    transform.try_set_max_in_value(1.0).expect("set max in");
+    transform.try_set_min_out_value(0.25).expect("set min out");
+    transform.try_set_max_out_value(0.75).expect("set max out");
     transform.set_file_input_bit_depth(BitDepth::F32);
     transform.set_file_output_bit_depth(BitDepth::F32);
     transform
@@ -56,8 +56,8 @@ fn range_transform_parameter_unset_and_copy_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("range transform editable copy");
-    copy.unset_min_in_value();
-    copy.unset_max_out_value();
+    copy.try_unset_min_in_value().expect("unset copy min in");
+    copy.try_unset_max_out_value().expect("unset copy max out");
     copy.set_direction(TransformDirection::Inverse);
 
     assert!(!copy.has_min_in_value());

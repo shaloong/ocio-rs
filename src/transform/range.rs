@@ -25,7 +25,15 @@ impl RangeTransform {
     }
 
     pub fn set_style(&self, style: RangeStyle) {
+        self.try_set_style(style)
+            .expect("failed to set range style");
+    }
+
+    /// Set the range style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: RangeStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_set_style(self.handle.as_ptr(), style as i32) };
+        crate::ocio_call_status()
     }
 
     pub fn min_in_value(&self) -> f64 {
@@ -33,7 +41,15 @@ impl RangeTransform {
     }
 
     pub fn set_min_in_value(&self, value: f64) {
+        self.try_set_min_in_value(value)
+            .expect("failed to set range minimum input value");
+    }
+
+    /// Set the minimum input endpoint and surface any OCIO validation error.
+    pub fn try_set_min_in_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_set_min_in_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
     }
 
     pub fn max_in_value(&self) -> f64 {
@@ -41,7 +57,15 @@ impl RangeTransform {
     }
 
     pub fn set_max_in_value(&self, value: f64) {
+        self.try_set_max_in_value(value)
+            .expect("failed to set range maximum input value");
+    }
+
+    /// Set the maximum input endpoint and surface any OCIO validation error.
+    pub fn try_set_max_in_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_set_max_in_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
     }
 
     pub fn min_out_value(&self) -> f64 {
@@ -49,7 +73,15 @@ impl RangeTransform {
     }
 
     pub fn set_min_out_value(&self, value: f64) {
+        self.try_set_min_out_value(value)
+            .expect("failed to set range minimum output value");
+    }
+
+    /// Set the minimum output endpoint and surface any OCIO validation error.
+    pub fn try_set_min_out_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_set_min_out_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
     }
 
     pub fn max_out_value(&self) -> f64 {
@@ -57,7 +89,15 @@ impl RangeTransform {
     }
 
     pub fn set_max_out_value(&self, value: f64) {
+        self.try_set_max_out_value(value)
+            .expect("failed to set range maximum output value");
+    }
+
+    /// Set the maximum output endpoint and surface any OCIO validation error.
+    pub fn try_set_max_out_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_set_max_out_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -85,7 +125,15 @@ impl RangeTransform {
     }
 
     pub fn unset_min_in_value(&self) {
+        self.try_unset_min_in_value()
+            .expect("failed to unset range minimum input value");
+    }
+
+    /// Unset the minimum input endpoint and surface any OCIO validation error.
+    pub fn try_unset_min_in_value(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_unset_min_in_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn has_max_in_value(&self) -> bool {
@@ -93,7 +141,15 @@ impl RangeTransform {
     }
 
     pub fn unset_max_in_value(&self) {
+        self.try_unset_max_in_value()
+            .expect("failed to unset range maximum input value");
+    }
+
+    /// Unset the maximum input endpoint and surface any OCIO validation error.
+    pub fn try_unset_max_in_value(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_unset_max_in_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn has_min_out_value(&self) -> bool {
@@ -101,7 +157,15 @@ impl RangeTransform {
     }
 
     pub fn unset_min_out_value(&self) {
+        self.try_unset_min_out_value()
+            .expect("failed to unset range minimum output value");
+    }
+
+    /// Unset the minimum output endpoint and surface any OCIO validation error.
+    pub fn try_unset_min_out_value(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_unset_min_out_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn has_max_out_value(&self) -> bool {
@@ -109,7 +173,15 @@ impl RangeTransform {
     }
 
     pub fn unset_max_out_value(&self) {
+        self.try_unset_max_out_value()
+            .expect("failed to unset range maximum output value");
+    }
+
+    /// Unset the maximum output endpoint and surface any OCIO validation error.
+    pub fn try_unset_max_out_value(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_range_transform_unset_max_out_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn file_input_bit_depth(&self) -> BitDepth {
@@ -209,10 +281,10 @@ mod tests {
         let _ = rt.max_in_value();
         let _ = rt.min_out_value();
         let _ = rt.max_out_value();
-        rt.set_min_in_value(0.1);
-        rt.set_max_in_value(0.9);
-        rt.set_min_out_value(0.05);
-        rt.set_max_out_value(0.95);
+        rt.try_set_min_in_value(0.1).unwrap();
+        rt.try_set_max_in_value(0.9).unwrap();
+        rt.try_set_min_out_value(0.05).unwrap();
+        rt.try_set_max_out_value(0.95).unwrap();
     }
 
     #[test]
@@ -222,10 +294,10 @@ mod tests {
         let _ = rt.has_max_in_value();
         let _ = rt.has_min_out_value();
         let _ = rt.has_max_out_value();
-        rt.unset_min_in_value();
-        rt.unset_max_in_value();
-        rt.unset_min_out_value();
-        rt.unset_max_out_value();
+        rt.try_unset_min_in_value().unwrap();
+        rt.try_unset_max_in_value().unwrap();
+        rt.try_unset_min_out_value().unwrap();
+        rt.try_unset_max_out_value().unwrap();
     }
 
     #[test]
