@@ -21,18 +21,31 @@ impl MatrixTransform {
     }
 
     /// Return the current 4x4 matrix in row-major order.
-    pub fn matrix(&self) -> [f64; 16] {
+    pub fn try_matrix(&self) -> Result<[f64; 16]> {
         let mut m = [0.0f64; 16];
         for i in 0..4 {
             m[i * 5] = 1.0;
         }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_get_matrix(
                 self.handle.as_ptr(),
                 m.as_mut_ptr() as *mut c_void,
             )
         };
-        m
+        crate::ocio_call_status()?;
+        Ok(m)
+    }
+
+    /// Return the current 4x4 matrix in row-major order.
+    pub fn matrix(&self) -> [f64; 16] {
+        self.try_matrix().unwrap_or_else(|_| {
+            let mut m = [0.0f64; 16];
+            for i in 0..4 {
+                m[i * 5] = 1.0;
+            }
+            m
+        })
     }
 
     /// Replace the current 4x4 matrix in row-major order.
@@ -48,15 +61,22 @@ impl MatrixTransform {
     }
 
     /// Return the current RGBA offset vector.
-    pub fn offset(&self) -> [f64; 4] {
+    pub fn try_offset(&self) -> Result<[f64; 4]> {
         let mut o = [0.0f64; 4];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_get_offset(
                 self.handle.as_ptr(),
                 o.as_mut_ptr() as *mut c_void,
             )
         };
-        o
+        crate::ocio_call_status()?;
+        Ok(o)
+    }
+
+    /// Return the current RGBA offset vector.
+    pub fn offset(&self) -> [f64; 4] {
+        self.try_offset().unwrap_or([0.0; 4])
     }
 
     /// Replace the current RGBA offset vector.

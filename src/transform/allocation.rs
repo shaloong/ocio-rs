@@ -16,13 +16,19 @@ impl AllocationTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    pub fn allocation(&self) -> Allocation {
+    pub fn try_allocation(&self) -> Result<Allocation> {
+        crate::clear_last_error();
         let v = unsafe { ocio_sys::ocio_allocation_transform_get_allocation(self.handle.as_ptr()) };
-        match v {
+        crate::ocio_call_status()?;
+        Ok(match v {
             1 => Allocation::Uniform,
             2 => Allocation::Lg2,
             _ => Allocation::Unknown,
-        }
+        })
+    }
+
+    pub fn allocation(&self) -> Allocation {
+        self.try_allocation().unwrap_or(Allocation::Unknown)
     }
 
     pub fn set_allocation(&self, allocation: Allocation) {
@@ -42,23 +48,36 @@ impl AllocationTransform {
         crate::ocio_call_status()
     }
 
-    pub fn num_vars(&self) -> i32 {
-        unsafe { ocio_sys::ocio_allocation_transform_get_num_vars(self.handle.as_ptr()) }
+    pub fn try_num_vars(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let v = unsafe { ocio_sys::ocio_allocation_transform_get_num_vars(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn vars(&self) -> Vec<f32> {
-        let n = self.num_vars() as usize;
+    pub fn num_vars(&self) -> i32 {
+        self.try_num_vars().unwrap_or(0)
+    }
+
+    pub fn try_vars(&self) -> Result<Vec<f32>> {
+        let n = self.try_num_vars()? as usize;
         if n == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
         let mut v = vec![0.0f32; n];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_get_vars(
                 self.handle.as_ptr(),
                 v.as_mut_ptr() as *mut c_void,
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
+    }
+
+    pub fn vars(&self) -> Vec<f32> {
+        self.try_vars().unwrap_or_default()
     }
 
     /// Set allocation-domain parameters.
@@ -79,13 +98,19 @@ impl AllocationTransform {
         crate::ocio_call_status()
     }
 
-    pub fn direction(&self) -> TransformDirection {
+    pub fn try_direction(&self) -> Result<TransformDirection> {
+        crate::clear_last_error();
         let dir =
             unsafe { ocio_sys::ocio_allocation_transform_get_direction(self.handle.as_ptr()) };
-        match dir {
+        crate::ocio_call_status()?;
+        Ok(match dir {
             1 => TransformDirection::Inverse,
             _ => TransformDirection::Forward,
-        }
+        })
+    }
+
+    pub fn direction(&self) -> TransformDirection {
+        self.try_direction().unwrap_or(TransformDirection::Forward)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {

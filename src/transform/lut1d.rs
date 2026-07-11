@@ -157,16 +157,23 @@ impl Lut1DTransform {
     }
 
     /// Return all RGB LUT values as a flat `f64` vector.
-    pub fn values(&self) -> Vec<f64> {
+    pub fn try_values(&self) -> Result<Vec<f64>> {
         let len = self.length() as usize;
         let mut data = vec![0.0f64; len * 3];
         if data.is_empty() {
-            return data;
+            return Ok(data);
         }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
         };
-        data
+        crate::ocio_call_status()?;
+        Ok(data)
+    }
+
+    /// Return all RGB LUT values as a flat `f64` vector.
+    pub fn values(&self) -> Vec<f64> {
+        self.try_values().unwrap_or_default()
     }
 
     /// Replace every RGB LUT entry.

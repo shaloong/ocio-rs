@@ -170,13 +170,20 @@ impl ColorSpace {
     }
 
     /// Get the allocation mode of this color space.
-    pub fn allocation(&self) -> Allocation {
+    pub fn try_allocation(&self) -> Result<Allocation> {
+        crate::clear_last_error();
         let a = unsafe { ocio_sys::ocio_color_space_get_allocation(self.handle.as_ptr()) };
-        match a {
+        crate::ocio_call_status()?;
+        Ok(match a {
             1 => Allocation::Uniform,
             2 => Allocation::Lg2,
             _ => Allocation::Unknown,
-        }
+        })
+    }
+
+    /// Get the allocation mode of this color space.
+    pub fn allocation(&self) -> Allocation {
+        self.try_allocation().unwrap_or(Allocation::Unknown)
     }
 
     /// Set the allocation mode, panicking on error.
@@ -195,24 +202,39 @@ impl ColorSpace {
     }
 
     /// Get the number of allocation variables.
+    pub fn try_allocation_num_vars(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let v = unsafe { ocio_sys::ocio_color_space_get_allocation_num_vars(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(v)
+    }
+
+    /// Get the number of allocation variables.
     pub fn allocation_num_vars(&self) -> i32 {
-        unsafe { ocio_sys::ocio_color_space_get_allocation_num_vars(self.handle.as_ptr()) }
+        self.try_allocation_num_vars().unwrap_or(0)
     }
 
     /// Get the allocation variables as a slice of floats.
-    pub fn allocation_vars(&self) -> Vec<f32> {
-        let n = self.allocation_num_vars();
+    pub fn try_allocation_vars(&self) -> Result<Vec<f32>> {
+        let n = self.try_allocation_num_vars()?;
         if n <= 0 {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let mut vars = vec![0.0f32; n as usize];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_get_allocation_vars(
                 self.handle.as_ptr(),
                 vars.as_mut_ptr() as *mut c_void,
             );
         }
-        vars
+        crate::ocio_call_status()?;
+        Ok(vars)
+    }
+
+    /// Get the allocation variables as a slice of floats.
+    pub fn allocation_vars(&self) -> Vec<f32> {
+        self.try_allocation_vars().unwrap_or_default()
     }
 
     /// Set allocation-domain parameters for this color space.

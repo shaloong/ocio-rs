@@ -5236,7 +5236,7 @@ int ocio_color_space_get_allocation(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getAllocation();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -5258,7 +5258,7 @@ int ocio_color_space_get_allocation_num_vars(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getAllocationNumVars();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -5269,7 +5269,7 @@ void ocio_color_space_get_allocation_vars(void* handle, void* vars) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space(handle)->getAllocationVars(static_cast<float*>(vars));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -8739,7 +8739,7 @@ int ocio_allocation_transform_get_direction(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_allocation_transform(handle)->getDirection();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8777,7 +8777,7 @@ int ocio_allocation_transform_get_allocation(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_allocation_transform(handle)->getAllocation();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8799,7 +8799,7 @@ int ocio_allocation_transform_get_num_vars(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_allocation_transform(handle)->getNumVars();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8810,7 +8810,7 @@ void ocio_allocation_transform_get_vars(void* handle, void* vars) {
 #else
   try {
     ocio_rs_bridge::get_real_allocation_transform(handle)->getVars(static_cast<float*>(vars));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -9030,7 +9030,7 @@ void ocio_cdl_transform_get_slope(void* handle, void* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->getSlope(static_cast<double*>(rgb));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -9052,7 +9052,7 @@ void ocio_cdl_transform_get_offset(void* handle, void* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->getOffset(static_cast<double*>(rgb));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -9074,7 +9074,7 @@ void ocio_cdl_transform_get_power(void* handle, void* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->getPower(static_cast<double*>(rgb));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -9096,7 +9096,7 @@ void ocio_cdl_transform_get_sop(void* handle, void* vec9) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->getSOP(static_cast<double*>(vec9));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -9118,7 +9118,7 @@ double ocio_cdl_transform_get_sat(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cdl_transform(handle)->getSat();
-  } catch (...) { return 0.0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0.0; }
 #endif
 }
 
@@ -9140,7 +9140,7 @@ void ocio_cdl_transform_get_sat_luma_coefs(void* handle, void* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->getSatLumaCoefs(static_cast<double*>(rgb));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -10257,7 +10257,7 @@ size_t ocio_fixed_function_transform_get_num_params(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_fixed_function_transform(handle)->getNumParams();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -10268,7 +10268,7 @@ void ocio_fixed_function_transform_get_params(void* handle, void* params) {
 #else
   try {
     ocio_rs_bridge::get_real_fixed_function_transform(handle)->getParams(static_cast<double*>(params));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12422,7 +12422,7 @@ void ocio_matrix_transform_get_matrix(void* handle, void* m44) {
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->getMatrix(static_cast<double*>(m44));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12444,7 +12444,7 @@ void ocio_matrix_transform_get_offset(void* handle, void* offset4) {
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->getOffset(static_cast<double*>(offset4));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -13164,7 +13164,7 @@ void ocio_lut1d_transform_get_values(void* transform, double* data) {
       data[i * 3 + 1] = g;
       data[i * 3 + 2] = b;
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform; (void)data;
 #endif
@@ -13201,7 +13201,7 @@ void ocio_lut3d_transform_get_values(void* transform, double* data) {
         }
       }
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)transform; (void)data;
 #endif

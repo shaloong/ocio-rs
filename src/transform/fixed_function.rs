@@ -84,26 +84,41 @@ impl FixedFunctionTransform {
     }
 
     /// Return the number of parameters required by the current style.
-    pub fn num_params(&self) -> i32 {
-        unsafe {
+    pub fn try_num_params(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let v = unsafe {
             ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) as i32
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(v)
+    }
+
+    /// Return the number of parameters required by the current style.
+    pub fn num_params(&self) -> i32 {
+        self.try_num_params().unwrap_or(0)
     }
 
     /// Return the style-specific parameter values.
-    pub fn params(&self) -> Vec<f64> {
-        let n = self.num_params();
+    pub fn try_params(&self) -> Result<Vec<f64>> {
+        let n = self.try_num_params()?;
         if n <= 0 {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let mut params = vec![0.0f64; n as usize];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_fixed_function_transform_get_params(
                 self.handle.as_ptr(),
                 params.as_mut_ptr() as *mut c_void,
             );
         }
-        params
+        crate::ocio_call_status()?;
+        Ok(params)
+    }
+
+    /// Return the style-specific parameter values.
+    pub fn params(&self) -> Vec<f64> {
+        self.try_params().unwrap_or_default()
     }
 
     /// Set the style-specific parameters for this transform.

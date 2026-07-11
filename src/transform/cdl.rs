@@ -56,15 +56,22 @@ impl CDLTransform {
     }
 
     /// Return the per-channel slope values.
-    pub fn slope(&self) -> [f64; 3] {
+    pub fn try_slope(&self) -> Result<[f64; 3]> {
         let mut rgb = [1.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_get_slope(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut c_void,
             )
         };
-        rgb
+        crate::ocio_call_status()?;
+        Ok(rgb)
+    }
+
+    /// Return the per-channel slope values.
+    pub fn slope(&self) -> [f64; 3] {
+        self.try_slope().unwrap_or([1.0, 1.0, 1.0])
     }
 
     /// Set the per-channel slope values.
@@ -85,15 +92,22 @@ impl CDLTransform {
     }
 
     /// Return the per-channel offset values.
-    pub fn offset(&self) -> [f64; 3] {
+    pub fn try_offset(&self) -> Result<[f64; 3]> {
         let mut rgb = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_get_offset(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut c_void,
             )
         };
-        rgb
+        crate::ocio_call_status()?;
+        Ok(rgb)
+    }
+
+    /// Return the per-channel offset values.
+    pub fn offset(&self) -> [f64; 3] {
+        self.try_offset().unwrap_or([0.0, 0.0, 0.0])
     }
 
     /// Set the per-channel offset values.
@@ -114,15 +128,22 @@ impl CDLTransform {
     }
 
     /// Return the per-channel power values.
-    pub fn power_(&self) -> [f64; 3] {
+    pub fn try_power_(&self) -> Result<[f64; 3]> {
         let mut rgb = [1.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_get_power(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut c_void,
             )
         };
-        rgb
+        crate::ocio_call_status()?;
+        Ok(rgb)
+    }
+
+    /// Return the per-channel power values.
+    pub fn power_(&self) -> [f64; 3] {
+        self.try_power_().unwrap_or([1.0, 1.0, 1.0])
     }
 
     /// Set the per-channel power values.
@@ -143,8 +164,16 @@ impl CDLTransform {
     }
 
     /// Return the saturation value.
+    pub fn try_sat(&self) -> Result<f64> {
+        crate::clear_last_error();
+        let v = unsafe { ocio_sys::ocio_cdl_transform_get_sat(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(v)
+    }
+
+    /// Return the saturation value.
     pub fn sat(&self) -> f64 {
-        unsafe { ocio_sys::ocio_cdl_transform_get_sat(self.handle.as_ptr()) }
+        self.try_sat().unwrap_or(0.0)
     }
 
     /// Set the saturation value.
@@ -160,15 +189,22 @@ impl CDLTransform {
     }
 
     /// Return the luma coefficients used for saturation.
-    pub fn sat_luma_coefs(&self) -> [f64; 3] {
+    pub fn try_sat_luma_coefs(&self) -> Result<[f64; 3]> {
         let mut rgb = [0.0f64; 3];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_get_sat_luma_coefs(
                 self.handle.as_ptr(),
                 rgb.as_mut_ptr() as *mut c_void,
             );
         }
-        rgb
+        crate::ocio_call_status()?;
+        Ok(rgb)
+    }
+
+    /// Return the luma coefficients used for saturation.
+    pub fn sat_luma_coefs(&self) -> [f64; 3] {
+        self.try_sat_luma_coefs().unwrap_or([0.0, 0.0, 0.0])
     }
 
     /// Return the current CDL style.
@@ -230,15 +266,22 @@ impl CDLTransform {
     }
 
     /// Return the slope, offset, and power values as a 9-element array.
-    pub fn sop(&self) -> [f64; 9] {
+    pub fn try_sop(&self) -> Result<[f64; 9]> {
         let mut vec9 = [0.0f64; 9];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_get_sop(
                 self.handle.as_ptr(),
                 vec9.as_mut_ptr() as *mut c_void,
             )
         };
-        vec9
+        crate::ocio_call_status()?;
+        Ok(vec9)
+    }
+
+    /// Return the slope, offset, and power values as a 9-element array.
+    pub fn sop(&self) -> [f64; 9] {
+        self.try_sop().unwrap_or([0.0; 9])
     }
 
     /// Set the slope, offset, and power values from a 9-element array.
