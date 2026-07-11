@@ -6,6 +6,7 @@ authors = ["shaloong <contact@shaloong.com>"]
 description = "Rust bindings for OpenColorIO v2.5.2"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
+documentation = "https://docs.rs/ocio-rs"
 keywords = ["opencolorio", "color", "ocio", "vfx", "imaging"]
 categories = ["multimedia", "api-bindings"]
 readme = "README.md"

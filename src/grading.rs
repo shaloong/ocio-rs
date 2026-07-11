@@ -1,3 +1,15 @@
+//! Grading value types shared across grading transforms.
+//!
+//! This module defines the data structures used by [`GradingPrimaryTransform`](crate::transform::GradingPrimaryTransform),
+//! [`GradingToneTransform`](crate::transform::GradingToneTransform),
+//! [`GradingRGBCurveTransform`](crate::transform::GradingRGBCurveTransform), and
+//! [`GradingHueCurveTransform`](crate::transform::GradingHueCurveTransform).
+//!
+//! Each grading transform has a corresponding value type that holds the full
+//! set of controls for that transform. Values are style-dependent (Log, Lin,
+//! Video) and can be read from or written to a transform via safe Rust
+//! accessors.
+
 use crate::GradingStyle;
 
 /// Per-channel-plus-master grading value used by several OCIO grading controls.

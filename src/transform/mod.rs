@@ -1,3 +1,20 @@
+//! OCIO transform wrappers.
+//!
+//! Each struct in this module wraps a single OpenColorIO transform type
+//! (e.g. [`ColorSpaceTransform`], [`GradingRGBCurveTransform`]) and exposes
+//! safe Rust accessors for its properties.
+//!
+//! All transform types follow a consistent pattern:
+//!
+//! - **Constructor**: [`create`](std::result::Result) returns `Result<Self>`.
+//! - **Getters**: Return the current property value (often infallible).
+//! - **Setters**: Legacy void setters panic on error; checked `try_*` variants
+//!   return `Result<()>` and surface OCIO validation errors.
+//! - **Direction**: Every transform that supports forward/inverse evaluation
+//!   provides `direction()` / `try_set_direction()`.
+//! - **Editable copy**: [`create_editable_copy`](std::result::Result) returns
+//!   an independent deep copy that can be mutated without affecting the original.
+
 mod allocation;
 mod builtin;
 mod cdl;
