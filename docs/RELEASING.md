@@ -79,6 +79,9 @@ request, plus one manual job:
   `cargo test --workspace --features bundled -- --test-threads=1` on Ubuntu
   with a recursive submodule checkout. This job runs weekly, but does **not**
   run automatically on push or pull request.
+- **Sanitizers** (manual): runs the stub bridge and Rust wrapper suite under
+  Linux nightly AddressSanitizer. It supplements, but does not replace, the
+  bundled real-OCIO runtime job.
 
 The Release Audit workflow (`release-audit.yml`) is also manual-only
 (`workflow_dispatch`). It runs the full `release_audit.ps1` script with

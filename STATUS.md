@@ -24,6 +24,7 @@ completeness rather than missing core binding coverage.
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
 | Bundled real-OCIO tests | **Weekly** on Ubuntu, plus manual `workflow_dispatch` |
 | Release audit (full packaging + offline bundled) | **Manual** only (`workflow_dispatch`) |
+| AddressSanitizer (stub bridge) | **Manual** Linux nightly workflow |
 
 ## Known caveats
 
@@ -171,9 +172,10 @@ Latest release-audit result:
 GitHub Actions now runs stub-mode test coverage across Linux, macOS, and
 Windows for `--no-default-features`, while keeping the slower bundled native
 OCIO validation on manual Ubuntu workflows that use a recursive checkout. The
-manual paths cover both the dedicated bundled test job in `ci.yml` and the
+manual paths cover both the dedicated bundled test job in `ci.yml`, the
 broader `Release Audit` workflow, which also validates packaging and offline
-bundled compilation.
+bundled compilation, and the nightly AddressSanitizer workflow for the stub
+bridge and Rust wrapper layer.
 
 ## Current runtime semantics
 
