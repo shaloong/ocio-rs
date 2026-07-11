@@ -64,7 +64,9 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
     transform
         .set_value(&value)
         .expect("set grading rgb curve transform value");
-    transform.set_bypass_lin_to_log(true);
+    transform
+        .try_set_bypass_lin_to_log(true)
+        .expect("set bypass lin to log");
 
     let round_trip = transform.value().expect("grading rgb curve value");
     assert_eq!(round_trip.red, value.red);
@@ -94,16 +96,18 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
         .expect("grading rgb slopes are default"));
     assert!(transform.bypass_lin_to_log());
 
-    transform.make_dynamic();
+    transform.try_make_dynamic().expect("make dynamic");
     assert!(transform.is_dynamic());
-    transform.make_non_dynamic();
+    transform.try_make_non_dynamic().expect("make non dynamic");
     assert!(!transform.is_dynamic());
 
     let copy = transform
         .create_editable_copy()
         .expect("grading rgb curve editable copy");
-    copy.set_direction(TransformDirection::Inverse);
-    copy.set_bypass_lin_to_log(false);
+    copy.try_set_direction(TransformDirection::Inverse)
+        .expect("set copy direction");
+    copy.try_set_bypass_lin_to_log(false)
+        .expect("set copy bypass");
     copy.set_slope(RGBCurveType::Blue, 1, 0.33)
         .expect("set copy rgb slope");
 
@@ -124,7 +128,9 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
         1e-6,
     );
 
-    transform.set_style(GradingStyle::Lin);
+    transform
+        .try_set_style(GradingStyle::Lin)
+        .expect("set style lin");
     assert_eq!(transform.style(), GradingStyle::Lin);
     assert_eq!(
         transform.value().expect("rgb value after style reset"),
@@ -225,4 +231,60 @@ fn grading_rgb_curve_invalid_operations_surface_errors() {
     transform
         .set_slope(RGBCurveType::Red, 99, 0.5)
         .expect_err("out-of-range rgb slope should fail");
+}
+
+#[test]
+fn grading_rgb_curve_try_setters_surface_errors() {
+    let _guard = grading_rgb_curve_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform =
+        GradingRGBCurveTransform::create(GradingStyle::Log).expect("grading rgb curve create");
+
+    // Valid operations should succeed with readback
+    transform
+        .try_set_style(GradingStyle::Lin)
+        .expect("try_set_style Lin");
+    assert_eq!(transform.style(), GradingStyle::Lin);
+
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("try_set_direction Inverse");
+    assert_eq!(transform.direction(), TransformDirection::Inverse);
+
+    transform.try_make_dynamic().expect("try_make_dynamic");
+    assert!(transform.is_dynamic());
+
+    transform
+        .try_make_non_dynamic()
+        .expect("try_make_non_dynamic");
+    assert!(!transform.is_dynamic());
+
+    transform
+        .try_set_bypass_lin_to_log(true)
+        .expect("try_set_bypass_lin_to_log true");
+    assert!(transform.bypass_lin_to_log());
+
+    transform
+        .try_set_bypass_lin_to_log(false)
+        .expect("try_set_bypass_lin_to_log false");
+    assert!(!transform.bypass_lin_to_log());
+
+    // Verify all state transitions round-trip correctly
+    transform
+        .try_set_style(GradingStyle::Video)
+        .expect("try_set_style Video");
+    assert_eq!(transform.style(), GradingStyle::Video);
+
+    transform
+        .try_set_style(GradingStyle::Log)
+        .expect("try_set_style Log");
+    assert_eq!(transform.style(), GradingStyle::Log);
+
+    transform
+        .try_set_direction(TransformDirection::Forward)
+        .expect("try_set_direction Forward");
+    assert_eq!(transform.direction(), TransformDirection::Forward);
 }

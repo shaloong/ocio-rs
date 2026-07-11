@@ -61,12 +61,20 @@ impl GradingRGBCurveTransform {
     }
 
     pub fn set_style(&self, style: GradingStyle) {
+        self.try_set_style(style)
+            .expect("failed to set grading rgb curve style");
+    }
+
+    /// Set the grading style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: GradingStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn value(&self) -> Result<GradingRGBCurveValue> {
@@ -235,12 +243,20 @@ impl GradingRGBCurveTransform {
     }
 
     pub fn set_bypass_lin_to_log(&self, bypass: bool) {
+        self.try_set_bypass_lin_to_log(bypass)
+            .expect("failed to set grading rgb curve bypass lin to log");
+    }
+
+    /// Set the bypass-lin-to-log flag and surface any OCIO validation error.
+    pub fn try_set_bypass_lin_to_log(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_bypass_lin_to_log(
                 self.handle.as_ptr(),
                 bypass,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn is_dynamic(&self) -> bool {
@@ -248,15 +264,31 @@ impl GradingRGBCurveTransform {
     }
 
     pub fn make_dynamic(&self) {
+        self.try_make_dynamic()
+            .expect("failed to make grading rgb curve dynamic");
+    }
+
+    /// Make this transform dynamic and surface any OCIO validation error.
+    pub fn try_make_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_make_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn make_non_dynamic(&self) {
+        self.try_make_non_dynamic()
+            .expect("failed to make grading rgb curve non-dynamic");
+    }
+
+    /// Make this transform non-dynamic and surface any OCIO validation error.
+    pub fn try_make_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_make_non_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -270,12 +302,20 @@ impl GradingRGBCurveTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set grading rgb curve direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_rgb_curve_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -335,7 +375,7 @@ mod tests {
     #[test]
     fn set_style_no_crash() {
         let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_style(GradingStyle::Lin);
+        t.try_set_style(GradingStyle::Lin).unwrap();
     }
 
     #[test]
@@ -375,21 +415,21 @@ mod tests {
     #[test]
     fn bypass_no_crash() {
         let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_bypass_lin_to_log(true);
-        t.set_bypass_lin_to_log(false);
+        t.try_set_bypass_lin_to_log(true).unwrap();
+        t.try_set_bypass_lin_to_log(false).unwrap();
     }
 
     #[test]
     fn make_dynamic_no_crash() {
         let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
-        t.make_dynamic();
-        t.make_non_dynamic();
+        t.try_make_dynamic().unwrap();
+        t.try_make_non_dynamic().unwrap();
     }
 
     #[test]
     fn direction_no_crash() {
         let t = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]

@@ -10562,7 +10562,7 @@ void ocio_grading_rgb_curve_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -10584,7 +10584,7 @@ void ocio_grading_rgb_curve_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setStyle(static_cast<ocio::GradingStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -10735,7 +10735,7 @@ void ocio_grading_rgb_curve_transform_set_bypass_lin_to_log(void* handle, bool b
 #else
   try {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->setBypassLinToLog(bypass);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -10757,7 +10757,7 @@ void ocio_grading_rgb_curve_transform_make_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->makeDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -10768,7 +10768,7 @@ void ocio_grading_rgb_curve_transform_make_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->makeNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
