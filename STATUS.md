@@ -5,9 +5,12 @@
 **Core OCIO 2.5 Rust bindings are broadly in place.** The safe-wrapper
 surface, bridge parity, and bundled validation cover the major runtime
 paths — Config, Context, Processor, CPU/GPU execution, GPU shader
-extraction, dynamic properties, and the full transform family. The
-remaining work is release hardening and longer-tail behavioral validation
-rather than missing core binding coverage.
+extraction, dynamic properties, and the full transform family. Error
+propagation from C++ exceptions to Rust `Result` is comprehensive across
+all void setters, all transform direction setters, all grading transform
+state accessors, and all checked getter paths. The remaining work is
+release hardening, longer-tail behavioral validation, and documentation
+completeness rather than missing core binding coverage.
 
 | Mode | Status |
 |---|---|
@@ -24,9 +27,9 @@ rather than missing core binding coverage.
 
 ## Known caveats
 
-- Error propagation is available but still being expanded case by case.
-- docs.rs documentation is seeded but still expanding; full `missing_docs`
-  enforcement is not yet a release gate.
+- docs.rs documentation covers all public methods; full `missing_docs`
+  enforcement is not yet a release gate (472 remaining warnings are mostly
+  enum variants and struct fields).
 - Stub mode returns safe defaults; it is not a substitute for bundled
   real-OCIO validation.
 - The crate is not yet claiming to be a drop-in replacement for every
@@ -42,12 +45,13 @@ rather than missing core binding coverage.
 | Stub mode | Available |
 | Real OCIO build via installed OCIO | Available |
 | Bundled OCIO build | Available, validated by weekly bundled CI plus manual workflows |
-| Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers |
+| Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers with try_ variants for all void setters and checked getters |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
-| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, and manual texture/uniform insertion |
+| GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, manual texture/uniform insertion, and real-config extraction validation |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
-| Error propagation | Available, still being expanded case by case |
-| docs.rs documentation | Seeded, still expanding |
+| Error propagation | Comprehensive — all void setters, transform direction setters, grading state accessors, and checked getters propagate C++ exceptions to Rust `Result` |
+| docs.rs documentation | All public methods documented; module-level docs for transform and grading modules |
+| Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
 | CI real-OCIO validation | Weekly bundled tests plus manual bundled and release-audit workflows on Ubuntu |
 
@@ -55,6 +59,10 @@ The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
 remaining surface with bundled and no-default-features test coverage so the
 crate can be treated as substantially complete for core OCIO 2.5 usage.
+Error propagation from C++ to Rust is now comprehensive: every void setter
+has a `try_*` variant, every bridge catch block calls
+`capture_current_exception()`, and every checked getter reads
+`ocio_call_status()`.
 
 ## Release checklist
 
@@ -219,10 +227,12 @@ Current runtime semantics worth calling out explicitly:
   version to `2.5`.
 - `ConfigIOProxy` round-trips embedded config text and LUT payloads in bundled
   mode, attached proxy objects remain visible through both `Config` and
-  `Context`, missing LUT keys currently surface as empty payload views, and a
-  config created from proxy-backed assets follows real OCIO path resolution:
-  search paths are consulted before a working-directory fallback, including
-  context-variable-expanded entries such as `./$SHOT`.
+  `Context`, missing LUT keys currently surface as empty payload views via
+  `try_lut_data() -> Result<Option<Vec<u8>>>` which distinguishes "not found"
+  from "internal error", and a config created from proxy-backed assets follows
+  real OCIO path resolution: search paths are consulted before a
+  working-directory fallback, including context-variable-expanded entries such
+  as `./$SHOT`.
 - `FileRules` now has bundled runtime coverage beyond metadata round-trips:
   attached rules on a `Config` actively drive
   `color_space_from_filepath_with_rule_index(...)`, including preserving the
@@ -389,7 +399,11 @@ Current runtime semantics worth calling out explicitly:
   settings, but lower-level 1D texture knobs may fall back to OCIO defaults and
   extracted shader payloads are not guaranteed to be copied into the clone.
 - `CPUProcessor::apply_rgb(a)_pixels` respects caller-provided stride values and
-  leaves padding lanes untouched in the bundled validation path.
+  leaves padding lanes untouched in the bundled validation path. Packed
+  bit-depth handling for Uint10/Uint12/Uint14 now correctly uses 2 bytes per
+  channel, matching the Rust-side validation.
+- `Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` implement
+  `Send + Sync`, enabling use in multi-threaded rendering pipelines.
 
 Release note: `ocio-sys` must be published before `ocio-rs` for matching
 versions because the top-level crate depends on the registry version of
