@@ -305,9 +305,11 @@ Current runtime semantics worth calling out explicitly:
   coverage for non-no-op matrix pipelines: default and optimized CPU helpers
   produce the same scaled RGBA output, default and optimized GPU helpers both
   emit non-empty shader text, and `Processor::create_group_transform()` can be
-  round-tripped back into an equivalent processor path. The deprecated legacy
-  GPU helper also emits real shader text in bundled mode, even when the
-  extracted descriptor does not expose additional uniform or texture resources.
+  round-tripped back into an equivalent processor path. CPU and GPU execution
+  handles retain their own OCIO shared ownership, so they remain usable after
+  the originating `Processor` wrapper is dropped. The deprecated legacy GPU
+  helper also emits real shader text in bundled mode, even when the extracted
+  descriptor does not expose additional uniform or texture resources.
 - `GpuShaderDesc` now has bundled runtime coverage for inherited
   `GpuShaderCreator` settings such as unique IDs, descriptor-set binding
   offsets, 1D-texture preferences, extracted dynamic-property access, resource
