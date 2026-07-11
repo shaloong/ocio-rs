@@ -432,13 +432,6 @@ unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
     /// # Safety
-    /// `img_desc` must point to a valid mutable OCIO image descriptor compatible
-    /// with the active ABI. Every pixel buffer referenced by the descriptor must
-    /// remain allocated, writable, and correctly strided for the full call. The
-    /// descriptor is borrowed only; this method does not take ownership of it or
-    /// of its pixel memory.
-    #[doc(hidden)]
-    /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor for the active
     /// ABI. The pixel buffers referenced by the descriptor must remain
     /// allocated, writable, and correctly strided for the full call. The
@@ -448,9 +441,23 @@ impl CPUProcessor {
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
     )]
     pub unsafe fn apply(&self, img_desc: *mut c_void) {
+        let _ = unsafe { self.try_apply_raw(img_desc) };
+    }
+
+    /// Apply a raw OCIO image descriptor and preserve an OCIO failure.
+    ///
+    /// # Safety
+    /// `img_desc` must point to a valid OCIO image descriptor for the active
+    /// ABI. The pixel buffers referenced by the descriptor must remain
+    /// allocated, writable, and correctly strided for the full call. The
+    /// descriptor is borrowed only; this method does not take ownership.
+    #[doc(hidden)]
+    pub unsafe fn try_apply_raw(&self, img_desc: *mut c_void) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply(self.handle.as_ptr(), img_desc);
         }
+        crate::ocio_call_status()
     }
 
     /// # Safety
@@ -462,9 +469,20 @@ impl CPUProcessor {
         note = "compat alias; prefer apply() or the typed pixel helpers"
     )]
     pub unsafe fn apply_v1(&self, img_desc: *mut c_void) {
+        let _ = unsafe { self.try_apply_raw_v1(img_desc) };
+    }
+
+    /// Fallible raw ABI compatibility entry point for single-descriptor apply.
+    ///
+    /// # Safety
+    /// Same invariants as [`Self::try_apply_raw`].
+    #[doc(hidden)]
+    pub unsafe fn try_apply_raw_v1(&self, img_desc: *mut c_void) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_v1(self.handle.as_ptr(), img_desc);
         }
+        crate::ocio_call_status()
     }
 
     /// # Safety
@@ -479,9 +497,24 @@ impl CPUProcessor {
         note = "raw OCIO image-descriptor entry point; prefer apply_rgb/apply_rgba/apply_*_pixels for Rust callers"
     )]
     pub unsafe fn apply_v2(&self, src_img_desc: *mut c_void, dst_img_desc: *mut c_void) {
+        let _ = unsafe { self.try_apply_raw_v2(src_img_desc, dst_img_desc) };
+    }
+
+    /// Fallible raw ABI compatibility entry point for separate source and destination descriptors.
+    ///
+    /// # Safety
+    /// Same invariants as [`Self::apply_v2`].
+    #[doc(hidden)]
+    pub unsafe fn try_apply_raw_v2(
+        &self,
+        src_img_desc: *mut c_void,
+        dst_img_desc: *mut c_void,
+    ) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_v2(self.handle.as_ptr(), src_img_desc, dst_img_desc);
         }
+        crate::ocio_call_status()
     }
 
     /// Apply the processor in place to one RGBA pixel.
@@ -1064,12 +1097,24 @@ impl GPUProcessor {
         note = "raw OCIO shader-creator entry point; prefer extract_shader_info with GpuShaderDesc for Rust callers"
     )]
     pub unsafe fn extract_gpu_shader_info_v2(&self, shader_creator: *mut c_void) {
+        let _ = unsafe { self.try_extract_shader_info_raw(shader_creator) };
+    }
+
+    /// Extract shader information through a raw OCIO shader-creator pointer.
+    ///
+    /// # Safety
+    /// `shader_creator` must meet the same ABI, lifetime, and ownership
+    /// requirements as [`Self::extract_gpu_shader_info_v2`].
+    #[doc(hidden)]
+    pub unsafe fn try_extract_shader_info_raw(&self, shader_creator: *mut c_void) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v2(
                 self.handle.as_ptr(),
                 shader_creator,
             );
         }
+        crate::ocio_call_status()
     }
 }
 
