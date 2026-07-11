@@ -29,12 +29,14 @@ pub struct Lut3DTransform {
 }
 
 impl Lut3DTransform {
+    /// Create a new identity 3D LUT transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_lut3d_transform_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current interpolation mode.
     pub fn interpolation(&self) -> Interpolation {
         let i = unsafe { ocio_sys::ocio_lut3d_transform_get_interpolation(self.handle.as_ptr()) };
         match i {
@@ -48,6 +50,7 @@ impl Lut3DTransform {
         }
     }
 
+    /// Set the interpolation mode.
     pub fn set_interpolation(&self, interpolation: Interpolation) {
         self.try_set_interpolation(interpolation)
             .expect("failed to set LUT3D interpolation");
@@ -65,6 +68,7 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the bit depth declared for file-based output serialization.
     pub fn file_output_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_lut3d_transform_get_file_output_bit_depth(self.handle.as_ptr())
@@ -82,6 +86,7 @@ impl Lut3DTransform {
         }
     }
 
+    /// Set the serialized output bit depth.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
         self.try_set_file_output_bit_depth(bit_depth)
             .expect("failed to set LUT3D file output bit depth");
@@ -99,6 +104,7 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_lut3d_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -107,6 +113,7 @@ impl Lut3DTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
         self.try_set_direction(direction)
             .expect("failed to set LUT3D transform direction");
@@ -121,16 +128,19 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the number of grid points along each axis.
     pub fn grid_size(&self) -> u64 {
         unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size_u64(self.handle.as_ptr()) }
     }
 
+    /// Return the number of grid points along each axis.
     pub fn grid_size_u64(&self) -> u64 {
         self.grid_size()
     }
@@ -143,10 +153,12 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Resize the cubic LUT, returning an error when OCIO rejects the size.
     pub fn set_grid_size_u64(&self, size: u64) -> Result<()> {
         self.set_grid_size(size)
     }
 
+    /// Return all RGB LUT values as a flat `f64` vector.
     pub fn values(&self) -> Vec<f64> {
         let gs = self.grid_size() as usize;
         let mut data = vec![0.0f64; gs * gs * gs * 3];
@@ -173,6 +185,7 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return a single RGB LUT entry by grid coordinates, or `None` if out of range.
     pub fn value(&self, index_r: u64, index_g: u64, index_b: u64) -> Option<[f32; 3]> {
         let edge = self.grid_size();
         if index_r >= edge || index_g >= edge || index_b >= edge {
@@ -218,6 +231,7 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -233,6 +247,7 @@ impl Lut3DTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_lut3d_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())

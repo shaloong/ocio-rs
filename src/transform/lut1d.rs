@@ -27,12 +27,14 @@ pub struct Lut1DTransform {
 }
 
 impl Lut1DTransform {
+    /// Create a new identity 1D LUT transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_lut1d_transform_create() };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current interpolation mode.
     pub fn interpolation(&self) -> Interpolation {
         let i = unsafe { ocio_sys::ocio_lut1d_transform_get_interpolation(self.handle.as_ptr()) };
         match i {
@@ -46,6 +48,7 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the interpolation mode.
     pub fn set_interpolation(&self, interpolation: Interpolation) {
         self.try_set_interpolation(interpolation)
             .expect("failed to set LUT1D interpolation");
@@ -63,6 +66,7 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the bit depth declared for file-based output serialization.
     pub fn file_output_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_lut1d_transform_get_file_output_bit_depth(self.handle.as_ptr())
@@ -80,6 +84,7 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the serialized output bit depth.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
         self.try_set_file_output_bit_depth(bit_depth)
             .expect("failed to set LUT1D file output bit depth");
@@ -97,6 +102,7 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_lut1d_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -105,6 +111,7 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
         self.try_set_direction(direction)
             .expect("failed to set LUT1D transform direction");
@@ -119,16 +126,19 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the LUT length (number of entries).
     pub fn length(&self) -> u64 {
         unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) }
     }
 
+    /// Return the LUT length (number of entries).
     pub fn length_u64(&self) -> u64 {
         self.length()
     }
@@ -141,10 +151,12 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Resize the LUT, returning an error when OCIO rejects the requested size.
     pub fn set_length_u64(&self, len: u64) -> Result<()> {
         self.set_length(len)
     }
 
+    /// Return all RGB LUT values as a flat `f64` vector.
     pub fn values(&self) -> Vec<f64> {
         let len = self.length() as usize;
         let mut data = vec![0.0f64; len * 3];
@@ -173,6 +185,7 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return a single RGB LUT entry by index, or `None` if out of range.
     pub fn value(&self, index: u64) -> Option<[f32; 3]> {
         if index >= self.length() {
             return None;
@@ -207,10 +220,12 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return whether the input half-domain flag is enabled.
     pub fn input_half_domain(&self) -> bool {
         unsafe { ocio_sys::ocio_lut1d_transform_get_input_half_domain(self.handle.as_ptr()) }
     }
 
+    /// Set the input half-domain flag.
     pub fn set_input_half_domain(&self, half_domain: bool) {
         self.try_set_input_half_domain(half_domain)
             .expect("failed to set LUT1D input half domain");
@@ -225,10 +240,12 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return whether the output raw halfs flag is enabled.
     pub fn output_raw_halfs(&self) -> bool {
         unsafe { ocio_sys::ocio_lut1d_transform_get_output_raw_halfs(self.handle.as_ptr()) }
     }
 
+    /// Set the output raw halfs flag.
     pub fn set_output_raw_halfs(&self, raw_halfs: bool) {
         self.try_set_output_raw_halfs(raw_halfs)
             .expect("failed to set LUT1D output raw halfs");
@@ -243,6 +260,7 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the hue-adjust algorithm.
     pub fn hue_adjust(&self) -> Lut1DHueAdjust {
         match unsafe { ocio_sys::ocio_lut1d_transform_get_hue_adjust(self.handle.as_ptr()) } {
             1 => Lut1DHueAdjust::Dw3,
@@ -251,6 +269,7 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the hue-adjust algorithm.
     pub fn set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) {
         self.try_set_hue_adjust(hue_adjust)
             .expect("failed to set LUT1D hue adjust");
@@ -265,6 +284,7 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -280,6 +300,7 @@ impl Lut1DTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_lut1d_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
