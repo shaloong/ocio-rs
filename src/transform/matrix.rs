@@ -120,12 +120,20 @@ impl MatrixTransform {
 
     /// Set the bit depth declared for file-based input serialization.
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_input_bit_depth(bit_depth)
+            .expect("failed to set matrix file input bit depth");
+    }
+
+    /// Set the serialized input bit depth and surface any OCIO validation error.
+    pub fn try_set_file_input_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_input_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the bit depth declared for file-based output serialization.
@@ -150,12 +158,20 @@ impl MatrixTransform {
 
     /// Set the bit depth declared for file-based output serialization.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set matrix file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return format metadata attached to the transform, when available.
@@ -274,9 +290,9 @@ mod tests {
     fn bit_depth_no_crash() {
         let mt = MatrixTransform::create().unwrap();
         let _ = mt.file_input_bit_depth();
-        mt.set_file_input_bit_depth(BitDepth::F32);
+        mt.try_set_file_input_bit_depth(BitDepth::F32).unwrap();
         let _ = mt.file_output_bit_depth();
-        mt.set_file_output_bit_depth(BitDepth::F32);
+        mt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]

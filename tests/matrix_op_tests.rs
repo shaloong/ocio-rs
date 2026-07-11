@@ -198,8 +198,14 @@ fn matrix_file_input_output_bit_depth_no_crash() {
     let t = MatrixTransform::create().unwrap();
     let _fibd = t.file_input_bit_depth();
     let _fobd = t.file_output_bit_depth();
-    t.set_file_input_bit_depth(BitDepth::F32);
-    t.set_file_output_bit_depth(BitDepth::Uint16);
+    t.try_set_file_input_bit_depth(BitDepth::F32)
+        .expect("set file input bit depth");
+    t.try_set_file_output_bit_depth(BitDepth::Uint16)
+        .expect("set file output bit depth");
+    if !is_stub() {
+        assert_eq!(t.file_input_bit_depth(), BitDepth::F32);
+        assert_eq!(t.file_output_bit_depth(), BitDepth::Uint16);
+    }
 }
 
 #[test]

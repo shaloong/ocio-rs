@@ -12473,7 +12473,7 @@ void ocio_matrix_transform_set_file_input_bit_depth(void* handle, int bitDepth) 
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->setFileInputBitDepth(static_cast<ocio::BitDepth>(bitDepth));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12495,7 +12495,7 @@ void ocio_matrix_transform_set_file_output_bit_depth(void* handle, int bitDepth)
 #else
   try {
     ocio_rs_bridge::get_real_matrix_transform(handle)->setFileOutputBitDepth(static_cast<ocio::BitDepth>(bitDepth));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
