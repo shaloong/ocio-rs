@@ -22,11 +22,13 @@ fn exposure_contrast_test_lock() -> MutexGuard<'static, ()> {
 
 fn linear_exposure_transform() -> ExposureContrastTransform {
     let transform = ExposureContrastTransform::create().expect("exposure contrast create");
-    transform.set_style(ExposureContrastStyle::Linear);
-    transform.set_exposure(1.0);
-    transform.set_contrast(1.0);
-    transform.set_gamma(1.0);
-    transform.set_pivot(0.18);
+    transform
+        .try_set_style(ExposureContrastStyle::Linear)
+        .expect("set style");
+    transform.try_set_exposure(1.0).expect("set exposure");
+    transform.try_set_contrast(1.0).expect("set contrast");
+    transform.try_set_gamma(1.0).expect("set gamma");
+    transform.try_set_pivot(0.18).expect("set pivot");
     transform
 }
 
@@ -38,8 +40,12 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     }
 
     let transform = linear_exposure_transform();
-    transform.set_log_exposure_step(0.088);
-    transform.set_log_mid_gray(0.18);
+    transform
+        .try_set_log_exposure_step(0.088)
+        .expect("set log exposure step");
+    transform
+        .try_set_log_mid_gray(0.18)
+        .expect("set log mid gray");
 
     assert_eq!(transform.style(), ExposureContrastStyle::Linear);
     assert_close(transform.exposure(), 1.0, 1e-10);
@@ -83,7 +89,7 @@ fn exposure_contrast_copy_direction_and_equals_behavior() {
         .expect("exposure contrast editable copy");
 
     copy.set_direction(TransformDirection::Inverse);
-    copy.set_exposure(-1.0);
+    copy.try_set_exposure(-1.0).expect("set copy exposure");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.exposure(), -1.0, 1e-10);

@@ -21,9 +21,17 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_exposure(&self, exposure: f64) {
+        self.try_set_exposure(exposure)
+            .expect("failed to set exposure");
+    }
+
+    /// Set exposure and surface any OCIO validation error.
+    pub fn try_set_exposure(&self, exposure: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_exposure(self.handle.as_ptr(), exposure)
         };
+        crate::ocio_call_status()
     }
 
     pub fn contrast(&self) -> f64 {
@@ -31,9 +39,17 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_contrast(&self, contrast: f64) {
+        self.try_set_contrast(contrast)
+            .expect("failed to set contrast");
+    }
+
+    /// Set contrast and surface any OCIO validation error.
+    pub fn try_set_contrast(&self, contrast: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_contrast(self.handle.as_ptr(), contrast)
         };
+        crate::ocio_call_status()
     }
 
     pub fn gamma(&self) -> f64 {
@@ -41,9 +57,16 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_gamma(&self, gamma: f64) {
+        self.try_set_gamma(gamma).expect("failed to set gamma");
+    }
+
+    /// Set gamma and surface any OCIO validation error.
+    pub fn try_set_gamma(&self, gamma: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_gamma(self.handle.as_ptr(), gamma)
         };
+        crate::ocio_call_status()
     }
 
     pub fn pivot(&self) -> f64 {
@@ -51,9 +74,16 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_pivot(&self, pivot: f64) {
+        self.try_set_pivot(pivot).expect("failed to set pivot");
+    }
+
+    /// Set pivot and surface any OCIO validation error.
+    pub fn try_set_pivot(&self, pivot: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_pivot(self.handle.as_ptr(), pivot)
         };
+        crate::ocio_call_status()
     }
 
     pub fn style(&self) -> ExposureContrastStyle {
@@ -67,12 +97,20 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_style(&self, style: ExposureContrastStyle) {
+        self.try_set_style(style)
+            .expect("failed to set exposure contrast style");
+    }
+
+    /// Set the exposure/contrast style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: ExposureContrastStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn is_exposure_dynamic(&self) -> bool {
@@ -138,12 +176,20 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_log_exposure_step(&self, step: f64) {
+        self.try_set_log_exposure_step(step)
+            .expect("failed to set log exposure step");
+    }
+
+    /// Set the log exposure step and surface any OCIO validation error.
+    pub fn try_set_log_exposure_step(&self, step: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_log_exposure_step(
                 self.handle.as_ptr(),
                 step,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn log_mid_gray(&self) -> f64 {
@@ -151,12 +197,20 @@ impl ExposureContrastTransform {
     }
 
     pub fn set_log_mid_gray(&self, mid_gray: f64) {
+        self.try_set_log_mid_gray(mid_gray)
+            .expect("failed to set log mid gray");
+    }
+
+    /// Set the log mid-gray value and surface any OCIO validation error.
+    pub fn try_set_log_mid_gray(&self, mid_gray: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_log_mid_gray(
                 self.handle.as_ptr(),
                 mid_gray,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {

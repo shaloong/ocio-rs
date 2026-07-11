@@ -9701,7 +9701,7 @@ void ocio_exposure_contrast_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setStyle(static_cast<ocio::ExposureContrastStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9723,7 +9723,7 @@ void ocio_exposure_contrast_transform_set_exposure(void* handle, double exposure
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setExposure(exposure);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9778,7 +9778,7 @@ void ocio_exposure_contrast_transform_set_contrast(void* handle, double contrast
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setContrast(contrast);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9833,7 +9833,7 @@ void ocio_exposure_contrast_transform_set_gamma(void* handle, double gamma) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setGamma(gamma);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9888,7 +9888,7 @@ void ocio_exposure_contrast_transform_set_pivot(void* handle, double pivot) {
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setPivot(pivot);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9910,7 +9910,7 @@ void ocio_exposure_contrast_transform_set_log_exposure_step(void* handle, double
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setLogExposureStep(logExposureStep);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9932,7 +9932,7 @@ void ocio_exposure_contrast_transform_set_log_mid_gray(void* handle, double logM
 #else
   try {
     ocio_rs_bridge::get_real_exposure_contrast_transform(handle)->setLogMidGray(logMidGray);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
