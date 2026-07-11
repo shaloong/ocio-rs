@@ -95,6 +95,11 @@ pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
 }
 
+// SAFETY: OCIO Processor objects are ref-counted via shared_ptr in the bridge
+// layer. Read-only access from multiple threads is safe per OCIO design.
+unsafe impl Send for Processor {}
+unsafe impl Sync for Processor {}
+
 impl Processor {
     /// Return whether the processor is an identity/no-op pipeline.
     pub fn is_no_op(&self) -> bool {
@@ -373,6 +378,11 @@ impl Drop for Processor {
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
+
+// SAFETY: OCIO CPUProcessor objects are ref-counted via shared_ptr in the
+// bridge layer. Read-only access from multiple threads is safe per OCIO design.
+unsafe impl Send for CPUProcessor {}
+unsafe impl Sync for CPUProcessor {}
 
 impl CPUProcessor {
     /// # Safety
@@ -792,6 +802,11 @@ pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
 
+// SAFETY: OCIO GPUProcessor objects are ref-counted via shared_ptr in the
+// bridge layer. Read-only access from multiple threads is safe per OCIO design.
+unsafe impl Send for GPUProcessor {}
+unsafe impl Sync for GPUProcessor {}
+
 impl GPUProcessor {
     /// Return whether the GPU path is an identity/no-op transform.
     pub fn is_no_op(&self) -> bool {
@@ -912,6 +927,11 @@ impl Drop for GPUProcessor {
 pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }
+
+// SAFETY: OCIO GpuShaderDesc objects are ref-counted via shared_ptr in the
+// bridge layer. Read-only access from multiple threads is safe per OCIO design.
+unsafe impl Send for GpuShaderDesc {}
+unsafe impl Sync for GpuShaderDesc {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]

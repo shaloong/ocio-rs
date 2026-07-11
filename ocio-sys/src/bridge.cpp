@@ -6705,7 +6705,7 @@ bool ocio_cpu_processor_is_no_op(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->isNoOp();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6716,7 +6716,7 @@ bool ocio_cpu_processor_is_identity(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->isIdentity();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6727,7 +6727,7 @@ bool ocio_cpu_processor_has_channel_crosstalk(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->hasChannelCrosstalk();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6985,7 +6985,7 @@ bool ocio_gpu_processor_is_no_op(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_processor(handle)->isNoOp();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6996,7 +6996,7 @@ bool ocio_gpu_processor_has_channel_crosstalk(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_processor(handle)->hasChannelCrosstalk();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
