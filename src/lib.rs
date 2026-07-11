@@ -151,6 +151,11 @@ pub fn is_stub_build() -> bool {
 /// queried or copied like any other `Config`. This compatibility helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
+///
+/// # Threading
+/// These process-global helpers do not synchronize OCIO global state. Serialize
+/// calls that mutate the current config, global caches, or logging level with
+/// other application threads that use the same OCIO process.
 pub fn current_config() -> Option<Config> {
     try_current_config().ok().flatten()
 }
@@ -172,6 +177,9 @@ pub fn get_current_config() -> Option<Config> {
 }
 
 /// Installs `config` as the process-global current OCIO config.
+///
+/// This mutates process-global OCIO state; see [`current_config`] for threading
+/// requirements.
 #[deprecated(
     since = "0.2.0",
     note = "discarded OCIO errors; prefer try_set_current_config()"
@@ -191,6 +199,7 @@ pub fn try_set_current_config(config: &Config) -> Result<()> {
 ///
 /// This is mainly useful in tests and tooling that intentionally mutate config
 /// state and want subsequent processor creation to observe the new values.
+/// Serialize this operation with other application threads using OCIO globals.
 #[deprecated(
     since = "0.2.0",
     note = "discarded OCIO errors; prefer try_clear_all_caches()"
@@ -230,6 +239,9 @@ pub fn logging_level() -> crate::LoggingLevel {
 }
 
 /// Sets the OCIO global logging level.
+///
+/// Serialize this process-global mutation with other application threads using
+/// OCIO globals.
 #[deprecated(
     since = "0.2.0",
     note = "discarded OCIO errors; prefer try_set_logging_level()"
