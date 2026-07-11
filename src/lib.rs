@@ -323,15 +323,28 @@ pub(crate) fn last_error_message() -> Option<String> {
     unsafe { cstr_to_opt_string(ocio_sys::ocio_error_get_last()) }
 }
 
+/// Read and clear the bridge's thread-local error slot.
+///
+/// Each safe wrapper clears the slot before calling into the bridge. Consuming
+/// an error here prevents a handled failure from being observed by a later FFI
+/// call on the same thread.
+pub(crate) fn take_last_error_message() -> Option<String> {
+    let message = last_error_message();
+    if message.is_some() {
+        clear_last_error();
+    }
+    message
+}
+
 pub(crate) fn validation_status() -> Result<()> {
-    match last_error_message() {
+    match take_last_error_message() {
         Some(message) => Err(OcioError::ValidationFailed(message)),
         None => Ok(()),
     }
 }
 
 pub(crate) fn ocio_call_status() -> Result<()> {
-    match last_error_message() {
+    match take_last_error_message() {
         Some(message) => Err(OcioError::Ocio(message)),
         None => Ok(()),
     }
@@ -340,7 +353,7 @@ pub(crate) fn ocio_call_status() -> Result<()> {
 pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
     match NonNull::new(handle) {
         Some(handle) => Ok(handle),
-        None => match last_error_message() {
+        None => match take_last_error_message() {
             Some(message) => Err(OcioError::Ocio(message)),
             None => Err(OcioError::AllocationFailed),
         },
@@ -365,6 +378,29 @@ mod tests {
     #[test]
     fn try_current_config_no_crash() {
         let _ = try_current_config();
+    }
+
+    #[cfg(feature = "bundled")]
+    #[test]
+    fn bridge_errors_are_consumed_after_handle_conversion() {
+        let path = cstring("this-file-does-not-exist.ocio").expect("valid test path");
+        clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
+
+        assert!(matches!(handle_result(handle), Err(OcioError::Ocio(_))));
+        assert!(last_error_message().is_none());
+    }
+
+    #[cfg(feature = "bundled")]
+    #[test]
+    fn bridge_errors_are_consumed_after_validation() {
+        let transform = crate::transform::FileTransform::create().expect("file transform create");
+
+        assert!(matches!(
+            transform.validate(),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        assert!(last_error_message().is_none());
     }
 
     #[test]

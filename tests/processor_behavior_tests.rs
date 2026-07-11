@@ -155,10 +155,44 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
 
     assert!(!default_cpu.is_no_op());
     assert!(!optimized_cpu.is_no_op());
+    assert_eq!(
+        default_cpu.try_is_no_op().expect("default cpu no-op query"),
+        default_cpu.is_no_op()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_is_no_op()
+            .expect("optimized cpu no-op query"),
+        optimized_cpu.is_no_op()
+    );
     assert!(!default_cpu.has_channel_crosstalk());
     assert!(!optimized_cpu.has_channel_crosstalk());
+    assert_eq!(
+        default_cpu
+            .try_has_channel_crosstalk()
+            .expect("default cpu crosstalk query"),
+        default_cpu.has_channel_crosstalk()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_has_channel_crosstalk()
+            .expect("optimized cpu crosstalk query"),
+        optimized_cpu.has_channel_crosstalk()
+    );
     assert!(!default_cpu.is_identity());
     assert!(!optimized_cpu.is_identity());
+    assert_eq!(
+        default_cpu
+            .try_is_identity()
+            .expect("default cpu identity query"),
+        default_cpu.is_identity()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_is_identity()
+            .expect("optimized cpu identity query"),
+        optimized_cpu.is_identity()
+    );
     assert_eq!(
         default_cpu.input_bit_depth(),
         optimized_cpu.input_bit_depth()
@@ -198,8 +232,30 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
 
     assert!(!default_gpu.is_no_op());
     assert!(!optimized_gpu.is_no_op());
+    assert_eq!(
+        default_gpu.try_is_no_op().expect("default gpu no-op query"),
+        default_gpu.is_no_op()
+    );
+    assert_eq!(
+        optimized_gpu
+            .try_is_no_op()
+            .expect("optimized gpu no-op query"),
+        optimized_gpu.is_no_op()
+    );
     assert!(!default_gpu.has_channel_crosstalk());
     assert!(!optimized_gpu.has_channel_crosstalk());
+    assert_eq!(
+        default_gpu
+            .try_has_channel_crosstalk()
+            .expect("default gpu crosstalk query"),
+        default_gpu.has_channel_crosstalk()
+    );
+    assert_eq!(
+        optimized_gpu
+            .try_has_channel_crosstalk()
+            .expect("optimized gpu crosstalk query"),
+        optimized_gpu.has_channel_crosstalk()
+    );
     assert!(!default_gpu
         .cache_id()
         .expect("default gpu cache id")

@@ -675,15 +675,43 @@ impl CPUProcessor {
     }
 
     /// Return whether the CPU path is an identity/no-op transform.
+    ///
+    /// Returns `false` if OCIO reports an error. Use [`Self::try_is_no_op`] to
+    /// distinguish that case from a non-identity processor.
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_no_op().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_no_op`].
+    ///
+    /// Returns an error when the underlying OCIO query throws.
+    pub fn try_is_no_op(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_cpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return whether the CPU path mixes color channels.
+    ///
+    /// Returns `false` if OCIO reports an error. Use
+    /// [`Self::try_has_channel_crosstalk`] to distinguish that case from a
+    /// lane-wise processor.
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe {
+        self.try_has_channel_crosstalk().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_channel_crosstalk`].
+    ///
+    /// Returns an error when the underlying OCIO query throws.
+    pub fn try_has_channel_crosstalk(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_cpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return OCIO's cache identifier for this CPU processor instance.
@@ -710,8 +738,23 @@ impl CPUProcessor {
     }
 
     /// Return whether this CPU path is functionally identity.
+    ///
+    /// Returns `false` if OCIO reports an error. Use [`Self::try_is_identity`]
+    /// to distinguish that case from a non-identity processor.
     pub fn is_identity(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_identity().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_identity`].
+    ///
+    /// Returns an error when the underlying OCIO query throws.
+    pub fn try_is_identity(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_cpu_processor_is_identity(self.handle.as_ptr() as *mut c_void)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     // ── v2.5.1 ──
@@ -814,15 +857,43 @@ unsafe impl Send for GPUProcessor {}
 
 impl GPUProcessor {
     /// Return whether the GPU path is an identity/no-op transform.
+    ///
+    /// Returns `false` if OCIO reports an error. Use [`Self::try_is_no_op`] to
+    /// distinguish that case from a non-identity processor.
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_gpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_no_op().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_no_op`].
+    ///
+    /// Returns an error when the underlying OCIO query throws.
+    pub fn try_is_no_op(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_gpu_processor_is_no_op(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return whether the GPU path mixes color channels.
+    ///
+    /// Returns `false` if OCIO reports an error. Use
+    /// [`Self::try_has_channel_crosstalk`] to distinguish that case from a
+    /// lane-wise processor.
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe {
+        self.try_has_channel_crosstalk().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_channel_crosstalk`].
+    ///
+    /// Returns an error when the underlying OCIO query throws.
+    pub fn try_has_channel_crosstalk(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_gpu_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return OCIO's cache identifier for this GPU processor instance.
@@ -2629,7 +2700,11 @@ mod tests {
             let mut pixel = [0.5, 0.25, 0.125, 1.0];
             cpu.apply_rgba(&mut pixel);
             let _ = cpu.is_no_op();
+            let _ = cpu.try_is_no_op();
+            let _ = cpu.has_channel_crosstalk();
+            let _ = cpu.try_has_channel_crosstalk();
             let _ = cpu.is_identity();
+            let _ = cpu.try_is_identity();
             let _ = cpu.cache_id();
             let _ = cpu.input_bit_depth();
             let _ = cpu.output_bit_depth();
@@ -2642,6 +2717,9 @@ mod tests {
         let proc = config.processor("raw", "raw").unwrap();
         if let Ok(gpu) = proc.default_gpu_processor() {
             let _ = gpu.is_no_op();
+            let _ = gpu.try_is_no_op();
+            let _ = gpu.has_channel_crosstalk();
+            let _ = gpu.try_has_channel_crosstalk();
             let _ = gpu.cache_id();
         }
     }
