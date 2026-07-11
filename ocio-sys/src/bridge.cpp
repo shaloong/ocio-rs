@@ -6211,7 +6211,7 @@ void ocio_view_transform_clear_categories(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_view_transform(handle)->clearCategories();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

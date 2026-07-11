@@ -117,9 +117,13 @@ fn view_transform_attached_transform_and_copy_behavior() {
     copy.set_name("UnitViewTransformCopy").expect("rename copy");
     copy.remove_category("unit_category")
         .expect("remove category from copy");
+    copy.add_category("copy_category")
+        .expect("add category to copy");
+    copy.try_clear_categories()
+        .expect("clear categories from copy");
 
     assert_eq!(copy.name().as_deref(), Some("UnitViewTransformCopy"));
-    assert!(!copy.has_category("unit_category"));
+    assert_eq!(copy.num_categories(), 0);
 
     assert_eq!(vt.name().as_deref(), Some("UnitViewTransform"));
     assert!(vt.has_category("unit_category"));

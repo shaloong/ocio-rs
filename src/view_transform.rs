@@ -194,7 +194,15 @@ impl ViewTransform {
     }
 
     pub fn clear_categories(&self) {
+        self.try_clear_categories()
+            .expect("failed to clear view transform categories");
+    }
+
+    /// Clear all categories and surface any OCIO validation error.
+    pub fn try_clear_categories(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_view_transform_clear_categories(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn reference_space_type(&self) -> ReferenceSpaceType {
@@ -322,7 +330,7 @@ mod tests {
         let _ = vt.num_categories();
         let _ = vt.category(0);
         assert!(vt.remove_category("viewing").is_ok());
-        vt.clear_categories();
+        vt.try_clear_categories().unwrap();
     }
 
     #[test]
