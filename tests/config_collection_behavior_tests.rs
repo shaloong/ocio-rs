@@ -220,6 +220,51 @@ fn config_collection_remove_and_clear_behavior() {
 }
 
 #[test]
+fn config_collection_handles_survive_parent_drop_behavior() {
+    let _guard = config_collection_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let (color_space, look, named_transform, view_transform) = {
+        let config = Config::raw().expect("raw config");
+        let color_space = identity_color_space("UnitOwnedColorSpace");
+        let look = scaling_look("UnitOwnedLook", "UnitOwnedColorSpace");
+        let named_transform = scaling_named_transform("UnitOwnedNamedTransform");
+        let view_transform = identity_view_transform("UnitOwnedViewTransform");
+
+        config.add_color_space(&color_space);
+        config.add_look(&look);
+        config.add_named_transform(&named_transform);
+        config.add_view_transform(&view_transform);
+
+        (
+            config
+                .color_space("UnitOwnedColorSpace")
+                .expect("owned color space"),
+            config.look("UnitOwnedLook").expect("owned look"),
+            config
+                .named_transform("UnitOwnedNamedTransform")
+                .expect("owned named transform"),
+            config
+                .view_transform("UnitOwnedViewTransform")
+                .expect("owned view transform"),
+        )
+    };
+
+    assert_eq!(color_space.name().as_deref(), Some("UnitOwnedColorSpace"));
+    assert_eq!(look.name().as_deref(), Some("UnitOwnedLook"));
+    assert_eq!(
+        named_transform.name().as_deref(),
+        Some("UnitOwnedNamedTransform")
+    );
+    assert_eq!(
+        view_transform.name().as_deref(),
+        Some("UnitOwnedViewTransform")
+    );
+}
+
+#[test]
 fn config_collection_registration_errors_surface_behavior() {
     let _guard = config_collection_test_lock();
     if is_stub() {
