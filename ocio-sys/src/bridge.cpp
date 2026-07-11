@@ -8746,7 +8746,7 @@ void ocio_allocation_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_allocation_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -8784,7 +8784,7 @@ void ocio_allocation_transform_set_allocation(void* handle, int allocation) {
 #else
   try {
     ocio_rs_bridge::get_real_allocation_transform(handle)->setAllocation(static_cast<ocio::Allocation>(allocation));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

@@ -26,12 +26,20 @@ impl AllocationTransform {
     }
 
     pub fn set_allocation(&self, allocation: Allocation) {
+        self.try_set_allocation(allocation)
+            .expect("failed to set allocation mode");
+    }
+
+    /// Set the allocation mode and surface any OCIO validation error.
+    pub fn try_set_allocation(&self, allocation: Allocation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_allocation(
                 self.handle.as_ptr(),
                 allocation as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn num_vars(&self) -> i32 {
@@ -94,12 +102,20 @@ impl AllocationTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set allocation transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -137,8 +153,8 @@ mod tests {
     #[test]
     fn set_allocation_no_crash() {
         let t = AllocationTransform::create().unwrap();
-        t.set_allocation(Allocation::Uniform);
-        t.set_allocation(Allocation::Lg2);
+        t.try_set_allocation(Allocation::Uniform).unwrap();
+        t.try_set_allocation(Allocation::Lg2).unwrap();
     }
 
     #[test]
@@ -152,7 +168,7 @@ mod tests {
     fn direction_no_crash() {
         let t = AllocationTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]
