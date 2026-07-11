@@ -2435,7 +2435,7 @@ void ocio_config_remove_color_space(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeColorSpace(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -2457,7 +2457,7 @@ void ocio_config_clear_color_spaces(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearColorSpaces();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3408,7 +3408,7 @@ void ocio_config_clear_looks(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearLooks();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

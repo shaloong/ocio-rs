@@ -1905,11 +1905,26 @@ impl Config {
     // --- Clear collections ---
 
     pub fn clear_color_spaces(&self) {
+        self.try_clear_color_spaces()
+            .expect("failed to clear color spaces");
+    }
+
+    /// Clear all color spaces and surface any OCIO validation error.
+    pub fn try_clear_color_spaces(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_color_spaces(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     pub fn clear_looks(&self) {
+        self.try_clear_looks().expect("failed to clear looks");
+    }
+
+    /// Clear all looks and surface any OCIO validation error.
+    pub fn try_clear_looks(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_looks(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     pub fn clear_named_transforms(&self) {
@@ -3647,8 +3662,8 @@ mod tests {
     #[test]
     fn clear_color_spaces_looks_no_crash() {
         let config = Config::raw().unwrap();
-        config.clear_color_spaces();
-        config.clear_looks();
+        config.try_clear_color_spaces().unwrap();
+        config.try_clear_looks().unwrap();
     }
 
     #[test]

@@ -187,13 +187,17 @@ fn config_collection_remove_and_clear_behavior() {
     assert!(config.color_space("UnitConfigUnusedColorSpace").is_none());
     assert!(config.color_space("UnitConfigUsedColorSpace").is_some());
 
-    config.clear_looks();
+    config.try_clear_looks().expect("clear looks");
     assert_eq!(config.num_looks(), 0);
     assert!(config.look("UnitConfigLook").is_none());
 
     config.clear_view_transforms();
     assert_eq!(config.num_view_transforms(), 0);
     assert!(config.view_transform("UnitConfigViewTransform").is_none());
+
+    config.try_clear_color_spaces().expect("clear color spaces");
+    assert_eq!(config.num_color_spaces(), 0);
+    assert!(config.color_space("UnitConfigUsedColorSpace").is_none());
 
     config.clear_all();
     assert_eq!(config.num_color_spaces(), 0);
