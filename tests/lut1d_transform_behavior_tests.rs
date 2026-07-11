@@ -23,7 +23,9 @@ fn lut1d_transform_test_lock() -> MutexGuard<'static, ()> {
 fn configured_lut1d_transform() -> Lut1DTransform {
     let transform = Lut1DTransform::create().expect("lut1d transform create");
     transform.set_length(2).expect("set LUT length");
-    transform.set_interpolation(Interpolation::Linear);
+    transform
+        .try_set_interpolation(Interpolation::Linear)
+        .expect("set interpolation");
     transform
         .try_set_file_output_bit_depth(BitDepth::F32)
         .expect("set file output bit depth");

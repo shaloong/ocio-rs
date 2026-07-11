@@ -49,12 +49,20 @@ impl Lut3DTransform {
     }
 
     pub fn set_interpolation(&self, interpolation: Interpolation) {
+        self.try_set_interpolation(interpolation)
+            .expect("failed to set LUT3D interpolation");
+    }
+
+    /// Set the interpolation mode and surface any OCIO validation error.
+    pub fn try_set_interpolation(&self, interpolation: Interpolation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut3d_transform_set_interpolation(
                 self.handle.as_ptr(),
                 interpolation as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn file_output_bit_depth(&self) -> BitDepth {
@@ -244,7 +252,8 @@ mod tests {
     fn interpolation_no_crash() {
         let lt = Lut3DTransform::create().unwrap();
         let _ = lt.interpolation();
-        lt.set_interpolation(Interpolation::Tetrahedral);
+        lt.try_set_interpolation(Interpolation::Tetrahedral)
+            .unwrap();
     }
 
     #[test]
