@@ -10351,7 +10351,7 @@ void ocio_grading_primary_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_primary_transform(handle)->setStyle(static_cast<ocio::GradingStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -10475,7 +10475,7 @@ void ocio_grading_primary_transform_make_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_primary_transform(handle)->makeDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -10486,7 +10486,7 @@ void ocio_grading_primary_transform_make_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_primary_transform(handle)->makeNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

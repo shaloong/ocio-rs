@@ -37,9 +37,17 @@ impl GradingPrimaryTransform {
     }
 
     pub fn set_style(&self, style: GradingStyle) {
+        self.try_set_style(style)
+            .expect("failed to set primary grading style");
+    }
+
+    /// Set the grading style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: GradingStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_primary_transform_set_style(self.handle.as_ptr(), style as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn value(&self) -> GradingPrimary {
@@ -86,15 +94,31 @@ impl GradingPrimaryTransform {
     }
 
     pub fn make_dynamic(&self) {
+        self.try_make_dynamic()
+            .expect("failed to make primary grading dynamic");
+    }
+
+    /// Make this transform dynamic and surface any OCIO validation error.
+    pub fn try_make_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_primary_transform_make_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn make_non_dynamic(&self) {
+        self.try_make_non_dynamic()
+            .expect("failed to make primary grading non-dynamic");
+    }
+
+    /// Make this transform non-dynamic and surface any OCIO validation error.
+    pub fn try_make_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_primary_transform_make_non_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -168,8 +192,8 @@ mod tests {
     #[test]
     fn set_style_no_crash() {
         let t = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
-        t.set_style(GradingStyle::Lin);
-        t.set_style(GradingStyle::Video);
+        t.try_set_style(GradingStyle::Lin).unwrap();
+        t.try_set_style(GradingStyle::Video).unwrap();
     }
 
     #[test]
@@ -182,8 +206,8 @@ mod tests {
     #[test]
     fn make_dynamic_no_crash() {
         let t = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
-        t.make_dynamic();
-        t.make_non_dynamic();
+        t.try_make_dynamic().unwrap();
+        t.try_make_non_dynamic().unwrap();
     }
 
     #[test]
