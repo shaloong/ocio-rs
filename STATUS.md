@@ -133,7 +133,7 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `383` crate tests plus forty-seven
+- The current bundled validation path exercises `384` crate tests plus forty-seven
   dedicated integration suites covering baker output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -187,7 +187,9 @@ Current runtime semantics worth calling out explicitly:
   referenced color spaces as used, `remove_*` clears object lookup state, and
   `clear_all()` empties the tracked collection counts even though
   `display(0)` currently returns an empty-string sentinel once the display list
-  is empty.
+  is empty. Handles returned by `color_space`, `look`, `named_transform`, and
+  `view_transform` retain independent OCIO shared ownership and remain usable
+  after their parent `Config` wrapper is dropped.
 - `Config` runtime-setting helpers now have bundled coverage too: active
   display/view strings round-trip through both aggregate and indexed accessors,
   environment-variable metadata round-trips without guaranteeing insertion
