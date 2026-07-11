@@ -60,7 +60,6 @@
 //! [`ocio_sys`]: crate::ocio_sys
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(missing_docs)]
 #![allow(
     unused_imports,
     clippy::single_component_path_imports,

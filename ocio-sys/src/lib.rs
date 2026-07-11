@@ -105,6 +105,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         filepath: *const i8,
     ) -> usize;
+    pub fn ocio_config_io_proxy_has_lut_data(handle: *mut c_void, filepath: *const i8) -> bool;
     pub fn ocio_config_io_proxy_copy_lut_data(
         handle: *mut c_void,
         filepath: *const i8,

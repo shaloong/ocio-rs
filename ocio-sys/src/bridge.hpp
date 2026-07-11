@@ -94,6 +94,7 @@ bool ocio_config_io_proxy_set_lut_data(
   size_t len,
   const char* fastHash);
 size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath);
+bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath);
 bool ocio_config_io_proxy_copy_lut_data(
   void* handle,
   const char* filepath,

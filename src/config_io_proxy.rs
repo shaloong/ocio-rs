@@ -79,10 +79,10 @@ impl ConfigIOProxy {
     /// "not found" (`Ok(None)`) from "internal error" (`Err`).
     pub fn try_lut_data(&self, filepath: impl AsRef<str>) -> Result<Option<Vec<u8>>> {
         let filepath = filepath.as_ref();
-        let len = self.try_get_lut_data_size(filepath)? as usize;
-        if len == 0 {
+        if !self.try_has_lut_data(filepath)? {
             return Ok(None);
         }
+        let len = self.try_get_lut_data_size(filepath)? as usize;
         let mut bytes = vec![0u8; len];
         let copied = self.try_copy_lut_data(filepath, &mut bytes)?;
         Ok(copied.then_some(bytes))
@@ -141,6 +141,23 @@ impl ConfigIOProxy {
         } as u64;
         crate::ocio_call_status()?;
         Ok(size)
+    }
+
+    /// Return whether a LUT payload is registered for `filepath`.
+    pub fn has_lut_data(&self, filepath: impl AsRef<str>) -> bool {
+        self.try_has_lut_data(filepath).unwrap_or(false)
+    }
+
+    /// Return whether a LUT payload is registered for `filepath`, surfacing
+    /// internal OCIO bridge failures.
+    pub fn try_has_lut_data(&self, filepath: impl AsRef<str>) -> Result<bool> {
+        let filepath = cstring(filepath)?;
+        crate::clear_last_error();
+        let exists = unsafe {
+            ocio_sys::ocio_config_io_proxy_has_lut_data(self.handle.as_ptr(), filepath.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(exists)
     }
 
     #[doc(hidden)]
@@ -214,6 +231,19 @@ mod tests {
                 .unwrap()
                 .is_some(),
             "found LUT should return Some"
+        );
+
+        proxy
+            .set_lut_data("E:/virtual/context/empty.clf", &[], "empty-hash")
+            .expect("set empty LUT data");
+        assert!(proxy
+            .try_has_lut_data("E:/virtual/context/empty.clf")
+            .expect("query empty LUT"));
+        assert_eq!(
+            proxy
+                .try_lut_data("E:/virtual/context/empty.clf")
+                .expect("read empty LUT"),
+            Some(Vec::new())
         );
 
         // try_copy_lut_data returns Ok(true) for found, Ok(false) for missing

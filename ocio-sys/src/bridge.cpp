@@ -1755,6 +1755,20 @@ size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath
 #endif
 }
 
+bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath;
+  return false;
+#else
+  try {
+    if (!filepath) return false;
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    return rustProxy && rustProxy->findLutData(filepath);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 bool ocio_config_io_proxy_copy_lut_data(
   void* handle,
   const char* filepath,
