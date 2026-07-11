@@ -181,6 +181,13 @@ fn config_collection_remove_and_clear_behavior() {
         .expect("remove named transform");
     assert!(config.named_transform("UnitConfigNamedTransform").is_none());
 
+    config.add_named_transform(&named_transform);
+    config
+        .try_clear_named_transforms()
+        .expect("clear named transforms");
+    assert_eq!(config.num_named_transforms(), 0);
+    assert!(config.named_transform("UnitConfigNamedTransform").is_none());
+
     config
         .remove_color_space("UnitConfigUnusedColorSpace")
         .expect("remove unused color space");
@@ -191,7 +198,9 @@ fn config_collection_remove_and_clear_behavior() {
     assert_eq!(config.num_looks(), 0);
     assert!(config.look("UnitConfigLook").is_none());
 
-    config.clear_view_transforms();
+    config
+        .try_clear_view_transforms()
+        .expect("clear view transforms");
     assert_eq!(config.num_view_transforms(), 0);
     assert!(config.view_transform("UnitConfigViewTransform").is_none());
 

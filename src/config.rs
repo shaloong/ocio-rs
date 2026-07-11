@@ -1928,13 +1928,29 @@ impl Config {
     }
 
     pub fn clear_named_transforms(&self) {
+        self.try_clear_named_transforms()
+            .expect("failed to clear named transforms");
+    }
+
+    /// Clear all named transforms and surface any OCIO validation error.
+    pub fn try_clear_named_transforms(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_clear_named_transforms(self.handle.as_ptr() as *mut c_void)
         };
+        crate::ocio_call_status()
     }
 
     pub fn clear_view_transforms(&self) {
+        self.try_clear_view_transforms()
+            .expect("failed to clear view transforms");
+    }
+
+    /// Clear all view transforms and surface any OCIO validation error.
+    pub fn try_clear_view_transforms(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_view_transforms(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     // --- Display/view management ---
@@ -4156,8 +4172,8 @@ mod tests {
     #[test]
     fn clear_named_view_transforms_no_crash() {
         let config = Config::raw().unwrap();
-        config.clear_named_transforms();
-        config.clear_view_transforms();
+        config.try_clear_named_transforms().unwrap();
+        config.try_clear_view_transforms().unwrap();
     }
 
     #[test]
