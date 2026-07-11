@@ -37,9 +37,17 @@ impl GradingToneTransform {
     }
 
     pub fn set_style(&self, style: GradingStyle) {
+        self.try_set_style(style)
+            .expect("failed to set grading tone style");
+    }
+
+    /// Set the grading style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: GradingStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_tone_transform_set_style(self.handle.as_ptr(), style as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn value(&self) -> GradingTone {
@@ -63,13 +71,28 @@ impl GradingToneTransform {
     }
 
     pub fn set_value(&self, value: &GradingTone) {
+        self.try_set_value(value)
+            .expect("failed to set grading tone value");
+    }
+
+    /// Replace the tone grading controls and surface any OCIO validation error.
+    pub fn try_set_value(&self, value: &GradingTone) -> Result<()> {
         let flat = value.to_flat_array();
-        unsafe {
+        crate::clear_last_error();
+        let accepted = unsafe {
             ocio_sys::ocio_grading_tone_transform_set_value_from_f64(
                 self.handle.as_ptr(),
                 flat.as_ptr(),
                 flat.len(),
-            );
+            )
+        };
+        if accepted {
+            crate::ocio_call_status()
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "GradingToneTransform::set_value was rejected".to_owned(),
+            ))
         }
     }
 
@@ -83,15 +106,31 @@ impl GradingToneTransform {
     }
 
     pub fn make_dynamic(&self) {
+        self.try_make_dynamic()
+            .expect("failed to make grading tone dynamic");
+    }
+
+    /// Make this transform dynamic and surface any OCIO validation error.
+    pub fn try_make_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_tone_transform_make_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn make_non_dynamic(&self) {
+        self.try_make_non_dynamic()
+            .expect("failed to make grading tone non-dynamic");
+    }
+
+    /// Make this transform non-dynamic and surface any OCIO validation error.
+    pub fn try_make_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_tone_transform_make_non_dynamic(self.handle.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -165,22 +204,25 @@ mod tests {
     #[test]
     fn set_style_no_crash() {
         let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
-        t.set_style(GradingStyle::Lin);
-        t.set_style(GradingStyle::Video);
+        t.try_set_style(GradingStyle::Lin).unwrap();
+        t.try_set_style(GradingStyle::Video).unwrap();
     }
 
     #[test]
     fn set_value_no_crash() {
+        if crate::is_stub_build() {
+            return;
+        }
         let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
         let v = GradingTone::new(GradingStyle::Log);
-        t.set_value(&v);
+        t.try_set_value(&v).unwrap();
     }
 
     #[test]
     fn make_dynamic_no_crash() {
         let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
-        t.make_dynamic();
-        t.make_non_dynamic();
+        t.try_make_dynamic().unwrap();
+        t.try_make_non_dynamic().unwrap();
     }
 
     #[test]

@@ -11126,7 +11126,7 @@ void ocio_grading_tone_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_tone_transform(handle)->setStyle(static_cast<ocio::GradingStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -11218,7 +11218,7 @@ bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* 
     v.m_scontrast = values[off++];
     transform->setValue(v);
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -11240,7 +11240,7 @@ void ocio_grading_tone_transform_make_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_tone_transform(handle)->makeDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -11251,7 +11251,7 @@ void ocio_grading_tone_transform_make_non_dynamic(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_grading_tone_transform(handle)->makeNonDynamic();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
