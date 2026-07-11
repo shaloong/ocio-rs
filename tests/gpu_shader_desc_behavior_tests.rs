@@ -323,6 +323,53 @@ fn gpu_shader_desc_extraction_structural_behavior() {
 }
 
 #[test]
+fn gpu_shader_desc_extracts_multiple_target_languages_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).expect("matrix transform");
+    let processor = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .expect("processor");
+    let gpu = processor.default_gpu_processor().expect("gpu processor");
+
+    for (language, suffix) in [
+        (GpuLanguage::Glsl1_3, "glsl13"),
+        (GpuLanguage::Glsl4_0, "glsl40"),
+        (GpuLanguage::HlslSm5_0, "hlsl50"),
+        (GpuLanguage::Msl2_0, "msl20"),
+    ] {
+        let mut desc = GpuShaderDesc::create().expect("gpu shader desc create");
+        let function_name = format!("ocio_{suffix}_main");
+        let pixel_name = format!("ocio_{suffix}_pixel");
+        desc.set_language(language).expect("set language");
+        desc.set_function_name(&function_name)
+            .expect("set function name");
+        desc.set_pixel_name(&pixel_name).expect("set pixel name");
+        desc.set_resource_prefix("ocio_multi_")
+            .expect("set resource prefix");
+        gpu.try_extract_shader_info(&mut desc)
+            .expect("extract shader info");
+
+        let shader_text = desc.shader_text().expect("shader text");
+        assert!(!shader_text.trim().is_empty(), "empty shader for {suffix}");
+        assert!(
+            shader_text.contains(&function_name),
+            "shader for {suffix} omitted its entry point"
+        );
+        assert_eq!(desc.language(), language);
+        assert_eq!(
+            desc.function_name().as_deref(),
+            Some(function_name.as_str())
+        );
+        assert_eq!(desc.pixel_name().as_deref(), Some(pixel_name.as_str()));
+    }
+}
+
+#[test]
 fn gpu_shader_desc_dynamic_property_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
