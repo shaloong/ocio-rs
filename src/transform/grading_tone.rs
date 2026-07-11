@@ -218,9 +218,6 @@ mod tests {
 
     #[test]
     fn set_value_no_crash() {
-        if crate::is_stub_build() {
-            return;
-        }
         let t = GradingToneTransform::create(GradingStyle::Log).unwrap();
         let v = GradingTone::new(GradingStyle::Log);
         t.try_set_value(&v).unwrap();

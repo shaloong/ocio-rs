@@ -703,3 +703,163 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         ocio_sys::ocio_gpu_shader_desc_destroy(desc);
     }
 }
+
+#[test]
+fn gpu_shader_desc_real_config_extraction_behavior() {
+    let _guard = gpu_shader_desc_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("data")
+        .join("configs")
+        .join("context_test1")
+        .join("config.ocio");
+    let working_dir = config_path.parent().expect("config parent");
+
+    let config =
+        ocio_rs::Config::from_file(config_path.to_string_lossy()).expect("load real config");
+    config
+        .set_working_dir(working_dir.to_string_lossy())
+        .expect("set working dir");
+
+    let processor = config
+        .processor("plain_lut1_cs", "reference")
+        .expect("create processor");
+
+    let gpu_processor = processor
+        .default_gpu_processor()
+        .expect("default gpu processor");
+
+    let desc = GpuShaderDesc::create().expect("gpu shader desc create");
+    desc.set_language(GpuLanguage::Glsl4_0)
+        .expect("set_language");
+    desc.set_function_name("test_real_main")
+        .expect("set_function_name");
+    desc.set_pixel_name("test_real_pixel")
+        .expect("set_pixel_name");
+    desc.set_resource_prefix("test_real_")
+        .expect("set_resource_prefix");
+
+    let mut desc = desc;
+    gpu_processor
+        .try_extract_shader_info(&mut desc)
+        .expect("extract shader info");
+
+    // --- Shader text validation ---
+    let shader_text = desc.shader_text().expect("shader_text should be present");
+    assert!(
+        !shader_text.trim().is_empty(),
+        "shader text should not be empty for real config"
+    );
+    assert!(
+        shader_text.contains("test_real_main"),
+        "shader text should contain the function name"
+    );
+    // Real GLSL shaders typically contain type declarations
+    assert!(
+        shader_text.contains("vec4") || shader_text.contains("float"),
+        "shader text should contain GLSL type keywords, got: {}",
+        &shader_text[..shader_text.len().min(200)]
+    );
+
+    // --- Uniform validation ---
+    let num_uniforms = desc.num_uniforms();
+    let uniforms = desc.uniforms();
+    assert_eq!(
+        num_uniforms as usize,
+        uniforms.len(),
+        "uniform count mismatch"
+    );
+    for (idx, uniform) in uniforms.iter().enumerate() {
+        assert!(
+            !uniform.name.trim().is_empty(),
+            "uniform name should not be empty at index {}",
+            idx
+        );
+        // Verify round-trip consistency
+        let queried = desc.uniform(idx as u32).expect("uniform by index");
+        assert_eq!(queried.name, uniform.name);
+        assert_eq!(queried.value_count, uniform.value_count);
+    }
+
+    // --- Texture 2D validation ---
+    let textures_2d = desc.textures_2d();
+    assert_eq!(
+        desc.num_textures() as usize,
+        textures_2d.len(),
+        "texture 2D count mismatch"
+    );
+    for (idx, tex) in textures_2d.iter().enumerate() {
+        assert!(
+            !tex.texture_name.trim().is_empty(),
+            "texture name should not be empty at index {}",
+            idx
+        );
+        assert!(
+            !tex.sampler_name.trim().is_empty(),
+            "sampler name should not be empty at index {}",
+            idx
+        );
+        let expected_len = tex.expected_value_count();
+        assert_eq!(
+            tex.values.len(),
+            expected_len,
+            "texture 2D values length mismatch at index {}: got {}, expected {}",
+            idx,
+            tex.values.len(),
+            expected_len
+        );
+        // Verify values are within reasonable range (not NaN/Inf)
+        for (vi, v) in tex.values.iter().enumerate() {
+            assert!(
+                (*v as f64).is_finite(),
+                "texture 2D value at index {} texel {} is not finite: {}",
+                idx,
+                vi,
+                v
+            );
+        }
+    }
+
+    // --- Texture 3D validation ---
+    let textures_3d = desc.textures_3d();
+    assert_eq!(
+        desc.num_3d_textures() as usize,
+        textures_3d.len(),
+        "texture 3D count mismatch"
+    );
+    for (idx, tex) in textures_3d.iter().enumerate() {
+        assert!(
+            !tex.texture_name.trim().is_empty(),
+            "3D texture name should not be empty at index {}",
+            idx
+        );
+        let expected_len = tex.expected_value_count();
+        assert_eq!(
+            tex.values.len(),
+            expected_len,
+            "texture 3D values length mismatch at index {}: got {}, expected {}",
+            idx,
+            tex.values.len(),
+            expected_len
+        );
+        for (vi, v) in tex.values.iter().enumerate() {
+            assert!(
+                (*v as f64).is_finite(),
+                "texture 3D value at index {} texel {} is not finite: {}",
+                idx,
+                vi,
+                v
+            );
+        }
+    }
+
+    // --- Metadata validation ---
+    assert_eq!(desc.language(), ocio_rs::GpuLanguage::Glsl4_0);
+    assert_eq!(desc.function_name().as_deref(), Some("test_real_main"));
+    assert_eq!(desc.pixel_name().as_deref(), Some("test_real_pixel"));
+    assert_eq!(desc.resource_prefix().as_deref(), Some("test_real_"));
+}

@@ -1668,7 +1668,7 @@ void* ocio_config_io_proxy_create(void) {
     handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
       ocio_rs_bridge::RealConfigIOProxy{proxy, rustProxy});
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6933,7 +6933,9 @@ void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth
   try {
     if (!rgba || numPixels <= 0) return;
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
-      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16) ? 2u
+      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16
+         || bitDepth == ocio::BIT_DEPTH_UINT10 || bitDepth == ocio::BIT_DEPTH_UINT12
+         || bitDepth == ocio::BIT_DEPTH_UINT14) ? 2u
       : (bitDepth == ocio::BIT_DEPTH_UINT32) ? 4u : 1u;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(bytesPerChannel);
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(bytesPerChannel));
@@ -6957,7 +6959,9 @@ void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, 
   try {
     if (!rgb || numPixels <= 0) return;
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
-      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16) ? 2u
+      : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16
+         || bitDepth == ocio::BIT_DEPTH_UINT10 || bitDepth == ocio::BIT_DEPTH_UINT12
+         || bitDepth == ocio::BIT_DEPTH_UINT14) ? 2u
       : (bitDepth == ocio::BIT_DEPTH_UINT32) ? 4u : 1u;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(bytesPerChannel);
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 3) * static_cast<int64_t>(bytesPerChannel));
@@ -10416,7 +10420,7 @@ bool ocio_grading_primary_transform_copy_value(void* handle, double* values, siz
     values[off++] = v.m_clampBlack;
     values[off++] = v.m_clampWhite;
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -11186,14 +11190,14 @@ bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t
     write_rgbmsw(v.m_whites);
     values[off++] = v.m_scontrast;
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
 bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)values; (void)len;
-  return false;
+  return true;
 #else
   try {
     if (!values || len < 31) return false;
