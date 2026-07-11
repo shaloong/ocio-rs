@@ -24,7 +24,9 @@ fn configured_lut3d_transform() -> Lut3DTransform {
     let transform = Lut3DTransform::create().expect("lut3d transform create");
     transform.set_grid_size(2).expect("set LUT grid size");
     transform.set_interpolation(Interpolation::Linear);
-    transform.set_file_output_bit_depth(BitDepth::F32);
+    transform
+        .try_set_file_output_bit_depth(BitDepth::F32)
+        .expect("set file output bit depth");
 
     for r in 0..2u64 {
         for g in 0..2u64 {
@@ -65,7 +67,8 @@ fn lut3d_transform_value_copy_and_direction_behavior() {
     copy.set_value(1, 1, 1, [1.0, 1.0, 1.0])
         .expect("set LUT entry");
     copy.set_direction(TransformDirection::Inverse);
-    copy.set_file_output_bit_depth(BitDepth::Uint16);
+    copy.try_set_file_output_bit_depth(BitDepth::Uint16)
+        .expect("set copy file output bit depth");
 
     assert_eq!(copy.value(1, 1, 1), Some([1.0, 1.0, 1.0]));
     assert_eq!(copy.direction(), TransformDirection::Inverse);

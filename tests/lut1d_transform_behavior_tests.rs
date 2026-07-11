@@ -24,7 +24,9 @@ fn configured_lut1d_transform() -> Lut1DTransform {
     let transform = Lut1DTransform::create().expect("lut1d transform create");
     transform.set_length(2).expect("set LUT length");
     transform.set_interpolation(Interpolation::Linear);
-    transform.set_file_output_bit_depth(BitDepth::F32);
+    transform
+        .try_set_file_output_bit_depth(BitDepth::F32)
+        .expect("set file output bit depth");
     transform
         .set_values(&[
             0.0, 0.0, 0.0, //
@@ -58,7 +60,8 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
         .expect("lut1d transform editable copy");
     copy.set_value(1, [1.0, 1.0, 1.0]).expect("set LUT entry");
     copy.set_direction(TransformDirection::Inverse);
-    copy.set_file_output_bit_depth(BitDepth::Uint16);
+    copy.try_set_file_output_bit_depth(BitDepth::Uint16)
+        .expect("set copy file output bit depth");
 
     assert_eq!(copy.value(1), Some([1.0, 1.0, 1.0]));
     assert_eq!(copy.direction(), TransformDirection::Inverse);

@@ -12022,7 +12022,7 @@ void ocio_lut1d_transform_set_file_output_bit_depth(void* handle, int bitDepth) 
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setFileOutputBitDepth(static_cast<ocio::BitDepth>(bitDepth));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -12246,7 +12246,7 @@ void ocio_lut3d_transform_set_file_output_bit_depth(void* handle, int bitDepth) 
 #else
   try {
     ocio_rs_bridge::get_real_lut3d_transform(handle)->setFileOutputBitDepth(static_cast<ocio::BitDepth>(bitDepth));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

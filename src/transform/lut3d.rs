@@ -75,12 +75,20 @@ impl Lut3DTransform {
     }
 
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set LUT3D file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut3d_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -243,7 +251,7 @@ mod tests {
     fn bit_depth_no_crash() {
         let lt = Lut3DTransform::create().unwrap();
         let _ = lt.file_output_bit_depth();
-        lt.set_file_output_bit_depth(BitDepth::F32);
+        lt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]
