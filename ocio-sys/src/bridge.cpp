@@ -2649,7 +2649,7 @@ void ocio_config_clear_shared_views(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearSharedViews();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -2884,7 +2884,7 @@ void ocio_config_clear_displays(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearDisplays();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

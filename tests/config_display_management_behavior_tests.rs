@@ -118,10 +118,10 @@ fn config_shared_view_and_display_lifecycle_behavior() {
         .expect("re-add shared view");
     assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
 
-    config.clear_shared_views();
+    config.try_clear_shared_views().expect("clear shared views");
     assert!(!config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
 
-    config.clear_displays();
+    config.try_clear_displays().expect("clear displays");
     assert_eq!(config.num_displays_all(), 0);
     assert_eq!(config.num_displays(), 0);
 }

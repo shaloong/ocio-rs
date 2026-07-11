@@ -2109,7 +2109,15 @@ impl Config {
     }
 
     pub fn clear_shared_views(&self) {
+        self.try_clear_shared_views()
+            .expect("failed to clear shared views");
+    }
+
+    /// Clear every shared view and surface any OCIO validation error.
+    pub fn try_clear_shared_views(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_shared_views(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn remove_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> Result<()> {
@@ -2153,7 +2161,14 @@ impl Config {
     }
 
     pub fn clear_displays(&self) {
+        self.try_clear_displays().expect("failed to clear displays");
+    }
+
+    /// Clear every display and surface any OCIO validation error.
+    pub fn try_clear_displays(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_displays(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn has_virtual_view(&self, view_name: impl AsRef<str>) -> bool {
