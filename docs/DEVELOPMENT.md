@@ -134,6 +134,11 @@ Bundled real-OCIO validation is kept on manual GitHub Actions workflows and runs
 - `cargo test --workspace --features bundled`
 - `pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline`
 
+The manual `Sanitizers` workflow runs the stub bridge and Rust wrapper tests
+under Linux AddressSanitizer. It is intended to catch memory-safety regressions
+at FFI boundaries; bundled OCIO behavior remains covered by the separate
+real-OCIO workflow.
+
 Recommended full CI pipeline:
 
 ```yaml
