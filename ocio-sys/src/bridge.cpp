@@ -11814,7 +11814,7 @@ void ocio_log_transform_set_base(void* handle, double val) {
 #else
   try {
     ocio_rs_bridge::get_real_log_transform(handle)->setBase(val);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

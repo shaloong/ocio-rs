@@ -21,7 +21,15 @@ impl LogTransform {
     }
 
     pub fn set_base(&self, base: f64) {
+        self.try_set_base(base)
+            .expect("failed to set logarithm base");
+    }
+
+    /// Set the logarithm base and surface any OCIO validation error.
+    pub fn try_set_base(&self, base: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_log_transform_set_base(self.handle.as_ptr(), base) };
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -84,7 +92,7 @@ mod tests {
     fn base_no_crash() {
         let lt = LogTransform::create().unwrap();
         let _ = lt.base();
-        lt.set_base(10.0);
+        lt.try_set_base(10.0).unwrap();
     }
 
     #[test]
