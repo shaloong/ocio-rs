@@ -9239,7 +9239,7 @@ void ocio_color_space_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9321,7 +9321,7 @@ void ocio_color_space_transform_set_data_bypass(void* handle, bool enabled) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space_transform(handle)->setDataBypass(enabled);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9380,7 +9380,7 @@ void ocio_display_view_transform_set_direction(void* handle, int dir) {
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setDirection(static_cast<ocio::TransformDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9484,7 +9484,7 @@ void ocio_display_view_transform_set_looks_bypass(void* handle, bool bypass) {
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setLooksBypass(bypass);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9506,7 +9506,7 @@ void ocio_display_view_transform_set_data_bypass(void* handle, bool bypass) {
 #else
   try {
     ocio_rs_bridge::get_real_display_view_transform(handle)->setDataBypass(bypass);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

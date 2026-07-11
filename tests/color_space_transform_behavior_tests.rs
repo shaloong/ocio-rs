@@ -83,8 +83,12 @@ fn color_space_transform_field_copy_and_validate_behavior() {
     transform
         .set_dst("UnitColorSpaceTransformDst")
         .expect("set dst");
-    transform.set_data_bypass(true);
-    transform.set_direction(TransformDirection::Inverse);
+    transform
+        .try_set_data_bypass(true)
+        .expect("set data bypass");
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("set direction");
     transform
         .validate()
         .expect("validate color space transform");
@@ -105,8 +109,10 @@ fn color_space_transform_field_copy_and_validate_behavior() {
         .expect("color space transform editable copy");
     copy.set_dst("UnitColorSpaceTransformSrc")
         .expect("set copy dst");
-    copy.set_data_bypass(false);
-    copy.set_direction(TransformDirection::Forward);
+    copy.try_set_data_bypass(false)
+        .expect("set copy data bypass");
+    copy.try_set_direction(TransformDirection::Forward)
+        .expect("set copy direction");
 
     assert_eq!(copy.dst().as_deref(), Some("UnitColorSpaceTransformSrc"));
     assert!(!copy.data_bypass());
@@ -179,7 +185,9 @@ fn color_space_transform_data_bypass_behavior() {
     bypassed
         .set_dst("UnitColorSpaceTransformDst")
         .expect("set bypassed dst");
-    bypassed.set_data_bypass(true);
+    bypassed
+        .try_set_data_bypass(true)
+        .expect("set bypassed data bypass");
 
     let forced = ColorSpaceTransform::create().expect("forced color space transform");
     forced
@@ -188,7 +196,9 @@ fn color_space_transform_data_bypass_behavior() {
     forced
         .set_dst("UnitColorSpaceTransformDst")
         .expect("set forced dst");
-    forced.set_data_bypass(false);
+    forced
+        .try_set_data_bypass(false)
+        .expect("set forced data bypass");
 
     let bypassed_cpu = config
         .processor_from_transform(&bypassed, TransformDirection::Forward)

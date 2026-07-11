@@ -55,9 +55,17 @@ impl ColorSpaceTransform {
     }
 
     pub fn set_data_bypass(&self, bypass: bool) {
+        self.try_set_data_bypass(bypass)
+            .expect("failed to set color space data bypass");
+    }
+
+    /// Set data bypass behavior and surface any OCIO validation error.
+    pub fn try_set_data_bypass(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_transform_set_data_bypass(self.handle.as_ptr(), bypass)
         };
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -70,12 +78,20 @@ impl ColorSpaceTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set color space transform direction");
+    }
+
+    /// Set evaluation direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
@@ -133,14 +149,14 @@ mod tests {
     #[test]
     fn set_data_bypass_no_crash() {
         let t = ColorSpaceTransform::create().unwrap();
-        t.set_data_bypass(true);
+        t.try_set_data_bypass(true).unwrap();
     }
 
     #[test]
     fn direction_no_crash() {
         let t = ColorSpaceTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]

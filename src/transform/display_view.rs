@@ -75,9 +75,17 @@ impl DisplayViewTransform {
     }
 
     pub fn set_looks_bypass(&self, bypass: bool) {
+        self.try_set_looks_bypass(bypass)
+            .expect("failed to set display view looks bypass");
+    }
+
+    /// Set looks bypass behavior and surface any OCIO validation error.
+    pub fn try_set_looks_bypass(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_looks_bypass(self.handle.as_ptr(), bypass)
         };
+        crate::ocio_call_status()
     }
 
     pub fn direction(&self) -> TransformDirection {
@@ -90,12 +98,20 @@ impl DisplayViewTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set display view transform direction");
+    }
+
+    /// Set evaluation direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn data_bypass(&self) -> bool {
@@ -103,9 +119,17 @@ impl DisplayViewTransform {
     }
 
     pub fn set_data_bypass(&self, bypass: bool) {
+        self.try_set_data_bypass(bypass)
+            .expect("failed to set display view data bypass");
+    }
+
+    /// Set data bypass behavior and surface any OCIO validation error.
+    pub fn try_set_data_bypass(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_data_bypass(self.handle.as_ptr(), bypass)
         };
+        crate::ocio_call_status()
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
@@ -159,21 +183,21 @@ mod tests {
     fn direction_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]
     fn looks_bypass_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.looks_bypass();
-        t.set_looks_bypass(true);
+        t.try_set_looks_bypass(true).unwrap();
     }
 
     #[test]
     fn data_bypass_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.data_bypass();
-        t.set_data_bypass(true);
+        t.try_set_data_bypass(true).unwrap();
     }
 
     #[test]

@@ -82,9 +82,15 @@ fn display_view_transform_metadata_copy_and_validate_behavior() {
     transform.set_src("UnitInput").expect("set src");
     transform.set_display("UnitDisplay").expect("set display");
     transform.set_view("UnitView").expect("set view");
-    transform.set_looks_bypass(true);
-    transform.set_data_bypass(true);
-    transform.set_direction(TransformDirection::Inverse);
+    transform
+        .try_set_looks_bypass(true)
+        .expect("set looks bypass");
+    transform
+        .try_set_data_bypass(true)
+        .expect("set data bypass");
+    transform
+        .try_set_direction(TransformDirection::Inverse)
+        .expect("set direction");
     transform
         .validate()
         .expect("validate display view transform");
@@ -100,8 +106,10 @@ fn display_view_transform_metadata_copy_and_validate_behavior() {
         .create_editable_copy()
         .expect("display view editable copy");
     copy.set_view("UnitViewCopy").expect("set copy view");
-    copy.set_data_bypass(false);
-    copy.set_direction(TransformDirection::Forward);
+    copy.try_set_data_bypass(false)
+        .expect("set copy data bypass");
+    copy.try_set_direction(TransformDirection::Forward)
+        .expect("set copy direction");
 
     assert_eq!(copy.view().as_deref(), Some("UnitViewCopy"));
     assert!(!copy.data_bypass());
@@ -175,7 +183,9 @@ fn display_view_transform_data_bypass_behavior() {
         .set_display("UnitDisplay")
         .expect("set bypassed display");
     bypassed.set_view("UnitView").expect("set bypassed view");
-    bypassed.set_data_bypass(true);
+    bypassed
+        .try_set_data_bypass(true)
+        .expect("set bypassed data bypass");
 
     let forced = DisplayViewTransform::create().expect("forced display view transform");
     forced.set_src("UnitDataInput").expect("set forced src");
@@ -183,7 +193,9 @@ fn display_view_transform_data_bypass_behavior() {
         .set_display("UnitDisplay")
         .expect("set forced display");
     forced.set_view("UnitView").expect("set forced view");
-    forced.set_data_bypass(false);
+    forced
+        .try_set_data_bypass(false)
+        .expect("set forced data bypass");
 
     let bypassed_cpu = config
         .processor_from_transform(&bypassed, TransformDirection::Forward)
