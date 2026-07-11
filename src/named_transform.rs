@@ -131,9 +131,17 @@ impl NamedTransform {
     }
 
     pub fn clear_aliases(&self) {
+        self.try_clear_aliases()
+            .expect("failed to clear named transform aliases");
+    }
+
+    /// Clear all aliases and surface any OCIO validation error.
+    pub fn try_clear_aliases(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_named_transform_clear_aliases(self.handle.as_ptr() as *mut c_void)
         };
+        crate::ocio_call_status()
     }
 
     pub fn num_categories(&self) -> i32 {
@@ -178,7 +186,15 @@ impl NamedTransform {
     }
 
     pub fn clear_categories(&self) {
+        self.try_clear_categories()
+            .expect("failed to clear named transform categories");
+    }
+
+    /// Clear all categories and surface any OCIO validation error.
+    pub fn try_clear_categories(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_named_transform_clear_categories(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
@@ -295,7 +311,7 @@ mod tests {
         assert!(nt.add_alias("test_alias").is_ok());
         let _ = nt.has_alias("test_alias");
         assert!(nt.remove_alias("test_alias").is_ok());
-        nt.clear_aliases();
+        nt.try_clear_aliases().unwrap();
     }
 
     #[test]
@@ -307,6 +323,6 @@ mod tests {
         assert!(nt.add_category("test_category").is_ok());
         let _ = nt.has_category("test_category");
         assert!(nt.remove_category("test_category").is_ok());
-        nt.clear_categories();
+        nt.try_clear_categories().unwrap();
     }
 }
