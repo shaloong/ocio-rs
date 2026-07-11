@@ -6325,7 +6325,7 @@ bool ocio_processor_is_no_op(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_processor(handle)->isNoOp();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6336,7 +6336,7 @@ bool ocio_processor_has_channel_crosstalk(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_processor(handle)->hasChannelCrosstalk();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6347,7 +6347,7 @@ void* ocio_processor_get_cache_id(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_processor(handle)->getCacheID()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6443,7 +6443,7 @@ bool ocio_processor_has_dynamic_property(void* handle, int type) {
 #else
   try {
     return ocio_rs_bridge::get_real_processor(handle)->hasDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6454,7 +6454,7 @@ bool ocio_processor_is_dynamic(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_processor(handle)->isDynamic();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6752,7 +6752,7 @@ void* ocio_cpu_processor_get_cache_id(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cpu_processor(handle)->getCacheID()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6763,7 +6763,7 @@ int ocio_cpu_processor_get_input_bit_depth(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->getInputBitDepth();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -6774,7 +6774,7 @@ int ocio_cpu_processor_get_output_bit_depth(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->getOutputBitDepth();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -6800,7 +6800,7 @@ bool ocio_cpu_processor_has_dynamic_property(void* handle, int type) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->hasDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -6811,7 +6811,7 @@ bool ocio_cpu_processor_is_dynamic(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cpu_processor(handle)->isDynamic();
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7025,7 +7025,7 @@ void* ocio_gpu_processor_get_cache_id(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_gpu_processor(handle)->getCacheID()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -102,23 +102,48 @@ unsafe impl Send for Processor {}
 impl Processor {
     /// Return whether the processor is an identity/no-op pipeline.
     pub fn is_no_op(&self) -> bool {
-        unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_no_op().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_no_op`].
+    pub fn try_is_no_op(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_processor_is_no_op(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return whether the processor mixes channels rather than operating lane-wise.
     pub fn has_channel_crosstalk(&self) -> bool {
-        unsafe {
+        self.try_has_channel_crosstalk().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_channel_crosstalk`].
+    pub fn try_has_channel_crosstalk(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_processor_has_channel_crosstalk(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return OCIO's cache identifier for this processor instance.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe {
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's cache identifier, preserving bridge errors.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_processor_get_cache_id(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Create the default CPU execution path for this processor.
@@ -327,9 +352,18 @@ impl Processor {
 
     /// Return whether the processor exposes a dynamic property of `prop_type`.
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
-        unsafe {
+        self.try_has_dynamic_property_kind(prop_type)
+            .unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_dynamic_property_kind`].
+    pub fn try_has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type as i32)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     #[doc(hidden)]
@@ -338,12 +372,26 @@ impl Processor {
         note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
     )]
     pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
-        unsafe { ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type) }
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_processor_has_dynamic_property(self.handle.as_ptr(), prop_type)
+        };
+        let _ = crate::ocio_call_status();
+        value
     }
 
     /// Return whether this processor contains any runtime-adjustable properties.
     pub fn is_dynamic(&self) -> bool {
-        unsafe { ocio_sys::ocio_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_dynamic().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_dynamic`].
+    pub fn try_is_dynamic(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 }
 
@@ -716,25 +764,49 @@ impl CPUProcessor {
 
     /// Return OCIO's cache identifier for this CPU processor instance.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe {
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's cache identifier, preserving bridge errors.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_cpu_processor_get_cache_id(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return the declared input bit depth for this CPU path.
     pub fn input_bit_depth(&self) -> i32 {
-        unsafe {
+        self.try_input_bit_depth().unwrap_or(0)
+    }
+
+    /// Return the declared input bit depth, preserving bridge errors.
+    pub fn try_input_bit_depth(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_cpu_processor_get_input_bit_depth(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return the declared output bit depth for this CPU path.
     pub fn output_bit_depth(&self) -> i32 {
-        unsafe {
+        self.try_output_bit_depth().unwrap_or(0)
+    }
+
+    /// Return the declared output bit depth, preserving bridge errors.
+    pub fn try_output_bit_depth(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_cpu_processor_get_output_bit_depth(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Return whether this CPU path is functionally identity.
@@ -786,12 +858,21 @@ impl CPUProcessor {
 
     /// Return whether the CPU processor exposes a dynamic property of `prop_type`.
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
-        unsafe {
+        self.try_has_dynamic_property_kind(prop_type)
+            .unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_dynamic_property_kind`].
+    pub fn try_has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_cpu_processor_has_dynamic_property(
                 self.handle.as_ptr(),
                 prop_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     #[doc(hidden)]
@@ -800,14 +881,26 @@ impl CPUProcessor {
         note = "compat alias; prefer has_dynamic_property_kind with DynamicPropertyType"
     )]
     pub fn has_dynamic_property(&self, prop_type: i32) -> bool {
-        unsafe {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_cpu_processor_has_dynamic_property(self.handle.as_ptr(), prop_type)
-        }
+        };
+        let _ = crate::ocio_call_status();
+        value
     }
 
     /// Return whether this CPU processor contains any runtime-adjustable properties.
     pub fn is_dynamic(&self) -> bool {
-        unsafe { ocio_sys::ocio_cpu_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) }
+        self.try_is_dynamic().unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::is_dynamic`].
+    pub fn try_is_dynamic(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_cpu_processor_is_dynamic(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 }
 
@@ -898,11 +991,19 @@ impl GPUProcessor {
 
     /// Return OCIO's cache identifier for this GPU processor instance.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe {
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's cache identifier, preserving bridge errors.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_gpu_processor_get_cache_id(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Fill `shader_desc` with OCIO-generated shader text, uniforms, and textures.

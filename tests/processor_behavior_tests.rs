@@ -55,10 +55,34 @@ fn processor_group_transform_and_metadata_behavior() {
     assert!(!processor.is_no_op());
     assert!(!processor.has_channel_crosstalk());
     assert!(!processor.is_dynamic());
+    assert_eq!(
+        processor.try_is_no_op().expect("processor no-op query"),
+        processor.is_no_op()
+    );
+    assert_eq!(
+        processor
+            .try_has_channel_crosstalk()
+            .expect("processor crosstalk query"),
+        processor.has_channel_crosstalk()
+    );
+    assert_eq!(
+        processor.try_is_dynamic().expect("processor dynamic query"),
+        processor.is_dynamic()
+    );
+    assert_eq!(
+        processor
+            .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+            .expect("processor dynamic property query"),
+        processor.has_dynamic_property_kind(DynamicPropertyType::Exposure)
+    );
     assert!(processor.num_transforms() > 0);
 
     let cache_id = processor.cache_id().expect("processor cache_id");
     assert!(!cache_id.trim().is_empty());
+    assert_eq!(
+        processor.try_cache_id().expect("processor cache id query"),
+        processor.cache_id()
+    );
 
     let format_metadata = processor
         .try_format_metadata()
@@ -201,6 +225,30 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         default_cpu.output_bit_depth(),
         optimized_cpu.output_bit_depth()
     );
+    assert_eq!(
+        default_cpu
+            .try_input_bit_depth()
+            .expect("default cpu input bit depth query"),
+        default_cpu.input_bit_depth()
+    );
+    assert_eq!(
+        default_cpu
+            .try_output_bit_depth()
+            .expect("default cpu output bit depth query"),
+        default_cpu.output_bit_depth()
+    );
+    assert_eq!(
+        default_cpu
+            .try_is_dynamic()
+            .expect("default cpu dynamic query"),
+        default_cpu.is_dynamic()
+    );
+    assert_eq!(
+        default_cpu
+            .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+            .expect("default cpu dynamic property query"),
+        default_cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure)
+    );
     assert!(!default_cpu
         .cache_id()
         .expect("default cpu cache id")
@@ -211,6 +259,12 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         .expect("optimized cpu cache id")
         .trim()
         .is_empty());
+    assert_eq!(
+        default_cpu
+            .try_cache_id()
+            .expect("default cpu cache id query"),
+        default_cpu.cache_id()
+    );
 
     let original = [0.25f32, 0.5, 0.75, 0.6];
     let mut via_default = original;
@@ -266,6 +320,12 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         .expect("optimized gpu cache id")
         .trim()
         .is_empty());
+    assert_eq!(
+        default_gpu
+            .try_cache_id()
+            .expect("default gpu cache id query"),
+        default_gpu.cache_id()
+    );
 
     let default_desc = extract_shader_text(
         &default_gpu,
