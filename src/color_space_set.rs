@@ -135,17 +135,33 @@ impl ColorSpaceSet {
 
     /// Remove every color space found in `other` from this set.
     pub fn remove_color_spaces(&self, other: &ColorSpaceSet) {
+        self.try_remove_color_spaces(other)
+            .expect("failed to remove color spaces from set");
+    }
+
+    /// Remove every color space found in `other` and surface any OCIO validation error.
+    pub fn try_remove_color_spaces(&self, other: &ColorSpaceSet) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_set_remove_color_spaces(
                 self.handle.as_ptr(),
                 other.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
     }
 
     /// Remove every color space from the set.
     pub fn clear_color_spaces(&self) {
+        self.try_clear_color_spaces()
+            .expect("failed to clear color spaces from set");
+    }
+
+    /// Remove every color space and surface any OCIO validation error.
+    pub fn try_clear_color_spaces(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_color_space_set_clear_color_spaces(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 }
 
@@ -218,7 +234,7 @@ mod tests {
         set.add_color_space(&cs);
         set.add_color_spaces(&other);
         let _ = set.remove_color_space("raw");
-        set.remove_color_spaces(&other);
-        set.clear_color_spaces();
+        set.try_remove_color_spaces(&other).unwrap();
+        set.try_clear_color_spaces().unwrap();
     }
 }

@@ -5454,7 +5454,7 @@ void ocio_color_space_set_remove_color_space(void* handle, const char* name) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space_set(handle)->removeColorSpace(name);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5467,7 +5467,7 @@ void ocio_color_space_set_remove_color_spaces(void* handle, void* cs) {
     auto* _cs_h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(cs);
     auto cs_ptr = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(_cs_h->inner)->set;
     ocio_rs_bridge::get_real_color_space_set(handle)->removeColorSpaces(cs_ptr);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -5478,7 +5478,7 @@ void ocio_color_space_set_clear_color_spaces(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_color_space_set(handle)->clearColorSpaces();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

@@ -89,7 +89,8 @@ fn color_space_set_mutation_and_copy_behavior() {
     assert!(set.has_color_space("UnitColorSpaceSetB"));
     assert_eq!(set.num_color_spaces(), 3);
 
-    set.remove_color_spaces(&other);
+    set.try_remove_color_spaces(&other)
+        .expect("remove color spaces from set");
     assert_eq!(set.num_color_spaces(), 2);
     assert!(!set.has_color_space("UnitColorSpaceSetC"));
 
@@ -98,7 +99,8 @@ fn color_space_set_mutation_and_copy_behavior() {
     assert_eq!(set.num_color_spaces(), 1);
     assert!(set.has_color_space("UnitColorSpaceSetB"));
 
-    set.clear_color_spaces();
+    set.try_clear_color_spaces()
+        .expect("clear color spaces from set");
     assert_eq!(set.num_color_spaces(), 0);
 }
 
