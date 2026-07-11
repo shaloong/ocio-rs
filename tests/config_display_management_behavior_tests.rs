@@ -205,7 +205,9 @@ fn config_virtual_display_lifecycle_behavior() {
         1
     );
 
-    config.clear_virtual_display();
+    config
+        .try_clear_virtual_display()
+        .expect("clear virtual display");
     assert_eq!(
         config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
         0

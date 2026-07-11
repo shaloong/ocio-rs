@@ -2420,7 +2420,15 @@ impl Config {
     }
 
     pub fn clear_virtual_display(&self) {
+        self.try_clear_virtual_display()
+            .expect("failed to clear virtual display");
+    }
+
+    /// Clear all virtual-display views and surface any OCIO validation error.
+    pub fn try_clear_virtual_display(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_virtual_display(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     pub fn instantiate_display_from_monitor_name(&self, monitor_name: impl AsRef<str>) -> i32 {

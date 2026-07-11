@@ -3031,7 +3031,7 @@ void ocio_config_remove_virtual_display_view(void* handle, const char* view) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->removeVirtualDisplayView(view);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -3042,7 +3042,7 @@ void ocio_config_clear_virtual_display(void* handle) {
 #else
   try {
     ocio_rs_bridge::get_real_config(handle)->clearVirtualDisplay();
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
