@@ -64,12 +64,19 @@ impl CDLTransform {
     }
 
     pub fn set_slope(&self, rgb: &[f64; 3]) {
+        self.try_set_slope(rgb).expect("failed to set CDL slope");
+    }
+
+    /// Set slope values and surface any OCIO validation error.
+    pub fn try_set_slope(&self, rgb: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_set_slope(
                 self.handle.as_ptr(),
                 rgb.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn offset(&self) -> [f64; 3] {
@@ -84,12 +91,19 @@ impl CDLTransform {
     }
 
     pub fn set_offset(&self, rgb: &[f64; 3]) {
+        self.try_set_offset(rgb).expect("failed to set CDL offset");
+    }
+
+    /// Set offset values and surface any OCIO validation error.
+    pub fn try_set_offset(&self, rgb: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_set_offset(
                 self.handle.as_ptr(),
                 rgb.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn power_(&self) -> [f64; 3] {
@@ -104,12 +118,19 @@ impl CDLTransform {
     }
 
     pub fn set_power(&self, rgb: &[f64; 3]) {
+        self.try_set_power(rgb).expect("failed to set CDL power");
+    }
+
+    /// Set power values and surface any OCIO validation error.
+    pub fn try_set_power(&self, rgb: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_set_power(
                 self.handle.as_ptr(),
                 rgb.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     pub fn sat(&self) -> f64 {
@@ -117,7 +138,14 @@ impl CDLTransform {
     }
 
     pub fn set_sat(&self, sat: f64) {
+        self.try_set_sat(sat).expect("failed to set CDL saturation");
+    }
+
+    /// Set saturation and surface any OCIO validation error.
+    pub fn try_set_sat(&self, sat: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_cdl_transform_set_sat(self.handle.as_ptr(), sat) };
+        crate::ocio_call_status()
     }
 
     pub fn sat_luma_coefs(&self) -> [f64; 3] {
@@ -140,7 +168,14 @@ impl CDLTransform {
     }
 
     pub fn set_style(&self, style: CDLStyle) {
+        self.try_set_style(style).expect("failed to set CDL style");
+    }
+
+    /// Set the CDL style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: CDLStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_cdl_transform_set_style(self.handle.as_ptr(), style as i32) };
+        crate::ocio_call_status()
     }
 
     pub fn id(&self) -> Option<String> {
@@ -180,9 +215,16 @@ impl CDLTransform {
     }
 
     pub fn set_sop(&self, vec9: &[f64; 9]) {
+        self.try_set_sop(vec9).expect("failed to set CDL SOP");
+    }
+
+    /// Set slope, offset, and power in one call and surface any OCIO validation error.
+    pub fn try_set_sop(&self, vec9: &[f64; 9]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cdl_transform_set_sop(self.handle.as_ptr(), vec9.as_ptr() as *mut c_void)
         };
+        crate::ocio_call_status()
     }
 
     pub fn first_sop_description(&self) -> Option<String> {

@@ -30,11 +30,22 @@ fn test_data_path(rel: &str) -> PathBuf {
 
 fn configured_cdl_transform() -> CDLTransform {
     let transform = CDLTransform::create().expect("cdl transform create");
-    transform.set_slope(&[1.1, 1.2, 1.3]);
-    transform.set_offset(&[0.01, 0.02, 0.03]);
-    transform.set_power(&[1.0, 1.0, 1.0]);
-    transform.set_sat(1.0);
-    transform.set_style(CDLStyle::NoClamp);
+    transform
+        .try_set_slope(&[1.1, 1.2, 1.3])
+        .expect("set slope");
+    transform
+        .try_set_offset(&[0.01, 0.02, 0.03])
+        .expect("set offset");
+    transform
+        .try_set_power(&[1.0, 1.0, 1.0])
+        .expect("set power");
+    transform
+        .try_set_sop(&[1.1, 1.2, 1.3, 0.01, 0.02, 0.03, 1.0, 1.0, 1.0])
+        .expect("set SOP");
+    transform.try_set_sat(1.0).expect("set saturation");
+    transform
+        .try_set_style(CDLStyle::NoClamp)
+        .expect("set style");
     transform.set_id("cdl-behavior").expect("set id");
     transform
         .set_first_sop_description("behavior test")
@@ -71,11 +82,14 @@ fn cdl_transform_round_trip_and_copy_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("cdl transform editable copy");
-    copy.set_slope(&[0.9, 0.8, 0.7]);
-    copy.set_offset(&[0.0, 0.0, 0.0]);
-    copy.set_power(&[0.9, 0.9, 0.9]);
-    copy.set_sat(0.7);
-    copy.set_style(CDLStyle::Asc);
+    copy.try_set_slope(&[0.9, 0.8, 0.7])
+        .expect("set copy slope");
+    copy.try_set_offset(&[0.0, 0.0, 0.0])
+        .expect("set copy offset");
+    copy.try_set_power(&[0.9, 0.9, 0.9])
+        .expect("set copy power");
+    copy.try_set_sat(0.7).expect("set copy saturation");
+    copy.try_set_style(CDLStyle::Asc).expect("set copy style");
     copy.set_direction(TransformDirection::Inverse);
     copy.set_id("cdl-copy").expect("set copy id");
     copy.set_first_sop_description("copy")

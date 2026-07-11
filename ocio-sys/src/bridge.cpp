@@ -9015,7 +9015,7 @@ void ocio_cdl_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setStyle(static_cast<ocio::CDLStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9037,7 +9037,7 @@ void ocio_cdl_transform_set_slope(void* handle, const double* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setSlope(rgb);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9059,7 +9059,7 @@ void ocio_cdl_transform_set_offset(void* handle, const double* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setOffset(rgb);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9081,7 +9081,7 @@ void ocio_cdl_transform_set_power(void* handle, const double* rgb) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setPower(rgb);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9103,7 +9103,7 @@ void ocio_cdl_transform_set_sop(void* handle, const double* vec9) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setSOP(vec9);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
@@ -9125,7 +9125,7 @@ void ocio_cdl_transform_set_sat(void* handle, double sat) {
 #else
   try {
     ocio_rs_bridge::get_real_cdl_transform(handle)->setSat(sat);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
