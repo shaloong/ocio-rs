@@ -63,7 +63,7 @@ impl Context {
         note = "discarded OCIO errors; prefer try_clear_search_paths()"
     )]
     pub fn clear_search_paths(&self) {
-        unsafe { ocio_sys::ocio_context_clear_search_paths(self.handle.as_ptr()) };
+        let _ = self.try_clear_search_paths();
     }
 
     /// Try to remove every explicit search-path entry.

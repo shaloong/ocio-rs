@@ -2709,7 +2709,7 @@ impl Config {
         note = "discarded OCIO errors; prefer try_clear_search_paths()"
     )]
     pub fn clear_search_paths(&self) {
-        unsafe { ocio_sys::ocio_config_clear_search_paths(self.handle.as_ptr() as *mut c_void) };
+        let _ = self.try_clear_search_paths();
     }
 
     /// Try to remove all configured search-path entries.
@@ -3030,7 +3030,7 @@ impl Config {
         note = "discarded OCIO errors; prefer try_clear_processor_cache()"
     )]
     pub fn clear_processor_cache(&self) {
-        unsafe { ocio_sys::ocio_config_clear_processor_cache(self.handle.as_ptr() as *mut c_void) };
+        let _ = self.try_clear_processor_cache();
     }
 
     /// Try to invalidate this config's processor cache.
@@ -3178,7 +3178,7 @@ impl Config {
         note = "discarded OCIO errors; prefer try_clear_active_displays()"
     )]
     pub fn clear_active_displays(&self) {
-        unsafe { ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr() as *mut c_void) };
+        let _ = self.try_clear_active_displays();
     }
 
     /// Try to clear all active display overrides.
@@ -3193,7 +3193,7 @@ impl Config {
         note = "discarded OCIO errors; prefer try_clear_active_views()"
     )]
     pub fn clear_active_views(&self) {
-        unsafe { ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr() as *mut c_void) };
+        let _ = self.try_clear_active_views();
     }
 
     /// Try to clear all active view overrides.
@@ -3496,12 +3496,7 @@ impl Config {
         note = "discarded OCIO errors; prefer try_set_processor_cache_flags()"
     )]
     pub fn set_processor_cache_flags(&self, flags: i32) {
-        unsafe {
-            ocio_sys::ocio_config_set_processor_cache_flags(
-                self.handle.as_ptr() as *mut c_void,
-                flags,
-            )
-        };
+        let _ = self.try_set_processor_cache_flags(flags);
     }
 
     /// Try to set OCIO's processor-cache behavior flags for this config.
