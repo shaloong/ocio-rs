@@ -47,8 +47,10 @@ fn scaled_color_space(
 
     let to_reference = MatrixTransform::scale(&scale).expect("to-reference matrix");
     let from_reference = MatrixTransform::scale(&inverse_scale).expect("from-reference matrix");
-    cs.set_transform(&to_reference, ColorSpaceDirection::ToReference);
-    cs.set_transform(&from_reference, ColorSpaceDirection::FromReference);
+    cs.try_set_transform(&to_reference, ColorSpaceDirection::ToReference)
+        .expect("attach to-reference transform");
+    cs.try_set_transform(&from_reference, ColorSpaceDirection::FromReference)
+        .expect("attach from-reference transform");
     cs
 }
 

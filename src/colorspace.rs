@@ -220,6 +220,26 @@ impl ColorSpace {
         }
     }
 
+    /// Try to attach a transform for the given direction.
+    ///
+    /// Prefer this method when OCIO validation errors must be handled by the
+    /// caller.
+    pub fn try_set_transform(
+        &self,
+        transform: &impl TransformHandle,
+        direction: ColorSpaceDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_transform(
+                self.handle.as_ptr(),
+                transform.as_ptr() as *mut c_void,
+                direction as i32,
+            );
+        }
+        crate::ocio_call_status()
+    }
+
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }
     }

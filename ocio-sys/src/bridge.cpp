@@ -5309,7 +5309,7 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
     ocio_rs_bridge::get_real_color_space(handle)->setTransform(transform_ptr, static_cast<ocio::ColorSpaceDirection>(dir));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 
