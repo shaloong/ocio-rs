@@ -43,7 +43,8 @@ fn fixed_function_style_params_and_copy_behavior() {
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
 
-    copy.set_style(FixedFunctionStyle::RgbToHsv);
+    copy.try_set_style(FixedFunctionStyle::RgbToHsv)
+        .expect("set copy style");
 
     assert_eq!(copy.style(), FixedFunctionStyle::RgbToHsv);
     assert_eq!(copy.num_params(), copy.params().len() as i32);

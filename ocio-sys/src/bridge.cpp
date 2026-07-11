@@ -10242,7 +10242,7 @@ void ocio_fixed_function_transform_set_style(void* handle, int style) {
 #else
   try {
     ocio_rs_bridge::get_real_fixed_function_transform(handle)->setStyle(static_cast<ocio::FixedFunctionStyle>(style));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
 

@@ -66,9 +66,17 @@ impl FixedFunctionTransform {
     }
 
     pub fn set_style(&self, style: FixedFunctionStyle) {
+        self.try_set_style(style)
+            .expect("failed to set fixed-function style");
+    }
+
+    /// Set the fixed-function style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: FixedFunctionStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_fixed_function_transform_set_style(self.handle.as_ptr(), style as i32);
         }
+        crate::ocio_call_status()
     }
 
     pub fn num_params(&self) -> i32 {
@@ -184,7 +192,7 @@ mod tests {
     fn style_no_crash() {
         let ft = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
         let _ = ft.style();
-        ft.set_style(FixedFunctionStyle::RgbToHsv);
+        ft.try_set_style(FixedFunctionStyle::RgbToHsv).unwrap();
     }
 
     #[test]
