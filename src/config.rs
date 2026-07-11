@@ -170,10 +170,12 @@ impl Config {
 
     // --- Version ---
 
+    /// Return the major version of this config profile.
     pub fn major_version(&self) -> u32 {
         unsafe { ocio_sys::ocio_config_get_major_version(self.handle.as_ptr()) as u32 }
     }
 
+    /// Return the minor version of this config profile.
     pub fn minor_version(&self) -> u32 {
         unsafe { ocio_sys::ocio_config_get_minor_version(self.handle.as_ptr()) as u32 }
     }
@@ -196,6 +198,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Return the character used to separate family hierarchy levels in color-space names.
     pub fn family_separator(&self) -> char {
         let sep = unsafe {
             ocio_sys::ocio_config_get_family_separator(self.handle.as_ptr() as *mut c_void)
@@ -205,6 +208,7 @@ impl Config {
 
     // --- Color spaces ---
 
+    /// Return the total number of color spaces registered in this config.
     pub fn num_color_spaces(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_color_spaces_v1(self.handle.as_ptr() as *mut c_void)
@@ -217,6 +221,7 @@ impl Config {
         self.num_color_spaces()
     }
 
+    /// Return the name of the color space at the given index, or `None` if out of range.
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_color_space_name_by_index_v1(
@@ -235,6 +240,7 @@ impl Config {
         self.color_space_name_by_index(index)
     }
 
+    /// Return a comma-separated list of all color-space names in this config.
     pub fn color_spaces(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_color_spaces(
@@ -244,6 +250,7 @@ impl Config {
         }
     }
 
+    /// Return the canonical name for the given color-space name, or `None` if not found.
     pub fn canonical_name(&self, name: impl AsRef<str>) -> Option<String> {
         let name = cstring(name).ok()?;
         unsafe {
@@ -334,6 +341,7 @@ impl Config {
         }
     }
 
+    /// Guess the color space for a file path using the config's file-rule patterns.
     pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
         let fp = cstring(file_path).ok()?;
         unsafe {
@@ -357,6 +365,7 @@ impl Config {
             .map(|(color_space, _rule_index)| color_space)
     }
 
+    /// Parse a color-space name from a free-form text string (e.g. a file path or description).
     pub fn parse_color_space_from_string(&self, text: impl AsRef<str>) -> Option<String> {
         let text = cstring(text).ok()?;
         unsafe {
@@ -369,6 +378,7 @@ impl Config {
 
     // --- Displays ---
 
+    /// Return the default display name, or `None` if no displays are configured.
     pub fn default_display(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_display(
@@ -386,10 +396,12 @@ impl Config {
         self.set_active_displays(display)
     }
 
+    /// Return the total number of displays registered in this config.
     pub fn num_displays(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_displays(self.handle.as_ptr() as *mut c_void) }
     }
 
+    /// Return the display name at the given index, or `None` if out of range.
     pub fn display(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_display(
@@ -401,6 +413,7 @@ impl Config {
 
     // --- Views ---
 
+    /// Return the default view name for the given display, or `None` if not found.
     pub fn default_view(&self, display: impl AsRef<str>) -> Option<String> {
         let display = cstring(display).ok()?;
         unsafe {
@@ -449,6 +462,7 @@ impl Config {
         self.set_active_views(view)
     }
 
+    /// Return the number of views registered for the given display.
     pub fn num_views(&self, display: impl AsRef<str>) -> i32 {
         let display = match cstring(display) {
             Ok(d) => d,
@@ -494,6 +508,7 @@ impl Config {
         self.num_views_with_color_space(display, color_space_name)
     }
 
+    /// Return the view name at the given index for the specified display.
     pub fn view(&self, display: impl AsRef<str>, index: i32) -> Option<String> {
         let display = cstring(display).ok()?;
         unsafe {
@@ -719,6 +734,7 @@ impl Config {
 
     // --- Display/view transform name queries ---
 
+    /// Return the display-view transform name for the given display/view pair.
     pub fn display_view_transform_name(
         &self,
         display: impl AsRef<str>,
@@ -735,6 +751,7 @@ impl Config {
         }
     }
 
+    /// Return the color-space name associated with the given display/view pair.
     pub fn display_view_color_space_name(
         &self,
         display: impl AsRef<str>,
@@ -822,6 +839,7 @@ impl Config {
         self.display_view_description(display, view)
     }
 
+    /// Return whether the given view exists for the specified display.
     pub fn has_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
         let display = match cstring(display) {
             Ok(v) => v,
@@ -1020,6 +1038,7 @@ impl Config {
         self.processor_from_transform(transform, direction)
     }
 
+    /// Create a processor between two color spaces using an explicit context for lookups.
     pub fn processor_with_context(
         &self,
         src: impl AsRef<str>,
@@ -1779,6 +1798,7 @@ impl Config {
         self.color_space(name)
     }
 
+    /// Look up a color space by name, filtered by reference space type (scene, display, or all).
     pub fn color_space_by_ref_type(
         &self,
         name: impl AsRef<str>,
@@ -1820,6 +1840,7 @@ impl Config {
         Some((color_space, rule_index))
     }
 
+    /// Return the index of the named color space in the config, or -1 if not found.
     pub fn color_space_index(&self, name: impl AsRef<str>) -> i32 {
         let n = cstring(name);
         match n {
