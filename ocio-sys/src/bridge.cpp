@@ -7233,7 +7233,7 @@ size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniformBufferSize();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7380,7 +7380,7 @@ bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->hasDynamicProperty(
         static_cast<ocio::DynamicPropertyType>(type));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7914,7 +7914,7 @@ const char* ocio_gpu_shader_desc_get_cache_id(void* handle) {
   return nullptr;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getCacheID(); }
-  catch (...) { return nullptr; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8065,7 +8065,7 @@ const char* ocio_gpu_shader_desc_get_texture_uid(void* handle, int index) {
     OcioGpuTexture2DInfo info{};
     return ocio_gpu_shader_desc_get_texture_info(handle, static_cast<unsigned>(index), &info)
       ? info.texture_name : nullptr;
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

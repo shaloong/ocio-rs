@@ -379,6 +379,11 @@ fn gpu_shader_desc_dynamic_property_behavior() {
     let (processor, desc) = extracted_dynamic_gpu_shader_desc().expect("dynamic gpu shader desc");
     assert!(processor.is_dynamic());
     assert!(desc.has_dynamic_property_kind(DynamicPropertyType::Exposure));
+    assert_eq!(
+        desc.try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+            .expect("descriptor dynamic property query"),
+        desc.has_dynamic_property_kind(DynamicPropertyType::Exposure)
+    );
     assert!(desc.num_dynamic_properties() >= 1);
 
     let desc_prop = desc
@@ -575,6 +580,19 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
     assert_eq!(desc.num_uniforms(), 5);
     assert!(desc.uniform_buffer_size() > 0);
+    assert_eq!(
+        desc.try_uniform_buffer_size()
+            .expect("uniform buffer size query"),
+        desc.uniform_buffer_size()
+    );
+    assert_eq!(
+        desc.try_texture_uid(-1).expect("missing texture uid query"),
+        None
+    );
+    assert_eq!(
+        desc.try_cache_id().expect("descriptor cache id query"),
+        desc.cache_id()
+    );
 
     let exposure = desc.uniform(0).expect("uniform 0");
     assert_eq!(exposure.name, "uExposure");

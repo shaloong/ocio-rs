@@ -1796,21 +1796,39 @@ impl GpuShaderDesc {
 
     /// Returns OCIO's cache identifier for the current descriptor configuration.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe {
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's descriptor cache identifier, preserving bridge errors.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_cache_id(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Returns the OCIO texture UID associated with a 1D/2D resource, if any.
     pub fn texture_uid(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_texture_uid(index).ok().flatten()
+    }
+
+    /// Return a texture UID, preserving bridge errors.
+    ///
+    /// `Ok(None)` means no texture exists at `index`.
+    pub fn try_texture_uid(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_texture_uid(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     // ── v2.5.1 ──
@@ -1848,9 +1866,17 @@ impl GpuShaderDesc {
 
     /// Returns the size in bytes of OCIO's packed uniform buffer layout.
     pub fn uniform_buffer_size(&self) -> usize {
-        unsafe {
+        self.try_uniform_buffer_size().unwrap_or(0)
+    }
+
+    /// Return the packed uniform-buffer size, preserving bridge errors.
+    pub fn try_uniform_buffer_size(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(self.handle.as_ptr())
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     #[doc(hidden)]
@@ -1990,12 +2016,21 @@ impl GpuShaderDesc {
 
     /// Returns whether the descriptor exposes the given OCIO dynamic property kind.
     pub fn has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> bool {
-        unsafe {
+        self.try_has_dynamic_property_kind(prop_type)
+            .unwrap_or(false)
+    }
+
+    /// Fallible variant of [`Self::has_dynamic_property_kind`].
+    pub fn try_has_dynamic_property_kind(&self, prop_type: DynamicPropertyType) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_gpu_shader_desc_has_dynamic_property(
                 self.handle.as_ptr(),
                 prop_type as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Returns a structured uniform record with Rust-owned payload values.
