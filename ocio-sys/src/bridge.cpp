@@ -8670,7 +8670,7 @@ void* ocio_context_resolve_file_location_v1(void* handle, const char* filename, 
     auto* _usedContextVars_h = static_cast<ocio_rs_bridge::ContextHandle*>(usedContextVars);
     auto usedContextVars_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_usedContextVars_h->inner)->context;
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename, usedContextVars_ptr)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

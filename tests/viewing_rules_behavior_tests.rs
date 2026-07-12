@@ -84,6 +84,10 @@ fn config_viewing_rules_attachment_behavior() {
         .expect("attach viewing rules");
 
     let attached = config.viewing_rules().expect("attached viewing rules");
+    assert!(config
+        .try_viewing_rules()
+        .expect("attached viewing rules query")
+        .is_some());
     assert_eq!(attached.num_entries(), 1);
     assert_eq!(attached.name(0).as_deref(), Some("SceneRule"));
     assert_eq!(attached.num_color_spaces(0), 1);

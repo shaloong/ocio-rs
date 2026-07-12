@@ -3342,8 +3342,18 @@ impl Config {
 
     /// Return the editable viewing-rules object attached to this config, if any.
     pub fn viewing_rules(&self) -> Option<ViewingRules> {
+        self.try_viewing_rules().ok().flatten()
+    }
+
+    /// Return the editable viewing-rules object attached to this config.
+    ///
+    /// `Ok(None)` means the config has no viewing-rules object. OCIO bridge
+    /// failures are returned separately.
+    pub fn try_viewing_rules(&self) -> Result<Option<ViewingRules>> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_get_viewing_rules(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|h| ViewingRules { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ViewingRules { handle }))
     }
 
     /// Attach a viewing-rules object to this config.
@@ -3415,10 +3425,19 @@ impl Config {
 
     /// Return the attached typed config IO proxy when it originated from a Rust-managed proxy.
     pub fn config_io_proxy_object(&self) -> Option<ConfigIOProxy> {
+        self.try_config_io_proxy_object().ok().flatten()
+    }
+
+    /// Return the attached typed config IO proxy, preserving bridge errors.
+    ///
+    /// `Ok(None)` means this config has no proxy attached.
+    pub fn try_config_io_proxy_object(&self) -> Result<Option<ConfigIOProxy>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle).map(|handle| ConfigIOProxy { handle })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConfigIOProxy { handle }))
     }
 
     /// Attach a typed config IO proxy used to serve the config and LUT assets.

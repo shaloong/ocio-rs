@@ -138,6 +138,10 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     let config_proxy = config
         .config_io_proxy_object()
         .expect("config proxy object");
+    assert!(config
+        .try_config_io_proxy_object()
+        .expect("config proxy query")
+        .is_some());
     assert_eq!(config_proxy.config_data(), proxy.config_data());
     assert_eq!(
         config_proxy.fast_lut_file_hash("E:/virtual/context/empty.spi1d"),
@@ -151,6 +155,10 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     let context_proxy = context
         .config_io_proxy_object()
         .expect("context proxy object");
+    assert!(context
+        .try_config_io_proxy_object()
+        .expect("context proxy query")
+        .is_some());
     assert_eq!(context_proxy.config_data(), proxy.config_data());
     assert_eq!(
         context_proxy.lut_data("E:/virtual/context/empty.spi1d"),

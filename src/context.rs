@@ -281,8 +281,17 @@ impl Context {
     }
 
     pub fn config_io_proxy_object(&self) -> Option<ConfigIOProxy> {
+        self.try_config_io_proxy_object().ok().flatten()
+    }
+
+    /// Return the attached typed config IO proxy, preserving bridge errors.
+    ///
+    /// `Ok(None)` means this context has no proxy attached.
+    pub fn try_config_io_proxy_object(&self) -> Result<Option<ConfigIOProxy>> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) };
-        NonNull::new(handle).map(|handle| ConfigIOProxy { handle })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConfigIOProxy { handle }))
     }
 
     /// # Safety
