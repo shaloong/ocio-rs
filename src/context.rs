@@ -295,7 +295,9 @@ impl Context {
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
     )]
     pub unsafe fn set_config_io_proxy(&self, proxy: *mut c_void) {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy) };
+        let _ = crate::ocio_call_status();
     }
 
     #[deprecated(

@@ -137,9 +137,11 @@ impl GradingHueCurveTransform {
         note = "prefer set_value(&GradingHueCurveValue) instead of passing a raw OCIO handle"
     )]
     pub unsafe fn set_value_raw(&self, values: *mut c_void) {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_grading_hue_curve_transform_set_value(self.handle.as_ptr(), values);
         }
+        let _ = crate::ocio_call_status();
     }
 
     /// Return the number of control points for the given curve type.

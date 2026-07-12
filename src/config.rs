@@ -3383,7 +3383,9 @@ impl Config {
         note = "raw OCIO viewing-rules handle; prefer higher-level Config APIs where possible"
     )]
     pub unsafe fn set_viewing_rules(&self, viewing_rules: *mut c_void) {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_viewing_rules(self.handle.as_ptr(), viewing_rules) };
+        let _ = crate::ocio_call_status();
     }
 
     // --- v2.5.1: Misc utilities ---
@@ -3465,7 +3467,9 @@ impl Config {
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
     )]
     pub unsafe fn set_config_io_proxy(&self, proxy: *mut std::ffi::c_void) {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), proxy) };
+        let _ = crate::ocio_call_status();
     }
 
     /// Return whether a file path matches only the default file rule.

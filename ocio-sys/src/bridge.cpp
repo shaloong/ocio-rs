@@ -11381,7 +11381,7 @@ void ocio_group_transform_write(void* handle, void* config, const char* formatNa
     auto* _config_h = static_cast<ocio_rs_bridge::ConfigHandle*>(config);
     auto config_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_config_h->inner)->config;
     ocio_rs_bridge::get_real_group_transform(handle)->write(config_ptr, formatName, *static_cast<std::ostream*>(os));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

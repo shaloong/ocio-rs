@@ -117,9 +117,11 @@ impl GroupTransform {
         note = "raw OCIO ostream entry point; prefer write_to_string(&Config, format_name) for Rust callers"
     )]
     pub unsafe fn write(&self, config: *mut c_void, format_name: *const i8, os: *mut c_void) {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_write(self.handle.as_ptr(), config, format_name, os);
         }
+        let _ = crate::ocio_call_status();
     }
 
     /// Serialize this group transform using OCIO's writer for `format_name`.
