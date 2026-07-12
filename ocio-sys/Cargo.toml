@@ -13,12 +13,20 @@ build = "build.rs"
 
 [build-dependencies]
 cc = "1.0"
-cmake = "0.1"
+cmake = { version = "0.1", optional = true }
+system-deps = "7"
 
 [features]
 default = []
-bundled = []
+# Registers a from-source CMake build as a fallback via system-deps'
+# add_build_internal, used when pkg-config doesn't find OpenColorIO. See
+# SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to control when it runs.
+bundled = ["dep:cmake"]
 
 [package.metadata.docs.rs]
 no-default-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.system-deps.opencolorio]
+name = "OpenColorIO"
+version = "2.5.2"
