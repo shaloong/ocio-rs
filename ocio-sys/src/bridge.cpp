@@ -7201,7 +7201,7 @@ bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, 
       default:
         return false;
     }
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7222,7 +7222,7 @@ bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, 
     if (!src && count > 0) return false;
     for (size_t i = 0; i < count; ++i) values[i] = src[i];
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
