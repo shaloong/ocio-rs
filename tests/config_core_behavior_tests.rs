@@ -91,7 +91,25 @@ fn assert_context_test1_metadata(config: &Config) {
 
     assert!(config.has_role("default"));
     assert!(config.has_role("scene_linear"));
+    assert_eq!(
+        config.try_role_name(0).expect("role name query"),
+        config.role_name(0)
+    );
+    assert_eq!(
+        config
+            .try_role_color_space_by_index(0)
+            .expect("indexed role color-space query"),
+        config.role_color_space_by_index(0)
+    );
     assert_eq!(config.role_color_space("default").as_deref(), Some("raw"));
+    assert_eq!(
+        config
+            .try_role_color_space("default")
+            .expect("named role color-space query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert!(config.try_role_color_space("default\0").is_err());
     assert_eq!(
         config.role_color_space("scene_linear").as_deref(),
         Some("reference")

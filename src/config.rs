@@ -749,33 +749,66 @@ impl Config {
 
     /// Return the role name at a given index.
     pub fn role_name(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_role_name(index).ok().flatten()
+    }
+
+    /// Return the role name at a given index.
+    ///
+    /// Unlike [`Self::role_name`], this preserves OCIO query failures as
+    /// [`OcioError`].
+    pub fn try_role_name(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_role_name(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Return the color-space name bound to the role at a given index.
     pub fn role_color_space_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_role_color_space_by_index(index).ok().flatten()
+    }
+
+    /// Return the color-space name bound to the role at a given index.
+    ///
+    /// Unlike [`Self::role_color_space_by_index`], this preserves OCIO query
+    /// failures as [`OcioError`].
+    pub fn try_role_color_space_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_role_color_space_by_index(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(color_space)
     }
 
     /// Look up the color space currently bound to a role name.
     pub fn role_color_space(&self, role_name: impl AsRef<str>) -> Option<String> {
-        let role = cstring(role_name).ok()?;
-        unsafe {
+        self.try_role_color_space(role_name).ok().flatten()
+    }
+
+    /// Look up the color space currently bound to a role name.
+    ///
+    /// Unlike [`Self::role_color_space`], this preserves invalid input and
+    /// OCIO query failures as [`OcioError`].
+    pub fn try_role_color_space(&self, role_name: impl AsRef<str>) -> Result<Option<String>> {
+        let role = cstring(role_name)?;
+        crate::clear_last_error();
+        let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_role_color_space_by_name(
                 self.handle.as_ptr(),
                 role.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(color_space)
     }
 
     // --- Active displays / views ---

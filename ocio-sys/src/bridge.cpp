@@ -2589,7 +2589,7 @@ void* ocio_config_get_role_name(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleName(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2608,7 +2608,7 @@ void* ocio_config_get_role_color_space_by_index(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2619,7 +2619,7 @@ void* ocio_config_get_role_color_space_by_name(void* handle, const char* roleNam
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getRoleColorSpace(roleName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
