@@ -91,6 +91,22 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_test_pixel"));
     assert_eq!(desc.unique_id().as_deref(), Some("ocio-test-uid"));
     assert_eq!(desc.resource_prefix().as_deref(), Some("ocio_test_"));
+    assert_eq!(
+        desc.try_function_name().expect("function name query"),
+        desc.function_name()
+    );
+    assert_eq!(
+        desc.try_pixel_name().expect("pixel name query"),
+        desc.pixel_name()
+    );
+    assert_eq!(
+        desc.try_unique_id().expect("unique id query"),
+        desc.unique_id()
+    );
+    assert_eq!(
+        desc.try_resource_prefix().expect("resource prefix query"),
+        desc.resource_prefix()
+    );
     assert_eq!(desc.descriptor_set_index(), 3);
     assert_eq!(desc.texture_binding_start(), 7);
     assert_eq!(desc.texture_max_width(0), 64);

@@ -1454,11 +1454,19 @@ impl GpuShaderDesc {
 
     /// Returns the configured shader entry-point name, if any.
     pub fn function_name(&self) -> Option<String> {
-        unsafe {
+        self.try_function_name().ok().flatten()
+    }
+
+    /// Return the configured shader entry-point name, preserving bridge errors.
+    pub fn try_function_name(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_function_name(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Sets the shader entry-point name used during extraction.
@@ -1476,11 +1484,19 @@ impl GpuShaderDesc {
 
     /// Returns the configured pixel variable name, if any.
     pub fn pixel_name(&self) -> Option<String> {
-        unsafe {
+        self.try_pixel_name().ok().flatten()
+    }
+
+    /// Return the configured pixel variable name, preserving bridge errors.
+    pub fn try_pixel_name(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_pixel_name(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Sets the pixel variable name used in emitted shader code.
@@ -1495,11 +1511,19 @@ impl GpuShaderDesc {
 
     /// Returns the explicit unique identifier configured for shader extraction, if any.
     pub fn unique_id(&self) -> Option<String> {
-        unsafe {
+        self.try_unique_id().ok().flatten()
+    }
+
+    /// Return the explicit unique identifier, preserving bridge errors.
+    pub fn try_unique_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_unique_id(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Sets the unique identifier OCIO should use for generated shader resources.
@@ -1514,11 +1538,19 @@ impl GpuShaderDesc {
 
     /// Returns the configured resource-name prefix, if any.
     pub fn resource_prefix(&self) -> Option<String> {
-        unsafe {
+        self.try_resource_prefix().ok().flatten()
+    }
+
+    /// Return the configured resource-name prefix, preserving bridge errors.
+    pub fn try_resource_prefix(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_gpu_shader_desc_get_resource_prefix(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Sets the prefix OCIO uses for generated resource names.

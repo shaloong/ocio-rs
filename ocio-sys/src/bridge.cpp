@@ -7781,7 +7781,7 @@ const char* ocio_gpu_shader_desc_get_function_name(void* handle) {
   return nullptr;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getFunctionName(); }
-  catch (...) { return nullptr; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7800,7 +7800,7 @@ const char* ocio_gpu_shader_desc_get_pixel_name(void* handle) {
   return nullptr;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getPixelName(); }
-  catch (...) { return nullptr; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7819,7 +7819,7 @@ const char* ocio_gpu_shader_desc_get_unique_id(void* handle) {
   return nullptr;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniqueID(); }
-  catch (...) { return nullptr; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7838,7 +7838,7 @@ const char* ocio_gpu_shader_desc_get_resource_prefix(void* handle) {
   return nullptr;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getResourcePrefix(); }
-  catch (...) { return nullptr; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
