@@ -396,10 +396,11 @@ impl Context {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer standard Context path/string APIs where possible"
     )]
-    /// Returns a borrowed raw OCIO config-IO proxy handle.
+    /// Returns an owned raw OCIO config-IO proxy handle.
     ///
-    /// The pointer is owned by OCIO and must not be freed. It is only valid
-    /// while this context remains alive and continues to reference the proxy.
+    /// The caller must release a non-null handle with
+    /// [`ocio_sys::ocio_config_io_proxy_destroy`]. It wraps an independent
+    /// shared OCIO proxy reference and remains valid after this context drops.
     pub fn config_io_proxy(&self) -> *mut c_void {
         unsafe { ocio_sys::ocio_context_get_config_io_proxy(self.handle.as_ptr()) }
     }

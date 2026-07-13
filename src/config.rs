@@ -3869,10 +3869,11 @@ impl Config {
         since = "0.2.0",
         note = "raw OCIO config-IO proxy handle; prefer file/path based Config APIs where possible"
     )]
-    /// Returns a borrowed raw OCIO config-IO proxy handle.
+    /// Returns an owned raw OCIO config-IO proxy handle.
     ///
-    /// The pointer is owned by OCIO and must not be freed. It is only valid
-    /// while this config remains alive and continues to reference the proxy.
+    /// The caller must release a non-null handle with
+    /// [`ocio_sys::ocio_config_io_proxy_destroy`]. It wraps an independent
+    /// shared OCIO proxy reference and remains valid after this config drops.
     pub fn config_io_proxy(&self) -> *mut std::ffi::c_void {
         unsafe { ocio_sys::ocio_config_get_config_io_proxy(self.handle.as_ptr() as *mut c_void) }
     }
