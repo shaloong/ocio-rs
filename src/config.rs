@@ -110,11 +110,19 @@ impl Config {
 
     /// Return the config name, if one has been authored.
     pub fn name(&self) -> Option<String> {
-        unsafe {
+        self.try_name().ok().flatten()
+    }
+
+    /// Return the config name while preserving bridge failures.
+    pub fn try_name(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_name(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Set the config name used in serialized metadata.
@@ -127,11 +135,19 @@ impl Config {
 
     /// Return the config description, if present.
     pub fn description(&self) -> Option<String> {
-        unsafe {
+        self.try_description().ok().flatten()
+    }
+
+    /// Return the config description while preserving bridge failures.
+    pub fn try_description(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let description = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_description(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(description)
     }
 
     /// Set the config description stored in serialized metadata.
@@ -146,21 +162,37 @@ impl Config {
 
     /// Return OCIO's cache identifier for the config's current authored state.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe {
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's cache identifier while preserving bridge failures.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let cache_id = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_cache_id(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(cache_id)
     }
 
     /// Return a cache identifier specialized for a concrete OCIO context.
     pub fn cache_id_for_context(&self, context: &Context) -> Option<String> {
-        unsafe {
+        self.try_cache_id_for_context(context).ok().flatten()
+    }
+
+    /// Return a context-specialized cache identifier while preserving bridge failures.
+    pub fn try_cache_id_for_context(&self, context: &Context) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let cache_id = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_cache_id_n(
                 self.handle.as_ptr(),
                 context.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(cache_id)
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer cache_id_for_context()")]

@@ -23,6 +23,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   preserve C++ exceptions through fallible `try_*` APIs
 - `ColorSpaceSet` name and object lookups now distinguish bridge failures from
   absent color spaces through fallible `try_*` APIs
+- Config metadata and cache-id queries now preserve bridge failures through
+  fallible `try_*` APIs, including context-specialized cache identifiers
 
 ## [0.2.0] - 2026-07-02
 

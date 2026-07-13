@@ -354,6 +354,17 @@ fn config_search_paths_roles_and_serialization_behavior() {
     config
         .set_description("Unit config description")
         .expect("set description");
+    assert_eq!(
+        config.try_name().expect("config name query").as_deref(),
+        Some("UnitConfig")
+    );
+    assert_eq!(
+        config
+            .try_description()
+            .expect("config description query")
+            .as_deref(),
+        Some("Unit config description")
+    );
 
     config
         .try_clear_search_paths()
@@ -437,7 +448,10 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
         .create_editable_copy()
         .expect("editable config copy");
 
-    let initial_cache_id = config.cache_id().expect("initial cache id");
+    let initial_cache_id = config
+        .try_cache_id()
+        .expect("initial cache-id query")
+        .expect("initial cache id");
     let initial_strict = config.is_strict_parsing_enabled();
     config.set_strict_parsing_enabled(!initial_strict);
     assert_eq!(config.is_strict_parsing_enabled(), !initial_strict);
@@ -470,7 +484,10 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
         .add_search_path("cache/path")
         .expect("add search path");
 
-    let mutated_cache_id = config.cache_id().expect("mutated cache id");
+    let mutated_cache_id = config
+        .try_cache_id()
+        .expect("mutated cache-id query")
+        .expect("mutated cache id");
 
     assert_ne!(mutated_cache_id, initial_cache_id);
 }

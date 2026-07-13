@@ -2032,7 +2032,7 @@ void* ocio_config_get_name(void* handle) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getName();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2087,7 +2087,7 @@ void* ocio_config_get_description(void* handle) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDescription();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2120,7 +2120,7 @@ void* ocio_config_get_cache_id(void* handle) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getCacheID();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
