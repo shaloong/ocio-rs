@@ -570,12 +570,23 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(binding_3d, 6);
 
     let tex3d = desc.texture_3d(0).expect("texture_3d");
+    let queried_tex3d = desc
+        .try_texture_3d(0)
+        .expect("texture 3d query")
+        .expect("texture 3d");
     assert_eq!(tex3d.texture_name, "manualTex3D");
     assert_eq!(tex3d.sampler_name, "manualSampler3D");
     assert_eq!(tex3d.edge_len, 2);
     assert_eq!(tex3d.interpolation, Interpolation::Nearest);
     assert_eq!(tex3d.binding_index, 6);
     assert_eq!(tex3d.values, values_3d);
+    assert_eq!(queried_tex3d.texture_name, tex3d.texture_name);
+    assert_eq!(queried_tex3d.sampler_name, tex3d.sampler_name);
+    assert_eq!(queried_tex3d.values, tex3d.values);
+    assert!(desc
+        .try_texture_3d(99)
+        .expect("missing 3d texture query")
+        .is_none());
 }
 
 #[test]

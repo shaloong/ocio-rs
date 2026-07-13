@@ -2262,6 +2262,13 @@ impl GpuShaderDesc {
 
     /// Returns a structured 3D texture resource and copied texel payload.
     pub fn texture_3d(&self, index: u32) -> Option<GpuTexture3D> {
+        self.try_texture_3d(index).ok().flatten()
+    }
+
+    /// Return a structured 3D texture resource, preserving bridge failures.
+    ///
+    /// `Ok(None)` means no 3D texture exists at `index`.
+    pub fn try_texture_3d(&self, index: u32) -> Result<Option<GpuTexture3D>> {
         let mut info = ocio_sys::OcioGpuTexture3DInfo {
             texture_name: std::ptr::null(),
             sampler_name: std::ptr::null(),
@@ -2269,6 +2276,7 @@ impl GpuShaderDesc {
             interpolation: 0,
             binding_index: 0,
         };
+        crate::clear_last_error();
         let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get3d_texture_info(
                 self.handle.as_ptr(),
@@ -2276,13 +2284,20 @@ impl GpuShaderDesc {
                 &mut info,
             )
         };
+        crate::ocio_call_status()?;
         if !ok {
-            return None;
+            return Ok(None);
         }
-        let value_count = unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get3d_texture_value_count(self.handle.as_ptr(), index)
-        };
+        let edge = info.edge_len as usize;
+        let value_count = edge
+            .checked_mul(edge)
+            .and_then(|count| count.checked_mul(edge))
+            .and_then(|count| count.checked_mul(3))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU 3D texture payload size overflowed usize".into())
+            })?;
         let mut values = vec![0.0f32; value_count];
+        crate::clear_last_error();
         let values_ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_copy3d_texture_values(
                 self.handle.as_ptr(),
@@ -2291,19 +2306,26 @@ impl GpuShaderDesc {
                 values.len(),
             )
         };
-        if !values_ok && value_count > 0 {
-            return None;
+        crate::ocio_call_status()?;
+        if !values_ok {
+            return Err(OcioError::ValidationFailed(
+                "OCIO could not copy the reported GPU 3D texture payload".into(),
+            ));
         }
-        let texture_name = required_ocio_string(info.texture_name)?;
-        let sampler_name = required_ocio_string(info.sampler_name)?;
-        Some(GpuTexture3D {
+        let Some(texture_name) = required_ocio_string(info.texture_name) else {
+            return Ok(None);
+        };
+        let Some(sampler_name) = required_ocio_string(info.sampler_name) else {
+            return Ok(None);
+        };
+        Ok(Some(GpuTexture3D {
             texture_name,
             sampler_name,
             edge_len: info.edge_len,
             interpolation: interpolation_from_raw(info.interpolation),
             binding_index: info.binding_index,
             values,
-        })
+        }))
     }
 
     #[doc(hidden)]

@@ -7569,7 +7569,7 @@ bool ocio_gpu_shader_desc_copy3d_texture_values(void* handle, unsigned index, fl
     if (!src) return false;
     for (size_t i = 0; i < expected; ++i) values[i] = src[i];
     return true;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -12578,7 +12578,7 @@ bool ocio_range_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_range_transform(handle)->equals(
       *ocio_rs_bridge::get_real_range_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
