@@ -48,6 +48,26 @@ fn context_string_vars_round_trip_and_copy_behavior() {
     assert_eq!(ctx.string_var("SHOT").as_deref(), Some("abc123"));
     assert_eq!(ctx.string_var("SEQ").as_deref(), Some("sq01"));
     assert_eq!(ctx.num_string_vars(), 2);
+    assert!(ctx
+        .try_string_var_name_by_index(0)
+        .expect("first string variable name")
+        .is_some());
+    assert!(ctx
+        .try_string_var_by_index(0)
+        .expect("first string variable value")
+        .is_some());
+    assert_eq!(
+        ctx.try_string_var_name_by_index(2)
+            .expect("missing string variable name")
+            .as_deref(),
+        Some("")
+    );
+    assert_eq!(
+        ctx.try_string_var_by_index(2)
+            .expect("missing string variable value")
+            .as_deref(),
+        Some("")
+    );
 
     let resolved = ctx
         .resolve_string_var("${SEQ}/${SHOT}/plate.exr")

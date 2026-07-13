@@ -145,24 +145,44 @@ impl Context {
     ///
     /// An out-of-range index is represented as `Some("")` in real OCIO builds.
     pub fn string_var_name_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_string_var_name_by_index(index).ok().flatten()
+    }
+
+    /// Return one string-variable name by index, preserving bridge failures.
+    ///
+    /// An out-of-range index is `Ok(Some(""))` in real OCIO builds.
+    pub fn try_string_var_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_name_by_index(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Return one string-variable value by index.
     ///
     /// An out-of-range index is represented as `Some("")` in real OCIO builds.
     pub fn string_var_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_string_var_by_index(index).ok().flatten()
+    }
+
+    /// Return one string-variable value by index, preserving bridge failures.
+    ///
+    /// An out-of-range index is `Ok(Some(""))` in real OCIO builds.
+    pub fn try_string_var_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var_by_index(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Resolve `${VAR}`-style substitutions in `string` using this context.

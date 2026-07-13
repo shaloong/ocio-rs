@@ -8537,7 +8537,7 @@ void* ocio_context_get_string_var_name_by_index(void* handle, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVarNameByIndex(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8548,7 +8548,7 @@ void* ocio_context_get_string_var_by_index(void* handle, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVarByIndex(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
