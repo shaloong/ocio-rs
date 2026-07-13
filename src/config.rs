@@ -482,13 +482,21 @@ impl Config {
 
     /// Return the number of views registered for the given display.
     pub fn num_views(&self, display: impl AsRef<str>) -> i32 {
-        let display = match cstring(display) {
-            Ok(d) => d,
-            Err(_) => return 0,
-        };
-        unsafe {
+        self.try_num_views(display).unwrap_or(0)
+    }
+
+    /// Return the number of views registered for the given display.
+    ///
+    /// Unlike [`Self::num_views`], this preserves invalid input and OCIO query
+    /// failures as [`OcioError`]. A missing display is reported by OCIO as zero.
+    pub fn try_num_views(&self, display: impl AsRef<str>) -> Result<i32> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_config_get_num_views(self.handle.as_ptr(), display.as_ptr().cast())
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return the number of views for a display, filtered by color-space name.
@@ -497,21 +505,31 @@ impl Config {
         display: impl AsRef<str>,
         color_space_name: impl AsRef<str>,
     ) -> i32 {
-        let display = match cstring(display) {
-            Ok(d) => d,
-            Err(_) => return 0,
-        };
-        let color_space_name = match cstring(color_space_name) {
-            Ok(v) => v,
-            Err(_) => return 0,
-        };
-        unsafe {
+        self.try_num_views_with_color_space(display, color_space_name)
+            .unwrap_or(0)
+    }
+
+    /// Return the number of views for a display, filtered by color-space name.
+    ///
+    /// Unlike [`Self::num_views_with_color_space`], this preserves invalid
+    /// input and OCIO query failures as [`OcioError`].
+    pub fn try_num_views_with_color_space(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+    ) -> Result<i32> {
+        let display = cstring(display)?;
+        let color_space_name = cstring(color_space_name)?;
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_config_get_num_views_v1(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 color_space_name.as_ptr().cast(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -3358,17 +3376,30 @@ impl Config {
         reference_space: SearchReferenceSpaceType,
         display: impl AsRef<str>,
     ) -> i32 {
-        let display = match cstring(display) {
-            Ok(v) => v,
-            Err(_) => return 0,
-        };
-        unsafe {
+        self.try_num_views_by_reference_space(reference_space, display)
+            .unwrap_or(0)
+    }
+
+    /// Return the number of views for a display, filtered by reference space type.
+    ///
+    /// Unlike [`Self::num_views_by_reference_space`], this preserves invalid
+    /// input and OCIO query failures as [`OcioError`].
+    pub fn try_num_views_by_reference_space(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+    ) -> Result<i32> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_config_get_num_views_v2(
                 self.handle.as_ptr(),
                 reference_space as i32,
                 display.as_ptr().cast(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]

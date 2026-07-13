@@ -2729,7 +2729,7 @@ int ocio_config_get_num_views(void* handle, const char* display) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumViews(display);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -2751,7 +2751,7 @@ int ocio_config_get_num_views_v1(void* handle, const char* display, const char* 
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumViews(display, colorspaceName);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3298,7 +3298,7 @@ int ocio_config_get_num_views_v2(void* handle, int type, const char* display) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumViews(static_cast<ocio::ViewType>(type), display);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
