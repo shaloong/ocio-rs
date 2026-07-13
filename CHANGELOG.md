@@ -21,6 +21,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   distinguishable from ordinary missing values
 - `Context` cache, path, string-variable, and file-resolution queries now
   preserve C++ exceptions through fallible `try_*` APIs
+- `ColorSpaceSet` name and object lookups now distinguish bridge failures from
+  absent color spaces through fallible `try_*` APIs
 
 ## [0.2.0] - 2026-07-02
 

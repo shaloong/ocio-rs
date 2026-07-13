@@ -62,11 +62,19 @@ fn color_space_set_mutation_and_copy_behavior() {
     assert!(set.has_color_space("UnitColorSpaceSetB"));
     assert_eq!(set.color_space_index("UnitColorSpaceSetA"), 0);
     assert_eq!(
-        set.color_space("UnitColorSpaceSetB")
+        set.try_color_space("UnitColorSpaceSetB")
+            .expect("color-space lookup")
             .and_then(|cs| cs.name())
             .as_deref(),
         Some("UnitColorSpaceSetB")
     );
+    assert_eq!(
+        set.try_color_space_name_by_index(0)
+            .expect("color-space name query")
+            .as_deref(),
+        Some("UnitColorSpaceSetA")
+    );
+    assert!(set.try_color_space("UnitColorSpaceSetA\0").is_err());
     assert_eq!(
         set_names(&set),
         BTreeSet::from([
@@ -150,7 +158,8 @@ fn config_color_space_set_category_filter_behavior() {
     assert!(extra.has_color_space("UnitDisplayCategoryB"));
     assert_eq!(
         extra
-            .color_space_by_index(0)
+            .try_color_space_by_index(0)
+            .expect("color-space index lookup")
             .and_then(|cs| cs.name())
             .as_deref(),
         Some("UnitDisplayCategoryB")

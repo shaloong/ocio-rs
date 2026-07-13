@@ -5377,7 +5377,7 @@ void* ocio_color_space_set_get_color_space_name_by_index(void* handle, int index
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space_set(handle)->getColorSpaceNameByIndex(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5393,7 +5393,7 @@ void* ocio_color_space_set_get_color_space_by_index(void* handle, int index) {
     auto result_unconst = std::const_pointer_cast<ocio::ColorSpace>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5409,7 +5409,7 @@ void* ocio_color_space_set_get_color_space(void* handle, const char* name) {
     auto result_unconst = std::const_pointer_cast<ocio::ColorSpace>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -32,31 +32,53 @@ impl ColorSpaceSet {
 
     /// Return one color-space name by index.
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_color_space_name_by_index(index).ok().flatten()
+    }
+
+    /// Return a color-space name by index while preserving bridge failures.
+    pub fn try_color_space_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(
                 ocio_sys::ocio_color_space_set_get_color_space_name_by_index(
                     self.handle.as_ptr(),
                     index,
                 ),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Return one color-space handle by index.
     pub fn color_space_by_index(&self, index: i32) -> Option<ColorSpace> {
+        self.try_color_space_by_index(index).ok().flatten()
+    }
+
+    /// Return a color-space handle by index while preserving bridge failures.
+    pub fn try_color_space_by_index(&self, index: i32) -> Result<Option<ColorSpace>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_color_space_set_get_color_space_by_index(self.handle.as_ptr(), index)
         };
-        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| ColorSpace { handle: h }))
     }
 
     /// Look up a color-space handle by name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
-        let n = cstring(name).ok()?;
+        self.try_color_space(name).ok().flatten()
+    }
+
+    /// Look up a color-space by name while preserving bridge failures.
+    pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_color_space_set_get_color_space(self.handle.as_ptr(), n.as_ptr().cast())
         };
-        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| ColorSpace { handle: h }))
     }
 
     /// Return the index of a color space by name, or `-1` when missing.
