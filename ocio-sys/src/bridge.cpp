@@ -3325,7 +3325,7 @@ void* ocio_config_get_viewing_rules(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::ViewingRules>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

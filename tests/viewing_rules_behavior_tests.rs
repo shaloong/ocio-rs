@@ -121,6 +121,30 @@ fn config_viewing_rules_handle_survives_parent_drop_behavior() {
 }
 
 #[test]
+#[allow(deprecated)]
+fn raw_viewing_rules_handle_is_owned_and_destroyable_behavior() {
+    let _guard = viewing_rules_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    let rules = ViewingRules::create().expect("viewing rules create");
+    rules.insert_rule(0, "RawHandleRule").expect("insert rule");
+    config
+        .set_viewing_rules_object(&rules)
+        .expect("attach viewing rules");
+
+    let raw = unsafe { config.get_viewing_rules() };
+    assert!(!raw.is_null(), "raw viewing-rules handle");
+    unsafe { ocio_sys::ocio_viewing_rules_destroy(raw) };
+    assert!(config
+        .try_viewing_rules()
+        .expect("viewing rules remain attached")
+        .is_some());
+}
+
+#[test]
 fn viewing_rules_mutation_errors_surface_behavior() {
     let _guard = viewing_rules_test_lock();
     if is_stub() {

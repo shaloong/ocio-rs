@@ -3775,12 +3775,13 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    /// Return a borrowed raw OCIO viewing-rules handle.
+    /// Return an owned raw OCIO viewing-rules handle.
     ///
     /// # Safety
-    /// The pointer is owned by this config and must not be freed. It is valid
-    /// only while this config remains alive and has not replaced its viewing
-    /// rules. Prefer [`Self::viewing_rules`] for a typed wrapper.
+    /// The caller must release a non-null handle with
+    /// [`ocio_sys::ocio_viewing_rules_destroy`]. It wraps an independent
+    /// shared OCIO viewing-rules reference and remains valid after this config
+    /// drops. Prefer [`Self::viewing_rules`] for a typed wrapper.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
