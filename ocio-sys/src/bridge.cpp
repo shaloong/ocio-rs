@@ -7752,7 +7752,7 @@ void* ocio_gpu_shader_desc_get_shader_text(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getShaderText()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -1430,11 +1430,22 @@ impl GpuShaderDesc {
 
     /// Returns the extracted shader source text, if any.
     pub fn shader_text(&self) -> Option<String> {
-        unsafe {
+        self.try_shader_text().ok().flatten()
+    }
+
+    /// Return the extracted shader source text, if any.
+    ///
+    /// Unlike [`Self::shader_text`], this preserves OCIO query failures as
+    /// [`OcioError`].
+    pub fn try_shader_text(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let shader_text = unsafe {
             cstr_from_mut(ocio_sys::ocio_gpu_shader_desc_get_shader_text(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(shader_text)
     }
 
     /// Returns the number of reported 1D/2D texture resources.

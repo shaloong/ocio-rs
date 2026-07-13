@@ -269,7 +269,10 @@ fn gpu_shader_desc_extraction_structural_behavior() {
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_test_pixel"));
     assert_eq!(desc.resource_prefix().as_deref(), Some("ocio_test_"));
 
-    let shader_text = desc.shader_text().expect("shader_text");
+    let shader_text = desc
+        .try_shader_text()
+        .expect("shader_text query")
+        .expect("shader_text");
     assert!(!shader_text.trim().is_empty());
     assert!(shader_text.contains("ocio_test_main"));
 
