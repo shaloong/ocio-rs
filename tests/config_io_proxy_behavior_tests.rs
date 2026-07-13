@@ -292,3 +292,43 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
         Some(Vec::new())
     );
 }
+
+#[test]
+#[allow(deprecated)]
+fn raw_config_io_proxy_handles_are_owned_and_destroyable_behavior() {
+    let _guard = config_io_proxy_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let proxy = ConfigIOProxy::create().expect("config io proxy");
+    proxy
+        .set_config_data(
+            "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
+        )
+        .expect("set config data");
+
+    let config = Config::raw().expect("raw config");
+    config
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach config proxy");
+    let config_raw = config.config_io_proxy();
+    assert!(!config_raw.is_null(), "config raw proxy handle");
+    unsafe { ocio_sys::ocio_config_io_proxy_destroy(config_raw) };
+    assert!(config
+        .try_config_io_proxy_object()
+        .expect("config proxy remains attached")
+        .is_some());
+
+    let context = Context::create().expect("context create");
+    context
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach context proxy");
+    let context_raw = context.config_io_proxy();
+    assert!(!context_raw.is_null(), "context raw proxy handle");
+    unsafe { ocio_sys::ocio_config_io_proxy_destroy(context_raw) };
+    assert!(context
+        .try_config_io_proxy_object()
+        .expect("context proxy remains attached")
+        .is_some());
+}
