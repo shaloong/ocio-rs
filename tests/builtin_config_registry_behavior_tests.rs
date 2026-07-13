@@ -29,13 +29,21 @@ fn builtin_config_registry_round_trip_behavior() {
     let count = registry.num_builtin_configs();
     assert!(count > 0);
 
-    let name = registry.config_name(0).expect("builtin config name");
-    let ui_name = registry.config_ui_name(0).expect("builtin config ui name");
+    let name = registry
+        .try_config_name(0)
+        .expect("builtin config name query")
+        .expect("builtin config name");
+    let ui_name = registry
+        .try_config_ui_name(0)
+        .expect("builtin config UI name query")
+        .expect("builtin config UI name");
     let yaml_by_index = registry
-        .config_yaml_by_index(0)
+        .try_config_yaml_by_index(0)
+        .expect("builtin config YAML index query")
         .expect("builtin config yaml by index");
     let yaml_by_name = registry
-        .config_yaml_by_name(&name)
+        .try_config_yaml_by_name(&name)
+        .expect("builtin config YAML name query")
         .expect("builtin config yaml by name");
 
     assert!(!name.is_empty());
@@ -45,7 +53,10 @@ fn builtin_config_registry_round_trip_behavior() {
     assert!(yaml_by_index.contains("colorspaces:"));
 
     let config_by_index = registry.config_by_index(0).expect("config by index");
-    let config_by_name = registry.config_by_name(&name).expect("config by name");
+    let config_by_name = registry
+        .try_config_by_name(&name)
+        .expect("config by name query")
+        .expect("config by name");
     config_by_index
         .validate()
         .expect("config by index validate");
@@ -60,6 +71,8 @@ fn builtin_config_registry_round_trip_behavior() {
         .expect("real serialized builtin config");
     assert!(serialized.contains("ocio_profile_version"));
     assert!(serialized.contains("colorspaces:"));
+    assert!(registry.try_config_yaml_by_name("bad\0config").is_err());
+    assert!(registry.try_config_by_name("bad\0config").is_err());
 }
 
 #[test]

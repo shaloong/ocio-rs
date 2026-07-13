@@ -1551,7 +1551,7 @@ void* ocio_builtin_config_registry_get_builtin_config_name(void* handle, size_t 
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigName(configIndex);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1562,7 +1562,7 @@ void* ocio_builtin_config_registry_get_builtin_config_ui_name(void* handle, size
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigUIName(configIndex);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1573,7 +1573,7 @@ void* ocio_builtin_config_registry_get_builtin_config(void* handle, size_t confi
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfig(configIndex);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1584,7 +1584,7 @@ void* ocio_builtin_config_registry_get_builtin_config_by_name(void* handle, cons
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_builtin_config_registry(handle)->getBuiltinConfigByName(configName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
