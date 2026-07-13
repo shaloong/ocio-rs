@@ -3691,7 +3691,7 @@ void* ocio_config_get_color_space_from_filepath_with_rule_index(void* handle, co
   try {
     if (!ruleIndex) return nullptr;
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath, *ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

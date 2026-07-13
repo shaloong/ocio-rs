@@ -2033,8 +2033,19 @@ impl Config {
         &self,
         path: impl AsRef<str>,
     ) -> Option<(String, usize)> {
-        let path = cstring(path).ok()?;
+        self.try_color_space_from_filepath_with_rule_index(path)
+            .ok()
+            .flatten()
+    }
+
+    /// Infer a color space and matching file-rule index while preserving bridge failures.
+    pub fn try_color_space_from_filepath_with_rule_index(
+        &self,
+        path: impl AsRef<str>,
+    ) -> Result<Option<(String, usize)>> {
+        let path = cstring(path)?;
         let mut rule_index = 0usize;
+        crate::clear_last_error();
         let color_space = unsafe {
             cstr_from_mut(
                 ocio_sys::ocio_config_get_color_space_from_filepath_with_rule_index(
@@ -2043,8 +2054,9 @@ impl Config {
                     &mut rule_index,
                 ),
             )
-        }?;
-        Some((color_space, rule_index))
+        };
+        crate::ocio_call_status()?;
+        Ok(color_space.map(|color_space| (color_space, rule_index)))
     }
 
     /// Return the index of the named color space in the config, or -1 if not found.

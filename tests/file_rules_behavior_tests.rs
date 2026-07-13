@@ -156,18 +156,23 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
 
     assert_eq!(
         config
-            .color_space_from_filepath_with_rule_index("plate_main.exr")
+            .try_color_space_from_filepath_with_rule_index("plate_main.exr")
+            .expect("plate filepath query")
             .as_ref()
             .map(|(_, rule_index)| *rule_index),
         Some(0)
     );
     assert_eq!(
         config
-            .color_space_from_filepath_with_rule_index("clip_proxy.mov")
+            .try_color_space_from_filepath_with_rule_index("clip_proxy.mov")
+            .expect("clip filepath query")
             .as_ref()
             .map(|(_, rule_index)| *rule_index),
         Some(1)
     );
+    assert!(config
+        .try_color_space_from_filepath_with_rule_index("plate_main\0.exr")
+        .is_err());
     assert_eq!(
         config
             .color_space_from_filepath("plate_main.exr")
