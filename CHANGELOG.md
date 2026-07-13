@@ -9,8 +9,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
-- CPU pixel-buffer helpers now reject short/default strides and C++
-  `ptrdiff_t` byte-stride overflows before passing Rust-owned slices to OCIO
+- CPU pixel-buffer helpers now reject short/default strides, C++ `ptrdiff_t`
+  byte-stride overflows, and misaligned multi-byte packed slices before
+  passing Rust-owned data to OCIO
 
 ## [0.2.0] - 2026-07-02
 

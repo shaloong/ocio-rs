@@ -120,6 +120,24 @@ fn validate_packed_buffer_len(
     Ok(())
 }
 
+fn validate_packed_buffer_alignment(
+    api: &str,
+    buffer: *const u8,
+    bit_depth: BitDepth,
+    num_pixels: i64,
+) -> Result<()> {
+    if num_pixels == 0 {
+        return Ok(());
+    }
+    let alignment = bit_depth_bytes_per_channel(api, bit_depth)?;
+    if !(buffer as usize).is_multiple_of(alignment) {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: buffer must be aligned to {alignment} bytes for {bit_depth:?} data"
+        )));
+    }
+    Ok(())
+}
+
 /// An immutable color-processing pipeline produced from a [`Config`](crate::Config).
 ///
 /// A `Processor` wraps the result of asking a config for a conversion between
@@ -471,7 +489,8 @@ impl Drop for Processor {
 /// [`apply_rgb_packed_bit_depth`](Self::apply_rgb_packed_bit_depth)) interpret
 /// the buffer according to the provided [`BitDepth`], with stride measured in
 /// channels (not bytes). A stride of zero uses the native channel count, and
-/// smaller strides are rejected before calling OCIO.
+/// smaller strides are rejected before calling OCIO. Multi-byte packed data
+/// must be aligned to its storage width.
 ///
 /// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
@@ -711,6 +730,12 @@ impl CPUProcessor {
             stride,
             4,
         )?;
+        validate_packed_buffer_alignment(
+            "CPUProcessor::apply_rgba_packed_bit_depth",
+            rgba.as_ptr(),
+            bit_depth,
+            num_pixels,
+        )?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
@@ -777,6 +802,12 @@ impl CPUProcessor {
             num_pixels,
             stride,
             3,
+        )?;
+        validate_packed_buffer_alignment(
+            "CPUProcessor::apply_rgb_packed_bit_depth",
+            rgb.as_ptr(),
+            bit_depth,
+            num_pixels,
         )?;
         crate::clear_last_error();
         unsafe {
@@ -3377,6 +3408,12 @@ mod tests {
             let mut overflowed_byte_stride = vec![0.0f32; 4];
             assert!(cpu
                 .try_apply_rgba_pixels(&mut overflowed_byte_stride, 1, i64::MAX)
+                .is_err());
+
+            let mut unaligned_storage = [0u8; 17];
+            let unaligned_f32 = &mut unaligned_storage[1..];
+            assert!(cpu
+                .try_apply_rgba_packed_bit_depth(unaligned_f32, BitDepth::F32, 1, 4)
                 .is_err());
         }
     }
