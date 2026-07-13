@@ -2953,7 +2953,7 @@ int ocio_config_get_virtual_display_num_views(void* handle, int type) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayNumViews(static_cast<ocio::ViewType>(type));
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -2964,7 +2964,7 @@ void* ocio_config_get_virtual_display_view(void* handle, int type, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayView(static_cast<ocio::ViewType>(type), index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

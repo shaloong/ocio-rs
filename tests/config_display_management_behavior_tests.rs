@@ -201,6 +201,19 @@ fn config_virtual_display_lifecycle_behavior() {
         config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
         1
     );
+    assert_eq!(
+        config
+            .try_virtual_display_num_views(SearchReferenceSpaceType::Scene)
+            .expect("virtual display view count"),
+        1
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view(SearchReferenceSpaceType::Scene, 0)
+            .expect("virtual display view query")
+            .as_deref(),
+        Some("UnitLifecycleVirtualSharedView")
+    );
 
     config
         .remove_virtual_display_view("UnitLifecycleVirtualView")

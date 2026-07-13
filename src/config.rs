@@ -2329,12 +2329,24 @@ impl Config {
     }
 
     pub fn virtual_display_num_views(&self, reference_space: SearchReferenceSpaceType) -> i32 {
-        unsafe {
+        self.try_virtual_display_num_views(reference_space)
+            .unwrap_or(0)
+    }
+
+    /// Return the virtual-display view count, preserving bridge failures.
+    pub fn try_virtual_display_num_views(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+    ) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_config_get_virtual_display_num_views(
                 self.handle.as_ptr(),
                 reference_space as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -2351,13 +2363,27 @@ impl Config {
         reference_space: SearchReferenceSpaceType,
         index: i32,
     ) -> Option<String> {
-        unsafe {
+        self.try_virtual_display_view(reference_space, index)
+            .ok()
+            .flatten()
+    }
+
+    /// Return a virtual-display view by index, preserving bridge failures.
+    pub fn try_virtual_display_view(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        index: i32,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view(
                 self.handle.as_ptr(),
                 reference_space as i32,
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     #[doc(hidden)]
