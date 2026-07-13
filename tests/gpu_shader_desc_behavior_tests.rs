@@ -595,6 +595,18 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
         .expect("duplicate uniform returns false"));
 
     assert_eq!(desc.num_uniforms(), 5);
+    let queried_uniform = desc
+        .try_uniform(0)
+        .expect("uniform query")
+        .expect("uniform 0");
+    let compat_uniform = desc.uniform(0).expect("compat uniform 0");
+    assert_eq!(queried_uniform.name, compat_uniform.name);
+    assert_eq!(queried_uniform.uniform_type, compat_uniform.uniform_type);
+    assert_eq!(queried_uniform.value_count, compat_uniform.value_count);
+    assert!(desc
+        .try_uniform(99)
+        .expect("missing uniform query")
+        .is_none());
     assert!(desc.uniform_buffer_size() > 0);
     assert_eq!(
         desc.try_uniform_buffer_size()

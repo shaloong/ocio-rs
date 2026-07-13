@@ -11549,7 +11549,7 @@ bool ocio_log_camera_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_log_camera_transform(handle)->equals(
       *ocio_rs_bridge::get_real_log_camera_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -11810,7 +11810,7 @@ bool ocio_log_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_log_transform(handle)->equals(
       *ocio_rs_bridge::get_real_log_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -12060,7 +12060,7 @@ bool ocio_lut1d_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_lut1d_transform(handle)->equals(
       *ocio_rs_bridge::get_real_lut1d_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

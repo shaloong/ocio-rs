@@ -2067,22 +2067,34 @@ impl GpuShaderDesc {
 
     /// Returns a structured uniform record with Rust-owned payload values.
     pub fn uniform(&self, index: u32) -> Option<GpuUniform> {
+        self.try_uniform(index).ok().flatten()
+    }
+
+    /// Return a structured uniform record, preserving bridge failures.
+    ///
+    /// `Ok(None)` means no uniform exists at `index`. A uniform with a payload
+    /// that OCIO cannot expose through this ABI is returned with
+    /// [`GpuUniformValue::Unsupported`].
+    pub fn try_uniform(&self, index: u32) -> Result<Option<GpuUniform>> {
         let mut info = ocio_sys::OcioGpuUniformInfo {
             name: std::ptr::null(),
             type_: 5,
             buffer_offset: 0,
             value_count: 0,
         };
+        crate::clear_last_error();
         let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_uniform_info(self.handle.as_ptr(), index, &mut info)
         };
+        crate::ocio_call_status()?;
         if !ok {
-            return None;
+            return Ok(None);
         }
         let uniform_type = GpuUniformType::from_raw(info.type_);
         let value = match uniform_type {
             GpuUniformType::VectorInt => {
                 let mut values = vec![0i32; info.value_count];
+                crate::clear_last_error();
                 let ok = unsafe {
                     ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
                         self.handle.as_ptr(),
@@ -2091,6 +2103,7 @@ impl GpuShaderDesc {
                         values.len(),
                     )
                 };
+                crate::ocio_call_status()?;
                 if ok {
                     GpuUniformValue::I32(values)
                 } else {
@@ -2100,6 +2113,7 @@ impl GpuShaderDesc {
             GpuUniformType::Unknown => GpuUniformValue::Unsupported,
             _ => {
                 let mut values = vec![0.0f32; info.value_count];
+                crate::clear_last_error();
                 let ok = unsafe {
                     ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
                         self.handle.as_ptr(),
@@ -2108,6 +2122,7 @@ impl GpuShaderDesc {
                         values.len(),
                     )
                 };
+                crate::ocio_call_status()?;
                 if ok {
                     GpuUniformValue::F32(values)
                 } else {
@@ -2115,14 +2130,16 @@ impl GpuShaderDesc {
                 }
             }
         };
-        let name = required_ocio_string(info.name)?;
-        Some(GpuUniform {
+        let Some(name) = required_ocio_string(info.name) else {
+            return Ok(None);
+        };
+        Ok(Some(GpuUniform {
             name,
             uniform_type,
             buffer_offset: info.buffer_offset,
             value_count: info.value_count,
             value,
-        })
+        }))
     }
 
     #[doc(hidden)]
