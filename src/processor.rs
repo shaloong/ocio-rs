@@ -8,14 +8,56 @@ use crate::{
 };
 use ocio_sys;
 
-fn required_scalar_len(api: &str, num_pixels: i64, stride: i64) -> Result<usize> {
+fn normalized_stride(api: &str, stride: i64, channels_per_pixel: usize) -> Result<usize> {
+    let stride = if stride == 0 {
+        channels_per_pixel
+    } else {
+        usize::try_from(stride)
+            .map_err(|_| OcioError::InvalidInput(format!("{api}: stride must be non-negative")))?
+    };
+    if stride < channels_per_pixel {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: stride={stride} is smaller than the {channels_per_pixel} channels per pixel"
+        )));
+    }
+    Ok(stride)
+}
+
+fn required_scalar_len(
+    api: &str,
+    num_pixels: i64,
+    stride: i64,
+    channels_per_pixel: usize,
+) -> Result<usize> {
     let num_pixels = usize::try_from(num_pixels)
         .map_err(|_| OcioError::InvalidInput(format!("{api}: num_pixels must be non-negative")))?;
-    let stride = usize::try_from(stride)
-        .map_err(|_| OcioError::InvalidInput(format!("{api}: stride must be non-negative")))?;
+    let stride = normalized_stride(api, stride, channels_per_pixel)?;
+    if num_pixels == 0 {
+        return Ok(0);
+    }
     num_pixels
-        .checked_mul(stride)
-        .ok_or_else(|| OcioError::InvalidInput(format!("{api}: num_pixels * stride overflowed")))
+        .checked_sub(1)
+        .and_then(|pixels_before_last| pixels_before_last.checked_mul(stride))
+        .and_then(|last_pixel_offset| last_pixel_offset.checked_add(channels_per_pixel))
+        .ok_or_else(|| OcioError::InvalidInput(format!("{api}: required buffer size overflowed")))
+}
+
+fn validate_stride_byte_width(
+    api: &str,
+    stride: i64,
+    channels_per_pixel: usize,
+    bytes_per_channel: usize,
+) -> Result<()> {
+    let stride = normalized_stride(api, stride, channels_per_pixel)?;
+    let byte_stride = stride
+        .checked_mul(bytes_per_channel)
+        .ok_or_else(|| OcioError::InvalidInput(format!("{api}: byte stride overflowed")))?;
+    if byte_stride > isize::MAX as usize {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: byte stride exceeds the C++ ptrdiff_t range"
+        )));
+    }
+    Ok(())
 }
 
 fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> Result<usize> {
@@ -38,8 +80,12 @@ fn validate_scalar_buffer_len(
     actual_len: usize,
     num_pixels: i64,
     stride: i64,
+    channels_per_pixel: usize,
 ) -> Result<()> {
-    let required_len = required_scalar_len(api, num_pixels, stride)?;
+    let required_len = required_scalar_len(api, num_pixels, stride, channels_per_pixel)?;
+    if num_pixels > 0 {
+        validate_stride_byte_width(api, stride, channels_per_pixel, std::mem::size_of::<f32>())?;
+    }
     if actual_len < required_len {
         return Err(OcioError::InvalidInput(format!(
             "{api}: buffer too small for num_pixels={num_pixels}, stride={stride}; required at least {required_len} scalars, got {actual_len}"
@@ -54,9 +100,13 @@ fn validate_packed_buffer_len(
     bit_depth: BitDepth,
     num_pixels: i64,
     stride: i64,
+    channels_per_pixel: usize,
 ) -> Result<()> {
-    let required_scalars = required_scalar_len(api, num_pixels, stride)?;
+    let required_scalars = required_scalar_len(api, num_pixels, stride, channels_per_pixel)?;
     let bytes_per_channel = bit_depth_bytes_per_channel(api, bit_depth)?;
+    if num_pixels > 0 {
+        validate_stride_byte_width(api, stride, channels_per_pixel, bytes_per_channel)?;
+    }
     let required_len = required_scalars
         .checked_mul(bytes_per_channel)
         .ok_or_else(|| {
@@ -414,12 +464,14 @@ impl Drop for Processor {
 /// The scalar-stride methods ([`apply_rgba_pixels`](Self::apply_rgba_pixels),
 /// [`apply_rgb_pixels`](Self::apply_rgb_pixels)) accept `&mut [f32]` buffers
 /// and measure stride in `f32` elements, not bytes. Padding elements beyond
-/// the pixel stride are left untouched.
+/// the pixel stride are left untouched. A stride of zero uses OCIO's native
+/// three- or four-channel default; smaller strides are rejected.
 ///
 /// The packed-byte methods ([`apply_rgba_packed_bit_depth`](Self::apply_rgba_packed_bit_depth),
 /// [`apply_rgb_packed_bit_depth`](Self::apply_rgb_packed_bit_depth)) interpret
 /// the buffer according to the provided [`BitDepth`], with stride measured in
-/// channels (not bytes).
+/// channels (not bytes). A stride of zero uses the native channel count, and
+/// smaller strides are rejected before calling OCIO.
 ///
 /// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
@@ -575,6 +627,7 @@ impl CPUProcessor {
             rgba.len(),
             num_pixels,
             stride,
+            4,
         )?;
         crate::clear_last_error();
         unsafe {
@@ -610,6 +663,7 @@ impl CPUProcessor {
             rgb.len(),
             num_pixels,
             stride,
+            3,
         )?;
         crate::clear_last_error();
         unsafe {
@@ -655,6 +709,7 @@ impl CPUProcessor {
             bit_depth,
             num_pixels,
             stride,
+            4,
         )?;
         crate::clear_last_error();
         unsafe {
@@ -721,6 +776,7 @@ impl CPUProcessor {
             bit_depth,
             num_pixels,
             stride,
+            3,
         )?;
         crate::clear_last_error();
         unsafe {
@@ -3287,6 +3343,41 @@ mod tests {
                 .try_apply_rgba_packed_bit_depth(&mut packed, BitDepth::Unknown, 1, 4)
                 .unwrap_err();
             assert!(matches!(err, OcioError::InvalidInput(_)));
+        }
+    }
+
+    #[test]
+    fn cpu_processor_pixel_layout_validation_covers_default_and_short_strides() {
+        assert_eq!(
+            required_scalar_len("test", 2, 0, 4).expect("default RGBA stride"),
+            8
+        );
+        assert_eq!(
+            required_scalar_len("test", 2, 6, 4).expect("padded RGBA stride"),
+            10
+        );
+        assert!(required_scalar_len("test", 1, 3, 4).is_err());
+
+        let config = Config::raw().unwrap();
+        let proc = config.processor("raw", "raw").unwrap();
+        if let Ok(cpu) = proc.default_cpu_processor() {
+            let mut too_short_default_stride = vec![0.0f32; 3];
+            assert!(cpu
+                .try_apply_rgba_pixels(&mut too_short_default_stride, 1, 0)
+                .is_err());
+
+            let mut short_stride = vec![0.0f32; 4];
+            assert!(cpu.try_apply_rgba_pixels(&mut short_stride, 1, 3).is_err());
+
+            let mut packed_short_stride = vec![0u8; 4];
+            assert!(cpu
+                .try_apply_rgb_packed_bit_depth(&mut packed_short_stride, BitDepth::Uint8, 1, 2)
+                .is_err());
+
+            let mut overflowed_byte_stride = vec![0.0f32; 4];
+            assert!(cpu
+                .try_apply_rgba_pixels(&mut overflowed_byte_stride, 1, i64::MAX)
+                .is_err());
         }
     }
 

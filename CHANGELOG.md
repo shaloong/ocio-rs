@@ -5,6 +5,13 @@ All notable changes to `ocio-rs` will be documented in this file.
 The format is based on Keep a Changelog, and this project follows Semantic
 Versioning as closely as practical for a still-maturing binding crate.
 
+## [Unreleased]
+
+### Fixed
+
+- CPU pixel-buffer helpers now reject short/default strides and C++
+  `ptrdiff_t` byte-stride overflows before passing Rust-owned slices to OCIO
+
 ## [0.2.0] - 2026-07-02
 
 ### Added
