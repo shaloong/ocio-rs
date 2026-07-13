@@ -8409,7 +8409,7 @@ void* ocio_context_get_cache_id(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getCacheID()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8431,7 +8431,7 @@ void* ocio_context_get_search_path(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getSearchPath()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8497,7 +8497,7 @@ void* ocio_context_get_working_dir(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getWorkingDir()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8519,7 +8519,7 @@ void* ocio_context_get_string_var(void* handle, const char* name) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->getStringVar(name)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8620,7 +8620,7 @@ void* ocio_context_resolve_string_var(void* handle, const char* string) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveStringVar(string)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8647,7 +8647,7 @@ void* ocio_context_resolve_file_location(void* handle, const char* filename) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_context(handle)->resolveFileLocation(filename)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

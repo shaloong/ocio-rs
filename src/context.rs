@@ -26,12 +26,30 @@ impl Context {
 
     /// Return OCIO's cache identifier for the current context state.
     pub fn cache_id(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_cache_id(self.handle.as_ptr())) }
+        self.try_cache_id().ok().flatten()
+    }
+
+    /// Return OCIO's cache identifier while preserving bridge failures.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let cache_id =
+            unsafe { cstr_from_mut(ocio_sys::ocio_context_get_cache_id(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(cache_id)
     }
 
     /// Return the concatenated search-path string used by OCIO.
     pub fn search_path(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_search_path(self.handle.as_ptr())) }
+        self.try_search_path().ok().flatten()
+    }
+
+    /// Return the concatenated search-path string while preserving bridge failures.
+    pub fn try_search_path(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let path =
+            unsafe { cstr_from_mut(ocio_sys::ocio_context_get_search_path(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(path)
     }
 
     /// Replace the concatenated search-path string used by OCIO.
@@ -95,7 +113,16 @@ impl Context {
 
     /// Return the working directory used for relative file resolution.
     pub fn working_dir(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) }
+        self.try_working_dir().ok().flatten()
+    }
+
+    /// Return the working directory while preserving bridge failures.
+    pub fn try_working_dir(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let working_dir =
+            unsafe { cstr_from_mut(ocio_sys::ocio_context_get_working_dir(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(working_dir)
     }
 
     /// Set the working directory used for relative file resolution.
@@ -112,13 +139,21 @@ impl Context {
     /// matching OCIO's non-null empty-string ABI return. `None` indicates that
     /// this binding could not obtain a C string (for example, in stub mode).
     pub fn string_var(&self, name: impl AsRef<str>) -> Option<String> {
-        let name = cstring(name).ok()?;
-        unsafe {
+        self.try_string_var(name).ok().flatten()
+    }
+
+    /// Return one named string variable while preserving bridge failures.
+    pub fn try_string_var(&self, name: impl AsRef<str>) -> Result<Option<String>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_string_var(
                 self.handle.as_ptr(),
                 name.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set or replace one named string variable on the context.
@@ -187,13 +222,21 @@ impl Context {
 
     /// Resolve `${VAR}`-style substitutions in `string` using this context.
     pub fn resolve_string_var(&self, string: impl AsRef<str>) -> Option<String> {
-        let s = cstring(string).ok()?;
-        unsafe {
+        self.try_resolve_string_var(string).ok().flatten()
+    }
+
+    /// Resolve `${VAR}` substitutions while preserving bridge failures.
+    pub fn try_resolve_string_var(&self, string: impl AsRef<str>) -> Result<Option<String>> {
+        let string = cstring(string)?;
+        crate::clear_last_error();
+        let resolved = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_resolve_string_var(
                 self.handle.as_ptr(),
-                s.as_ptr().cast(),
+                string.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(resolved)
     }
 
     /// # Safety
@@ -218,13 +261,21 @@ impl Context {
     }
 
     pub fn resolve_file_location(&self, filename: impl AsRef<str>) -> Option<String> {
-        let f = cstring(filename).ok()?;
-        unsafe {
+        self.try_resolve_file_location(filename).ok().flatten()
+    }
+
+    /// Resolve a file location while preserving bridge failures.
+    pub fn try_resolve_file_location(&self, filename: impl AsRef<str>) -> Result<Option<String>> {
+        let filename = cstring(filename)?;
+        crate::clear_last_error();
+        let resolved = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_resolve_file_location(
                 self.handle.as_ptr(),
-                f.as_ptr().cast(),
+                filename.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(resolved)
     }
 
     /// # Safety

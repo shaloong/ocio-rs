@@ -19,6 +19,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Config lookup/default queries and `FileRules` string getters now expose
   fallible `try_*` variants, so invalid indices and C++ bridge failures are
   distinguishable from ordinary missing values
+- `Context` cache, path, string-variable, and file-resolution queries now
+  preserve C++ exceptions through fallible `try_*` APIs
 
 ## [0.2.0] - 2026-07-02
 

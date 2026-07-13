@@ -45,8 +45,15 @@ fn context_string_vars_round_trip_and_copy_behavior() {
     ctx.set_string_var("SHOT", "abc123").expect("set SHOT");
     ctx.set_string_var("SEQ", "sq01").expect("set SEQ");
 
-    assert_eq!(ctx.string_var("SHOT").as_deref(), Some("abc123"));
-    assert_eq!(ctx.string_var("SEQ").as_deref(), Some("sq01"));
+    assert_eq!(
+        ctx.try_string_var("SHOT").expect("SHOT query").as_deref(),
+        Some("abc123")
+    );
+    assert_eq!(
+        ctx.try_string_var("SEQ").expect("SEQ query").as_deref(),
+        Some("sq01")
+    );
+    assert!(ctx.try_string_var("SHOT\0").is_err());
     assert_eq!(ctx.num_string_vars(), 2);
     assert!(ctx
         .try_string_var_name_by_index(0)
@@ -70,9 +77,11 @@ fn context_string_vars_round_trip_and_copy_behavior() {
     );
 
     let resolved = ctx
-        .resolve_string_var("${SEQ}/${SHOT}/plate.exr")
-        .expect("resolve_string_var");
+        .try_resolve_string_var("${SEQ}/${SHOT}/plate.exr")
+        .expect("resolve string variables")
+        .expect("resolved string");
     assert_eq!(resolved, "sq01/abc123/plate.exr");
+    assert!(ctx.try_resolve_string_var("${SHOT}\0").is_err());
 
     let copy = ctx.create_editable_copy().expect("editable copy");
     assert_eq!(copy.string_var("SHOT").as_deref(), Some("abc123"));
@@ -148,9 +157,17 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
         Some("")
     );
     assert_eq!(
-        ctx.working_dir().as_deref(),
+        ctx.try_working_dir()
+            .expect("working-directory query")
+            .as_deref(),
         Some(dir_a.to_string_lossy().as_ref())
     );
+    let search_path = ctx
+        .try_search_path()
+        .expect("search-path query")
+        .expect("search path");
+    assert!(search_path.contains(dir_a.to_string_lossy().as_ref()));
+    assert!(search_path.contains(dir_b.to_string_lossy().as_ref()));
 
     let copy = ctx.create_editable_copy().expect("editable copy");
     assert_eq!(copy.num_search_paths(), 2);
@@ -191,8 +208,9 @@ fn context_resolve_file_location_uses_working_dir_as_fallback_behavior() {
         .expect("set working dir");
 
     let resolved_working = ctx
-        .resolve_file_location("working_only.spi1d")
-        .expect("resolve working file");
+        .try_resolve_file_location("working_only.spi1d")
+        .expect("resolve working file")
+        .expect("resolved working file");
 
     assert_eq!(PathBuf::from(resolved_working), working_file);
 
@@ -223,12 +241,30 @@ fn context_resolve_file_location_uses_explicit_search_paths_behavior() {
         .expect("add search dir");
 
     let resolved_search = ctx
-        .resolve_file_location("search_only.spi3d")
-        .expect("resolve search file");
+        .try_resolve_file_location("search_only.spi3d")
+        .expect("resolve search file")
+        .expect("resolved search file");
 
     assert_eq!(PathBuf::from(resolved_search), search_file);
 
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
+    let _guard = context_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let ctx = Context::create().expect("context create");
+    let error = ctx
+        .try_resolve_file_location("definitely-not-present-ocio-rs.spi1d")
+        .expect_err("missing file resolution must report an OCIO error");
+    assert!(matches!(error, ocio_rs::OcioError::Ocio(_)));
+    assert!(ctx
+        .try_resolve_file_location("definitely-not-present\0.spi1d")
+        .is_err());
 }
 
 #[test]
@@ -239,7 +275,10 @@ fn context_cache_id_changes_with_mutation_behavior() {
     }
 
     let ctx = Context::create().expect("context create");
-    let initial_cache_id = ctx.cache_id().expect("initial cache id");
+    let initial_cache_id = ctx
+        .try_cache_id()
+        .expect("initial cache-id query")
+        .expect("initial cache id");
 
     ctx.set_string_var("SHOT", "abc123").expect("set SHOT");
     let after_string_var = ctx.cache_id().expect("cache id after string var");
