@@ -633,10 +633,8 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(queried_tex3d.texture_name, tex3d.texture_name);
     assert_eq!(queried_tex3d.sampler_name, tex3d.sampler_name);
     assert_eq!(queried_tex3d.values, tex3d.values);
-    assert!(desc
-        .try_texture_3d(99)
-        .expect("missing 3d texture query")
-        .is_none());
+    assert!(desc.try_texture_3d(99).is_err());
+    assert!(desc.texture_3d(99).is_none());
 }
 
 #[test]

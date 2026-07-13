@@ -7544,7 +7544,7 @@ bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioG
     out->interpolation = static_cast<int>(interpolation);
     out->binding_index = desc->get3DTextureShaderBindingIndex(index);
     return textureName && samplerName && edgeLen > 0;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
