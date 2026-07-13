@@ -16,6 +16,9 @@ Versioning as closely as practical for a still-maturing binding crate.
   expose fallible `try_*` variants that preserve bridge failures; transform
   getters and unknown future transform type tags also avoid silently losing
   bridge errors or owned handles
+- Config lookup/default queries and `FileRules` string getters now expose
+  fallible `try_*` variants, so invalid indices and C++ bridge failures are
+  distinguishable from ordinary missing values
 
 ## [0.2.0] - 2026-07-02
 

@@ -64,22 +64,38 @@ impl FileRules {
 
     /// Get the rule name at the given index.
     pub fn name(&self, rule_index: u64) -> Option<String> {
-        unsafe {
+        self.try_name(rule_index).ok().flatten()
+    }
+
+    /// Get a rule name while preserving invalid-index and bridge failures.
+    pub fn try_name(&self, rule_index: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_name(
                 self.handle.as_ptr(),
                 rule_index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Get the filename pattern for the rule at the given index.
     pub fn pattern(&self, rule_index: u64) -> Option<String> {
-        unsafe {
+        self.try_pattern(rule_index).ok().flatten()
+    }
+
+    /// Get a filename pattern while preserving invalid-index and bridge failures.
+    pub fn try_pattern(&self, rule_index: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let pattern = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(
                 self.handle.as_ptr(),
                 rule_index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(pattern)
     }
 
     /// Set the filename pattern for the rule at the given index.
@@ -98,12 +114,20 @@ impl FileRules {
 
     /// Get the file extension for the rule at the given index.
     pub fn extension(&self, rule_index: u64) -> Option<String> {
-        unsafe {
+        self.try_extension(rule_index).ok().flatten()
+    }
+
+    /// Get a file extension while preserving invalid-index and bridge failures.
+    pub fn try_extension(&self, rule_index: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let extension = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(
                 self.handle.as_ptr(),
                 rule_index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(extension)
     }
 
     /// Set the file extension for the rule at the given index.
@@ -122,12 +146,20 @@ impl FileRules {
 
     /// Get the regex pattern for the rule at the given index.
     pub fn regex(&self, rule_index: u64) -> Option<String> {
-        unsafe {
+        self.try_regex(rule_index).ok().flatten()
+    }
+
+    /// Get a regex pattern while preserving invalid-index and bridge failures.
+    pub fn try_regex(&self, rule_index: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let regex = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(
                 self.handle.as_ptr(),
                 rule_index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(regex)
     }
 
     /// Set the regex pattern for the rule at the given index.
@@ -146,12 +178,20 @@ impl FileRules {
 
     /// Get the color space name for the rule at the given index.
     pub fn color_space(&self, rule_index: u64) -> Option<String> {
-        unsafe {
+        self.try_color_space(rule_index).ok().flatten()
+    }
+
+    /// Get a rule color-space name while preserving invalid-index and bridge failures.
+    pub fn try_color_space(&self, rule_index: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(
                 self.handle.as_ptr(),
                 rule_index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(color_space)
     }
 
     /// Set the color space name for the rule at the given index.
@@ -178,24 +218,40 @@ impl FileRules {
 
     /// Get the name of the custom key at the given key index.
     pub fn custom_key_name(&self, rule_index: u64, key: u64) -> Option<String> {
-        unsafe {
+        self.try_custom_key_name(rule_index, key).ok().flatten()
+    }
+
+    /// Get a custom-key name while preserving invalid-index and bridge failures.
+    pub fn try_custom_key_name(&self, rule_index: u64, key: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_name(
                 self.handle.as_ptr(),
                 rule_index as usize,
                 key as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Get the value of the custom key at the given key index.
     pub fn custom_key_value(&self, rule_index: u64, key: u64) -> Option<String> {
-        unsafe {
+        self.try_custom_key_value(rule_index, key).ok().flatten()
+    }
+
+    /// Get a custom-key value while preserving invalid-index and bridge failures.
+    pub fn try_custom_key_value(&self, rule_index: u64, key: u64) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_value(
                 self.handle.as_ptr(),
                 rule_index as usize,
                 key as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set a custom key-value pair on the rule at the given index.

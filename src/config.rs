@@ -260,13 +260,21 @@ impl Config {
 
     /// Return the canonical name for the given color-space name, or `None` if not found.
     pub fn canonical_name(&self, name: impl AsRef<str>) -> Option<String> {
-        let name = cstring(name).ok()?;
-        unsafe {
+        self.try_canonical_name(name).ok().flatten()
+    }
+
+    /// Return the canonical name for a color-space name, preserving bridge failures.
+    pub fn try_canonical_name(&self, name: impl AsRef<str>) -> Result<Option<String>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let canonical_name = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_canonical_name(
                 self.handle.as_ptr(),
                 name.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(canonical_name)
     }
 
     /// Test whether a named color space is linear with respect to a reference space type.
@@ -352,13 +360,24 @@ impl Config {
 
     /// Guess the color space for a file path using the config's file-rule patterns.
     pub fn color_space_from_filepath(&self, file_path: impl AsRef<str>) -> Option<String> {
-        let fp = cstring(file_path).ok()?;
-        unsafe {
+        self.try_color_space_from_filepath(file_path).ok().flatten()
+    }
+
+    /// Guess a color space for a file path while preserving bridge failures.
+    pub fn try_color_space_from_filepath(
+        &self,
+        file_path: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let file_path = cstring(file_path)?;
+        crate::clear_last_error();
+        let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_color_space_from_filepath(
                 self.handle.as_ptr(),
-                fp.as_ptr().cast(),
+                file_path.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(color_space)
     }
 
     #[doc(hidden)]
@@ -389,11 +408,19 @@ impl Config {
 
     /// Return the default display name, or `None` if no displays are configured.
     pub fn default_display(&self) -> Option<String> {
-        unsafe {
+        self.try_default_display().ok().flatten()
+    }
+
+    /// Return the default display name while preserving bridge failures.
+    pub fn try_default_display(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let display = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_display(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(display)
     }
 
     #[doc(hidden)]
@@ -432,13 +459,21 @@ impl Config {
 
     /// Return the default view name for the given display, or `None` if not found.
     pub fn default_view(&self, display: impl AsRef<str>) -> Option<String> {
-        let display = cstring(display).ok()?;
-        unsafe {
+        self.try_default_view(display).ok().flatten()
+    }
+
+    /// Return the default view for a display while preserving bridge failures.
+    pub fn try_default_view(&self, display: impl AsRef<str>) -> Result<Option<String>> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_view(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     /// Return the default view for a display, filtered by color-space name.
@@ -447,15 +482,29 @@ impl Config {
         display: impl AsRef<str>,
         color_space_name: impl AsRef<str>,
     ) -> Option<String> {
-        let display = cstring(display).ok()?;
-        let color_space_name = cstring(color_space_name).ok()?;
-        unsafe {
+        self.try_default_view_with_color_space(display, color_space_name)
+            .ok()
+            .flatten()
+    }
+
+    /// Return the default view filtered by color space while preserving bridge failures.
+    pub fn try_default_view_with_color_space(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let display = cstring(display)?;
+        let color_space_name = cstring(color_space_name)?;
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_default_view_v1(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 color_space_name.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     #[doc(hidden)]
@@ -1936,11 +1985,18 @@ impl Config {
 
     /// Look up a color space by authored name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
-        let n = cstring(name).ok()?;
+        self.try_color_space(name).ok().flatten()
+    }
+
+    /// Look up a color space by authored name while preserving bridge failures.
+    pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_color_space(self.handle.as_ptr(), n.as_ptr().cast())
         };
-        NonNull::new(handle).map(|h| ColorSpace { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| ColorSpace { handle: h }))
     }
 
     #[doc(hidden)]
@@ -2052,10 +2108,17 @@ impl Config {
 
     /// Look up a `Look` by its authored name.
     pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
-        let n = cstring(name).ok()?;
+        self.try_look(name).ok().flatten()
+    }
+
+    /// Look up a `Look` by authored name while preserving bridge failures.
+    pub fn try_look(&self, name: impl AsRef<str>) -> Result<Option<Look>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_config_get_look(self.handle.as_ptr(), n.as_ptr().cast()) };
-        NonNull::new(handle).map(|h| Look { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| Look { handle: h }))
     }
 
     #[doc(hidden)]
@@ -2754,11 +2817,18 @@ impl Config {
 
     /// Look up a `NamedTransform` by name.
     pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
-        let n = cstring(name).ok()?;
+        self.try_named_transform(name).ok().flatten()
+    }
+
+    /// Look up a `NamedTransform` by name while preserving bridge failures.
+    pub fn try_named_transform(&self, name: impl AsRef<str>) -> Result<Option<NamedTransform>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_named_transform(self.handle.as_ptr(), n.as_ptr().cast())
         };
-        NonNull::new(handle).map(|h| NamedTransform { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| NamedTransform { handle: h }))
     }
 
     #[doc(hidden)]
@@ -2836,11 +2906,18 @@ impl Config {
 
     /// Look up a `ViewTransform` by name.
     pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
-        let n = cstring(name).ok()?;
+        self.try_view_transform(name).ok().flatten()
+    }
+
+    /// Look up a `ViewTransform` by name while preserving bridge failures.
+    pub fn try_view_transform(&self, name: impl AsRef<str>) -> Result<Option<ViewTransform>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_view_transform(self.handle.as_ptr(), n.as_ptr().cast())
         };
-        NonNull::new(handle).map(|h| ViewTransform { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| ViewTransform { handle: h }))
     }
 
     #[doc(hidden)]

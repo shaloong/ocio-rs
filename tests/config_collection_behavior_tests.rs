@@ -111,8 +111,14 @@ fn config_collection_registration_and_usage_behavior() {
     assert_eq!(config.num_view_transforms(), initial_view_transforms + 1);
     assert_eq!(config.num_displays_all(), initial_displays + 1);
 
-    assert!(config.color_space("UnitConfigUsedColorSpace").is_some());
-    assert!(config.color_space("UnitConfigUnusedColorSpace").is_some());
+    assert!(config
+        .try_color_space("UnitConfigUsedColorSpace")
+        .expect("color-space lookup")
+        .is_some());
+    assert!(config
+        .try_color_space("UnitConfigUnusedColorSpace")
+        .expect("color-space lookup")
+        .is_some());
     assert!(used_color_space
         .try_transform(ColorSpaceDirection::ToReference)
         .expect("color-space transform query")
@@ -121,6 +127,18 @@ fn config_collection_registration_and_usage_behavior() {
         config.look_name_by_index(initial_looks).as_deref(),
         Some("UnitConfigLook")
     );
+    assert!(config
+        .try_look("UnitConfigLook")
+        .expect("look lookup")
+        .is_some());
+    assert!(config
+        .try_named_transform("UnitConfigNamedTransform")
+        .expect("named-transform lookup")
+        .is_some());
+    assert!(config
+        .try_view_transform("UnitConfigViewTransform")
+        .expect("view-transform lookup")
+        .is_some());
     assert_eq!(
         config.named_transform_index("UnitConfigNamedTransform"),
         initial_named_transforms
@@ -146,6 +164,17 @@ fn config_collection_registration_and_usage_behavior() {
 
     assert!(config.is_color_space_used("UnitConfigUsedColorSpace"));
     assert!(!config.is_color_space_used("UnitConfigUnusedColorSpace"));
+
+    assert!(config
+        .try_color_space("UnitConfigUsedColorSpace\0")
+        .is_err());
+    assert!(config.try_look("UnitConfigLook\0").is_err());
+    assert!(config
+        .try_named_transform("UnitConfigNamedTransform\0")
+        .is_err());
+    assert!(config
+        .try_view_transform("UnitConfigViewTransform\0")
+        .is_err());
 }
 
 #[test]

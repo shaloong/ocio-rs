@@ -43,6 +43,24 @@ fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.default_view("sRGB").as_deref(), Some("Raw"));
     assert_eq!(
         config
+            .try_default_display()
+            .expect("default display query")
+            .as_deref(),
+        Some("sRGB")
+    );
+    assert_eq!(
+        config
+            .try_default_view("sRGB")
+            .expect("default view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert!(config.try_default_view("sRGB\0").is_err());
+    assert!(config
+        .try_default_view_with_color_space("sRGB\0", "raw")
+        .is_err());
+    assert_eq!(
+        config
             .try_active_displays()
             .expect("active display list query"),
         config.active_displays()
@@ -124,6 +142,15 @@ fn assert_context_test1_metadata(config: &Config) {
         .try_color_space_name_by_index(0)
         .expect("color space name query")
         .is_some());
+    assert_eq!(
+        config
+            .try_canonical_name("raw")
+            .expect("canonical-name query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert!(config.try_canonical_name("raw\0").is_err());
+    assert!(config.try_color_space_from_filepath("test.exr\0").is_err());
 
     assert!(config.has_role("default"));
     assert!(config.has_role("scene_linear"));

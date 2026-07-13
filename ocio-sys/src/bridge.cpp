@@ -2414,7 +2414,7 @@ void* ocio_config_get_color_space(void* handle, const char* name) {
     auto result_unconst = std::const_pointer_cast<ocio::ColorSpace>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2425,7 +2425,7 @@ void* ocio_config_get_canonical_name(void* handle, const char* name) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getCanonicalName(name);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2674,7 +2674,7 @@ void* ocio_config_get_default_display(void* handle) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultDisplay();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2707,7 +2707,7 @@ void* ocio_config_get_default_view(void* handle, const char* display) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultView(display);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2718,7 +2718,7 @@ void* ocio_config_get_default_view_v1(void* handle, const char* display, const c
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDefaultView(display, colorspaceName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3376,7 +3376,7 @@ void* ocio_config_get_look(void* handle, const char* name) {
     auto result_unconst = std::const_pointer_cast<ocio::Look>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3449,7 +3449,7 @@ void* ocio_config_get_view_transform(void* handle, const char* name) {
     auto result_unconst = std::const_pointer_cast<ocio::ViewTransform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3593,7 +3593,7 @@ void* ocio_config_get_named_transform(void* handle, const char* name) {
     auto result_unconst = std::const_pointer_cast<ocio::NamedTransform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3668,7 +3668,7 @@ void* ocio_config_get_color_space_from_filepath(void* handle, const char* filePa
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getColorSpaceFromFilepath(filePath)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4371,7 +4371,7 @@ void* ocio_file_rules_get_name(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getName(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4382,7 +4382,7 @@ void* ocio_file_rules_get_pattern(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getPattern(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4404,7 +4404,7 @@ void* ocio_file_rules_get_extension(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getExtension(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4426,7 +4426,7 @@ void* ocio_file_rules_get_regex(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getRegex(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4448,7 +4448,7 @@ void* ocio_file_rules_get_color_space(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getColorSpace(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4481,7 +4481,7 @@ void* ocio_file_rules_get_custom_key_name(void* handle, size_t ruleIndex, size_t
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyName(ruleIndex, key)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4492,7 +4492,7 @@ void* ocio_file_rules_get_custom_key_value(void* handle, size_t ruleIndex, size_
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_file_rules(handle)->getCustomKeyValue(ruleIndex, key)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
