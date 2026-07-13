@@ -113,6 +113,16 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     );
     assert_eq!(desc.descriptor_set_index(), 3);
     assert_eq!(desc.texture_binding_start(), 7);
+    assert_eq!(
+        desc.try_descriptor_set_index()
+            .expect("descriptor set index query"),
+        desc.descriptor_set_index()
+    );
+    assert_eq!(
+        desc.try_texture_binding_start()
+            .expect("texture binding start query"),
+        desc.texture_binding_start()
+    );
     assert_eq!(desc.texture_max_width(), 64);
     assert_eq!(
         desc.try_texture_max_width()

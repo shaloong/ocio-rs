@@ -1723,12 +1723,32 @@ impl GpuShaderDesc {
 
     /// Returns the configured descriptor-set index.
     pub fn descriptor_set_index(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_descriptor_set_index(self.handle.as_ptr()) }
+        self.try_descriptor_set_index().unwrap_or(0)
+    }
+
+    /// Return the configured descriptor-set index, preserving bridge failures.
+    pub fn try_descriptor_set_index(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let index = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_descriptor_set_index(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     /// Returns the configured starting binding slot for extracted textures.
     pub fn texture_binding_start(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_binding_start(self.handle.as_ptr()) }
+        self.try_texture_binding_start().unwrap_or(0)
+    }
+
+    /// Return the starting texture binding slot, preserving bridge failures.
+    pub fn try_texture_binding_start(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let index = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_binding_start(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     /// Sets the maximum width OCIO may use when laying out extracted 1D textures.

@@ -7866,7 +7866,7 @@ uint32_t ocio_gpu_shader_desc_get_descriptor_set_index(void* handle) {
   return 0;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getDescriptorSetIndex(); }
-  catch (...) { return 0; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7876,7 +7876,7 @@ uint32_t ocio_gpu_shader_desc_get_texture_binding_start(void* handle) {
   return 0;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureBindingStart(); }
-  catch (...) { return 0; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
