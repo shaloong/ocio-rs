@@ -671,7 +671,6 @@ void ocio_gpu_shader_desc_create_shader_text(
     const char* shaderFunctionFooter);
 void ocio_gpu_shader_desc_finalize(void* handle);
 uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index);
-uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index);
 const char* ocio_gpu_shader_desc_get_texture_uid(void* handle, int index);
 
 // --- FormatMetadata ---

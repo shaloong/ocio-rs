@@ -7117,7 +7117,7 @@ unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumUniforms();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7424,7 +7424,7 @@ unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumTextures();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7521,7 +7521,7 @@ unsigned ocio_gpu_shader_desc_get_num3d_textures_u32(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNum3DTextures();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8042,16 +8042,6 @@ uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index) {
     (void)index;
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureMaxWidth();
   } catch (...) { return 0; }
-#endif
-}
-
-uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)index;
-  return 0;
-#else
-  (void)handle; (void)index;
-  return 0;
 #endif
 }
 

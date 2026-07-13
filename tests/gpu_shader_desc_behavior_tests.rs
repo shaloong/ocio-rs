@@ -400,10 +400,15 @@ fn gpu_shader_desc_dynamic_property_behavior() {
             .expect("descriptor dynamic property query"),
         desc.has_dynamic_property_kind(DynamicPropertyType::Exposure)
     );
-    assert!(desc.num_dynamic_properties() >= 1);
+    let dynamic_property_count = desc
+        .try_num_dynamic_properties()
+        .expect("descriptor dynamic property count");
+    assert_eq!(dynamic_property_count, desc.num_dynamic_properties());
+    assert!(dynamic_property_count >= 1);
 
     let desc_prop = desc
-        .dynamic_property(DynamicPropertyType::Exposure)
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .expect("descriptor dynamic exposure property query")
         .expect("desc dynamic exposure property");
     assert_eq!(desc_prop.property_type(), DynamicPropertyType::Exposure);
     assert_close(
@@ -412,11 +417,20 @@ fn gpu_shader_desc_dynamic_property_behavior() {
         1e-8,
     );
 
-    let indexed_types: Vec<_> = (0..desc.num_dynamic_properties())
-        .filter_map(|index| desc.dynamic_property_by_index(index))
+    let indexed_types: Vec<_> = (0..dynamic_property_count)
+        .filter_map(|index| {
+            desc.try_dynamic_property_by_index(index)
+                .expect("descriptor indexed dynamic property query")
+        })
         .map(|prop| prop.property_type())
         .collect();
     assert!(indexed_types.contains(&DynamicPropertyType::Exposure));
+    assert!(desc
+        .try_dynamic_property_by_index(dynamic_property_count)
+        .is_err());
+    assert!(desc
+        .dynamic_property_by_index(dynamic_property_count)
+        .is_none());
 
     let processor_prop = processor
         .dynamic_property(DynamicPropertyType::Exposure)
@@ -443,7 +457,8 @@ fn gpu_shader_desc_dynamic_property_behavior() {
         1e-8,
     );
     let desc_prop_after = desc
-        .dynamic_property(DynamicPropertyType::Exposure)
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .expect("descriptor dynamic exposure property query after update")
         .expect("desc dynamic exposure property after update");
     assert_close(
         desc_prop_after
@@ -533,6 +548,10 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(binding_2d, 5);
 
     let tex2d = desc.texture_2d(0).expect("texture_2d");
+    assert_eq!(
+        desc.try_num_textures().expect("texture count query"),
+        desc.num_textures()
+    );
     let queried_tex2d = desc
         .try_texture_2d(0)
         .expect("texture 2d query")
@@ -570,6 +589,10 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(binding_3d, 6);
 
     let tex3d = desc.texture_3d(0).expect("texture_3d");
+    assert_eq!(
+        desc.try_num_3d_textures().expect("3d texture count query"),
+        desc.num_3d_textures()
+    );
     let queried_tex3d = desc
         .try_texture_3d(0)
         .expect("texture 3d query")
@@ -616,6 +639,10 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
         .add_uniform_f64("uExposure", 2.0)
         .expect("duplicate uniform returns false"));
 
+    assert_eq!(
+        desc.try_num_uniforms().expect("uniform count query"),
+        desc.num_uniforms()
+    );
     assert_eq!(desc.num_uniforms(), 5);
     let queried_uniform = desc
         .try_uniform(0)

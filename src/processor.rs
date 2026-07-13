@@ -1352,7 +1352,16 @@ impl GpuShaderDesc {
 
     /// Returns the number of reported 1D/2D texture resources.
     pub fn num_textures(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(self.handle.as_ptr()) }
+        self.try_num_textures().unwrap_or(0)
+    }
+
+    /// Return the number of reported 1D/2D texture resources.
+    pub fn try_num_textures(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Returns lightweight legacy metadata for a 1D/2D texture resource.
@@ -1840,13 +1849,6 @@ impl GpuShaderDesc {
         unsafe { ocio_sys::ocio_gpu_shader_desc_get_texture_max_width(self.handle.as_ptr(), index) }
     }
 
-    /// Returns the maximum height OCIO would like to use for the given texture.
-    pub fn texture_max_height(&self, index: i32) -> u32 {
-        unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get_texture_max_height(self.handle.as_ptr(), index)
-        }
-    }
-
     /// Returns OCIO's cache identifier for the current descriptor configuration.
     pub fn cache_id(&self) -> Option<String> {
         self.try_cache_id().ok().flatten()
@@ -1908,7 +1910,16 @@ impl GpuShaderDesc {
 
     /// Returns the number of reported uniforms.
     pub fn num_uniforms(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) }
+        self.try_num_uniforms().unwrap_or(0)
+    }
+
+    /// Return the number of reported uniforms.
+    pub fn try_num_uniforms(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_get_num_uniforms_u32(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     #[doc(hidden)]
@@ -2040,31 +2051,61 @@ impl GpuShaderDesc {
 
     /// Returns the number of dynamic properties attached to the descriptor.
     pub fn num_dynamic_properties(&self) -> u32 {
-        unsafe {
+        self.try_num_dynamic_properties().unwrap_or(0)
+    }
+
+    /// Return the number of dynamic properties attached to the descriptor.
+    pub fn try_num_dynamic_properties(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_num_dynamic_properties_u32(self.handle.as_ptr())
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Returns a dynamic property by ordinal index, if present.
     pub fn dynamic_property_by_index(&self, index: u32) -> Option<DynamicProperty> {
+        self.try_dynamic_property_by_index(index).ok().flatten()
+    }
+
+    /// Return a dynamic property by ordinal index, preserving bridge failures.
+    ///
+    /// An out-of-range `index` is reported as an OCIO error. The legacy
+    /// [`Self::dynamic_property_by_index`] helper maps that error to `None`.
+    pub fn try_dynamic_property_by_index(&self, index: u32) -> Result<Option<DynamicProperty>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_dynamic_property_by_index(
                 self.handle.as_ptr(),
                 index,
             )
         };
-        NonNull::new(handle).map(|handle| DynamicProperty { handle })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| DynamicProperty { handle }))
     }
 
     /// Returns the dynamic property associated with the given OCIO property kind, if present.
     pub fn dynamic_property(&self, property_type: DynamicPropertyType) -> Option<DynamicProperty> {
+        self.try_dynamic_property(property_type).ok().flatten()
+    }
+
+    /// Return the dynamic property for an OCIO property kind, preserving bridge failures.
+    ///
+    /// `Ok(None)` means the descriptor has no property of `property_type`.
+    pub fn try_dynamic_property(
+        &self,
+        property_type: DynamicPropertyType,
+    ) -> Result<Option<DynamicProperty>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_dynamic_property(
                 self.handle.as_ptr(),
                 property_type as i32,
             )
         };
-        NonNull::new(handle).map(|handle| DynamicProperty { handle })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| DynamicProperty { handle }))
     }
 
     /// Returns whether the descriptor exposes the given OCIO dynamic property kind.
@@ -2225,7 +2266,16 @@ impl GpuShaderDesc {
 
     /// Returns the number of reported 3D texture resources.
     pub fn num_3d_textures(&self) -> u32 {
-        unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) }
+        self.try_num_3d_textures().unwrap_or(0)
+    }
+
+    /// Return the number of reported 3D texture resources.
+    pub fn try_num_3d_textures(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     #[doc(hidden)]
@@ -3039,7 +3089,6 @@ mod tests {
     fn gpu_shader_desc_texture_max_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
             let _ = desc.texture_max_width(0);
-            let _ = desc.texture_max_height(0);
         }
     }
 

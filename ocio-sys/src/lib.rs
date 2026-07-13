@@ -2345,8 +2345,6 @@ unsafe extern "C" {
 
     pub fn ocio_gpu_shader_desc_get_allow_texture_1d(shader_desc: *mut c_void) -> bool;
 
-    pub fn ocio_gpu_shader_desc_get_texture_max_height(desc: *mut c_void, index: i32) -> u32;
-
     pub fn ocio_gpu_shader_desc_get_texture_max_width(desc: *mut c_void, index: i32) -> u32;
 
     pub fn ocio_gpu_shader_desc_get_texture_uid(desc: *mut c_void, index: i32) -> *const i8;
