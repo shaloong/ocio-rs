@@ -533,11 +533,22 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(binding_2d, 5);
 
     let tex2d = desc.texture_2d(0).expect("texture_2d");
+    let queried_tex2d = desc
+        .try_texture_2d(0)
+        .expect("texture 2d query")
+        .expect("texture 2d");
     assert_eq!(tex2d.texture_name, "manualTex2D");
     assert_eq!(tex2d.sampler_name, "manualSampler2D");
     assert_eq!(tex2d.width, 2);
     assert_eq!(tex2d.height, 1);
     assert_eq!(tex2d.channel, GpuTextureChannel::Rgb);
+    assert_eq!(queried_tex2d.texture_name, tex2d.texture_name);
+    assert_eq!(queried_tex2d.sampler_name, tex2d.sampler_name);
+    assert_eq!(queried_tex2d.values, tex2d.values);
+    assert!(desc
+        .try_texture_2d(99)
+        .expect("missing texture query")
+        .is_none());
     assert_eq!(tex2d.dimensions, GpuTextureDimensions::Texture1D);
     assert_eq!(tex2d.interpolation, Interpolation::Linear);
     assert_eq!(tex2d.binding_index, 5);

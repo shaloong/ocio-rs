@@ -12284,7 +12284,7 @@ bool ocio_lut3d_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_lut3d_transform(handle)->equals(
       *ocio_rs_bridge::get_real_lut3d_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -12425,7 +12425,7 @@ bool ocio_matrix_transform_equals(void* handle, void* other) {
   try {
     return ocio_rs_bridge::get_real_matrix_transform(handle)->equals(
       *ocio_rs_bridge::get_real_matrix_transform(other));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

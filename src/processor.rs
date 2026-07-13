@@ -1370,6 +1370,13 @@ impl GpuShaderDesc {
 
     /// Returns a structured 1D/2D texture resource and copied texel payload.
     pub fn texture_2d(&self, index: u32) -> Option<GpuTexture2D> {
+        self.try_texture_2d(index).ok().flatten()
+    }
+
+    /// Return a structured 1D/2D texture resource, preserving bridge failures.
+    ///
+    /// `Ok(None)` means no texture exists at `index`.
+    pub fn try_texture_2d(&self, index: u32) -> Result<Option<GpuTexture2D>> {
         let mut info = ocio_sys::OcioGpuTexture2DInfo {
             texture_name: std::ptr::null(),
             sampler_name: std::ptr::null(),
@@ -1380,16 +1387,23 @@ impl GpuShaderDesc {
             interpolation: 0,
             binding_index: 0,
         };
+        crate::clear_last_error();
         let ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_texture_info(self.handle.as_ptr(), index, &mut info)
         };
+        crate::ocio_call_status()?;
         if !ok {
-            return None;
+            return Ok(None);
         }
-        let value_count = unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get_texture_value_count(self.handle.as_ptr(), index)
-        };
+        let channel = GpuTextureChannel::from_raw(info.channel);
+        let value_count = (info.width as usize)
+            .checked_mul(info.height as usize)
+            .and_then(|count| count.checked_mul(channel.channel_count()))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU texture payload size overflowed usize".into())
+            })?;
         let mut values = vec![0.0f32; value_count];
+        crate::clear_last_error();
         let values_ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_copy_texture_values(
                 self.handle.as_ptr(),
@@ -1398,22 +1412,29 @@ impl GpuShaderDesc {
                 values.len(),
             )
         };
-        if !values_ok && value_count > 0 {
-            return None;
+        crate::ocio_call_status()?;
+        if !values_ok {
+            return Err(OcioError::ValidationFailed(
+                "OCIO could not copy the reported GPU texture payload".into(),
+            ));
         }
-        let texture_name = required_ocio_string(info.texture_name)?;
-        let sampler_name = required_ocio_string(info.sampler_name)?;
-        Some(GpuTexture2D {
+        let Some(texture_name) = required_ocio_string(info.texture_name) else {
+            return Ok(None);
+        };
+        let Some(sampler_name) = required_ocio_string(info.sampler_name) else {
+            return Ok(None);
+        };
+        Ok(Some(GpuTexture2D {
             texture_name,
             sampler_name,
             width: info.width,
             height: info.height,
-            channel: GpuTextureChannel::from_raw(info.channel),
+            channel,
             dimensions: GpuTextureDimensions::from_raw(info.dimensions),
             interpolation: interpolation_from_raw(info.interpolation),
             binding_index: info.binding_index,
             values,
-        })
+        }))
     }
 
     /// Returns all structured 1D/2D texture resources currently reported by OCIO.
