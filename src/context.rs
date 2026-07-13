@@ -49,12 +49,24 @@ impl Context {
 
     /// Return one search-path entry by index.
     pub fn search_path_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_search_path_by_index(index).ok().flatten()
+    }
+
+    /// Return one search-path entry by index, preserving bridge failures.
+    ///
+    /// In real OCIO builds, an out-of-range index is `Ok(Some(""))`, matching
+    /// OCIO's non-null empty-string return. `Ok(None)` indicates that this
+    /// binding could not obtain a C string (for example, in stub mode).
+    pub fn try_search_path_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let path = unsafe {
             cstr_from_mut(ocio_sys::ocio_context_get_search_path_by_index(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(path)
     }
 
     /// Remove every explicit search-path entry.

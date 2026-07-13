@@ -116,6 +116,18 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
         Some(dir_b.to_string_lossy().as_ref())
     );
     assert_eq!(
+        ctx.try_search_path_by_index(0)
+            .expect("first search path query")
+            .as_deref(),
+        Some(dir_a.to_string_lossy().as_ref())
+    );
+    assert_eq!(
+        ctx.try_search_path_by_index(2)
+            .expect("missing search path query")
+            .as_deref(),
+        Some("")
+    );
+    assert_eq!(
         ctx.working_dir().as_deref(),
         Some(dir_a.to_string_lossy().as_ref())
     );
