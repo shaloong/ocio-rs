@@ -412,12 +412,20 @@ impl Config {
 
     /// Return the display name at the given index, or `None` if out of range.
     pub fn display(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_display(index).ok().flatten()
+    }
+
+    /// Return a display name by index, preserving bridge failures.
+    pub fn try_display(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let display = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_display(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(display)
     }
 
     // --- Views ---
@@ -521,14 +529,22 @@ impl Config {
 
     /// Return the view name at the given index for the specified display.
     pub fn view(&self, display: impl AsRef<str>, index: i32) -> Option<String> {
-        let display = cstring(display).ok()?;
-        unsafe {
+        self.try_view(display, index).ok().flatten()
+    }
+
+    /// Return a view name by display and index, preserving bridge failures.
+    pub fn try_view(&self, display: impl AsRef<str>, index: i32) -> Result<Option<String>> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     /// Return the view name at a given index for a display, filtered by color-space name.

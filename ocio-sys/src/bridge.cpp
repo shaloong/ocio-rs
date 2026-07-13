@@ -2696,7 +2696,7 @@ void* ocio_config_get_display(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplay(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2740,7 +2740,7 @@ void* ocio_config_get_view(void* handle, const char* display, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getView(display, index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

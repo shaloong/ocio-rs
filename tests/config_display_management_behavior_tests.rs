@@ -85,6 +85,13 @@ fn config_shared_view_and_display_lifecycle_behavior() {
     );
     assert_eq!(
         config
+            .try_view("UnitLifecycleDisplay", 0)
+            .expect("display view query")
+            .as_deref(),
+        Some("UnitLifecycleSharedView")
+    );
+    assert_eq!(
+        config
             .display_view_transform_name("UnitLifecycleDisplay", "UnitLifecycleSharedView")
             .as_deref(),
         Some("UnitLifecycleSharedTransform")
