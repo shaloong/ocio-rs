@@ -223,12 +223,20 @@ impl Config {
 
     /// Return the name of the color space at the given index, or `None` if out of range.
     pub fn color_space_name_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_color_space_name_by_index(index).ok().flatten()
+    }
+
+    /// Return a color-space name by index, preserving bridge failures.
+    pub fn try_color_space_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_color_space_name_by_index_v1(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     #[doc(hidden)]
@@ -617,12 +625,20 @@ impl Config {
 
     /// Return the look name at a given index, or `None` if out of range.
     pub fn look_name_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_look_name_by_index(index).ok().flatten()
+    }
+
+    /// Return a look name by index, preserving bridge failures.
+    pub fn try_look_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_look_name_by_index(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     /// Return a comma-separated string of all look names.

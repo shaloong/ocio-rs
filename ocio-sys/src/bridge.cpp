@@ -2387,7 +2387,7 @@ void* ocio_config_get_color_space_name_by_index_v1(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3398,7 +3398,7 @@ void* ocio_config_get_look_name_by_index(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getLookNameByIndex(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

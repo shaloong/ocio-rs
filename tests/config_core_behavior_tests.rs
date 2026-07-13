@@ -43,7 +43,18 @@ fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.default_view("sRGB").as_deref(), Some("Raw"));
     assert_eq!(config.num_looks(), 1);
     assert_eq!(config.look_name_by_index(0).as_deref(), Some("shot_look"));
+    assert_eq!(
+        config
+            .try_look_name_by_index(0)
+            .expect("look name query")
+            .as_deref(),
+        Some("shot_look")
+    );
     assert!(config.num_color_spaces() >= 11);
+    assert!(config
+        .try_color_space_name_by_index(0)
+        .expect("color space name query")
+        .is_some());
 
     assert!(config.has_role("default"));
     assert!(config.has_role("scene_linear"));
