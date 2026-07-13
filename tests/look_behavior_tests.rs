@@ -109,7 +109,11 @@ fn look_metadata_transform_and_copy_behavior() {
         Some("urn:test:look")
     );
 
-    match look.transform().expect("look forward transform") {
+    match look
+        .try_transform()
+        .expect("look forward transform query")
+        .expect("look forward transform")
+    {
         Transform::Matrix(matrix) => {
             let values = matrix.matrix();
             assert_close(values[0], 1.5, 1e-10);
@@ -119,7 +123,11 @@ fn look_metadata_transform_and_copy_behavior() {
         _ => panic!("expected look forward transform to be MatrixTransform"),
     }
 
-    match look.inverse_transform().expect("look inverse transform") {
+    match look
+        .try_inverse_transform()
+        .expect("look inverse transform query")
+        .expect("look inverse transform")
+    {
         Transform::Matrix(matrix) => {
             let values = matrix.matrix();
             assert_close(values[0], 2.0 / 3.0, 1e-10);

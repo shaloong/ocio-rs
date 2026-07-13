@@ -113,6 +113,10 @@ fn config_collection_registration_and_usage_behavior() {
 
     assert!(config.color_space("UnitConfigUsedColorSpace").is_some());
     assert!(config.color_space("UnitConfigUnusedColorSpace").is_some());
+    assert!(used_color_space
+        .try_transform(ColorSpaceDirection::ToReference)
+        .expect("color-space transform query")
+        .is_some());
     assert_eq!(
         config.look_name_by_index(initial_looks).as_deref(),
         Some("UnitConfigLook")

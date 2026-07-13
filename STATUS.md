@@ -5,12 +5,12 @@
 **Core OCIO 2.5 Rust bindings are broadly in place.** The safe-wrapper
 surface, bridge parity, and bundled validation cover the major runtime
 paths — Config, Context, Processor, CPU/GPU execution, GPU shader
-extraction, dynamic properties, and the full transform family. Error
-propagation from C++ exceptions to Rust `Result` is comprehensive across
-all void setters, all transform direction setters, all grading transform
-state accessors, and all checked getter paths. The remaining work is
-release hardening, longer-tail behavioral validation, and documentation
-completeness rather than missing core binding coverage.
+extraction, dynamic properties, and the full transform family. Fallible safe
+APIs propagate C++ exceptions to Rust `Result` across mutators and an
+expanding set of checked getters; legacy low-level compatibility entry points
+may still use OCIO-style default return values. The remaining work is release
+hardening, longer-tail behavioral validation, and documentation completeness
+rather than missing core binding coverage.
 
 | Mode | Status |
 |---|---|
@@ -46,11 +46,11 @@ completeness rather than missing core binding coverage.
 | Stub mode | Available |
 | Real OCIO build via installed OCIO | Available |
 | Bundled OCIO build | Available, validated by weekly bundled CI plus manual workflows |
-| Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers with try_ variants for all void setters and checked getters |
+| Safe Rust wrappers | Broad OCIO 2.5 coverage, including parity-backed core wrappers and fallible `try_*` APIs for mutators and progressively audited getters |
 | CPU processing | Wrapped, with bundled runtime coverage for single-pixel, packed-F32, and strided RGB/RGBA paths |
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, manual texture/uniform insertion, and real-config extraction validation |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
-| Error propagation | Comprehensive — all void setters, transform direction setters, grading state accessors, and checked getters propagate C++ exceptions to Rust `Result` |
+| Error propagation | Strong but still expanding — fallible safe APIs preserve C++ exceptions for mutators and audited getters; legacy low-level compatibility endpoints may retain default-return semantics |
 | docs.rs documentation | All public methods documented; module-level docs for transform and grading modules |
 | Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
@@ -60,10 +60,10 @@ The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
 remaining surface with bundled and no-default-features test coverage so the
 crate can be treated as substantially complete for core OCIO 2.5 usage.
-Error propagation from C++ to Rust is now comprehensive: every void setter
-has a `try_*` variant, every bridge catch block calls
-`capture_current_exception()`, and every checked getter reads
-`ocio_call_status()`.
+Error propagation from C++ to Rust is being strengthened incrementally:
+fallible safe APIs clear and consume bridge errors for mutators and audited
+getters. Some legacy low-level compatibility endpoints still return OCIO-style
+default values on failure and are not equivalent to fallible safe APIs.
 
 ## Release checklist
 

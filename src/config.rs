@@ -815,20 +815,36 @@ impl Config {
 
     /// Return the comma-separated string of active display names.
     pub fn active_displays(&self) -> Option<String> {
-        unsafe {
+        self.try_active_displays().ok().flatten()
+    }
+
+    /// Return the active display list, preserving OCIO query failures.
+    pub fn try_active_displays(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let displays = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_displays(
                 self.handle.as_ptr() as *mut c_void,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(displays)
     }
 
     /// Return the comma-separated string of active view names.
     pub fn active_views(&self) -> Option<String> {
-        unsafe {
+        self.try_active_views().ok().flatten()
+    }
+
+    /// Return the active view list, preserving OCIO query failures.
+    pub fn try_active_views(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let views = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_views(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(views)
     }
 
     /// Replace the active displays list from a comma-separated string.
@@ -2493,15 +2509,28 @@ impl Config {
     }
 
     pub fn virtual_display_view_transform_name(&self, view: impl AsRef<str>) -> Option<String> {
-        let view = cstring(view).ok()?;
-        unsafe {
+        self.try_virtual_display_view_transform_name(view)
+            .ok()
+            .flatten()
+    }
+
+    /// Return a virtual display view's transform name, preserving query failures.
+    pub fn try_virtual_display_view_transform_name(
+        &self,
+        view: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(
                 ocio_sys::ocio_config_get_virtual_display_view_transform_name(
                     self.handle.as_ptr(),
                     view.as_ptr().cast(),
                 ),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     #[doc(hidden)]
@@ -2514,15 +2543,28 @@ impl Config {
     }
 
     pub fn virtual_display_view_color_space_name(&self, view: impl AsRef<str>) -> Option<String> {
-        let view = cstring(view).ok()?;
-        unsafe {
+        self.try_virtual_display_view_color_space_name(view)
+            .ok()
+            .flatten()
+    }
+
+    /// Return a virtual display view's color-space name, preserving query failures.
+    pub fn try_virtual_display_view_color_space_name(
+        &self,
+        view: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let name = unsafe {
             cstr_from_mut(
                 ocio_sys::ocio_config_get_virtual_display_view_color_space_name(
                     self.handle.as_ptr(),
                     view.as_ptr().cast(),
                 ),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
     }
 
     #[doc(hidden)]
@@ -2538,13 +2580,21 @@ impl Config {
     }
 
     pub fn virtual_display_view_looks(&self, view: impl AsRef<str>) -> Option<String> {
-        let view = cstring(view).ok()?;
-        unsafe {
+        self.try_virtual_display_view_looks(view).ok().flatten()
+    }
+
+    /// Return a virtual display view's looks string, preserving query failures.
+    pub fn try_virtual_display_view_looks(&self, view: impl AsRef<str>) -> Result<Option<String>> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let looks = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_looks(
                 self.handle.as_ptr(),
                 view.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(looks)
     }
 
     #[doc(hidden)]
@@ -2557,13 +2607,21 @@ impl Config {
     }
 
     pub fn virtual_display_view_rule(&self, view: impl AsRef<str>) -> Option<String> {
-        let view = cstring(view).ok()?;
-        unsafe {
+        self.try_virtual_display_view_rule(view).ok().flatten()
+    }
+
+    /// Return a virtual display view's viewing rule, preserving query failures.
+    pub fn try_virtual_display_view_rule(&self, view: impl AsRef<str>) -> Result<Option<String>> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let rule = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_rule(
                 self.handle.as_ptr(),
                 view.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(rule)
     }
 
     #[doc(hidden)]
@@ -2576,13 +2634,26 @@ impl Config {
     }
 
     pub fn virtual_display_view_description(&self, view: impl AsRef<str>) -> Option<String> {
-        let view = cstring(view).ok()?;
-        unsafe {
+        self.try_virtual_display_view_description(view)
+            .ok()
+            .flatten()
+    }
+
+    /// Return a virtual display view's description, preserving query failures.
+    pub fn try_virtual_display_view_description(
+        &self,
+        view: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let description = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view_description(
                 self.handle.as_ptr(),
                 view.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(description)
     }
 
     #[doc(hidden)]
@@ -3239,12 +3310,20 @@ impl Config {
 
     /// Return the active display name at a given index.
     pub fn active_display(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_active_display(index).ok().flatten()
+    }
+
+    /// Return an active display name at a given index, preserving query failures.
+    pub fn try_active_display(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let display = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_display(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(display)
     }
 
     #[doc(hidden)]
@@ -3276,12 +3355,20 @@ impl Config {
 
     /// Return the active view name at a given index.
     pub fn active_view(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_active_view(index).ok().flatten()
+    }
+
+    /// Return an active view name at a given index, preserving query failures.
+    pub fn try_active_view(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_active_view(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     #[doc(hidden)]
@@ -3332,18 +3419,44 @@ impl Config {
 
     /// Return the count of active displays.
     pub fn num_active_displays(&self) -> i32 {
-        unsafe {
+        self.try_num_active_displays().unwrap_or(0)
+    }
+
+    /// Return the count of active displays, preserving OCIO query failures.
+    pub fn try_num_active_displays(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_config_get_num_active_displays(self.handle.as_ptr() as *mut c_void)
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     pub fn num_active_views(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_active_views(self.handle.as_ptr() as *mut c_void) }
+        self.try_num_active_views().unwrap_or(0)
+    }
+
+    /// Return the count of active views, preserving OCIO query failures.
+    pub fn try_num_active_views(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_config_get_num_active_views(self.handle.as_ptr() as *mut c_void)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return the total number of all displays (including inactive).
     pub fn num_displays_all(&self) -> i32 {
-        unsafe { ocio_sys::ocio_config_get_num_displays_all(self.handle.as_ptr()) }
+        self.try_num_displays_all().unwrap_or(0)
+    }
+
+    /// Return the total number of all displays, preserving OCIO query failures.
+    pub fn try_num_displays_all(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_config_get_num_displays_all(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -3354,12 +3467,20 @@ impl Config {
 
     /// Return the display name at a given index from all displays (including inactive).
     pub fn display_all(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_display_all(index).ok().flatten()
+    }
+
+    /// Return a display name at a given all-display index, preserving query failures.
+    pub fn try_display_all(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let display = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_display_all(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(display)
     }
 
     #[doc(hidden)]
@@ -3369,16 +3490,23 @@ impl Config {
     }
 
     pub fn display_all_index(&self, display: impl AsRef<str>) -> i32 {
-        let display = match cstring(display) {
-            Ok(v) => v,
-            Err(_) => return -1,
-        };
-        unsafe {
+        self.try_display_all_index(display).unwrap_or(-1)
+    }
+
+    /// Return an all-display index by name, preserving invalid input and OCIO failures.
+    ///
+    /// A negative result means OCIO did not find the display.
+    pub fn try_display_all_index(&self, display: impl AsRef<str>) -> Result<i32> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let index = unsafe {
             ocio_sys::ocio_config_get_display_all_by_name(
                 self.handle.as_ptr(),
                 display.as_ptr() as *mut c_void,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     #[doc(hidden)]

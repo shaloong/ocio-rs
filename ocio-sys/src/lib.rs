@@ -1009,6 +1009,7 @@ unsafe extern "C" {
 
     // --- Transform ---
     pub fn ocio_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_transform_destroy(handle: *mut c_void);
     pub fn ocio_transform_get_transform_type(handle: *mut c_void) -> i32;
 
     // --- Processor ---

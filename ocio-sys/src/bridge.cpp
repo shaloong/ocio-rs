@@ -2990,7 +2990,7 @@ void* ocio_config_get_virtual_display_view_transform_name(void* handle, const ch
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewTransformName(view);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3001,7 +3001,7 @@ void* ocio_config_get_virtual_display_view_color_space_name(void* handle, const 
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewColorSpaceName(view);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3012,7 +3012,7 @@ void* ocio_config_get_virtual_display_view_looks(void* handle, const char* view)
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewLooks(view);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3023,7 +3023,7 @@ void* ocio_config_get_virtual_display_view_rule(void* handle, const char* view) 
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewRule(view);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3034,7 +3034,7 @@ void* ocio_config_get_virtual_display_view_description(void* handle, const char*
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayViewDescription(view);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3100,7 +3100,7 @@ void* ocio_config_get_active_displays(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getActiveDisplays()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3111,7 +3111,7 @@ int ocio_config_get_num_active_displays(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumActiveDisplays();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3122,7 +3122,7 @@ void* ocio_config_get_active_display(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveDisplay(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3177,7 +3177,7 @@ void* ocio_config_get_active_views(void* handle) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveViews();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3188,7 +3188,7 @@ int ocio_config_get_num_active_views(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumActiveViews();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3199,7 +3199,7 @@ void* ocio_config_get_active_view(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getActiveView(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3243,7 +3243,7 @@ int ocio_config_get_num_displays_all(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumDisplaysAll();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3254,7 +3254,7 @@ void* ocio_config_get_display_all(void* handle, int index) {
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayAll(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -3265,7 +3265,7 @@ int ocio_config_get_display_all_by_name(void* handle, void* arg) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getDisplayAllByName(static_cast<const char*>(arg));
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -5310,7 +5310,7 @@ void* ocio_color_space_get_transform(void* handle, int dir) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5584,7 +5584,7 @@ void* ocio_look_get_transform(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5613,7 +5613,7 @@ void* ocio_look_get_inverse_transform(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5975,7 +5975,7 @@ void* ocio_named_transform_get_transform(void* handle, int dir) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6252,7 +6252,7 @@ void* ocio_view_transform_get_transform(void* handle, int dir) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6309,6 +6309,10 @@ int ocio_transform_get_transform_type(void* handle) {
     return transform->get_transform_type_tag();
   } catch (...) { return -1; }
 #endif
+}
+
+void ocio_transform_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
 }
 
 
@@ -12947,7 +12951,7 @@ const char* ocio_format_metadata_get_attribute_value_by_index(void* metadata, in
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getAttributeValue(i) : nullptr;
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -12958,7 +12962,7 @@ const char* ocio_format_metadata_get_attribute_value(void* metadata, const char*
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getAttributeValue(name) : nullptr;
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

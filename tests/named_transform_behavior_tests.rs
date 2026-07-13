@@ -75,10 +75,12 @@ fn named_transform_attached_matrix_round_trip_behavior() {
     let nt = configured_named_transform();
 
     let forward = nt
-        .transform(TransformDirection::Forward)
+        .try_transform(TransformDirection::Forward)
+        .expect("forward transform query")
         .expect("forward transform");
     let inverse = nt
-        .transform(TransformDirection::Inverse)
+        .try_transform(TransformDirection::Inverse)
+        .expect("inverse transform query")
         .expect("inverse transform");
 
     match forward {

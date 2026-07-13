@@ -138,9 +138,16 @@ impl Look {
 
     /// Get the forward transform for this look.
     pub fn transform(&self) -> Option<Transform> {
+        self.try_transform().ok().flatten()
+    }
+
+    /// Get the forward transform for this look, preserving OCIO query failures.
+    pub fn try_transform(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_look_get_transform(self.handle.as_ptr() as *mut c_void) };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     /// Set the forward transform for this look (panics on error).
@@ -163,10 +170,17 @@ impl Look {
 
     /// Get the inverse transform for this look.
     pub fn inverse_transform(&self) -> Option<Transform> {
+        self.try_inverse_transform().ok().flatten()
+    }
+
+    /// Get the inverse transform for this look, preserving OCIO query failures.
+    pub fn try_inverse_transform(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_look_get_inverse_transform(self.handle.as_ptr() as *mut c_void)
         };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     /// Set the inverse transform for this look (panics on error).

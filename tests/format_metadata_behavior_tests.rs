@@ -67,6 +67,14 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
         Some("ocio-rs")
     );
     assert_eq!(
+        metadata
+            .try_attribute_value("origin")
+            .expect("named attribute value query")
+            .as_deref(),
+        Some("ocio-rs")
+    );
+    assert!(metadata.try_attribute_value("origin\0").is_err());
+    assert_eq!(
         metadata.attribute_value("stage").as_deref(),
         Some("format-metadata")
     );
@@ -89,7 +97,8 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     assert!(attr_values.iter().any(|value| value == "format-metadata"));
 
     let first_child = metadata
-        .child_element(baseline_children)
+        .try_child_element(baseline_children)
+        .expect("first child query")
         .expect("first added child");
     assert_eq!(
         first_child.element_name().as_deref(),

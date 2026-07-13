@@ -274,10 +274,17 @@ impl ColorSpace {
 
     /// Get the transform for the given direction.
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
+        self.try_transform(direction).ok().flatten()
+    }
+
+    /// Get the transform for the given direction, preserving OCIO query failures.
+    pub fn try_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_color_space_get_transform(self.handle.as_ptr(), direction as i32)
         };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     /// Set the transform for the given direction (panics on error).

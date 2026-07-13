@@ -100,7 +100,8 @@ fn view_transform_attached_transform_and_copy_behavior() {
     let vt = scaled_view_transform();
 
     match vt
-        .transform(ViewTransformDirection::ToReference)
+        .try_transform(ViewTransformDirection::ToReference)
+        .expect("to-reference transform query")
         .expect("to-reference transform")
     {
         Transform::Matrix(matrix) => {

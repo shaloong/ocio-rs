@@ -244,6 +244,10 @@ impl TransformHandle for Transform {
     }
 }
 
+/// Convert an owned bridge transform handle into its typed Rust wrapper.
+///
+/// Callers transfer ownership of `handle` to this function. Unknown future OCIO
+/// type tags are rejected after releasing the handle rather than leaking it.
 pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform> {
     if handle.is_null() {
         return None;
@@ -286,6 +290,9 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
             handle: nn,
         })),
         13 => Some(Transform::GradingTone(GradingToneTransform { handle: nn })),
-        _ => None,
+        _ => {
+            unsafe { ocio_sys::ocio_transform_destroy(handle) };
+            None
+        }
     }
 }

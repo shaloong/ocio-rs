@@ -234,10 +234,17 @@ impl ViewTransform {
 
     /// Get the transform for the given direction (scene-to-display or display-to-scene).
     pub fn transform(&self, direction: ViewTransformDirection) -> Option<Transform> {
+        self.try_transform(direction).ok().flatten()
+    }
+
+    /// Get the transform for the given direction, preserving OCIO query failures.
+    pub fn try_transform(&self, direction: ViewTransformDirection) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_view_transform_get_transform(self.handle.as_ptr(), direction as i32)
         };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     /// Set or clear the transform for the given direction (panics on error).

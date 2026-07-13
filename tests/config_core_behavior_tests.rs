@@ -42,6 +42,42 @@ fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.default_display().as_deref(), Some("sRGB"));
     assert_eq!(config.default_view("sRGB").as_deref(), Some("Raw"));
     assert_eq!(
+        config
+            .try_active_displays()
+            .expect("active display list query"),
+        config.active_displays()
+    );
+    assert_eq!(
+        config.try_active_views().expect("active view list query"),
+        config.active_views()
+    );
+    assert_eq!(
+        config
+            .try_num_active_displays()
+            .expect("active display count query"),
+        config.num_active_displays()
+    );
+    assert_eq!(
+        config
+            .try_num_active_views()
+            .expect("active view count query"),
+        config.num_active_views()
+    );
+    if config.num_active_displays() > 0 {
+        assert_eq!(
+            config
+                .try_active_display(0)
+                .expect("active display item query"),
+            config.active_display(0)
+        );
+    }
+    if config.num_active_views() > 0 {
+        assert_eq!(
+            config.try_active_view(0).expect("active view item query"),
+            config.active_view(0)
+        );
+    }
+    assert_eq!(
         config.try_num_views("sRGB").expect("display view count"),
         config.num_views("sRGB")
     );

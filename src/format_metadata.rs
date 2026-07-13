@@ -73,23 +73,39 @@ impl FormatMetadata {
 
     /// Get the attribute value at the given index.
     pub fn attribute_value_by_index(&self, i: i32) -> Option<String> {
-        unsafe {
+        self.try_attribute_value_by_index(i).ok().flatten()
+    }
+
+    /// Get an attribute value by index, preserving OCIO query failures.
+    pub fn try_attribute_value_by_index(&self, i: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_attribute_value_by_index(
                 self.handle.as_ptr(),
                 i,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the attribute value by name.
     pub fn attribute_value(&self, name: impl AsRef<str>) -> Option<String> {
-        let n = cstring(name).ok()?;
-        unsafe {
+        self.try_attribute_value(name).ok().flatten()
+    }
+
+    /// Get an attribute value by name, preserving invalid input and OCIO failures.
+    pub fn try_attribute_value(&self, name: impl AsRef<str>) -> Result<Option<String>> {
+        let n = cstring(name)?;
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_attribute_value(
                 self.handle.as_ptr(),
                 n.as_ptr().cast(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Add a name-value attribute to this metadata element.
@@ -118,9 +134,16 @@ impl FormatMetadata {
 
     /// Get the child element at the given index.
     pub fn child_element(&self, i: i32) -> Option<FormatMetadata> {
+        self.try_child_element(i).ok().flatten()
+    }
+
+    /// Get a child element by index, preserving OCIO query failures.
+    pub fn try_child_element(&self, i: i32) -> Result<Option<FormatMetadata>> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_format_metadata_get_child_element(self.handle.as_ptr(), i) };
-        NonNull::new(handle).map(|h| FormatMetadata { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| FormatMetadata { handle }))
     }
 
     /// Add a child element with the given name and value.

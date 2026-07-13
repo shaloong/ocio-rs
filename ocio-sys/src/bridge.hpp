@@ -498,6 +498,7 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir);
 
 // --- Transform ---
 void* ocio_transform_create_editable_copy(void* handle);
+void ocio_transform_destroy(void* handle);
 int ocio_transform_get_transform_type(void* handle);
 
 // --- Processor ---

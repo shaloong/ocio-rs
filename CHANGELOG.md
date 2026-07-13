@@ -12,6 +12,10 @@ Versioning as closely as practical for a still-maturing binding crate.
 - CPU pixel-buffer helpers now reject short/default strides, C++ `ptrdiff_t`
   byte-stride overflows, and misaligned multi-byte packed slices before
   passing Rust-owned data to OCIO
+- Config display, view, role, virtual-display, and active-list queries now
+  expose fallible `try_*` variants that preserve bridge failures; transform
+  getters and unknown future transform type tags also avoid silently losing
+  bridge errors or owned handles
 
 ## [0.2.0] - 2026-07-02
 
