@@ -7762,7 +7762,7 @@ int ocio_gpu_shader_desc_get_language(void* handle) {
   return 0;
 #else
   try { return static_cast<int>(ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getLanguage()); }
-  catch (...) { return 0; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7904,7 +7904,7 @@ bool ocio_gpu_shader_desc_get_allow_texture_1d(void* handle) {
   return false;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getAllowTexture1D(); }
-  catch (...) { return false; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7942,7 +7942,7 @@ uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle) {
   return 0;
 #else
   try { return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNextResourceIndex(); }
-  catch (...) { return 0; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8033,13 +8033,12 @@ void ocio_gpu_shader_desc_finalize(void* handle) {
 #endif
 }
 
-uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index) {
+uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)index;
+  (void)handle;
   return 0;
 #else
   try {
-    (void)index;
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getTextureMaxWidth();
   } catch (...) { return 0; }
 #endif
@@ -12309,7 +12308,7 @@ uint64_t ocio_lut3d_transform_get_grid_size_u64(void* handle) {
 #else
   try {
     return static_cast<uint64_t>(ocio_rs_bridge::get_real_lut3d_transform(handle)->getGridSize());
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 

@@ -87,6 +87,10 @@ fn gpu_shader_desc_config_round_trip_behavior() {
         .expect("set_allow_texture_1d");
 
     assert_eq!(desc.language(), GpuLanguage::Glsl4_0);
+    assert_eq!(
+        desc.try_language().expect("language query"),
+        desc.language()
+    );
     assert_eq!(desc.function_name().as_deref(), Some("ocio_test_main"));
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_test_pixel"));
     assert_eq!(desc.unique_id().as_deref(), Some("ocio-test-uid"));
@@ -109,8 +113,17 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     );
     assert_eq!(desc.descriptor_set_index(), 3);
     assert_eq!(desc.texture_binding_start(), 7);
-    assert_eq!(desc.texture_max_width(0), 64);
+    assert_eq!(desc.texture_max_width(), 64);
+    assert_eq!(
+        desc.try_texture_max_width()
+            .expect("texture max width query"),
+        desc.texture_max_width()
+    );
     assert!(!desc.allow_texture_1d());
+    assert_eq!(
+        desc.try_allow_texture_1d().expect("allow texture 1d query"),
+        desc.allow_texture_1d()
+    );
 
     let cloned = desc.clone_desc().expect("clone_desc");
     assert_eq!(cloned.language(), GpuLanguage::Glsl4_0);
@@ -120,7 +133,7 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     assert_eq!(cloned.resource_prefix().as_deref(), Some("ocio_test_"));
     assert_eq!(cloned.descriptor_set_index(), 3);
     assert_eq!(cloned.texture_binding_start(), 7);
-    assert_eq!(cloned.texture_max_width(0), 4096);
+    assert_eq!(cloned.texture_max_width(), 4096);
     assert!(cloned.allow_texture_1d());
 }
 
@@ -478,7 +491,11 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
 
     let desc = GpuShaderDesc::create().expect("gpu shader desc create");
     desc.begin("manual_uid").expect("begin");
-    assert_eq!(desc.next_resource_index(), 0);
+    assert_eq!(
+        desc.try_next_resource_index()
+            .expect("first resource index"),
+        0
+    );
     assert_eq!(desc.next_resource_index(), 1);
     desc.end().expect("end shader collection");
 
