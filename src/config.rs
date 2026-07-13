@@ -554,16 +554,34 @@ impl Config {
         color_space_name: impl AsRef<str>,
         index: i32,
     ) -> Option<String> {
-        let display = cstring(display).ok()?;
-        let color_space_name = cstring(color_space_name).ok()?;
-        unsafe {
+        self.try_view_with_color_space(display, color_space_name, index)
+            .ok()
+            .flatten()
+    }
+
+    /// Return the view name at a given index for a display and color-space name.
+    ///
+    /// Unlike [`Self::view_with_color_space`], this preserves invalid input and
+    /// OCIO query failures as [`OcioError`].
+    pub fn try_view_with_color_space(
+        &self,
+        display: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+        index: i32,
+    ) -> Result<Option<String>> {
+        let display = cstring(display)?;
+        let color_space_name = cstring(color_space_name)?;
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view_v1(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 color_space_name.as_ptr().cast(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     #[doc(hidden)]
@@ -3373,15 +3391,33 @@ impl Config {
         display: impl AsRef<str>,
         index: i32,
     ) -> Option<String> {
-        let display = cstring(display).ok()?;
-        unsafe {
+        self.try_view_by_reference_space(reference_space, display, index)
+            .ok()
+            .flatten()
+    }
+
+    /// Return the view name at a given index for a display and reference space type.
+    ///
+    /// Unlike [`Self::view_by_reference_space`], this preserves invalid input and
+    /// OCIO query failures as [`OcioError`].
+    pub fn try_view_by_reference_space(
+        &self,
+        reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+        index: i32,
+    ) -> Result<Option<String>> {
+        let display = cstring(display)?;
+        crate::clear_last_error();
+        let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view_v2(
                 self.handle.as_ptr(),
                 reference_space as i32,
                 display.as_ptr().cast(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(view)
     }
 
     #[doc(hidden)]

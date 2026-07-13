@@ -41,6 +41,23 @@ fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.minor_version(), 0);
     assert_eq!(config.default_display().as_deref(), Some("sRGB"));
     assert_eq!(config.default_view("sRGB").as_deref(), Some("Raw"));
+    assert_eq!(
+        config
+            .try_view_with_color_space("sRGB", "raw", 0)
+            .expect("color-space-filtered view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert!(config
+        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
+        .expect("reference-space-filtered view query")
+        .is_some());
+    assert!(config
+        .try_view_with_color_space("sRGB\0", "raw", 0)
+        .is_err());
+    assert!(config
+        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB\0", 0)
+        .is_err());
     assert_eq!(config.num_looks(), 1);
     assert_eq!(config.look_name_by_index(0).as_deref(), Some("shot_look"));
     assert_eq!(
