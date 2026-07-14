@@ -8,8 +8,9 @@ paths — Config, Context, Processor, CPU/GPU execution, GPU shader
 extraction, dynamic properties, and the full transform family. Fallible safe
 APIs propagate C++ exceptions to Rust `Result` across mutators and an
 expanding set of checked getters; legacy low-level compatibility entry points
-may still use OCIO-style default return values. The remaining work is release
-hardening, longer-tail behavioral validation, and documentation completeness
+may still use OCIO-style default return values. The remaining work is
+longer-tail behavioral validation, platform coverage, and documentation
+completeness
 rather than missing core binding coverage.
 
 | Mode | Status |
@@ -28,9 +29,8 @@ rather than missing core binding coverage.
 
 ## Known caveats
 
-- docs.rs documentation covers all public methods; full `missing_docs`
-  enforcement is not yet a release gate (472 remaining warnings are mostly
-  enum variants and struct fields).
+- Documentation builds cleanly with `RUSTDOCFLAGS=-D warnings`;
+  full `missing_docs` enforcement is not yet a release gate.
 - Stub mode returns safe defaults; it is not a substitute for bundled
   real-OCIO validation.
 - The crate is not yet claiming to be a drop-in replacement for every
@@ -69,7 +69,7 @@ default values on failure and are not equivalent to fallible safe APIs.
 
 Current release checklist highlights:
 
-- The crate is now aiming at a practical `0.2.1` bar: core OCIO 2.5 Rust
+- The `0.2.1` release line maintains a practical bar: core OCIO 2.5 Rust
   bindings are broadly present, bridge-backed, and usable for early adopters,
   while deeper edge-case reliability work continues into follow-up releases.
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
@@ -132,9 +132,12 @@ Current release checklist highlights:
   sources used by the current bundled build configuration, and the extracted
   package now passes offline bundled compilation in release audit.
 
-## Release-audit results
+## Release-audit coverage
 
-Latest release-audit result:
+The most recently completed release-audit run, before the `0.2.1` metadata
+update, validated the following repository-side coverage. The top-level package
+check remains expected to wait for the matching `ocio-sys` version to be
+published first:
 
 - `./tools/release_audit.ps1 -IncludeBundled -Offline` passes end to end.
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
@@ -142,8 +145,9 @@ Latest release-audit result:
   for top-level `cargo package`.
 - The release audit now validates the extracted `ocio-sys` package with
   `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `384` crate tests plus forty-seven
-  dedicated integration suites covering baker output, builtin-config registry
+- The current bundled validation path exercises `613` test cases across `388`
+  crate unit tests and forty-seven dedicated integration suites covering baker
+  output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
   color-space-set behavior, config collection behavior, config core behavior,
