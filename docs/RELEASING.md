@@ -38,7 +38,7 @@ pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offl
 ```
 
 The script treats the known top-level `cargo package` failure as a warning when
-the registry does not yet contain `ocio-sys 0.2.0`, so it can distinguish
+the registry does not yet contain `ocio-sys 0.2.1`, so it can distinguish
 repository regressions from the expected publish-order blocker.
 
 Current packaging caveat:
@@ -56,7 +56,7 @@ Current audit status:
 - The same audit now verifies the extracted `ocio-sys` package with
   `cargo build --features bundled --offline`.
 - `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` reports only the
-  expected warning that `ocio-sys 0.2.0` must exist in the registry before the
+  expected warning that `ocio-sys 0.2.1` must exist in the registry before the
   top-level crate can be fully packaged.
 
 The repository also exposes the same flow as manual GitHub Actions workflows:

@@ -69,7 +69,7 @@ default values on failure and are not equivalent to fallible safe APIs.
 
 Current release checklist highlights:
 
-- The crate is now aiming at a practical `0.2.0` bar: core OCIO 2.5 Rust
+- The crate is now aiming at a practical `0.2.1` bar: core OCIO 2.5 Rust
   bindings are broadly present, bridge-backed, and usable for early adopters,
   while deeper edge-case reliability work continues into follow-up releases.
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
@@ -91,7 +91,7 @@ Current release checklist highlights:
   compatibility-only FFI extra (`ocio_error_get_last`).
 - `cargo package -p ocio-sys --allow-dirty --offline` passes.
 - `cargo build --features bundled --offline` passes from the extracted
-  `target/package/ocio-sys-0.2.0` package directory.
+  `target/package/ocio-sys-0.2.1` package directory.
 - `cargo test --workspace --features bundled` now covers the dedicated
   `allocation_transform_behavior`, `baker_behavior`,
   `builtin_config_registry_behavior`, `color_space_behavior`,

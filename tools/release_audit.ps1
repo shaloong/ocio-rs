@@ -68,10 +68,10 @@ function Invoke-Check {
 
     if ($AllowKnownTopLevelPackageBlocker) {
         $knownBlocker =
-            $text -match 'failed to select a version for the requirement `ocio-sys = "\^0\.2\.0"`' -and
-            $text -match 'candidate versions found which didn''t match: 0\.1\.1'
+            $text -match 'failed to select a version for the requirement `ocio-sys = "\^0\.2\.1"`' -and
+            $text -match 'candidate versions found which didn''t match: 0\.2\.0'
         if ($knownBlocker) {
-            $script:Warnings += "$Name blocked by registry state: publish ocio-sys 0.2.0 before packaging ocio-rs."
+            $script:Warnings += "$Name blocked by registry state: publish ocio-sys 0.2.1 before packaging ocio-rs."
             Write-Host "    WARN: blocked by registry state, not by repository contents" -ForegroundColor Yellow
             return
         }

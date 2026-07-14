@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-15
+
 ### Added
 
 - Safe `Config` static-query APIs for builtin/interchange color-space
