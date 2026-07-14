@@ -4674,7 +4674,7 @@ void* ocio_viewing_rules_get_name(void* handle, size_t ruleIndex) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getName(ruleIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4685,7 +4685,7 @@ size_t ocio_viewing_rules_get_num_color_spaces(void* handle, size_t ruleIndex) {
 #else
   try {
     return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumColorSpaces(ruleIndex);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -4696,7 +4696,7 @@ void* ocio_viewing_rules_get_color_space(void* handle, size_t ruleIndex, size_t 
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getColorSpace(ruleIndex, colorSpaceIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4729,7 +4729,7 @@ size_t ocio_viewing_rules_get_num_encodings(void* handle, size_t ruleIndex) {
 #else
   try {
     return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumEncodings(ruleIndex);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -4740,7 +4740,7 @@ void* ocio_viewing_rules_get_encoding(void* handle, size_t ruleIndex, size_t enc
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getEncoding(ruleIndex, encodingIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4773,7 +4773,7 @@ size_t ocio_viewing_rules_get_num_custom_keys(void* handle, size_t ruleIndex) {
 #else
   try {
     return ocio_rs_bridge::get_real_viewing_rules(handle)->getNumCustomKeys(ruleIndex);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -4784,7 +4784,7 @@ void* ocio_viewing_rules_get_custom_key_name(void* handle, size_t ruleIndex, siz
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getCustomKeyName(ruleIndex, keyIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4795,7 +4795,7 @@ void* ocio_viewing_rules_get_custom_key_value(void* handle, size_t ruleIndex, si
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getCustomKeyValue(ruleIndex, keyIndex)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

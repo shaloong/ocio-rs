@@ -31,6 +31,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   failures through fallible `try_*` APIs
 - `ConfigIOProxy` config-text and fast-LUT-hash queries now preserve bridge
   failures through fallible `try_*` APIs
+- `ViewingRules` string queries now preserve invalid-index and bridge failures
+  through fallible `try_*` APIs
 
 ## [0.2.0] - 2026-07-02
 

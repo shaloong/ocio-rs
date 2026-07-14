@@ -34,18 +34,39 @@ fn viewing_rules_round_trip_and_copy_behavior() {
     assert_eq!(rules.rule_index("SceneRule"), Some(0));
     assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
     assert_eq!(rules.rule_index("bad\0rule"), None);
-    assert_eq!(rules.name(0).as_deref(), Some("SceneRule"));
+    assert_eq!(
+        rules.try_name(0).expect("rule name").as_deref(),
+        Some("SceneRule")
+    );
 
     rules.add_color_space(0, "raw").expect("add color space");
     rules
         .set_custom_key(0, "camera", "A001")
         .expect("set custom key");
 
-    assert_eq!(rules.num_color_spaces(0), 1);
-    assert_eq!(rules.color_space(0, 0).as_deref(), Some("raw"));
-    assert_eq!(rules.num_custom_keys(0), 1);
-    assert_eq!(rules.custom_key_name(0, 0).as_deref(), Some("camera"));
-    assert_eq!(rules.custom_key_value(0, 0).as_deref(), Some("A001"));
+    assert_eq!(rules.try_num_color_spaces(0).expect("color-space count"), 1);
+    assert_eq!(
+        rules
+            .try_color_space(0, 0)
+            .expect("rule color space")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(rules.try_num_custom_keys(0).expect("custom-key count"), 1);
+    assert_eq!(
+        rules
+            .try_custom_key_name(0, 0)
+            .expect("custom key name")
+            .as_deref(),
+        Some("camera")
+    );
+    assert_eq!(
+        rules
+            .try_custom_key_value(0, 0)
+            .expect("custom key value")
+            .as_deref(),
+        Some("A001")
+    );
 
     let copy = rules.create_editable_copy().expect("editable copy");
     copy.insert_rule(1, "EncodingRule")
@@ -53,9 +74,17 @@ fn viewing_rules_round_trip_and_copy_behavior() {
     copy.add_encoding(1, "scene-linear").expect("add encoding");
 
     assert_eq!(copy.num_entries(), 2);
-    assert_eq!(copy.name(1).as_deref(), Some("EncodingRule"));
-    assert_eq!(copy.num_encodings(1), 1);
-    assert_eq!(copy.encoding(1, 0).as_deref(), Some("scene-linear"));
+    assert_eq!(
+        copy.try_name(1).expect("copy rule name").as_deref(),
+        Some("EncodingRule")
+    );
+    assert_eq!(copy.try_num_encodings(1).expect("encoding count"), 1);
+    assert_eq!(
+        copy.try_encoding(1, 0)
+            .expect("copy rule encoding")
+            .as_deref(),
+        Some("scene-linear")
+    );
 
     assert_eq!(rules.num_entries(), 1);
     assert_eq!(rules.num_encodings(0), 0);
@@ -204,5 +233,21 @@ fn viewing_rules_mutation_errors_surface_behavior() {
     assert!(
         matches!(remove_missing_rule_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {remove_missing_rule_err:?}"
+    );
+
+    let missing_name_err = rules
+        .try_name(5)
+        .expect_err("missing rule name should fail");
+    assert!(
+        matches!(missing_name_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_name_err:?}"
+    );
+
+    let missing_count_err = rules
+        .try_num_color_spaces(5)
+        .expect_err("missing rule color-space count should fail");
+    assert!(
+        matches!(missing_count_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_count_err:?}"
     );
 }
