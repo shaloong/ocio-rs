@@ -1526,6 +1526,34 @@ void ocio_reset_logging_callback(void) {
 #endif
 }
 
+void ocio_set_compute_hash_callback(OcioComputeHashCallback callback) {
+#ifdef OCIO_RS_STUB
+  (void)callback;
+#else
+  try {
+    ocio::SetComputeHashFunction([callback](const std::string& input) {
+      const uint8_t* output = nullptr;
+      size_t output_len = 0;
+      if (!callback || !callback(reinterpret_cast<const uint8_t*>(input.data()), input.size(), &output, &output_len)) {
+        throw ocio::Exception("Rust compute hash callback failed");
+      }
+      if (!output && output_len != 0) {
+        throw ocio::Exception("Rust compute hash callback returned a null output buffer");
+      }
+      return std::string(reinterpret_cast<const char*>(output), output_len);
+    });
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_reset_compute_hash_callback(void) {
+#ifdef OCIO_RS_STUB
+#else
+  try { ocio::ResetComputeHashFunction(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 const char* ocio_resolve_config_path(const char* originalPath) {
 #ifdef OCIO_RS_STUB
   return originalPath;

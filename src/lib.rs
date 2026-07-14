@@ -108,6 +108,7 @@ pub use types::*;
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 
+use std::cell::RefCell;
 use std::ffi::{c_void, CStr, CString};
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -138,6 +139,11 @@ pub enum OcioError {
 pub type Result<T> = std::result::Result<T, OcioError>;
 
 type LoggingCallback = dyn Fn(&str) + Send + Sync + 'static;
+type ComputeHashCallback = dyn Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static;
+
+thread_local! {
+    static COMPUTE_HASH_OUTPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
 
 fn logging_callback_slot() -> &'static Mutex<Option<Arc<LoggingCallback>>> {
     static SLOT: OnceLock<Mutex<Option<Arc<LoggingCallback>>>> = OnceLock::new();
@@ -145,6 +151,16 @@ fn logging_callback_slot() -> &'static Mutex<Option<Arc<LoggingCallback>>> {
 }
 
 fn logging_callback_update_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn compute_hash_callback_slot() -> &'static Mutex<Option<Arc<ComputeHashCallback>>> {
+    static SLOT: OnceLock<Mutex<Option<Arc<ComputeHashCallback>>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(None))
+}
+
+fn compute_hash_callback_update_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
 }
@@ -162,6 +178,38 @@ unsafe extern "C" fn rust_logging_callback(message: *const i8) {
         let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
     }
+}
+
+unsafe extern "C" fn rust_compute_hash_callback(
+    input: *const u8,
+    input_len: usize,
+    output: *mut *const u8,
+    output_len: *mut usize,
+) -> bool {
+    if (input.is_null() && input_len != 0) || output.is_null() || output_len.is_null() {
+        return false;
+    }
+    let callback = compute_hash_callback_slot()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone();
+    let Some(callback) = callback else {
+        return false;
+    };
+    let input = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let Ok(value) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(input)))
+    else {
+        return false;
+    };
+    COMPUTE_HASH_OUTPUT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        *slot = value;
+        unsafe {
+            *output = slot.as_ptr();
+            *output_len = slot.len();
+        }
+    });
+    true
 }
 
 /// Returns `true` when the crate was built in stub mode instead of linking a
@@ -341,6 +389,52 @@ pub fn reset_logging_callback() -> Result<()> {
     unsafe { ocio_sys::ocio_reset_logging_callback() };
     ocio_call_status()?;
     let mut slot = logging_callback_slot()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    *slot = None;
+    Ok(())
+}
+
+/// Install a process-global OCIO compute-hash callback.
+///
+/// The callback receives and returns raw bytes so OCIO `std::string` values,
+/// including embedded NUL bytes, round-trip without loss. Its output is copied
+/// by OCIO before the callback returns. Panics become OCIO exceptions rather
+/// than unwinding across the FFI boundary.
+pub fn set_compute_hash_callback(
+    callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
+) -> Result<()> {
+    let _update = compute_hash_callback_update_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let callback = Arc::new(callback) as Arc<ComputeHashCallback>;
+    let previous = {
+        let mut slot = compute_hash_callback_slot()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        (*slot).replace(callback)
+    };
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_compute_hash_callback(Some(rust_compute_hash_callback)) };
+    if let Err(error) = ocio_call_status() {
+        let mut slot = compute_hash_callback_slot()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *slot = previous;
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Restore OCIO's default process-global compute-hash function.
+pub fn reset_compute_hash_callback() -> Result<()> {
+    let _update = compute_hash_callback_update_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    clear_last_error();
+    unsafe { ocio_sys::ocio_reset_compute_hash_callback() };
+    ocio_call_status()?;
+    let mut slot = compute_hash_callback_slot()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     *slot = None;

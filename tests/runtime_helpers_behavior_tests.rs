@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
     extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
-    reset_logging_callback, resolve_config_path, set_env_variable, set_logging_callback,
-    try_log_message, try_set_logging_level, unset_env_variable, version, version_hex, Config,
-    LoggingLevel,
+    reset_compute_hash_callback, reset_logging_callback, resolve_config_path,
+    set_compute_hash_callback, set_env_variable, set_logging_callback, try_log_message,
+    try_set_logging_level, unset_env_variable, version, version_hex, Config, LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -118,6 +118,40 @@ fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
     try_log_message(LoggingLevel::Warning, "ocio-rs logging callback test")
         .expect("emit logging callback message");
     reset_logging_callback().expect("reset logging callback");
+    assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+fn global_compute_hash_callback_preserves_binary_callback_semantics() {
+    let _guard = runtime_helpers_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = Config::raw().expect("raw config");
+    let serialized = config
+        .serialize()
+        .expect("serialize config")
+        .expect("real serialized config");
+    let calls = Arc::new(AtomicUsize::new(0));
+    let path = std::env::temp_dir().join(format!(
+        "ocio-rs-compute-hash-{}-{}.ocio",
+        std::process::id(),
+        calls.load(Ordering::SeqCst)
+    ));
+    std::fs::write(&path, serialized).expect("write temporary config");
+
+    let callback_calls = Arc::clone(&calls);
+    set_compute_hash_callback(move |_| {
+        callback_calls.fetch_add(1, Ordering::SeqCst);
+        b"ocio-rs\0compute-hash".to_vec()
+    })
+    .expect("install compute hash callback");
+    let loaded = Config::from_file(path.to_string_lossy());
+    reset_compute_hash_callback().expect("reset compute hash callback");
+    let _ = std::fs::remove_file(&path);
+
+    loaded.expect("load config through compute hash callback");
     assert!(calls.load(Ordering::SeqCst) > 0);
 }
 

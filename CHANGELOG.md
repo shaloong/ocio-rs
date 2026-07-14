@@ -18,6 +18,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   the latter retain OCIO's documented process-wide synchronization requirement
 - A safe process-global logging callback with Rust-owned lifetime management,
   serialized updates, and panic isolation at the OCIO FFI boundary
+- A safe, length-aware process-global compute-hash callback that preserves
+  binary `std::string` values and turns Rust panics into OCIO errors
 
 ### Fixed
 
