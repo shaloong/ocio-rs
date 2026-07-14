@@ -52,6 +52,19 @@ fn builtin_config_registry_round_trip_behavior() {
     assert!(yaml_by_index.contains("ocio_profile_version"));
     assert!(yaml_by_index.contains("colorspaces:"));
 
+    let _recommended = registry
+        .try_is_config_recommended(0)
+        .expect("recommended flag query");
+    let out_of_range = registry
+        .try_is_config_recommended(count)
+        .expect_err("out-of-range recommendation query should fail");
+    assert!(matches!(out_of_range, OcioError::Ocio(_)));
+    assert!(!registry.is_config_recommended(count));
+    assert!(matches!(
+        registry.try_is_config_recommended(-1),
+        Err(OcioError::InvalidInput(_))
+    ));
+
     let config_by_index = registry.config_by_index(0).expect("config by index");
     let config_by_name = registry
         .try_config_by_name(&name)

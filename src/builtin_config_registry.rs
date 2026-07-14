@@ -83,14 +83,31 @@ impl BuiltinConfigRegistry {
 
     /// Return whether the built-in config at `index` is marked recommended upstream.
     pub fn is_config_recommended(&self, index: i32) -> bool {
-        unsafe {
+        self.try_is_config_recommended(index).unwrap_or(false)
+    }
+
+    /// Return whether the built-in config at `index` is marked recommended upstream.
+    ///
+    /// Invalid indices are reported as OCIO errors. Use [`Self::is_config_recommended`]
+    /// when the legacy `false` fallback is preferred.
+    pub fn try_is_config_recommended(&self, index: i32) -> Result<bool> {
+        if index < 0 {
+            return Err(OcioError::InvalidInput(
+                "BuiltinConfigRegistry index must be non-negative".to_owned(),
+            ));
+        }
+        crate::clear_last_error();
+        let recommended = unsafe {
             ocio_sys::ocio_builtin_config_registry_is_builtin_config_recommended(
                 self.handle.as_ptr(),
                 index as usize,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(recommended)
     }
 
+    /// Compatibility alias for [`Self::is_config_recommended`].
     pub fn is_builtin_config_recommended(&self, index: i32) -> bool {
         self.is_config_recommended(index)
     }
@@ -168,8 +185,7 @@ impl BuiltinConfigRegistry {
 
 impl Drop for BuiltinConfigRegistry {
     fn drop(&mut self) {
-        // BuiltinConfigRegistry::Get() returns a reference singleton, no destroy needed.
-        // We just let the handle drop. In real mode the pointer is to a static reference.
+        unsafe { ocio_sys::ocio_builtin_config_registry_destroy(self.handle.as_ptr()) }
     }
 }
 

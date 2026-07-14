@@ -68,6 +68,7 @@ void ocio_clear_all_caches(void);
 
 // --- BuiltinConfigRegistry ---
 void* ocio_builtin_config_registry_get(void);
+void ocio_builtin_config_registry_destroy(void* handle);
 size_t ocio_builtin_config_registry_get_num_builtin_configs(void* handle);
 void* ocio_builtin_config_registry_get_builtin_config_name(void* handle, size_t configIndex);
 void* ocio_builtin_config_registry_get_builtin_config_ui_name(void* handle, size_t configIndex);

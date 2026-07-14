@@ -9,6 +9,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Built-in config recommendation queries now preserve OCIO invalid-index
+  errors through a fallible API, and registry wrappers release their bridge
+  handles on drop
 - GPU shader descriptor uniform and texture lookups now preserve OCIO
   out-of-range errors through their `try_*` APIs
 - Make `FormatMetadata` child wrappers resilient to OCIO sibling-vector

@@ -1545,6 +1545,10 @@ void* ocio_builtin_config_registry_get(void) {
 #endif
 }
 
+void ocio_builtin_config_registry_destroy(void* handle) {
+  delete static_cast<ocio_rs_bridge::BuiltinConfigRegistryHandle*>(handle);
+}
+
 size_t ocio_builtin_config_registry_get_num_builtin_configs(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 
@@ -1607,7 +1611,7 @@ bool ocio_builtin_config_registry_is_builtin_config_recommended(void* handle, si
 #else
   try {
     return ocio_rs_bridge::get_real_builtin_config_registry(handle)->isBuiltinConfigRecommended(configIndex);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

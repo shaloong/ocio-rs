@@ -58,6 +58,7 @@ unsafe extern "C" {
 
     // --- BuiltinConfigRegistry ---
     pub fn ocio_builtin_config_registry_get() -> *mut c_void;
+    pub fn ocio_builtin_config_registry_destroy(handle: *mut c_void);
     pub fn ocio_builtin_config_registry_get_num_builtin_configs(handle: *mut c_void) -> usize;
     pub fn ocio_builtin_config_registry_get_builtin_config_name(
         handle: *mut c_void,
