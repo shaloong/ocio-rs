@@ -41,6 +41,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   `Result` APIs
 - `GroupTransform::try_transform` now distinguishes OCIO index errors from a
   missing transform while preserving compatibility with `transform`
+- `ColorSpace::category_by_index` exposes the full authored category list
+  instead of limiting safe callers to the first category
 
 ## [0.2.0] - 2026-07-02
 

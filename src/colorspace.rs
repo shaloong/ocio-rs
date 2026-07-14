@@ -153,10 +153,17 @@ impl ColorSpace {
 
     /// Get the category of this color space.
     pub fn category(&self) -> Option<String> {
+        self.category_by_index(0)
+    }
+
+    /// Get a category by index.
+    ///
+    /// Returns `None` when `index` does not refer to an authored category.
+    pub fn category_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_category(
                 self.handle.as_ptr(),
-                0,
+                index,
             ))
         }
     }

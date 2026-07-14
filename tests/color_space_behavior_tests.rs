@@ -92,7 +92,14 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
 
     assert_eq!(cs.num_categories(), 1);
     assert_eq!(cs.category().as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(1), None);
+    cs.add_category("delivery").expect("add second category");
+    assert_eq!(cs.num_categories(), 2);
+    assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(1).as_deref(), Some("delivery"));
     assert!(cs.has_category("unit_category"));
+    assert!(cs.has_category("delivery"));
 
     let _ = cs.interop_id();
     assert_eq!(
