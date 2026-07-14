@@ -9,6 +9,10 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Single-entry LUT1D/LUT3D reads now use direct, fallible bridge calls instead
+  of copying the complete LUT; full-LUT reads validate allocation sizes before
+  allocation
+
 - CPU pixel-buffer helpers now reject short/default strides, C++ `ptrdiff_t`
   byte-stride overflows, and misaligned multi-byte packed slices before
   passing Rust-owned data to OCIO

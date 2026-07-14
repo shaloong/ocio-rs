@@ -51,8 +51,16 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.interpolation(), Interpolation::Linear);
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
     assert_eq!(transform.direction(), TransformDirection::Forward);
+    assert_eq!(
+        transform.try_value(0).expect("read first LUT entry"),
+        Some([0.0, 0.0, 0.0])
+    );
     assert_eq!(transform.value(0), Some([0.0, 0.0, 0.0]));
     assert_eq!(transform.value(1), Some([2.0, 2.0, 2.0]));
+    assert_eq!(
+        transform.try_value(2).expect("out-of-range LUT entry"),
+        None
+    );
 
     let values = transform.values();
     assert_vec_close(&values, &[0.0, 0.0, 0.0, 2.0, 2.0, 2.0], 1e-10);
@@ -90,6 +98,10 @@ fn lut1d_transform_rejects_invalid_write_inputs() {
         transform.set_value(2, [1.0, 1.0, 1.0]),
         Err(ocio_rs::OcioError::InvalidInput(_))
     ));
+    assert_eq!(
+        transform.try_value(2).expect("out-of-range LUT entry"),
+        None
+    );
     assert_eq!(transform.value(1), Some([2.0, 2.0, 2.0]));
 }
 

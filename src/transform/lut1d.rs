@@ -158,8 +158,7 @@ impl Lut1DTransform {
 
     /// Return all RGB LUT values as a flat `f64` vector.
     pub fn try_values(&self) -> Result<Vec<f64>> {
-        let len = self.length() as usize;
-        let mut data = vec![0.0f64; len * 3];
+        let mut data = vec![0.0f64; required_value_count(self.length())?];
         if data.is_empty() {
             return Ok(data);
         }
@@ -192,18 +191,31 @@ impl Lut1DTransform {
         crate::ocio_call_status()
     }
 
+    /// Return a single RGB LUT entry by index, preserving OCIO failures.
+    ///
+    /// `Ok(None)` means `index` is outside the current LUT length.
+    pub fn try_value(&self, index: u64) -> Result<Option<[f32; 3]>> {
+        if index >= self.length() {
+            return Ok(None);
+        }
+        let mut value = [0.0f32; 3];
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_get_value(
+                self.handle.as_ptr(),
+                index as *mut c_void,
+                (&mut value[0] as *mut f32).cast(),
+                (&mut value[1] as *mut f32).cast(),
+                (&mut value[2] as *mut f32).cast(),
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(Some(value))
+    }
+
     /// Return a single RGB LUT entry by index, or `None` if out of range.
     pub fn value(&self, index: u64) -> Option<[f32; 3]> {
-        if index >= self.length() {
-            return None;
-        }
-        let values = self.values();
-        let offset = index as usize * 3;
-        Some([
-            values.get(offset).copied().unwrap_or_default() as f32,
-            values.get(offset + 1).copied().unwrap_or_default() as f32,
-            values.get(offset + 2).copied().unwrap_or_default() as f32,
-        ])
+        self.try_value(index).ok().flatten()
     }
 
     /// Set one RGB LUT entry.

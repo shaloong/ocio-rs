@@ -12112,7 +12112,7 @@ void ocio_lut1d_transform_get_value(void* handle, void* index, void* r, void* g,
     ocio_rs_bridge::get_real_lut1d_transform(handle)->getValue(
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)),
         *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -12338,7 +12338,7 @@ void ocio_lut3d_transform_get_value(void* handle, void* indexR, void* indexG, vo
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
         static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
         *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 

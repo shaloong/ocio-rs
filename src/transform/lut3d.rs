@@ -160,8 +160,7 @@ impl Lut3DTransform {
 
     /// Return all RGB LUT values as a flat `f64` vector.
     pub fn try_values(&self) -> Result<Vec<f64>> {
-        let gs = self.grid_size() as usize;
-        let mut data = vec![0.0f64; gs * gs * gs * 3];
+        let mut data = vec![0.0f64; required_value_count(self.grid_size())?];
         if data.is_empty() {
             return Ok(data);
         }
@@ -192,21 +191,34 @@ impl Lut3DTransform {
         crate::ocio_call_status()
     }
 
-    /// Return a single RGB LUT entry by grid coordinates, or `None` if out of range.
-    pub fn value(&self, index_r: u64, index_g: u64, index_b: u64) -> Option<[f32; 3]> {
+    /// Return a single RGB LUT entry by grid coordinates, preserving OCIO failures.
+    ///
+    /// `Ok(None)` means at least one coordinate is outside the current grid.
+    pub fn try_value(&self, index_r: u64, index_g: u64, index_b: u64) -> Result<Option<[f32; 3]>> {
         let edge = self.grid_size();
         if index_r >= edge || index_g >= edge || index_b >= edge {
-            return None;
+            return Ok(None);
         }
-        let values = self.values();
-        let edge = edge as usize;
-        let offset =
-            ((index_b as usize * edge * edge) + (index_g as usize * edge) + index_r as usize) * 3;
-        Some([
-            values.get(offset).copied().unwrap_or_default() as f32,
-            values.get(offset + 1).copied().unwrap_or_default() as f32,
-            values.get(offset + 2).copied().unwrap_or_default() as f32,
-        ])
+        let mut value = [0.0f32; 3];
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut3d_transform_get_value(
+                self.handle.as_ptr(),
+                index_r as *mut c_void,
+                index_g as *mut c_void,
+                index_b as *mut c_void,
+                (&mut value[0] as *mut f32).cast(),
+                (&mut value[1] as *mut f32).cast(),
+                (&mut value[2] as *mut f32).cast(),
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(Some(value))
+    }
+
+    /// Return a single RGB LUT entry by grid coordinates, or `None` if out of range.
+    pub fn value(&self, index_r: u64, index_g: u64, index_b: u64) -> Option<[f32; 3]> {
+        self.try_value(index_r, index_g, index_b).ok().flatten()
     }
 
     /// Set one RGB LUT entry.

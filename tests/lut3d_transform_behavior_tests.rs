@@ -57,11 +57,23 @@ fn lut3d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
     assert_eq!(transform.direction(), TransformDirection::Forward);
 
+    assert_eq!(
+        transform
+            .try_value(1, 1, 1)
+            .expect("read final LUT grid entry"),
+        Some([2.0, 3.0, 4.0])
+    );
     assert_eq!(transform.value(0, 0, 0), Some([0.0, 0.0, 0.0]));
     assert_eq!(transform.value(1, 0, 0), Some([2.0, 0.0, 0.0]));
     assert_eq!(transform.value(0, 1, 0), Some([0.0, 3.0, 0.0]));
     assert_eq!(transform.value(0, 0, 1), Some([0.0, 0.0, 4.0]));
     assert_eq!(transform.value(1, 1, 1), Some([2.0, 3.0, 4.0]));
+    assert_eq!(
+        transform
+            .try_value(2, 0, 0)
+            .expect("out-of-range LUT grid entry"),
+        None
+    );
 
     let copy = transform
         .create_editable_copy()
@@ -97,6 +109,12 @@ fn lut3d_transform_rejects_invalid_write_inputs() {
         transform.set_value(2, 0, 0, [1.0, 1.0, 1.0]),
         Err(ocio_rs::OcioError::InvalidInput(_))
     ));
+    assert_eq!(
+        transform
+            .try_value(2, 0, 0)
+            .expect("out-of-range LUT grid entry"),
+        None
+    );
     assert_eq!(transform.value(1, 1, 1), Some([2.0, 3.0, 4.0]));
 }
 
