@@ -29,6 +29,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   bridge failures through fallible `try_*` APIs
 - Built-in transform registry style and description queries now preserve bridge
   failures through fallible `try_*` APIs
+- `ConfigIOProxy` config-text and fast-LUT-hash queries now preserve bridge
+  failures through fallible `try_*` APIs
 
 ## [0.2.0] - 2026-07-02
 

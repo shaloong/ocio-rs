@@ -32,11 +32,19 @@ impl ConfigIOProxy {
 
     /// Return the primary OCIO config text payload, if set.
     pub fn config_data(&self) -> Option<String> {
-        unsafe {
+        self.try_config_data().ok().flatten()
+    }
+
+    /// Return the primary config text payload while preserving bridge failures.
+    pub fn try_config_data(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let data = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_config_io_proxy_get_config_data(
                 self.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(data)
     }
 
     /// Register the byte payload for a LUT file path and its fast hash.
@@ -115,13 +123,21 @@ impl ConfigIOProxy {
 
     /// Return the upstream fast hash associated with `filepath`, if present.
     pub fn fast_lut_file_hash(&self, filepath: impl AsRef<str>) -> Option<String> {
-        let filepath = cstring(filepath).ok()?;
-        unsafe {
+        self.try_fast_lut_file_hash(filepath).ok().flatten()
+    }
+
+    /// Return an upstream LUT fast hash while preserving bridge failures.
+    pub fn try_fast_lut_file_hash(&self, filepath: impl AsRef<str>) -> Result<Option<String>> {
+        let filepath = cstring(filepath)?;
+        crate::clear_last_error();
+        let hash = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_config_io_proxy_get_fast_lut_file_hash(
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(hash)
     }
 
     #[doc(hidden)]

@@ -1701,7 +1701,7 @@ const char* ocio_config_io_proxy_get_config_data(void* handle) {
     if (!rustProxy) return nullptr;
     ocio_rs_bridge::g_serialized_text = rustProxy->configData;
     return ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1806,7 +1806,7 @@ const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char
     return ocio_rs_bridge::g_serialized_text.empty()
       ? nullptr
       : ocio_rs_bridge::g_serialized_text.c_str();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -110,7 +110,10 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         )
         .expect("set config data");
     assert_eq!(
-        proxy.config_data().as_deref(),
+        proxy
+            .try_config_data()
+            .expect("proxy config-data query")
+            .as_deref(),
         Some(
             "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
         )
@@ -121,7 +124,8 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         .expect("set empty lut data"));
     assert_eq!(
         proxy
-            .fast_lut_file_hash("E:/virtual/context/empty.spi1d")
+            .try_fast_lut_file_hash("E:/virtual/context/empty.spi1d")
+            .expect("proxy LUT hash query")
             .as_deref(),
         Some("empty-hash")
     );
@@ -130,6 +134,7 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         Some([].as_slice())
     );
     assert_eq!(proxy.lut_data("E:/virtual/context/missing.spi1d"), None);
+    assert!(proxy.try_fast_lut_file_hash("bad\0path").is_err());
 
     let config = Config::raw().expect("raw config");
     config
