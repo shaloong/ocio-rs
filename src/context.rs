@@ -239,6 +239,25 @@ impl Context {
         Ok(resolved)
     }
 
+    /// Resolve `${VAR}` substitutions and update `used_context_vars` with the variables used.
+    pub fn try_resolve_string_var_with_used_context(
+        &self,
+        string: impl AsRef<str>,
+        used_context_vars: &Context,
+    ) -> Result<Option<String>> {
+        let string = cstring(string)?;
+        crate::clear_last_error();
+        let resolved = unsafe {
+            cstr_from_mut(ocio_sys::ocio_context_resolve_string_var_v1(
+                self.handle.as_ptr(),
+                string.as_ptr().cast(),
+                used_context_vars.handle.as_ptr(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(resolved)
+    }
+
     /// # Safety
     /// `used_context_vars` must be null or a live `ContextHandle` from this ABI. When non-null,
     /// OCIO updates that handle with the context variables used during resolution; it is borrowed
@@ -274,6 +293,25 @@ impl Context {
             cstr_from_mut(ocio_sys::ocio_context_resolve_file_location(
                 self.handle.as_ptr(),
                 filename.as_ptr().cast(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(resolved)
+    }
+
+    /// Resolve a file location and update `used_context_vars` with the variables used.
+    pub fn try_resolve_file_location_with_used_context(
+        &self,
+        filename: impl AsRef<str>,
+        used_context_vars: &Context,
+    ) -> Result<Option<String>> {
+        let filename = cstring(filename)?;
+        crate::clear_last_error();
+        let resolved = unsafe {
+            cstr_from_mut(ocio_sys::ocio_context_resolve_file_location_v1(
+                self.handle.as_ptr(),
+                filename.as_ptr().cast(),
+                used_context_vars.handle.as_ptr(),
             ))
         };
         crate::ocio_call_status()?;
@@ -429,6 +467,27 @@ mod tests {
     fn create_context() {
         let ctx = Context::create();
         assert!(ctx.is_ok());
+    }
+
+    #[test]
+    fn resolve_with_used_context_retains_variables() {
+        if crate::is_stub_build() {
+            return;
+        }
+
+        let context = Context::create().unwrap();
+        context
+            .set_string_var("SHOT", "shot_010")
+            .expect("set context variable");
+        let used = Context::create().unwrap();
+        assert_eq!(
+            context
+                .try_resolve_string_var_with_used_context("${SHOT}/image.exr", &used)
+                .unwrap()
+                .as_deref(),
+            Some("shot_010/image.exr")
+        );
+        assert_eq!(used.string_var("SHOT").as_deref(), Some("shot_010"));
     }
 
     #[test]
