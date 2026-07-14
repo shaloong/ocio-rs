@@ -358,6 +358,26 @@ fn config_display_mutation_errors_surface_behavior() {
 }
 
 #[test]
+fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = ocio_rs::Config::raw().expect("raw config");
+    let err = config
+        .try_instantiate_display_from_icc_profile("missing-profile.icc")
+        .expect_err("missing virtual display should be an OCIO error");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+    assert!(config
+        .try_instantiate_display_from_monitor_name("monitor\0name")
+        .is_err());
+}
+
+#[test]
 fn config_virtual_display_mutation_errors_surface_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {

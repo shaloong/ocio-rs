@@ -3067,7 +3067,7 @@ int ocio_config_instantiate_display_from_monitor_name(void* handle, const char* 
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->instantiateDisplayFromMonitorName(monitorName);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3078,7 +3078,7 @@ int ocio_config_instantiate_display_from_icc_profile(void* handle, const char* I
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->instantiateDisplayFromICCProfile(ICCProfileFilepath);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 

@@ -9,6 +9,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Display instantiation from monitor names and ICC profiles now has fallible
+  Config APIs that retain OCIO exceptions instead of silently returning a
+  sentinel index
 - Single-entry LUT1D/LUT3D reads now use direct, fallible bridge calls instead
   of copying the complete LUT; full-LUT reads validate allocation sizes before
   allocation

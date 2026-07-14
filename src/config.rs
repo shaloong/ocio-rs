@@ -2797,32 +2797,53 @@ impl Config {
     }
 
     pub fn instantiate_display_from_monitor_name(&self, monitor_name: impl AsRef<str>) -> i32 {
-        let monitor_name = match cstring(monitor_name) {
-            Ok(v) => v,
-            Err(_) => return -1,
-        };
-        unsafe {
+        self.try_instantiate_display_from_monitor_name(monitor_name)
+            .unwrap_or(-1)
+    }
+
+    /// Instantiate a display using a system monitor name, preserving OCIO failures.
+    pub fn try_instantiate_display_from_monitor_name(
+        &self,
+        monitor_name: impl AsRef<str>,
+    ) -> Result<i32> {
+        let monitor_name = cstring(monitor_name)?;
+        crate::clear_last_error();
+        let index = unsafe {
             ocio_sys::ocio_config_instantiate_display_from_monitor_name(
                 self.handle.as_ptr(),
                 monitor_name.as_ptr().cast(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     pub fn instantiate_display_from_icc_profile(
         &self,
         icc_profile_filepath: impl AsRef<str>,
     ) -> i32 {
-        let icc_profile_filepath = match cstring(icc_profile_filepath) {
-            Ok(v) => v,
-            Err(_) => return -1,
-        };
-        unsafe {
+        self.try_instantiate_display_from_icc_profile(icc_profile_filepath)
+            .unwrap_or(-1)
+    }
+
+    /// Instantiate a display using an ICC profile, preserving OCIO failures.
+    ///
+    /// OCIO requires a virtual-display definition in the config for this
+    /// operation. Missing or invalid definitions are returned as an error.
+    pub fn try_instantiate_display_from_icc_profile(
+        &self,
+        icc_profile_filepath: impl AsRef<str>,
+    ) -> Result<i32> {
+        let icc_profile_filepath = cstring(icc_profile_filepath)?;
+        crate::clear_last_error();
+        let index = unsafe {
             ocio_sys::ocio_config_instantiate_display_from_icc_profile(
                 self.handle.as_ptr(),
                 icc_profile_filepath.as_ptr().cast(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     // --- Named transforms ---
