@@ -243,7 +243,7 @@ impl Context {
     pub fn try_resolve_string_var_with_used_context(
         &self,
         string: impl AsRef<str>,
-        used_context_vars: &Context,
+        used_context_vars: &mut Context,
     ) -> Result<Option<String>> {
         let string = cstring(string)?;
         crate::clear_last_error();
@@ -303,7 +303,7 @@ impl Context {
     pub fn try_resolve_file_location_with_used_context(
         &self,
         filename: impl AsRef<str>,
-        used_context_vars: &Context,
+        used_context_vars: &mut Context,
     ) -> Result<Option<String>> {
         let filename = cstring(filename)?;
         crate::clear_last_error();
@@ -479,10 +479,10 @@ mod tests {
         context
             .set_string_var("SHOT", "shot_010")
             .expect("set context variable");
-        let used = Context::create().unwrap();
+        let mut used = Context::create().unwrap();
         assert_eq!(
             context
-                .try_resolve_string_var_with_used_context("${SHOT}/image.exr", &used)
+                .try_resolve_string_var_with_used_context("${SHOT}/image.exr", &mut used)
                 .unwrap()
                 .as_deref(),
             Some("shot_010/image.exr")
