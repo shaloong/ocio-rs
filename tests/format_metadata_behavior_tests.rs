@@ -246,6 +246,13 @@ fn format_metadata_child_survives_parent_sibling_growth_behavior() {
         .try_child_element(child_index)
         .expect("child query")
         .expect("added child");
+    child
+        .add_child_element("StableGrandchild", "before growth")
+        .expect("add grandchild");
+    let grandchild = child
+        .try_child_element(0)
+        .expect("grandchild query")
+        .expect("added grandchild");
 
     // OCIO stores child metadata in a vector. Grow siblings after obtaining a
     // child wrapper to exercise possible vector reallocation in the bridge.
@@ -254,12 +261,20 @@ fn format_metadata_child_survives_parent_sibling_growth_behavior() {
             .add_child_element(format!("Sibling{index}"), "")
             .expect("add sibling");
     }
+    for index in 0..256 {
+        child
+            .add_child_element(format!("ChildSibling{index}"), "")
+            .expect("add child sibling");
+    }
 
     child
         .add_attribute("survived", "yes")
         .expect("mutate child after sibling growth");
     assert_eq!(child.element_name().as_deref(), Some("StableChild"));
     assert_eq!(child.attribute_value("survived").as_deref(), Some("yes"));
+    grandchild
+        .add_attribute("nested_survived", "yes")
+        .expect("mutate grandchild after sibling growth");
 
     let child_from_parent = metadata
         .try_child_element(child_index)
@@ -267,6 +282,16 @@ fn format_metadata_child_survives_parent_sibling_growth_behavior() {
         .expect("child remains attached");
     assert_eq!(
         child_from_parent.attribute_value("survived").as_deref(),
+        Some("yes")
+    );
+    let grandchild_from_parent = child_from_parent
+        .try_child_element(0)
+        .expect("re-query grandchild")
+        .expect("grandchild remains attached");
+    assert_eq!(
+        grandchild_from_parent
+            .attribute_value("nested_survived")
+            .as_deref(),
         Some("yes")
     );
 }
