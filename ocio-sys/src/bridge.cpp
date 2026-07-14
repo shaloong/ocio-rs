@@ -7169,7 +7169,7 @@ bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpu
         break;
     }
     return name != nullptr;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7469,7 +7469,7 @@ bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpu
     out->interpolation = static_cast<int>(interpolation);
     out->binding_index = desc->getTextureShaderBindingIndex(index);
     return textureName && samplerName && width > 0;
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

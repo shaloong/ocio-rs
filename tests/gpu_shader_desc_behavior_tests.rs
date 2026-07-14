@@ -594,10 +594,11 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(queried_tex2d.texture_name, tex2d.texture_name);
     assert_eq!(queried_tex2d.sampler_name, tex2d.sampler_name);
     assert_eq!(queried_tex2d.values, tex2d.values);
-    assert!(desc
-        .try_texture_2d(99)
-        .expect("missing texture query")
-        .is_none());
+    assert!(matches!(
+        desc.try_texture_2d(99),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(desc.texture_2d(99).is_none());
     assert_eq!(tex2d.dimensions, GpuTextureDimensions::Texture1D);
     assert_eq!(tex2d.interpolation, Interpolation::Linear);
     assert_eq!(tex2d.binding_index, 5);
@@ -680,10 +681,16 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     assert_eq!(queried_uniform.name, compat_uniform.name);
     assert_eq!(queried_uniform.uniform_type, compat_uniform.uniform_type);
     assert_eq!(queried_uniform.value_count, compat_uniform.value_count);
-    assert!(desc
-        .try_uniform(99)
-        .expect("missing uniform query")
-        .is_none());
+    assert!(matches!(
+        desc.try_uniform(99),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(desc.uniform(99).is_none());
+    assert!(matches!(
+        desc.try_texture_2d(99),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(desc.texture_2d(99).is_none());
     assert!(desc.uniform_buffer_size() > 0);
     assert_eq!(
         desc.try_uniform_buffer_size()

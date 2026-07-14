@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- GPU shader descriptor uniform and texture lookups now preserve OCIO
+  out-of-range errors through their `try_*` APIs
 - Make `FormatMetadata` child wrappers resilient to OCIO sibling-vector
   reallocation while preserving live parent/child mutations
 - Display instantiation from monitor names and ICC profiles now has fallible

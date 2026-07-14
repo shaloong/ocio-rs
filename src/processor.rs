@@ -1482,7 +1482,8 @@ impl GpuShaderDesc {
 
     /// Return a structured 1D/2D texture resource, preserving bridge failures.
     ///
-    /// `Ok(None)` means no texture exists at `index`.
+    /// An out-of-range `index` is returned as an OCIO error. `Ok(None)` means
+    /// OCIO did not report a usable texture resource without raising an error.
     pub fn try_texture_2d(&self, index: u32) -> Result<Option<GpuTexture2D>> {
         let mut info = ocio_sys::OcioGpuTexture2DInfo {
             texture_name: std::ptr::null(),
@@ -2290,8 +2291,9 @@ impl GpuShaderDesc {
 
     /// Return a structured uniform record, preserving bridge failures.
     ///
-    /// `Ok(None)` means no uniform exists at `index`. A uniform with a payload
-    /// that OCIO cannot expose through this ABI is returned with
+    /// An out-of-range `index` is returned as an OCIO error. `Ok(None)` means
+    /// OCIO did not report a usable uniform without raising an error. A uniform
+    /// with a payload that OCIO cannot expose through this ABI is returned with
     /// [`GpuUniformValue::Unsupported`].
     pub fn try_uniform(&self, index: u32) -> Result<Option<GpuUniform>> {
         let mut info = ocio_sys::OcioGpuUniformInfo {
