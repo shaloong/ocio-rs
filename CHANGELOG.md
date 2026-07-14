@@ -19,7 +19,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - A safe process-global logging callback with Rust-owned lifetime management,
   serialized updates, and panic isolation at the OCIO FFI boundary
 - A safe, length-aware process-global compute-hash callback that preserves
-  binary `std::string` values and turns Rust panics into OCIO errors
+  binary `std::string` values and isolates Rust panics at the OCIO FFI boundary
 - Typed Context resolution helpers that return the OCIO context variables used
   during string or file-location expansion without exposing raw handles
 

@@ -399,8 +399,8 @@ pub fn reset_logging_callback() -> Result<()> {
 ///
 /// The callback receives and returns raw bytes so OCIO `std::string` values,
 /// including embedded NUL bytes, round-trip without loss. Its output is copied
-/// by OCIO before the callback returns. Panics become OCIO exceptions rather
-/// than unwinding across the FFI boundary.
+/// by OCIO before the callback returns. Panics are caught and never unwind
+/// across the FFI boundary.
 pub fn set_compute_hash_callback(
     callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
 ) -> Result<()> {

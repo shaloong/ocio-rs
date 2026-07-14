@@ -10,11 +10,13 @@ use common::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
+use ocio_rs::transform::FileTransform;
 use ocio_rs::{
     extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
     reset_compute_hash_callback, reset_logging_callback, resolve_config_path,
-    set_compute_hash_callback, set_env_variable, set_logging_callback, try_log_message,
-    try_set_logging_level, unset_env_variable, version, version_hex, Config, LoggingLevel,
+    set_compute_hash_callback, set_env_variable, set_logging_callback, try_clear_all_caches,
+    try_log_message, try_set_logging_level, unset_env_variable, version, version_hex, Config,
+    LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -122,36 +124,63 @@ fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
 }
 
 #[test]
-fn global_compute_hash_callback_preserves_binary_callback_semantics() {
+fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
         return;
     }
 
-    let config = Config::raw().expect("raw config");
-    let serialized = config
-        .serialize()
-        .expect("serialize config")
-        .expect("real serialized config");
-    let calls = Arc::new(AtomicUsize::new(0));
-    let path = std::env::temp_dir().join(format!(
-        "ocio-rs-compute-hash-{}-{}.ocio",
-        std::process::id(),
-        calls.load(Ordering::SeqCst)
-    ));
-    std::fs::write(&path, serialized).expect("write temporary config");
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/clf/matrix_3x4_example.clf");
 
+    let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
     set_compute_hash_callback(move |_| {
         callback_calls.fetch_add(1, Ordering::SeqCst);
-        b"ocio-rs\0compute-hash".to_vec()
+        b"intentionally-invalid-hash".to_vec()
     })
     .expect("install compute hash callback");
-    let loaded = Config::from_file(path.to_string_lossy());
+    try_clear_all_caches().expect("clear OCIO caches");
+    let transform = FileTransform::create().expect("create file transform");
+    transform
+        .set_src(path.to_string_lossy())
+        .expect("set CLF path");
+    let loaded = Config::raw()
+        .expect("raw config")
+        .processor_from_transform_default_direction(&transform);
     reset_compute_hash_callback().expect("reset compute hash callback");
-    let _ = std::fs::remove_file(&path);
 
-    loaded.expect("load config through compute hash callback");
+    let _ = loaded;
+    assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+fn global_compute_hash_callback_panic_does_not_cross_ffi() {
+    let _guard = runtime_helpers_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/clf/matrix_3x4_example.clf");
+    let calls = Arc::new(AtomicUsize::new(0));
+    let callback_calls = Arc::clone(&calls);
+    set_compute_hash_callback(move |_| {
+        callback_calls.fetch_add(1, Ordering::SeqCst);
+        panic!("intentional compute hash callback panic")
+    })
+    .expect("install compute hash callback");
+    try_clear_all_caches().expect("clear OCIO caches");
+    let transform = FileTransform::create().expect("create file transform");
+    transform
+        .set_src(path.to_string_lossy())
+        .expect("set CLF path");
+    let result = Config::raw()
+        .expect("raw config")
+        .processor_from_transform_default_direction(&transform);
+    reset_compute_hash_callback().expect("reset compute hash callback");
+
+    let _ = result;
     assert!(calls.load(Ordering::SeqCst) > 0);
 }
 
