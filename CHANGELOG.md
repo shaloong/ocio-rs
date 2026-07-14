@@ -37,6 +37,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   ColorSpace, and Look now retain C++ exceptions for their Rust `Result` APIs
 - Processor CPU/GPU optimization paths plus ViewTransform and Baker handle
   creation now retain C++ exceptions for their Rust `Result` APIs
+- Matrix transform factory helpers now retain C++ exceptions for their Rust
+  `Result` APIs
 
 ## [0.2.0] - 2026-07-02
 

@@ -13255,7 +13255,7 @@ void* ocio_matrix_transform_create_identity(void) {
     double offset4[4]{};
     ocio::MatrixTransform::Identity(m44, offset4);
     return make_matrix_transform_from_values(m44, offset4);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -13280,7 +13280,7 @@ void* ocio_matrix_transform_create_sat(double sat, const double* luma) {
     double offset4[4]{};
     ocio::MatrixTransform::Sat(m44, offset4, sat, luma);
     return make_matrix_transform_from_values(m44, offset4);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -13294,7 +13294,7 @@ void* ocio_matrix_transform_create_scale(const double* scale) {
     double offset4[4]{};
     ocio::MatrixTransform::Scale(m44, offset4, scale);
     return make_matrix_transform_from_values(m44, offset4);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -13308,7 +13308,7 @@ void* ocio_matrix_transform_create_fit(const double* oldMin4, const double* oldM
     double offset4[4]{};
     ocio::MatrixTransform::Fit(m44, offset4, oldMin4, oldMax4, newMin4, newMax4);
     return make_matrix_transform_from_values(m44, offset4);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -13322,7 +13322,7 @@ void* ocio_matrix_transform_create_view(int* channels, const double* luma) {
     double offset4[4]{};
     ocio::MatrixTransform::View(m44, offset4, channels, luma);
     return make_matrix_transform_from_values(m44, offset4);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
