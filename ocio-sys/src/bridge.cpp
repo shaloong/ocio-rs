@@ -8572,7 +8572,7 @@ int ocio_context_get_num_search_paths(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_context(handle)->getNumSearchPaths();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8660,7 +8660,7 @@ int ocio_context_get_num_string_vars(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_context(handle)->getNumStringVars();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 

@@ -62,7 +62,15 @@ impl Context {
 
     /// Return the number of individual search-path entries.
     pub fn num_search_paths(&self) -> i32 {
-        unsafe { ocio_sys::ocio_context_get_num_search_paths(self.handle.as_ptr()) }
+        self.try_num_search_paths().unwrap_or(0)
+    }
+
+    /// Return the number of search-path entries while preserving bridge failures.
+    pub fn try_num_search_paths(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_context_get_num_search_paths(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return one search-path entry by index.
@@ -173,7 +181,15 @@ impl Context {
 
     /// Return the number of named string variables on the context.
     pub fn num_string_vars(&self) -> i32 {
-        unsafe { ocio_sys::ocio_context_get_num_string_vars(self.handle.as_ptr()) }
+        self.try_num_string_vars().unwrap_or(0)
+    }
+
+    /// Return the number of named string variables while preserving bridge failures.
+    pub fn try_num_string_vars(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_context_get_num_string_vars(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return one string-variable name by index.
