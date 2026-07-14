@@ -9,7 +9,9 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
+use ocio_rs::{
+    BuiltinConfigRegistry, Config, ReferenceSpaceType, ViewTransform, ViewTransformDirection,
+};
 
 fn config_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -376,4 +378,72 @@ fn config_builtin_processor_invalid_builtin_errors_surface_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+}
+
+#[test]
+fn config_static_view_comparisons_preserve_real_behavior() {
+    let _guard = config_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config().expect("raw config");
+    config
+        .add_display("UnitDisplay", "UnitView", "raw", "")
+        .expect("add display");
+    assert!(
+        Config::try_are_views_equal(&config, &config, "UnitDisplay", "UnitView")
+            .expect("compare display views")
+    );
+
+    let view_transform = configured_view_transform("StaticComparisonVirtualView");
+    config.add_view_transform(&view_transform);
+    config
+        .add_virtual_display_view(
+            "UnitVirtualView",
+            "StaticComparisonVirtualView",
+            "raw",
+            "",
+            "",
+            "",
+        )
+        .expect("add virtual display view");
+    assert!(
+        Config::try_are_virtual_views_equal(&config, &config, "UnitVirtualView")
+            .expect("compare virtual display views")
+    );
+}
+
+#[test]
+fn config_static_color_space_identification_preserves_errors() {
+    let _guard = config_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let registry = BuiltinConfigRegistry::get().expect("builtin config registry");
+    let builtin_name = registry.config_name(0).expect("builtin config name");
+    let config = Config::create_from_builtin_config(&builtin_name).expect("builtin config");
+    let color_space = config
+        .color_space_name_by_index(0)
+        .expect("builtin color space name");
+
+    assert_eq!(
+        Config::try_identify_builtin_color_space(&config, &config, &color_space)
+            .expect("identify builtin color space")
+            .as_deref(),
+        Some(color_space.as_str())
+    );
+    let (src_interchange, builtin_interchange) =
+        Config::try_identify_interchange_space(&config, &color_space, &config, &color_space)
+            .expect("identify interchange spaces");
+    assert!(src_interchange.is_some());
+    assert!(builtin_interchange.is_some());
+
+    assert!(Config::try_identify_builtin_color_space(
+        &config,
+        &config,
+        "definitely_missing_color_space",
+    )
+    .is_err());
 }

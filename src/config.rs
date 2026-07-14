@@ -328,6 +328,66 @@ impl Config {
         }
     }
 
+    /// Identify the color-space name in `src_config` equivalent to a color space from a built-in
+    /// config.
+    ///
+    /// This is the safe counterpart to OCIO's `Config::IdentifyBuiltinColorSpace`. It preserves
+    /// an OCIO lookup failure as [`OcioError`] and returns `None` only when OCIO reports no match.
+    pub fn try_identify_builtin_color_space(
+        src_config: &Self,
+        builtin_config: &Self,
+        builtin_color_space_name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let builtin_color_space_name = cstring(builtin_color_space_name)?;
+        crate::clear_last_error();
+        let name = unsafe {
+            cstr_from_mut(ocio_sys::ocio_config_identify_builtin_color_space(
+                src_config.handle.as_ptr(),
+                src_config.handle.as_ptr(),
+                builtin_config.handle.as_ptr(),
+                builtin_color_space_name.as_ptr().cast(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
+    }
+
+    /// Identify the interchange color spaces used to convert a color space between two configs.
+    ///
+    /// The returned names are owned Rust strings. An OCIO failure to identify either interchange
+    /// space is returned as [`OcioError`].
+    pub fn try_identify_interchange_space(
+        src_config: &Self,
+        src_color_space_name: impl AsRef<str>,
+        builtin_config: &Self,
+        builtin_color_space_name: impl AsRef<str>,
+    ) -> Result<(Option<String>, Option<String>)> {
+        let src_color_space_name = cstring(src_color_space_name)?;
+        let builtin_color_space_name = cstring(builtin_color_space_name)?;
+        let mut src_interchange_name = std::ptr::null_mut();
+        let mut builtin_interchange_name = std::ptr::null_mut();
+
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_identify_interchange_space(
+                src_config.handle.as_ptr(),
+                (&mut src_interchange_name as *mut *mut c_void).cast(),
+                (&mut builtin_interchange_name as *mut *mut c_void).cast(),
+                src_config.handle.as_ptr(),
+                src_color_space_name.as_ptr().cast(),
+                builtin_config.handle.as_ptr(),
+                builtin_color_space_name.as_ptr().cast(),
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(unsafe {
+            (
+                cstr_from_mut(src_interchange_name),
+                cstr_from_mut(builtin_interchange_name),
+            )
+        })
+    }
+
     /// # Safety
     /// `src_config` and `builtin_config` must be valid pointers to live `ConfigHandle` values
     /// from this ABI. They are borrowed for the duration of this call and must not be freed here.
@@ -751,6 +811,33 @@ impl Config {
                 view.as_ptr().cast(),
             )
         }
+    }
+
+    /// Compare a display/view definition in two configs.
+    ///
+    /// This is the safe counterpart to OCIO's `Config::AreViewsEqual`. It compares the strings
+    /// in the definitions; it does not compare the identities of referenced color spaces or view
+    /// transforms.
+    pub fn try_are_views_equal(
+        first: &Self,
+        second: &Self,
+        display: impl AsRef<str>,
+        view: impl AsRef<str>,
+    ) -> Result<bool> {
+        let display = cstring(display)?;
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let equal = unsafe {
+            ocio_sys::ocio_config_are_views_equal(
+                first.handle.as_ptr(),
+                first.handle.as_ptr(),
+                second.handle.as_ptr(),
+                display.as_ptr().cast(),
+                view.as_ptr().cast(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(equal)
     }
 
     // --- Looks ---
@@ -2618,6 +2705,29 @@ impl Config {
                 view_name.as_ptr().cast(),
             )
         }
+    }
+
+    /// Compare a virtual display-view definition in two configs.
+    ///
+    /// This is the safe counterpart to OCIO's `Config::AreVirtualViewsEqual`. It compares the
+    /// strings in the definitions, not the identities of referenced color spaces or transforms.
+    pub fn try_are_virtual_views_equal(
+        first: &Self,
+        second: &Self,
+        view_name: impl AsRef<str>,
+    ) -> Result<bool> {
+        let view_name = cstring(view_name)?;
+        crate::clear_last_error();
+        let equal = unsafe {
+            ocio_sys::ocio_config_are_virtual_views_equal(
+                first.handle.as_ptr(),
+                first.handle.as_ptr(),
+                second.handle.as_ptr(),
+                view_name.as_ptr().cast(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(equal)
     }
 
     pub fn virtual_display_view_transform_name(&self, view: impl AsRef<str>) -> Option<String> {
