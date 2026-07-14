@@ -60,6 +60,8 @@ const char* ocio_get_version(void);
 int ocio_get_version_hex(void);
 int ocio_get_logging_level(void);
 void ocio_set_logging_level(int level);
+const char* ocio_resolve_config_path(const char* originalPath);
+void ocio_extract_ocioz_archive(const char* archivePath, const char* destinationDir);
 
 // --- Global config ---
 void* ocio_get_current_config(void);

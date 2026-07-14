@@ -257,6 +257,41 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
     ocio_call_status()
 }
 
+/// Resolve an OCIO configuration path to its current persistent form.
+///
+/// In particular, this replaces special built-in config aliases such as
+/// `ocio://default` with the versioned name selected by the linked OCIO build.
+/// The returned string is owned by Rust and may be stored independently of OCIO.
+pub fn resolve_config_path(original_path: impl AsRef<str>) -> Result<String> {
+    let original_path = cstring(original_path)?;
+    clear_last_error();
+    let resolved =
+        unsafe { cstr_to_opt_string(ocio_sys::ocio_resolve_config_path(original_path.as_ptr())) };
+    ocio_call_status()?;
+    resolved
+        .ok_or_else(|| OcioError::Ocio("OpenColorIO returned a null resolved config path".into()))
+}
+
+/// Extract an `.ocioz` archive into a destination directory.
+///
+/// Both paths must be absolute according to OCIO's contract. The destination directory is
+/// created by OCIO along with `config.ocio` and the archive's referenced LUT assets.
+///
+/// This operation requires a real OCIO build. Stub mode returns an [`OcioError`] rather than
+/// pretending that archive extraction succeeded.
+pub fn extract_ocioz_archive(
+    archive_path: impl AsRef<str>,
+    destination_dir: impl AsRef<str>,
+) -> Result<()> {
+    let archive_path = cstring(archive_path)?;
+    let destination_dir = cstring(destination_dir)?;
+    clear_last_error();
+    unsafe {
+        ocio_sys::ocio_extract_ocioz_archive(archive_path.as_ptr(), destination_dir.as_ptr());
+    }
+    ocio_call_status()
+}
+
 /// Compatibility alias for overriding the OCIO global logging level.
 #[deprecated(
     since = "0.2.0",

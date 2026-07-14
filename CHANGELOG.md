@@ -7,10 +7,20 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+### Added
+
+- Safe `Config` static-query APIs for builtin/interchange color-space
+  identification and display/virtual-view comparisons, with OCIO exceptions
+  surfaced as `Result`
+- Global `resolve_config_path` and `extract_ocioz_archive` helpers backed by
+  OCIO 2.5, including explicit stub-mode rejection for archive extraction
+
 ### Fixed
 
 - Color-space, look, and view-transform interchange-attribute getters now
   expose invalid-name OCIO errors through their `try_*` APIs
+- Deprecated raw `Config` static-query entry points now retain bridge errors,
+  and their pointer ownership contracts match the ABI they actually accept
 - File and viewing-rule name lookups now expose missing-rule OCIO errors
   through `try_index_for_rule`, without changing their legacy lookup fallbacks
 - Built-in config recommendation queries now preserve OCIO invalid-index

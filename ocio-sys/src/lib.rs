@@ -50,6 +50,8 @@ unsafe extern "C" {
     pub fn ocio_get_version_hex() -> i32;
     pub fn ocio_get_logging_level() -> i32;
     pub fn ocio_set_logging_level(level: i32);
+    pub fn ocio_resolve_config_path(originalPath: *const i8) -> *const i8;
+    pub fn ocio_extract_ocioz_archive(archivePath: *const i8, destinationDir: *const i8);
 
     // --- Global config ---
     pub fn ocio_get_current_config() -> *mut c_void;

@@ -1497,6 +1497,25 @@ void ocio_set_logging_level(int level) {
 #endif
 }
 
+const char* ocio_resolve_config_path(const char* originalPath) {
+#ifdef OCIO_RS_STUB
+  return originalPath;
+#else
+  return ocio::ResolveConfigPath(originalPath);
+#endif
+}
+
+void ocio_extract_ocioz_archive(const char* archivePath, const char* destinationDir) {
+#ifdef OCIO_RS_STUB
+  (void)archivePath; (void)destinationDir;
+  ocio_rs_bridge::capture_error_message("OCIOZ archive extraction is unavailable in stub mode");
+#else
+  try {
+    ocio::ExtractOCIOZArchive(archivePath, destinationDir);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 // --- Global config ---
 void* ocio_get_current_config(void) {
 #ifdef OCIO_RS_STUB
