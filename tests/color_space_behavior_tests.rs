@@ -269,4 +269,11 @@ fn color_space_interop_and_interchange_errors_surface_behavior() {
         matches!(invalid_interchange_attr_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {invalid_interchange_attr_err:?}"
     );
+    assert!(matches!(
+        cs.try_interchange_attribute("definitely_unknown_attr"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(cs
+        .interchange_attribute("definitely_unknown_attr")
+        .is_none());
 }

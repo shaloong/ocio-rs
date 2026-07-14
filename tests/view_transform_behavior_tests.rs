@@ -210,4 +210,11 @@ fn view_transform_interchange_attribute_errors_surface_behavior() {
         matches!(invalid_attr_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {invalid_attr_err:?}"
     );
+    assert!(matches!(
+        vt.try_interchange_attribute("definitely_unknown_attr"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(vt
+        .interchange_attribute("definitely_unknown_attr")
+        .is_none());
 }

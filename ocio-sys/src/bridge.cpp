@@ -5075,7 +5075,7 @@ const char* ocio_color_space_get_interchange_attribute(void* handle, const char*
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttribute(attrName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5686,7 +5686,7 @@ const char* ocio_look_get_interchange_attribute(void* handle, const char* attrNa
 #else
   try {
     return ocio_rs_bridge::get_real_look(handle)->getInterchangeAttribute(attrName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6138,7 +6138,7 @@ const char* ocio_view_transform_get_interchange_attribute(void* handle, const ch
 #else
   try {
     return ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttribute(attrName);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

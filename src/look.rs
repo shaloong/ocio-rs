@@ -100,13 +100,21 @@ impl Look {
 
     /// Get an interchange attribute value by name.
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
-        let name = cstring(name).ok()?;
-        unsafe {
+        self.try_interchange_attribute(name).ok().flatten()
+    }
+
+    /// Get an interchange attribute value while preserving invalid-name errors.
+    pub fn try_interchange_attribute(&self, name: impl AsRef<str>) -> Result<Option<String>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_look_get_interchange_attribute(
                 self.handle.as_ptr(),
                 name.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get all interchange attributes as a map.

@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Color-space, look, and view-transform interchange-attribute getters now
+  expose invalid-name OCIO errors through their `try_*` APIs
 - File and viewing-rule name lookups now expose missing-rule OCIO errors
   through `try_index_for_rule`, without changing their legacy lookup fallbacks
 - Built-in config recommendation queries now preserve OCIO invalid-index
