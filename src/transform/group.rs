@@ -48,9 +48,16 @@ impl GroupTransform {
 
     /// Return the child transform at `index`, if present.
     pub fn transform(&self, index: i32) -> Option<Transform> {
+        self.try_transform(index).ok().flatten()
+    }
+
+    /// Return the child transform at `index` while preserving OCIO query failures.
+    pub fn try_transform(&self, index: i32) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]

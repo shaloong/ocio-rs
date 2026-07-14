@@ -39,6 +39,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   creation now retain C++ exceptions for their Rust `Result` APIs
 - Matrix transform factory helpers now retain C++ exceptions for their Rust
   `Result` APIs
+- `GroupTransform::try_transform` now distinguishes OCIO index errors from a
+  missing transform while preserving compatibility with `transform`
 
 ## [0.2.0] - 2026-07-02
 

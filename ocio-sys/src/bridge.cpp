@@ -11309,7 +11309,7 @@ void* ocio_group_transform_get_transform(void* handle, int index) {
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -11324,7 +11324,7 @@ void* ocio_group_transform_get_transform_v1(void* handle, int index) {
     auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -47,8 +47,22 @@ fn group_transform_order_copy_and_mutation_behavior() {
 
     assert_eq!(group.num_transforms(), 2);
     assert_eq!(group.direction(), TransformDirection::Forward);
-    assert!(matches!(group.transform(0), Some(Transform::Matrix(_))));
-    assert!(matches!(group.transform(1), Some(Transform::Matrix(_))));
+    assert!(matches!(
+        group.try_transform(0).expect("first child query"),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        group.try_transform(1).expect("second child query"),
+        Some(Transform::Matrix(_))
+    ));
+    let missing_child_err = match group.try_transform(2) {
+        Err(err) => err,
+        Ok(_) => panic!("out-of-range child query must fail"),
+    };
+    assert!(
+        matches!(missing_child_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_child_err:?}"
+    );
 
     let cpu = config
         .processor_from_transform(&group, TransformDirection::Forward)
@@ -103,6 +117,26 @@ fn group_transform_order_copy_and_mutation_behavior() {
         .expect_err("out-of-range child removal must fail");
     assert!(err.to_string().contains("out of range"));
     assert_eq!(group.num_transforms(), 2);
+}
+
+#[test]
+fn group_child_handle_survives_parent_drop_behavior() {
+    let _guard = group_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let child = {
+        let group = GroupTransform::create().expect("group create");
+        let matrix = scale_matrix([1.5, 1.0, 1.0, 1.0]);
+        group.append_transform(&matrix).expect("append matrix");
+        group
+            .try_transform(0)
+            .expect("child query")
+            .expect("child transform")
+    };
+
+    assert!(matches!(child, Transform::Matrix(_)));
 }
 
 #[test]
