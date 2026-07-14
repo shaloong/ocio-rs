@@ -16,6 +16,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   OCIO 2.5, including explicit stub-mode rejection for archive extraction
 - Global OCIO logging and explicitly `unsafe` environment-variable helpers;
   the latter retain OCIO's documented process-wide synchronization requirement
+- A safe process-global logging callback with Rust-owned lifetime management,
+  serialized updates, and panic isolation at the OCIO FFI boundary
 
 ### Fixed
 

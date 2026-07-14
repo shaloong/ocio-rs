@@ -1506,6 +1506,26 @@ void ocio_log_message(int level, const char* message) {
 #endif
 }
 
+void ocio_set_logging_callback(OcioLogCallback callback) {
+#ifdef OCIO_RS_STUB
+  (void)callback;
+#else
+  try {
+    ocio::SetLoggingFunction([callback](const char* message) {
+      if (callback) callback(message);
+    });
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_reset_logging_callback(void) {
+#ifdef OCIO_RS_STUB
+#else
+  try { ocio::ResetToDefaultLoggingFunction(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 const char* ocio_resolve_config_path(const char* originalPath) {
 #ifdef OCIO_RS_STUB
   return originalPath;

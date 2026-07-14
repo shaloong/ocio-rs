@@ -7,12 +7,14 @@
 mod common;
 use common::*;
 
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
     extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
-    resolve_config_path, set_env_variable, try_log_message, try_set_logging_level,
-    unset_env_variable, version, version_hex, Config, LoggingLevel,
+    reset_logging_callback, resolve_config_path, set_env_variable, set_logging_callback,
+    try_log_message, try_set_logging_level, unset_env_variable, version, version_hex, Config,
+    LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -98,6 +100,25 @@ fn global_logging_and_environment_helpers_preserve_behavior() {
     if let Some(original) = original {
         unsafe { set_env_variable(&name, original) }.expect("restore OCIO environment");
     }
+}
+
+#[test]
+fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
+    let _guard = runtime_helpers_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let calls = Arc::new(AtomicUsize::new(0));
+    let callback_calls = Arc::clone(&calls);
+    set_logging_callback(move |_| {
+        callback_calls.fetch_add(1, Ordering::SeqCst);
+    })
+    .expect("install logging callback");
+    try_log_message(LoggingLevel::Warning, "ocio-rs logging callback test")
+        .expect("emit logging callback message");
+    reset_logging_callback().expect("reset logging callback");
+    assert!(calls.load(Ordering::SeqCst) > 0);
 }
 
 #[test]

@@ -108,8 +108,9 @@ pub use types::*;
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 
-use std::ffi::{c_void, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::ptr::NonNull;
+use std::sync::{Arc, Mutex, OnceLock};
 use thiserror::Error;
 
 pub use ocio_sys;
@@ -135,6 +136,33 @@ pub enum OcioError {
 
 /// Crate-local result alias used by the safe wrapper layer.
 pub type Result<T> = std::result::Result<T, OcioError>;
+
+type LoggingCallback = dyn Fn(&str) + Send + Sync + 'static;
+
+fn logging_callback_slot() -> &'static Mutex<Option<Arc<LoggingCallback>>> {
+    static SLOT: OnceLock<Mutex<Option<Arc<LoggingCallback>>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(None))
+}
+
+fn logging_callback_update_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+unsafe extern "C" fn rust_logging_callback(message: *const i8) {
+    if message.is_null() {
+        return;
+    }
+
+    let callback = logging_callback_slot()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone();
+    if let Some(callback) = callback {
+        let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
+    }
+}
 
 /// Returns `true` when the crate was built in stub mode instead of linking a
 /// real OpenColorIO implementation.
@@ -266,6 +294,57 @@ pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> 
     clear_last_error();
     unsafe { ocio_sys::ocio_log_message(level as i32, message.as_ptr()) };
     ocio_call_status()
+}
+
+/// Install a process-global Rust callback for OCIO log messages.
+///
+/// OCIO invokes the callback from any thread that emits a log message. The
+/// callback is retained by the crate until [`reset_logging_callback`] is
+/// called. Panics are caught at the FFI boundary and do not unwind through
+/// OCIO.
+///
+/// Installing or resetting the callback serializes updates made through this
+/// crate. Coordinate with other native code that changes OCIO's global logger.
+pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> Result<()> {
+    let _update = logging_callback_update_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let callback = Arc::new(callback) as Arc<LoggingCallback>;
+    let previous = {
+        let mut slot = logging_callback_slot()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        (*slot).replace(callback)
+    };
+
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_logging_callback(Some(rust_logging_callback)) };
+    if let Err(error) = ocio_call_status() {
+        let mut slot = logging_callback_slot()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *slot = previous;
+        return Err(error);
+    }
+    Ok(())
+}
+
+/// Restore OCIO's default process-global logging function.
+///
+/// Any callback previously installed through [`set_logging_callback`] is
+/// dropped after OCIO accepts the reset.
+pub fn reset_logging_callback() -> Result<()> {
+    let _update = logging_callback_update_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    clear_last_error();
+    unsafe { ocio_sys::ocio_reset_logging_callback() };
+    ocio_call_status()?;
+    let mut slot = logging_callback_slot()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    *slot = None;
+    Ok(())
 }
 
 /// Resolve an OCIO configuration path to its current persistent form.

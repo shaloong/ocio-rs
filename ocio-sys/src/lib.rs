@@ -37,6 +37,8 @@ pub struct OcioGpuUniformInfo {
     pub value_count: usize,
 }
 
+pub type OcioLogCallback = Option<unsafe extern "C" fn(message: *const i8)>;
+
 unsafe extern "C" {
     // --- Error state ---
     pub fn ocio_error_get_last() -> *const i8;
@@ -51,6 +53,8 @@ unsafe extern "C" {
     pub fn ocio_get_logging_level() -> i32;
     pub fn ocio_set_logging_level(level: i32);
     pub fn ocio_log_message(level: i32, message: *const i8);
+    pub fn ocio_set_logging_callback(callback: OcioLogCallback);
+    pub fn ocio_reset_logging_callback();
     pub fn ocio_resolve_config_path(originalPath: *const i8) -> *const i8;
     pub fn ocio_extract_ocioz_archive(archivePath: *const i8, destinationDir: *const i8);
     pub fn ocio_get_env_variable(name: *const i8) -> *const i8;
