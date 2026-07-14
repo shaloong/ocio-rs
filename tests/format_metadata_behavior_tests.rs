@@ -226,6 +226,52 @@ fn format_metadata_remains_usable_after_parent_drop() {
 }
 
 #[test]
+fn format_metadata_child_survives_parent_sibling_growth_behavior() {
+    let _guard = format_metadata_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let baker = Baker::create().expect("baker create");
+    let config = Config::raw().expect("raw config");
+    baker.set_config(&config).expect("attach config");
+    baker.set_format("resolve_cube").expect("set baker format");
+
+    let metadata = baker.format_metadata().expect("baker format metadata");
+    let child_index = metadata.num_children();
+    metadata
+        .add_child_element("StableChild", "before growth")
+        .expect("add child");
+    let child = metadata
+        .try_child_element(child_index)
+        .expect("child query")
+        .expect("added child");
+
+    // OCIO stores child metadata in a vector. Grow siblings after obtaining a
+    // child wrapper to exercise possible vector reallocation in the bridge.
+    for index in 0..256 {
+        metadata
+            .add_child_element(format!("Sibling{index}"), "")
+            .expect("add sibling");
+    }
+
+    child
+        .add_attribute("survived", "yes")
+        .expect("mutate child after sibling growth");
+    assert_eq!(child.element_name().as_deref(), Some("StableChild"));
+    assert_eq!(child.attribute_value("survived").as_deref(), Some("yes"));
+
+    let child_from_parent = metadata
+        .try_child_element(child_index)
+        .expect("re-query child")
+        .expect("child remains attached");
+    assert_eq!(
+        child_from_parent.attribute_value("survived").as_deref(),
+        Some("yes")
+    );
+}
+
+#[test]
 fn legacy_sys_metadata_handles_remain_usable_after_parent_drop() {
     let _guard = format_metadata_test_lock();
     if is_stub() {

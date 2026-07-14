@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Make `FormatMetadata` child wrappers resilient to OCIO sibling-vector
+  reallocation while preserving live parent/child mutations
 - Display instantiation from monitor names and ICC profiles now has fallible
   Config APIs that retain OCIO exceptions instead of silently returning a
   sentinel index

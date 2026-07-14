@@ -52,7 +52,14 @@ void capture_current_exception() {
 struct ConfigHandle { std::shared_ptr<void> inner; };
 struct ProcessorHandle { std::shared_ptr<void> inner; };
 struct ProcessorMetadataHandle { std::shared_ptr<void> inner; };
-struct FormatMetadataHandle { std::shared_ptr<void> owner; void* metadata = nullptr; };
+struct FormatMetadataHandle {
+  std::shared_ptr<void> owner;
+  // OCIO stores child metadata by value in a vector. Keep a path from the
+  // stable root instead of a raw child pointer, since appending siblings may
+  // reallocate that vector.
+  void* metadata = nullptr;
+  std::vector<int> child_indices;
+};
 struct CPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GpuShaderDescHandle { std::shared_ptr<void> inner; };
@@ -959,7 +966,12 @@ static std::shared_ptr<ocio::GradingPrimary> get_real_grading_primary_value(void
 
 static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
-  return h ? static_cast<ocio::FormatMetadata*>(h->metadata) : nullptr;
+  if (!h || !h->metadata) return nullptr;
+  auto* metadata = static_cast<ocio::FormatMetadata*>(h->metadata);
+  for (const int index : h->child_indices) {
+    metadata = &metadata->getChildElement(index);
+  }
+  return metadata;
 }
 
 static void* make_format_metadata_handle(std::shared_ptr<void> owner, const ocio::FormatMetadata* metadata) {
@@ -12824,9 +12836,14 @@ void* ocio_format_metadata_get_child_element(void* metadata, int i) {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     if (!format_metadata) return nullptr;
     auto* parent_handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
-    return ocio_rs_bridge::make_format_metadata_handle(
-      parent_handle ? parent_handle->owner : std::shared_ptr<void>{},
-      &format_metadata->getChildElement(i));
+    // Validate the index before returning a path-backed child handle.
+    (void)format_metadata->getChildElement(i);
+    auto out_handle = std::make_unique<ocio_rs_bridge::FormatMetadataHandle>();
+    out_handle->owner = parent_handle ? parent_handle->owner : std::shared_ptr<void>{};
+    out_handle->metadata = parent_handle ? parent_handle->metadata : nullptr;
+    if (parent_handle) out_handle->child_indices = parent_handle->child_indices;
+    out_handle->child_indices.push_back(i);
+    return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
