@@ -240,7 +240,9 @@ impl Context {
     }
 
     /// # Safety
-    /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    /// `used_context_vars` must be null or a live `ContextHandle` from this ABI. When non-null,
+    /// OCIO updates that handle with the context variables used during resolution; it is borrowed
+    /// for the duration of this call and must not be freed here.
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO context-vars pointer; prefer resolve_string_var unless you must interoperate with external OCIO ABI objects"
@@ -279,7 +281,9 @@ impl Context {
     }
 
     /// # Safety
-    /// `used_context_vars` must be a valid pointer accepted by the OCIO ABI, or null.
+    /// `used_context_vars` must be null or a live `ContextHandle` from this ABI. When non-null,
+    /// OCIO updates that handle with the context variables used during resolution; it is borrowed
+    /// for the duration of this call and must not be freed here.
     #[deprecated(
         since = "0.2.0",
         note = "raw OCIO context-vars pointer; prefer resolve_file_location unless you must interoperate with external OCIO ABI objects"
