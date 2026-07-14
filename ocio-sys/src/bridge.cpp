@@ -4376,7 +4376,7 @@ size_t ocio_file_rules_get_index_for_rule(void* handle, const char* ruleName) {
 #else
   try {
     return ocio_rs_bridge::get_real_file_rules(handle)->getIndexForRule(ruleName);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -4679,7 +4679,7 @@ size_t ocio_viewing_rules_get_index_for_rule(void* handle, const char* ruleName)
 #else
   try {
     return ocio_rs_bridge::get_real_viewing_rules(handle)->getIndexForRule(ruleName);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 

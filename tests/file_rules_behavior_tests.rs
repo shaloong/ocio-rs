@@ -54,7 +54,18 @@ fn file_rules_insert_rule_round_trip_behavior() {
         Some("exr")
     );
     assert_eq!(rules.index_for_rule("UnitRule"), 0);
+    assert_eq!(
+        rules
+            .try_index_for_rule("UnitRule")
+            .expect("existing rule index"),
+        0
+    );
     assert_eq!(rules.rule_index("UnitRule"), Some(0));
+    assert!(matches!(
+        rules.try_index_for_rule("DefinitelyMissingRule"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert_eq!(rules.index_for_rule("DefinitelyMissingRule"), u64::MAX);
     assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
     assert_eq!(rules.rule_index("bad\0rule"), None);
 }

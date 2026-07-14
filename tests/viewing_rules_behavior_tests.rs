@@ -31,7 +31,18 @@ fn viewing_rules_round_trip_and_copy_behavior() {
     rules.insert_rule(0, "SceneRule").expect("insert rule");
     assert_eq!(rules.num_entries(), 1);
     assert_eq!(rules.index_for_rule("SceneRule"), 0);
+    assert_eq!(
+        rules
+            .try_index_for_rule("SceneRule")
+            .expect("existing rule index"),
+        0
+    );
     assert_eq!(rules.rule_index("SceneRule"), Some(0));
+    assert!(matches!(
+        rules.try_index_for_rule("DefinitelyMissingRule"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert_eq!(rules.index_for_rule("DefinitelyMissingRule"), u64::MAX);
     assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
     assert_eq!(rules.rule_index("bad\0rule"), None);
     assert_eq!(

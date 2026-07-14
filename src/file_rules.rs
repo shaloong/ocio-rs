@@ -33,20 +33,25 @@ impl FileRules {
 
     /// Look up the index for a rule name.
     ///
-    /// This returns the raw OCIO result and may use implementation-defined
-    /// fallback values when the rule is absent. Prefer [`Self::rule_index`] for a
-    /// Rust-level presence check.
+    /// This compatibility method returns `u64::MAX` when OCIO rejects the name.
+    /// Prefer [`Self::try_index_for_rule`] to preserve the OCIO error, or
+    /// [`Self::rule_index`] for an optional lookup.
     pub fn index_for_rule(&self, rule_name: impl AsRef<str>) -> u64 {
-        let rule_name = match cstring(&rule_name) {
-            Ok(c) => c,
-            Err(_) => return u64::MAX,
-        };
-        unsafe {
+        self.try_index_for_rule(rule_name).unwrap_or(u64::MAX)
+    }
+
+    /// Look up a rule index while preserving OCIO missing-rule errors.
+    pub fn try_index_for_rule(&self, rule_name: impl AsRef<str>) -> Result<u64> {
+        let rule_name = cstring(rule_name)?;
+        crate::clear_last_error();
+        let index = unsafe {
             ocio_sys::ocio_file_rules_get_index_for_rule(
                 self.handle.as_ptr(),
                 rule_name.as_ptr().cast(),
             ) as u64
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     /// Look up the index for a rule name.
@@ -55,7 +60,7 @@ impl FileRules {
     /// C string for the OCIO ABI.
     pub fn rule_index(&self, rule_name: impl AsRef<str>) -> Option<u64> {
         let rule_name = rule_name.as_ref();
-        let index = self.index_for_rule(rule_name);
+        let index = self.try_index_for_rule(rule_name).ok()?;
         match self.name(index) {
             Some(found_name) if found_name == rule_name => Some(index),
             _ => None,
