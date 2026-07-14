@@ -329,7 +329,8 @@ impl Config {
     }
 
     /// # Safety
-    /// `src_config` and `builtin_config` must be valid OCIO config pointers for the active ABI.
+    /// `src_config` and `builtin_config` must be valid pointers to live `ConfigHandle` values
+    /// from this ABI. They are borrowed for the duration of this call and must not be freed here.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -353,8 +354,10 @@ impl Config {
     }
 
     /// # Safety
-    /// `src_interchange_name`, `builtin_interchange_name`, `src_config`, and `builtin_config`
-    /// must be valid pointers accepted by the OCIO ABI.
+    /// `src_interchange_name` and `builtin_interchange_name` must point to writable storage for
+    /// a `const char *` output. The output pointers are borrowed from OCIO and must not be freed.
+    /// `src_config` and `builtin_config` must be valid pointers to live `ConfigHandle` values
+    /// from this ABI and are borrowed for the duration of this call.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -717,7 +720,8 @@ impl Config {
     }
 
     /// # Safety
-    /// `first` and `second` must be valid pointers to OCIO view descriptors for the active ABI.
+    /// `first` and `second` must be valid pointers to live `ConfigHandle` values from this ABI.
+    /// Both are borrowed for the duration of this call and must not be freed here.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -2589,7 +2593,8 @@ impl Config {
     }
 
     /// # Safety
-    /// `first` and `second` must be valid pointers to OCIO virtual-view descriptors.
+    /// `first` and `second` must be valid pointers to live `ConfigHandle` values from this ABI.
+    /// Both are borrowed for the duration of this call and must not be freed here.
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",

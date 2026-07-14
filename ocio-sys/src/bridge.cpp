@@ -2546,7 +2546,7 @@ void* ocio_config_identify_builtin_color_space(void* handle, void* srcConfig, vo
     auto* _builtinConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(builtinConfig);
     auto builtinConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_builtinConfig_h->inner)->config;
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->IdentifyBuiltinColorSpace(srcConfig_ptr, builtinConfig_ptr, builtinColorSpaceName)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -2561,7 +2561,7 @@ void ocio_config_identify_interchange_space(void* handle, void* srcInterchangeNa
     auto* _builtinConfig_h = static_cast<ocio_rs_bridge::ConfigHandle*>(builtinConfig);
     auto builtinConfig_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_builtinConfig_h->inner)->config;
     ocio_rs_bridge::get_real_config(handle)->IdentifyInterchangeSpace(static_cast<const char**>(srcInterchangeName), static_cast<const char**>(builtinInterchangeName), srcConfig_ptr, srcColorSpaceName, builtinConfig_ptr, builtinColorSpaceName);
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
 
@@ -2793,7 +2793,7 @@ bool ocio_config_are_views_equal(void* handle, void* first, void* second, const 
     auto* _second_h = static_cast<ocio_rs_bridge::ConfigHandle*>(second);
     auto second_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_second_h->inner)->config;
     return ocio_rs_bridge::get_real_config(handle)->AreViewsEqual(first_ptr, second_ptr, dispName, viewName);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -2995,7 +2995,7 @@ bool ocio_config_are_virtual_views_equal(void* handle, void* first, void* second
     auto* _second_h = static_cast<ocio_rs_bridge::ConfigHandle*>(second);
     auto second_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfig>(_second_h->inner)->config;
     return ocio_rs_bridge::get_real_config(handle)->AreVirtualViewsEqual(first_ptr, second_ptr, viewName);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
