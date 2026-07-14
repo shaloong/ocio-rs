@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   through fallible `try_*` APIs
 - Owned-handle creation and copy paths for Config, FileRules, ViewingRules,
   ColorSpace, and Look now retain C++ exceptions for their Rust `Result` APIs
+- Processor CPU/GPU optimization paths plus ViewTransform and Baker handle
+  creation now retain C++ exceptions for their Rust `Result` APIs
 
 ## [0.2.0] - 2026-07-02
 

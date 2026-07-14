@@ -6014,7 +6014,7 @@ void* ocio_view_transform_create_with_reference_space(int referenceSpace) {
     obj->transform = ocio::ViewTransform::Create(static_cast<ocio::ReferenceSpaceType>(referenceSpace));
     handle->inner = obj;
     return handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6505,7 +6505,7 @@ void* ocio_processor_get_optimized_processor_v1(void* handle, int oFlags) {
     auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6521,7 +6521,7 @@ void* ocio_processor_get_optimized_processor_v2(void* handle, int inBD, int outB
     auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6539,7 +6539,7 @@ void* ocio_processor_optimized_processor(void* handle, int oFlags) {
     out_handle->inner =
         std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6555,7 +6555,7 @@ void* ocio_processor_get_default_gpu_processor(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGPUProcessor>(ocio_rs_bridge::RealGPUProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6571,7 +6571,7 @@ void* ocio_processor_get_optimized_gpu_processor(void* handle, int oFlags) {
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGPUProcessor>(ocio_rs_bridge::RealGPUProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6588,7 +6588,7 @@ void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGPUProcessor>(ocio_rs_bridge::RealGPUProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6604,7 +6604,7 @@ void* ocio_processor_get_default_cpu_processor(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::CPUProcessor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealCPUProcessor>(ocio_rs_bridge::RealCPUProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6620,7 +6620,7 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
     auto result_unconst = std::const_pointer_cast<ocio::CPUProcessor>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealCPUProcessor>(ocio_rs_bridge::RealCPUProcessor{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8091,7 +8091,7 @@ void* ocio_baker_get_config(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::Config>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8165,7 +8165,7 @@ void* ocio_baker_create_editable_copy(void* baker) {
     obj->baker = copy;
     out_handle->inner = obj;
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
