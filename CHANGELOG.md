@@ -25,6 +25,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Context search-path and string-variable counts now expose fallible `try_*`
+  variants, distinguishing bridge failures from a legitimate zero count
 - Color-space, look, and view-transform interchange-attribute getters now
   expose invalid-name OCIO errors through their `try_*` APIs
 - Deprecated raw `Config` static-query entry points now retain bridge errors,
