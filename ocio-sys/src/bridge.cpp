@@ -3489,7 +3489,7 @@ void* ocio_config_get_default_scene_to_display_view_transform(void* handle) {
     auto result_unconst = std::const_pointer_cast<ocio::ViewTransform>(result);
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{result_unconst});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4606,7 +4606,7 @@ void* ocio_file_rules_create_editable_copy(void* handle) {
     auto out_handle = std::make_unique<ocio_rs_bridge::FileRulesHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4622,7 +4622,7 @@ void* ocio_viewing_rules_create(void) {
     auto out_handle = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4637,7 +4637,7 @@ void* ocio_viewing_rules_create_editable_copy(void* handle) {
     auto out_handle = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4857,7 +4857,7 @@ void* ocio_color_space_create_editable_copy(void* handle) {
     out_handle->inner =
         std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5520,7 +5520,7 @@ void* ocio_look_create_editable_copy(void* handle) {
     auto out_handle = std::make_unique<ocio_rs_bridge::LookHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{result});
     return out_handle.release();
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

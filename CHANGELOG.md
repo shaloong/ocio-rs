@@ -33,6 +33,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   failures through fallible `try_*` APIs
 - `ViewingRules` string queries now preserve invalid-index and bridge failures
   through fallible `try_*` APIs
+- Owned-handle creation and copy paths for Config, FileRules, ViewingRules,
+  ColorSpace, and Look now retain C++ exceptions for their Rust `Result` APIs
 
 ## [0.2.0] - 2026-07-02
 
