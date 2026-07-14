@@ -75,7 +75,7 @@ Current release checklist highlights:
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
 - The parity checker currently reports clean results across all three layers:
-  `1070` bridge.hpp functions, `1071` `lib.rs` declarations (with
+  `1075` bridge.hpp functions, `1076` `lib.rs` declarations (with
   `ocio_error_get_last` as the remaining compatibility extra), `1051`
   bridge-backed safe-wrapper matches, and `822/822` OCIO C++ header methods
   accounted for, including normalized coverage for static `Create`

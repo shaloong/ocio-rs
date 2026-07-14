@@ -1497,6 +1497,15 @@ void ocio_set_logging_level(int level) {
 #endif
 }
 
+void ocio_log_message(int level, const char* message) {
+#ifdef OCIO_RS_STUB
+  (void)level; (void)message;
+#else
+  try { ocio::LogMessage(static_cast<ocio::LoggingLevel>(level), message); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 const char* ocio_resolve_config_path(const char* originalPath) {
 #ifdef OCIO_RS_STUB
   return originalPath;
@@ -1513,6 +1522,44 @@ void ocio_extract_ocioz_archive(const char* archivePath, const char* destination
   try {
     ocio::ExtractOCIOZArchive(archivePath, destinationDir);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+const char* ocio_get_env_variable(const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)name;
+  return nullptr;
+#else
+  try { return ocio::GetEnvVariable(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_set_env_variable(const char* name, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)name; (void)value;
+#else
+  try { ocio::SetEnvVariable(name, value); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_unset_env_variable(const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)name;
+#else
+  try { ocio::UnsetEnvVariable(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+bool ocio_is_env_variable_present(const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)name;
+  return false;
+#else
+  try { return ocio::IsEnvVariablePresent(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

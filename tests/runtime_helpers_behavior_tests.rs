@@ -10,8 +10,9 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
-    extract_ocioz_archive, logging_level, resolve_config_path, try_set_logging_level, version,
-    version_hex, Config, LoggingLevel,
+    extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
+    resolve_config_path, set_env_variable, try_log_message, try_set_logging_level,
+    unset_env_variable, version, version_hex, Config, LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -67,6 +68,36 @@ fn global_config_path_and_archive_helpers_preserve_behavior() {
         destination.to_string_lossy(),
     )
     .is_err());
+}
+
+#[test]
+fn global_logging_and_environment_helpers_preserve_behavior() {
+    let _guard = runtime_helpers_test_lock();
+    try_log_message(LoggingLevel::Debug, "ocio-rs runtime helper test").expect("log OCIO message");
+
+    let name = format!("OCIO_RS_RUNTIME_TEST_{}", std::process::id());
+    if is_stub() {
+        assert_eq!(
+            unsafe { get_env_variable(&name) }.expect("stub env lookup"),
+            None
+        );
+        assert!(!unsafe { is_env_variable_present(&name) }.expect("stub env presence"));
+        return;
+    }
+
+    let original = unsafe { get_env_variable(&name) }.expect("read original environment value");
+    unsafe { set_env_variable(&name, "runtime-helper-value") }.expect("set OCIO environment");
+    assert_eq!(
+        unsafe { get_env_variable(&name) }.expect("read OCIO environment"),
+        Some("runtime-helper-value".to_owned())
+    );
+    assert!(unsafe { is_env_variable_present(&name) }.expect("check OCIO environment"));
+
+    unsafe { unset_env_variable(&name) }.expect("unset OCIO environment");
+    assert!(!unsafe { is_env_variable_present(&name) }.expect("check removed OCIO environment"));
+    if let Some(original) = original {
+        unsafe { set_env_variable(&name, original) }.expect("restore OCIO environment");
+    }
 }
 
 #[test]

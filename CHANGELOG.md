@@ -14,6 +14,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   surfaced as `Result`
 - Global `resolve_config_path` and `extract_ocioz_archive` helpers backed by
   OCIO 2.5, including explicit stub-mode rejection for archive extraction
+- Global OCIO logging and explicitly `unsafe` environment-variable helpers;
+  the latter retain OCIO's documented process-wide synchronization requirement
 
 ### Fixed
 

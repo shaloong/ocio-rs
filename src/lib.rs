@@ -257,6 +257,17 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
     ocio_call_status()
 }
 
+/// Send a message through OCIO's configured logging function.
+///
+/// OCIO's logging mechanism is thread-safe. This only invokes the current
+/// OCIO logger; use `try_set_logging_level` to control filtering.
+pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> Result<()> {
+    let message = cstring(message)?;
+    clear_last_error();
+    unsafe { ocio_sys::ocio_log_message(level as i32, message.as_ptr()) };
+    ocio_call_status()
+}
+
 /// Resolve an OCIO configuration path to its current persistent form.
 ///
 /// In particular, this replaces special built-in config aliases such as
@@ -290,6 +301,61 @@ pub fn extract_ocioz_archive(
         ocio_sys::ocio_extract_ocioz_archive(archive_path.as_ptr(), destination_dir.as_ptr());
     }
     ocio_call_status()
+}
+
+/// Read an OCIO process environment variable.
+///
+/// # Safety
+/// OCIO documents its environment-variable helpers as not thread-safe. The
+/// caller must serialize this call with all OCIO environment-variable calls
+/// and other native code that accesses the same process environment.
+pub unsafe fn get_env_variable(name: impl AsRef<str>) -> Result<Option<String>> {
+    let name = cstring(name)?;
+    clear_last_error();
+    let value = unsafe { cstr_to_opt_string(ocio_sys::ocio_get_env_variable(name.as_ptr())) };
+    ocio_call_status()?;
+    Ok(value)
+}
+
+/// Set an OCIO process environment variable.
+///
+/// # Safety
+/// OCIO documents its environment-variable helpers as not thread-safe. The
+/// caller must serialize this call with all OCIO environment-variable calls
+/// and other native code that accesses the same process environment.
+pub unsafe fn set_env_variable(name: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
+    let name = cstring(name)?;
+    let value = cstring(value)?;
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_env_variable(name.as_ptr(), value.as_ptr()) };
+    ocio_call_status()
+}
+
+/// Remove an OCIO process environment variable.
+///
+/// # Safety
+/// OCIO documents its environment-variable helpers as not thread-safe. The
+/// caller must serialize this call with all OCIO environment-variable calls
+/// and other native code that accesses the same process environment.
+pub unsafe fn unset_env_variable(name: impl AsRef<str>) -> Result<()> {
+    let name = cstring(name)?;
+    clear_last_error();
+    unsafe { ocio_sys::ocio_unset_env_variable(name.as_ptr()) };
+    ocio_call_status()
+}
+
+/// Return whether an OCIO process environment variable is present.
+///
+/// # Safety
+/// OCIO documents its environment-variable helpers as not thread-safe. The
+/// caller must serialize this call with all OCIO environment-variable calls
+/// and other native code that accesses the same process environment.
+pub unsafe fn is_env_variable_present(name: impl AsRef<str>) -> Result<bool> {
+    let name = cstring(name)?;
+    clear_last_error();
+    let present = unsafe { ocio_sys::ocio_is_env_variable_present(name.as_ptr()) };
+    ocio_call_status()?;
+    Ok(present)
 }
 
 /// Compatibility alias for overriding the OCIO global logging level.
