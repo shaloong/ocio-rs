@@ -493,6 +493,38 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
 }
 
 #[test]
+fn config_version_validation_surfaces_ocio_errors_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+    let original_version = (config.major_version(), config.minor_version());
+
+    let unsupported_major = config
+        .set_major_version(99)
+        .expect_err("unsupported config major version should fail");
+    assert!(matches!(unsupported_major, OcioError::Ocio(_)));
+    assert_eq!(
+        (config.major_version(), config.minor_version()),
+        original_version
+    );
+
+    let unsupported_minor = config
+        .set_minor_version(u32::MAX)
+        .expect_err("unsupported config minor version should fail");
+    assert!(matches!(unsupported_minor, OcioError::Ocio(_)));
+    assert_eq!(
+        (config.major_version(), config.minor_version()),
+        original_version
+    );
+}
+
+#[test]
 fn config_from_file_reports_real_ocio_errors() {
     let _guard = config_core_test_lock();
     if is_stub() {
