@@ -27,6 +27,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   fallible `try_*` APIs, including context-specialized cache identifiers
 - Built-in config registry name, YAML, and by-name config queries now preserve
   bridge failures through fallible `try_*` APIs
+- Built-in transform registry style and description queries now preserve bridge
+  failures through fallible `try_*` APIs
 
 ## [0.2.0] - 2026-07-02
 

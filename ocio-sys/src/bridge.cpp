@@ -1639,7 +1639,7 @@ const char* ocio_builtin_transform_registry_get_builtin_style(void* handle, size
     auto registry = ocio_rs_bridge::get_real_builtin_transform_registry(handle);
     if (!registry || index >= registry->getNumBuiltins()) return nullptr;
     return registry->getBuiltinStyle(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -1652,7 +1652,7 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
     auto registry = ocio_rs_bridge::get_real_builtin_transform_registry(handle);
     if (!registry || index >= registry->getNumBuiltins()) return nullptr;
     return registry->getBuiltinDescription(index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
