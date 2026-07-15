@@ -28,7 +28,9 @@ fn configured_linear_grading_primary_transform() -> GradingPrimaryTransform {
     let mut value = GradingPrimary::new(GradingStyle::Lin);
     value.offset.green = 0.1;
     value.exposure.red = 1.0;
-    transform.set_value(&value);
+    transform
+        .try_set_value(&value)
+        .expect("set primary grading value");
 
     transform
 }
@@ -67,9 +69,9 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
     assert_eq!(value.clamp_black, GradingPrimary::no_clamp_black());
     assert_eq!(value.clamp_white, GradingPrimary::no_clamp_white());
 
-    transform.make_dynamic();
+    transform.try_make_dynamic().expect("make dynamic");
     assert!(transform.is_dynamic());
-    transform.make_non_dynamic();
+    transform.try_make_non_dynamic().expect("make non-dynamic");
     assert!(!transform.is_dynamic());
 
     let copy = transform
@@ -79,7 +81,8 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
 
     let mut copy_value = copy.value();
     copy_value.offset.blue = 0.25;
-    copy.set_value(&copy_value);
+    copy.try_set_value(&copy_value)
+        .expect("set copy primary grading value");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.value().offset.blue, 0.25, 1e-10);
@@ -88,8 +91,12 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
 
     let mut changed = transform.value();
     changed.offset.red = 0.2;
-    transform.set_value(&changed);
-    transform.set_style(GradingStyle::Video);
+    transform
+        .try_set_value(&changed)
+        .expect("set primary grading value");
+    transform
+        .try_set_style(GradingStyle::Video)
+        .expect("set grading style");
 
     let reset = transform.value();
     let expected = GradingPrimary::new(GradingStyle::Video);

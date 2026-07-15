@@ -28,18 +28,151 @@ fn test_data_path(rel: &str) -> PathBuf {
         .join(rel)
 }
 
+fn packaged_context_test1_path() -> PathBuf {
+    if cfg!(windows) {
+        test_data_path("configs/context_test1/context_test1_windows.ocioz")
+    } else {
+        test_data_path("configs/context_test1/context_test1_linux.ocioz")
+    }
+}
+
 fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.major_version(), 2);
     assert_eq!(config.minor_version(), 0);
     assert_eq!(config.default_display().as_deref(), Some("sRGB"));
     assert_eq!(config.default_view("sRGB").as_deref(), Some("Raw"));
+    assert_eq!(
+        config
+            .try_default_display()
+            .expect("default display query")
+            .as_deref(),
+        Some("sRGB")
+    );
+    assert_eq!(
+        config
+            .try_default_view("sRGB")
+            .expect("default view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert!(config.try_default_view("sRGB\0").is_err());
+    assert!(config
+        .try_default_view_with_color_space("sRGB\0", "raw")
+        .is_err());
+    assert_eq!(
+        config
+            .try_active_displays()
+            .expect("active display list query"),
+        config.active_displays()
+    );
+    assert_eq!(
+        config.try_active_views().expect("active view list query"),
+        config.active_views()
+    );
+    assert_eq!(
+        config
+            .try_num_active_displays()
+            .expect("active display count query"),
+        config.num_active_displays()
+    );
+    assert_eq!(
+        config
+            .try_num_active_views()
+            .expect("active view count query"),
+        config.num_active_views()
+    );
+    if config.num_active_displays() > 0 {
+        assert_eq!(
+            config
+                .try_active_display(0)
+                .expect("active display item query"),
+            config.active_display(0)
+        );
+    }
+    if config.num_active_views() > 0 {
+        assert_eq!(
+            config.try_active_view(0).expect("active view item query"),
+            config.active_view(0)
+        );
+    }
+    assert_eq!(
+        config.try_num_views("sRGB").expect("display view count"),
+        config.num_views("sRGB")
+    );
+    assert_eq!(
+        config
+            .try_num_views_with_color_space("sRGB", "raw")
+            .expect("color-space-filtered view count"),
+        config.num_views_with_color_space("sRGB", "raw")
+    );
+    assert_eq!(
+        config
+            .try_num_views_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB")
+            .expect("reference-space-filtered view count"),
+        config.num_views_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB")
+    );
+    assert_eq!(
+        config
+            .try_view_with_color_space("sRGB", "raw", 0)
+            .expect("color-space-filtered view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert!(config
+        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
+        .expect("reference-space-filtered view query")
+        .is_some());
+    assert!(config
+        .try_view_with_color_space("sRGB\0", "raw", 0)
+        .is_err());
+    assert!(config
+        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB\0", 0)
+        .is_err());
     assert_eq!(config.num_looks(), 1);
     assert_eq!(config.look_name_by_index(0).as_deref(), Some("shot_look"));
+    assert_eq!(
+        config
+            .try_look_name_by_index(0)
+            .expect("look name query")
+            .as_deref(),
+        Some("shot_look")
+    );
     assert!(config.num_color_spaces() >= 11);
+    assert!(config
+        .try_color_space_name_by_index(0)
+        .expect("color space name query")
+        .is_some());
+    assert_eq!(
+        config
+            .try_canonical_name("raw")
+            .expect("canonical-name query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert!(config.try_canonical_name("raw\0").is_err());
+    assert!(config.try_color_space_from_filepath("test.exr\0").is_err());
 
     assert!(config.has_role("default"));
     assert!(config.has_role("scene_linear"));
+    assert_eq!(
+        config.try_role_name(0).expect("role name query"),
+        config.role_name(0)
+    );
+    assert_eq!(
+        config
+            .try_role_color_space_by_index(0)
+            .expect("indexed role color-space query"),
+        config.role_color_space_by_index(0)
+    );
     assert_eq!(config.role_color_space("default").as_deref(), Some("raw"));
+    assert_eq!(
+        config
+            .try_role_color_space("default")
+            .expect("named role color-space query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert!(config.try_role_color_space("default\0").is_err());
     assert_eq!(
         config.role_color_space("scene_linear").as_deref(),
         Some("reference")
@@ -89,6 +222,123 @@ fn config_from_file_env_and_stream_load_context_test1_behavior() {
 }
 
 #[test]
+fn config_current_context_exposes_environment_defaults_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let working_dir = config_path.parent().expect("config parent");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+    config
+        .set_working_dir(working_dir.to_string_lossy())
+        .expect("set working dir");
+
+    let context = config
+        .try_current_context()
+        .expect("read current context")
+        .expect("current context");
+    assert_eq!(context.string_var("SHOT").as_deref(), Some("shot4"));
+    assert_eq!(
+        context.string_var("LUT_PATH").as_deref(),
+        Some("shot3/lut1.clf")
+    );
+    assert_eq!(context.string_var("CCCID").as_deref(), Some("look-02"));
+    assert_eq!(context.string_var("CAMERA").as_deref(), Some("arri"));
+    assert_eq!(
+        context.resolve_string_var("${SHOT}/lut1.clf").as_deref(),
+        Some("shot4/lut1.clf")
+    );
+}
+
+#[test]
+fn config_current_context_survives_parent_drop_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let context = {
+        let config =
+            Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+        config
+            .try_current_context()
+            .expect("read current context")
+            .expect("current context")
+    };
+
+    assert_eq!(context.string_var("SHOT").as_deref(), Some("shot4"));
+    assert_eq!(
+        context.resolve_string_var("${SHOT}/lut1.clf").as_deref(),
+        Some("shot4/lut1.clf")
+    );
+}
+
+#[test]
+fn config_environment_declarations_and_loading_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    const SHOT: &str = "SHOT";
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+
+    assert_eq!(config.num_environment_vars(), 4);
+    assert_eq!(
+        config.environment_var_default(SHOT).as_deref(),
+        Some("shot4")
+    );
+    assert_eq!(
+        config.environment_var_default("LUT_PATH").as_deref(),
+        Some("shot3/lut1.clf")
+    );
+
+    config
+        .set_environment_mode(ocio_rs::EnvironmentMode::LoadPredefined)
+        .expect("select predefined mode");
+    config
+        .load_environment()
+        .expect("load configured environment");
+    assert_eq!(
+        config
+            .current_context()
+            .expect("current context")
+            .string_var(SHOT)
+            .as_deref(),
+        Some("shot4")
+    );
+
+    config
+        .clear_environment_vars()
+        .expect("clear environment declarations");
+    assert_eq!(config.num_environment_vars(), 0);
+    assert_eq!(
+        config
+            .current_context()
+            .expect("current context")
+            .string_var(SHOT),
+        Some(String::new())
+    );
+}
+
+#[test]
+fn config_from_packaged_ocioz_loads_context_test1_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let packaged_path = packaged_context_test1_path();
+    let packaged =
+        Config::from_file(packaged_path.to_string_lossy()).expect("load packaged ocioz config");
+    assert_context_test1_metadata(&packaged);
+}
+
+#[test]
 fn config_search_paths_roles_and_serialization_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {
@@ -104,8 +354,21 @@ fn config_search_paths_roles_and_serialization_behavior() {
     config
         .set_description("Unit config description")
         .expect("set description");
+    assert_eq!(
+        config.try_name().expect("config name query").as_deref(),
+        Some("UnitConfig")
+    );
+    assert_eq!(
+        config
+            .try_description()
+            .expect("config description query")
+            .as_deref(),
+        Some("Unit config description")
+    );
 
-    config.clear_search_paths();
+    config
+        .try_clear_search_paths()
+        .expect("clear config search paths");
     config.set_search_path("alpha").expect("set search path");
     config.add_search_path("beta").expect("add search path");
     config.add_search_path("gamma").expect("add search path");
@@ -123,7 +386,10 @@ fn config_search_paths_roles_and_serialization_behavior() {
         Some("raw")
     );
 
-    let serialized = config.serialize().expect("serialize config");
+    let serialized = config
+        .serialize()
+        .expect("serialize config")
+        .expect("real serialized config");
     assert!(serialized.contains("ocio_profile_version"));
     assert!(serialized.contains("name: UnitConfig"));
     assert!(serialized.contains("description: Unit config description"));
@@ -131,6 +397,43 @@ fn config_search_paths_roles_and_serialization_behavior() {
     assert!(serialized.contains("alpha"));
     assert!(serialized.contains("beta"));
     assert!(serialized.contains("gamma"));
+}
+
+#[test]
+fn config_archive_returns_payload_for_archivable_file_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).expect("load config from file");
+
+    assert!(config.is_archivable(), "context_test1 should be archivable");
+
+    let archived = config
+        .archive()
+        .expect("archive config")
+        .expect("real archived config");
+    assert!(
+        !archived.trim().is_empty(),
+        "archive payload should not be empty"
+    );
+}
+
+#[test]
+fn config_unarchivable_archive_surfaces_ocio_error_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = Config::raw().expect("raw config");
+    assert!(!config.is_archivable());
+    let err = config
+        .archive()
+        .expect_err("unarchivable config must report an OCIO error");
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }
 
 #[test]
@@ -145,16 +448,33 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
         .create_editable_copy()
         .expect("editable config copy");
 
-    let initial_cache_id = config.cache_id().expect("initial cache id");
+    let initial_cache_id = config
+        .try_cache_id()
+        .expect("initial cache-id query")
+        .expect("initial cache id");
     let initial_strict = config.is_strict_parsing_enabled();
     config.set_strict_parsing_enabled(!initial_strict);
     assert_eq!(config.is_strict_parsing_enabled(), !initial_strict);
     config.set_strict_parsing_enabled(initial_strict);
     assert_eq!(config.is_strict_parsing_enabled(), initial_strict);
 
+    if config.num_displays_all() > 0 {
+        config
+            .set_display_temporary(0, true)
+            .expect("mark display temporary");
+        assert!(config.is_display_temporary(0));
+        config
+            .set_display_temporary(0, false)
+            .expect("clear temporary display marker");
+    }
+
     let custom_luma = [0.3, 0.59, 0.11];
-    config.set_default_luma_coefs(&custom_luma);
-    let round_trip = config.default_luma_coefs();
+    config
+        .set_default_luma_coefs(&custom_luma)
+        .expect("set default luma coefficients");
+    let round_trip = config
+        .default_luma_coefs()
+        .expect("get default luma coefficients");
     assert_close(round_trip[0], custom_luma[0], 1e-12);
     assert_close(round_trip[1], custom_luma[1], 1e-12);
     assert_close(round_trip[2], custom_luma[2], 1e-12);
@@ -164,9 +484,44 @@ fn config_cache_id_strict_parsing_and_luma_behavior() {
         .add_search_path("cache/path")
         .expect("add search path");
 
-    let mutated_cache_id = config.cache_id().expect("mutated cache id");
+    let mutated_cache_id = config
+        .try_cache_id()
+        .expect("mutated cache-id query")
+        .expect("mutated cache id");
 
     assert_ne!(mutated_cache_id, initial_cache_id);
+}
+
+#[test]
+fn config_version_validation_surfaces_ocio_errors_behavior() {
+    let _guard = config_core_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+    let original_version = (config.major_version(), config.minor_version());
+
+    let unsupported_major = config
+        .set_major_version(99)
+        .expect_err("unsupported config major version should fail");
+    assert!(matches!(unsupported_major, OcioError::Ocio(_)));
+    assert_eq!(
+        (config.major_version(), config.minor_version()),
+        original_version
+    );
+
+    let unsupported_minor = config
+        .set_minor_version(u32::MAX)
+        .expect_err("unsupported config minor version should fail");
+    assert!(matches!(unsupported_minor, OcioError::Ocio(_)));
+    assert_eq!(
+        (config.major_version(), config.minor_version()),
+        original_version
+    );
 }
 
 #[test]

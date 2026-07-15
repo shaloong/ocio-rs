@@ -4,19 +4,37 @@ use std::ptr::NonNull;
 use crate::{BitDepth, Interpolation, Lut1DHueAdjust, OcioError, Result, TransformDirection};
 use ocio_sys;
 
+fn required_value_count(length: u64) -> Result<usize> {
+    let count = length
+        .checked_mul(3)
+        .ok_or_else(|| OcioError::InvalidInput("LUT1D value count overflowed".to_owned()))?;
+    usize::try_from(count)
+        .map_err(|_| OcioError::InvalidInput("LUT1D value count does not fit usize".to_owned()))
+}
+
+fn validate_ocio_size(length: u64, api: &str) -> Result<()> {
+    if length > std::os::raw::c_ulong::MAX as u64 {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: length exceeds OCIO unsigned long range"
+        )));
+    }
+    Ok(())
+}
+
 /// One-dimensional LUT transform with optional half-domain and hue adjustment.
 pub struct Lut1DTransform {
     pub(crate) handle: NonNull<c_void>,
 }
 
 impl Lut1DTransform {
+    /// Create a new identity 1D LUT transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_lut1d_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current interpolation mode.
     pub fn interpolation(&self) -> Interpolation {
         let i = unsafe { ocio_sys::ocio_lut1d_transform_get_interpolation(self.handle.as_ptr()) };
         match i {
@@ -30,15 +48,25 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the interpolation mode.
     pub fn set_interpolation(&self, interpolation: Interpolation) {
+        self.try_set_interpolation(interpolation)
+            .expect("failed to set LUT1D interpolation");
+    }
+
+    /// Set the interpolation mode and surface any OCIO validation error.
+    pub fn try_set_interpolation(&self, interpolation: Interpolation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_set_interpolation(
                 self.handle.as_ptr(),
                 interpolation as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Return the bit depth declared for file-based output serialization.
     pub fn file_output_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_lut1d_transform_get_file_output_bit_depth(self.handle.as_ptr())
@@ -56,15 +84,25 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the serialized output bit depth.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set LUT1D file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_lut1d_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -73,62 +111,122 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set LUT1D transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the LUT length (number of entries).
     pub fn length(&self) -> u64 {
         unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) }
     }
 
+    /// Return the LUT length (number of entries).
     pub fn length_u64(&self) -> u64 {
         self.length()
     }
 
-    pub fn set_length(&self, len: u64) {
+    /// Resize the LUT, returning an error when OCIO rejects the requested size.
+    pub fn set_length(&self, len: u64) -> Result<()> {
+        validate_ocio_size(len, "Lut1DTransform::set_length")?;
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_lut1d_transform_set_length_u64(self.handle.as_ptr(), len) };
+        crate::ocio_call_status()
     }
 
-    pub fn set_length_u64(&self, len: u64) {
-        self.set_length(len);
+    /// Resize the LUT, returning an error when OCIO rejects the requested size.
+    pub fn set_length_u64(&self, len: u64) -> Result<()> {
+        self.set_length(len)
     }
 
-    pub fn values(&self) -> Vec<f64> {
-        let len = self.length() as usize;
-        let mut data = vec![0.0f64; len.max(1) * 3];
+    /// Return all RGB LUT values as a flat `f64` vector.
+    pub fn try_values(&self) -> Result<Vec<f64>> {
+        let mut data = vec![0.0f64; required_value_count(self.length())?];
+        if data.is_empty() {
+            return Ok(data);
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
         };
-        data
+        crate::ocio_call_status()?;
+        Ok(data)
     }
 
-    pub fn set_values(&self, data: &[f64]) {
-        unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+    /// Return all RGB LUT values as a flat `f64` vector.
+    pub fn values(&self) -> Vec<f64> {
+        self.try_values().unwrap_or_default()
     }
 
-    pub fn value(&self, index: u64) -> Option<[f32; 3]> {
-        if index >= self.length() {
-            return None;
+    /// Replace every RGB LUT entry.
+    ///
+    /// `data` must contain exactly `length() * 3` values in index order.
+    pub fn set_values(&self, data: &[f64]) -> Result<()> {
+        let expected = required_value_count(self.length())?;
+        if data.len() != expected {
+            return Err(OcioError::InvalidInput(format!(
+                "Lut1DTransform::set_values: expected {expected} values, got {}",
+                data.len()
+            )));
         }
-        let values = self.values();
-        let offset = index as usize * 3;
-        Some([
-            values.get(offset).copied().unwrap_or_default() as f32,
-            values.get(offset + 1).copied().unwrap_or_default() as f32,
-            values.get(offset + 2).copied().unwrap_or_default() as f32,
-        ])
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+        crate::ocio_call_status()
     }
 
-    pub fn set_value(&self, index: u64, value: [f32; 3]) {
+    /// Return a single RGB LUT entry by index, preserving OCIO failures.
+    ///
+    /// `Ok(None)` means `index` is outside the current LUT length.
+    pub fn try_value(&self, index: u64) -> Result<Option<[f32; 3]>> {
+        if index >= self.length() {
+            return Ok(None);
+        }
+        let mut value = [0.0f32; 3];
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_get_value(
+                self.handle.as_ptr(),
+                index as *mut c_void,
+                (&mut value[0] as *mut f32).cast(),
+                (&mut value[1] as *mut f32).cast(),
+                (&mut value[2] as *mut f32).cast(),
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(Some(value))
+    }
+
+    /// Return a single RGB LUT entry by index, or `None` if out of range.
+    pub fn value(&self, index: u64) -> Option<[f32; 3]> {
+        self.try_value(index).ok().flatten()
+    }
+
+    /// Set one RGB LUT entry.
+    pub fn set_value(&self, index: u64, value: [f32; 3]) -> Result<()> {
+        if index >= self.length() {
+            return Err(OcioError::InvalidInput(format!(
+                "Lut1DTransform::set_value: index {index} is outside LUT length {}",
+                self.length()
+            )));
+        }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_lut1d_transform_set_value(
                 self.handle.as_ptr(),
@@ -138,28 +236,50 @@ impl Lut1DTransform {
                 value[2],
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Return whether the input half-domain flag is enabled.
     pub fn input_half_domain(&self) -> bool {
         unsafe { ocio_sys::ocio_lut1d_transform_get_input_half_domain(self.handle.as_ptr()) }
     }
 
+    /// Set the input half-domain flag.
     pub fn set_input_half_domain(&self, half_domain: bool) {
-        unsafe {
-            ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain)
-        };
+        self.try_set_input_half_domain(half_domain)
+            .expect("failed to set LUT1D input half domain");
     }
 
+    /// Set the input half-domain flag and surface any OCIO validation error.
+    pub fn try_set_input_half_domain(&self, half_domain: bool) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_input_half_domain(self.handle.as_ptr(), half_domain);
+        }
+        crate::ocio_call_status()
+    }
+
+    /// Return whether the output raw halfs flag is enabled.
     pub fn output_raw_halfs(&self) -> bool {
         unsafe { ocio_sys::ocio_lut1d_transform_get_output_raw_halfs(self.handle.as_ptr()) }
     }
 
+    /// Set the output raw halfs flag.
     pub fn set_output_raw_halfs(&self, raw_halfs: bool) {
-        unsafe {
-            ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs)
-        };
+        self.try_set_output_raw_halfs(raw_halfs)
+            .expect("failed to set LUT1D output raw halfs");
     }
 
+    /// Set the output-raw-halfs flag and surface any OCIO validation error.
+    pub fn try_set_output_raw_halfs(&self, raw_halfs: bool) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_output_raw_halfs(self.handle.as_ptr(), raw_halfs);
+        }
+        crate::ocio_call_status()
+    }
+
+    /// Return the hue-adjust algorithm.
     pub fn hue_adjust(&self) -> Lut1DHueAdjust {
         match unsafe { ocio_sys::ocio_lut1d_transform_get_hue_adjust(self.handle.as_ptr()) } {
             1 => Lut1DHueAdjust::Dw3,
@@ -168,12 +288,22 @@ impl Lut1DTransform {
         }
     }
 
+    /// Set the hue-adjust algorithm.
     pub fn set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) {
-        unsafe {
-            ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32)
-        };
+        self.try_set_hue_adjust(hue_adjust)
+            .expect("failed to set LUT1D hue adjust");
     }
 
+    /// Set the hue-adjust algorithm and surface any OCIO validation error.
+    pub fn try_set_hue_adjust(&self, hue_adjust: Lut1DHueAdjust) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_hue_adjust(self.handle.as_ptr(), hue_adjust as i32);
+        }
+        crate::ocio_call_status()
+    }
+
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -189,6 +319,7 @@ impl Lut1DTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_lut1d_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
@@ -216,14 +347,14 @@ mod tests {
     fn interpolation_no_crash() {
         let lt = Lut1DTransform::create().unwrap();
         let _ = lt.interpolation();
-        lt.set_interpolation(Interpolation::Linear);
+        lt.try_set_interpolation(Interpolation::Linear).unwrap();
     }
 
     #[test]
     fn bit_depth_no_crash() {
         let lt = Lut1DTransform::create().unwrap();
         let _ = lt.file_output_bit_depth();
-        lt.set_file_output_bit_depth(BitDepth::F32);
+        lt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]
@@ -243,9 +374,9 @@ mod tests {
     fn values_no_crash() {
         let t = Lut1DTransform::create().unwrap();
         let _ = t.length();
-        t.set_length(32);
+        t.set_length(32).unwrap();
         let v = t.values();
-        t.set_values(&v);
+        t.set_values(&v).unwrap();
     }
 
     #[test]

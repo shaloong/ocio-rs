@@ -32,8 +32,10 @@ fn configured_named_transform() -> NamedTransform {
 
     let forward = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).expect("forward matrix");
     let inverse = MatrixTransform::scale(&[0.5, 1.0, 2.0, 1.0]).expect("inverse matrix");
-    nt.set_transform(&forward, TransformDirection::Forward);
-    nt.set_transform(&inverse, TransformDirection::Inverse);
+    nt.try_set_transform(&forward, TransformDirection::Forward)
+        .expect("attach forward named transform");
+    nt.try_set_transform(&inverse, TransformDirection::Inverse)
+        .expect("attach inverse named transform");
     nt
 }
 
@@ -73,10 +75,12 @@ fn named_transform_attached_matrix_round_trip_behavior() {
     let nt = configured_named_transform();
 
     let forward = nt
-        .transform(TransformDirection::Forward)
+        .try_transform(TransformDirection::Forward)
+        .expect("forward transform query")
         .expect("forward transform");
     let inverse = nt
-        .transform(TransformDirection::Inverse)
+        .try_transform(TransformDirection::Inverse)
+        .expect("inverse transform query")
         .expect("inverse transform");
 
     match forward {
@@ -122,10 +126,16 @@ fn named_transform_editable_copy_is_independent_behavior() {
         .expect("remove alias from copy");
     copy.remove_category("unit_category")
         .expect("remove category from copy");
+    copy.add_alias("copy_alias").expect("add alias to copy");
+    copy.add_category("copy_category")
+        .expect("add category to copy");
+    copy.try_clear_aliases().expect("clear aliases from copy");
+    copy.try_clear_categories()
+        .expect("clear categories from copy");
 
     assert_eq!(copy.name().as_deref(), Some("UnitNamedTransformCopy"));
-    assert!(!copy.has_alias("unit_alias"));
-    assert!(!copy.has_category("unit_category"));
+    assert_eq!(copy.num_aliases(), 0);
+    assert_eq!(copy.num_categories(), 0);
 
     assert_eq!(nt.name().as_deref(), Some("UnitNamedTransform"));
     assert!(nt.has_alias("unit_alias"));

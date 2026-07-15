@@ -22,11 +22,13 @@ fn exposure_contrast_test_lock() -> MutexGuard<'static, ()> {
 
 fn linear_exposure_transform() -> ExposureContrastTransform {
     let transform = ExposureContrastTransform::create().expect("exposure contrast create");
-    transform.set_style(ExposureContrastStyle::Linear);
-    transform.set_exposure(1.0);
-    transform.set_contrast(1.0);
-    transform.set_gamma(1.0);
-    transform.set_pivot(0.18);
+    transform
+        .try_set_style(ExposureContrastStyle::Linear)
+        .expect("set style");
+    transform.try_set_exposure(1.0).expect("set exposure");
+    transform.try_set_contrast(1.0).expect("set contrast");
+    transform.try_set_gamma(1.0).expect("set gamma");
+    transform.try_set_pivot(0.18).expect("set pivot");
     transform
 }
 
@@ -38,8 +40,12 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     }
 
     let transform = linear_exposure_transform();
-    transform.set_log_exposure_step(0.088);
-    transform.set_log_mid_gray(0.18);
+    transform
+        .try_set_log_exposure_step(0.088)
+        .expect("set log exposure step");
+    transform
+        .try_set_log_mid_gray(0.18)
+        .expect("set log mid gray");
 
     assert_eq!(transform.style(), ExposureContrastStyle::Linear);
     assert_close(transform.exposure(), 1.0, 1e-10);
@@ -53,16 +59,28 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     assert!(!transform.is_contrast_dynamic());
     assert!(!transform.is_gamma_dynamic());
 
-    transform.make_exposure_dynamic();
-    transform.make_contrast_dynamic();
-    transform.make_gamma_dynamic();
+    transform
+        .try_make_exposure_dynamic()
+        .expect("make exposure dynamic");
+    transform
+        .try_make_contrast_dynamic()
+        .expect("make contrast dynamic");
+    transform
+        .try_make_gamma_dynamic()
+        .expect("make gamma dynamic");
     assert!(transform.is_exposure_dynamic());
     assert!(transform.is_contrast_dynamic());
     assert!(transform.is_gamma_dynamic());
 
-    transform.make_exposure_non_dynamic();
-    transform.make_contrast_non_dynamic();
-    transform.make_gamma_non_dynamic();
+    transform
+        .try_make_exposure_non_dynamic()
+        .expect("make exposure non-dynamic");
+    transform
+        .try_make_contrast_non_dynamic()
+        .expect("make contrast non-dynamic");
+    transform
+        .try_make_gamma_non_dynamic()
+        .expect("make gamma non-dynamic");
     assert!(!transform.is_exposure_dynamic());
     assert!(!transform.is_contrast_dynamic());
     assert!(!transform.is_gamma_dynamic());
@@ -83,7 +101,7 @@ fn exposure_contrast_copy_direction_and_equals_behavior() {
         .expect("exposure contrast editable copy");
 
     copy.set_direction(TransformDirection::Inverse);
-    copy.set_exposure(-1.0);
+    copy.try_set_exposure(-1.0).expect("set copy exposure");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.exposure(), -1.0, 1e-10);

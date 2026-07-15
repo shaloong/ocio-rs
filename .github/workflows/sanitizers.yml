@@ -1,0 +1,30 @@
+name: Sanitizers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  address-sanitizer:
+    name: AddressSanitizer (stub)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      CFLAGS: -fsanitize=address -fno-omit-frame-pointer
+      CXXFLAGS: -fsanitize=address -fno-omit-frame-pointer
+      RUSTFLAGS: -Zsanitizer=address -C debuginfo=1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install C++ compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
+
+      - name: Test with AddressSanitizer
+        run: cargo test --workspace --no-default-features

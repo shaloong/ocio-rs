@@ -26,7 +26,7 @@ fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
 
 fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {
     let matrix = MatrixTransform::identity().expect("identity matrix");
-    matrix.set_offset(&offset);
+    matrix.set_offset(&offset).expect("set matrix offset");
     matrix
 }
 
@@ -42,13 +42,27 @@ fn group_transform_order_copy_and_mutation_behavior() {
     let offset = offset_matrix([0.1, 0.0, 0.0, 0.0]);
 
     let group = GroupTransform::create().expect("group create");
-    group.append_transform(&scale);
-    group.append_transform(&offset);
+    group.append_transform(&scale).expect("append scale");
+    group.append_transform(&offset).expect("append offset");
 
     assert_eq!(group.num_transforms(), 2);
     assert_eq!(group.direction(), TransformDirection::Forward);
-    assert!(matches!(group.transform(0), Some(Transform::Matrix(_))));
-    assert!(matches!(group.transform(1), Some(Transform::Matrix(_))));
+    assert!(matches!(
+        group.try_transform(0).expect("first child query"),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        group.try_transform(1).expect("second child query"),
+        Some(Transform::Matrix(_))
+    ));
+    let missing_child_err = match group.try_transform(2) {
+        Err(err) => err,
+        Ok(_) => panic!("out-of-range child query must fail"),
+    };
+    assert!(
+        matches!(missing_child_err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {missing_child_err:?}"
+    );
 
     let cpu = config
         .processor_from_transform(&group, TransformDirection::Forward)
@@ -64,8 +78,10 @@ fn group_transform_order_copy_and_mutation_behavior() {
     assert_close(appended_pixel[3] as f64, 1.0, 1e-6);
 
     let prepended = GroupTransform::create().expect("prepended group create");
-    prepended.append_transform(&scale);
-    prepended.prepend_transform(&offset);
+    prepended.append_transform(&scale).expect("append scale");
+    prepended
+        .prepend_transform(&offset)
+        .expect("prepend offset");
 
     assert_eq!(prepended.num_transforms(), 2);
     let prepended_cpu = config
@@ -85,16 +101,42 @@ fn group_transform_order_copy_and_mutation_behavior() {
         .create_editable_copy()
         .expect("editable copy from group");
     copy.set_direction(TransformDirection::Inverse);
-    copy.remove_transform(1);
+    copy.remove_transform(1).expect("remove child");
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_eq!(copy.num_transforms(), 1);
     assert_eq!(group.direction(), TransformDirection::Forward);
     assert_eq!(group.num_transforms(), 2);
 
-    copy.clear_transforms();
+    copy.clear_transforms().expect("clear children");
     assert_eq!(copy.num_transforms(), 0);
     assert_eq!(group.num_transforms(), 2);
+
+    let err = group
+        .remove_transform(2)
+        .expect_err("out-of-range child removal must fail");
+    assert!(err.to_string().contains("out of range"));
+    assert_eq!(group.num_transforms(), 2);
+}
+
+#[test]
+fn group_child_handle_survives_parent_drop_behavior() {
+    let _guard = group_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let child = {
+        let group = GroupTransform::create().expect("group create");
+        let matrix = scale_matrix([1.5, 1.0, 1.0, 1.0]);
+        group.append_transform(&matrix).expect("append matrix");
+        group
+            .try_transform(0)
+            .expect("child query")
+            .expect("child transform")
+    };
+
+    assert!(matches!(child, Transform::Matrix(_)));
 }
 
 #[test]
@@ -113,8 +155,8 @@ fn group_transform_writer_and_format_query_behavior() {
     range.set_max_out_value(1.0);
 
     let group = GroupTransform::create().expect("group create");
-    group.append_transform(&scale);
-    group.append_transform(&range);
+    group.append_transform(&scale).expect("append scale");
+    group.append_transform(&range).expect("append range");
 
     let formats = GroupTransform::num_write_formats();
     assert!(formats > 0);

@@ -22,8 +22,10 @@ fn main() {
     let mtx = MatrixTransform::create().expect("MatrixTransform::create()");
     mtx.set_matrix(&[
         2.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-    ]);
-    mtx.set_offset(&[0.5, 0.25, 0.0, 0.0]);
+    ])
+    .expect("set benchmark matrix");
+    mtx.set_offset(&[0.5, 0.25, 0.0, 0.0])
+        .expect("set benchmark offset");
 
     let processor = config
         .processor_from_transform(&mtx, TransformDirection::Forward)

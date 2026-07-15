@@ -15,57 +15,80 @@ pub struct MatrixTransform {
 impl MatrixTransform {
     /// Create a new identity matrix transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the current 4x4 matrix in row-major order.
-    pub fn matrix(&self) -> [f64; 16] {
+    pub fn try_matrix(&self) -> Result<[f64; 16]> {
         let mut m = [0.0f64; 16];
         for i in 0..4 {
             m[i * 5] = 1.0;
         }
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_get_matrix(
                 self.handle.as_ptr(),
                 m.as_mut_ptr() as *mut c_void,
             )
         };
-        m
+        crate::ocio_call_status()?;
+        Ok(m)
+    }
+
+    /// Return the current 4x4 matrix in row-major order.
+    pub fn matrix(&self) -> [f64; 16] {
+        self.try_matrix().unwrap_or_else(|_| {
+            let mut m = [0.0f64; 16];
+            for i in 0..4 {
+                m[i * 5] = 1.0;
+            }
+            m
+        })
     }
 
     /// Replace the current 4x4 matrix in row-major order.
-    pub fn set_matrix(&self, m44: &[f64; 16]) {
+    pub fn set_matrix(&self, m44: &[f64; 16]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_matrix(
                 self.handle.as_ptr(),
                 m44.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the current RGBA offset vector.
-    pub fn offset(&self) -> [f64; 4] {
+    pub fn try_offset(&self) -> Result<[f64; 4]> {
         let mut o = [0.0f64; 4];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_get_offset(
                 self.handle.as_ptr(),
                 o.as_mut_ptr() as *mut c_void,
             )
         };
-        o
+        crate::ocio_call_status()?;
+        Ok(o)
+    }
+
+    /// Return the current RGBA offset vector.
+    pub fn offset(&self) -> [f64; 4] {
+        self.try_offset().unwrap_or([0.0; 4])
     }
 
     /// Replace the current RGBA offset vector.
-    pub fn set_offset(&self, offset4: &[f64; 4]) {
+    pub fn set_offset(&self, offset4: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_offset(
                 self.handle.as_ptr(),
                 offset4.as_ptr() as *mut c_void,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the transform direction used when this op is evaluated.
@@ -81,19 +104,26 @@ impl MatrixTransform {
 
     /// Set the transform direction used when this op is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set matrix transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr() as *mut c_void)
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the bit depth declared for file-based input serialization.
@@ -118,12 +148,20 @@ impl MatrixTransform {
 
     /// Set the bit depth declared for file-based input serialization.
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_input_bit_depth(bit_depth)
+            .expect("failed to set matrix file input bit depth");
+    }
+
+    /// Set the serialized input bit depth and surface any OCIO validation error.
+    pub fn try_set_file_input_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_input_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return the bit depth declared for file-based output serialization.
@@ -148,12 +186,20 @@ impl MatrixTransform {
 
     /// Set the bit depth declared for file-based output serialization.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set matrix file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_matrix_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
     /// Return format metadata attached to the transform, when available.
@@ -189,6 +235,7 @@ impl MatrixTransform {
         new_min: &[f64; 4],
         new_max: &[f64; 4],
     ) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_fit(
                 old_min.as_ptr(),
@@ -197,43 +244,37 @@ impl MatrixTransform {
                 new_max.as_ptr(),
             )
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create an identity matrix transform.
     pub fn identity() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_identity() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a saturation matrix using the provided luma coefficients.
     pub fn sat(sat: f64, luma: &[f64; 3]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_sat(sat, luma.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a per-channel scale matrix.
     pub fn scale(scale: &[f64; 4]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_matrix_transform_create_scale(scale.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Create a matrix that remaps channels according to a canonical OCIO view mask.
     pub fn view(channels: &mut [i32; 4], luma: &[f64; 3]) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_matrix_transform_create_view(channels.as_mut_ptr(), luma.as_ptr())
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 }
 
@@ -277,9 +318,9 @@ mod tests {
     fn bit_depth_no_crash() {
         let mt = MatrixTransform::create().unwrap();
         let _ = mt.file_input_bit_depth();
-        mt.set_file_input_bit_depth(BitDepth::F32);
+        mt.try_set_file_input_bit_depth(BitDepth::F32).unwrap();
         let _ = mt.file_output_bit_depth();
-        mt.set_file_output_bit_depth(BitDepth::F32);
+        mt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]

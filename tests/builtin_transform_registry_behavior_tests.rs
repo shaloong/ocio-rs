@@ -38,11 +38,13 @@ fn builtin_transform_registry_matches_builtin_transform_helpers() {
     let sample_count = cmp::min(registry_count, 5);
     for index in 0..sample_count {
         let registry_style = registry
-            .builtin_style(index)
+            .try_builtin_style(index)
+            .expect("registry builtin style query")
             .expect("registry builtin style");
         let helper_style = BuiltinTransform::builtin_style(index).expect("helper builtin style");
         let _description = registry
-            .builtin_description(index)
+            .try_builtin_description(index)
+            .expect("registry builtin description query")
             .expect("registry builtin description");
 
         assert_eq!(registry_style, helper_style);
@@ -59,10 +61,25 @@ fn builtin_transform_instance_round_trip_behavior() {
     }
 
     let registry = BuiltinTransformRegistry::get().expect("builtin transform registry");
-    let style = registry.builtin_style(0).expect("first builtin style");
+    let style = registry
+        .try_builtin_style(0)
+        .expect("first builtin style query")
+        .expect("first builtin style");
     let description = registry
-        .builtin_description(0)
+        .try_builtin_description(0)
+        .expect("first builtin description query")
         .expect("first builtin description");
+
+    assert_eq!(
+        registry.try_builtin_style(-1).expect("negative index"),
+        None
+    );
+    assert_eq!(
+        registry
+            .try_builtin_description(-1)
+            .expect("negative index"),
+        None
+    );
 
     let transform = BuiltinTransform::create().expect("builtin transform create");
     transform.set_style(&style).expect("set builtin style");

@@ -45,14 +45,43 @@ fn context_string_vars_round_trip_and_copy_behavior() {
     ctx.set_string_var("SHOT", "abc123").expect("set SHOT");
     ctx.set_string_var("SEQ", "sq01").expect("set SEQ");
 
-    assert_eq!(ctx.string_var("SHOT").as_deref(), Some("abc123"));
-    assert_eq!(ctx.string_var("SEQ").as_deref(), Some("sq01"));
+    assert_eq!(
+        ctx.try_string_var("SHOT").expect("SHOT query").as_deref(),
+        Some("abc123")
+    );
+    assert_eq!(
+        ctx.try_string_var("SEQ").expect("SEQ query").as_deref(),
+        Some("sq01")
+    );
+    assert!(ctx.try_string_var("SHOT\0").is_err());
     assert_eq!(ctx.num_string_vars(), 2);
+    assert!(ctx
+        .try_string_var_name_by_index(0)
+        .expect("first string variable name")
+        .is_some());
+    assert!(ctx
+        .try_string_var_by_index(0)
+        .expect("first string variable value")
+        .is_some());
+    assert_eq!(
+        ctx.try_string_var_name_by_index(2)
+            .expect("missing string variable name")
+            .as_deref(),
+        Some("")
+    );
+    assert_eq!(
+        ctx.try_string_var_by_index(2)
+            .expect("missing string variable value")
+            .as_deref(),
+        Some("")
+    );
 
     let resolved = ctx
-        .resolve_string_var("${SEQ}/${SHOT}/plate.exr")
-        .expect("resolve_string_var");
+        .try_resolve_string_var("${SEQ}/${SHOT}/plate.exr")
+        .expect("resolve string variables")
+        .expect("resolved string");
     assert_eq!(resolved, "sq01/abc123/plate.exr");
+    assert!(ctx.try_resolve_string_var("${SHOT}\0").is_err());
 
     let copy = ctx.create_editable_copy().expect("editable copy");
     assert_eq!(copy.string_var("SHOT").as_deref(), Some("abc123"));
@@ -78,7 +107,8 @@ fn context_add_string_vars_merges_other_context_behavior() {
     overlay.set_string_var("SHOT", "010").expect("set SHOT");
     overlay.set_string_var("TASK", "comp").expect("set TASK");
 
-    base.add_string_vars(&overlay);
+    base.try_add_string_vars(&overlay)
+        .expect("merge context string vars");
 
     assert_eq!(base.string_var("SHOW").as_deref(), Some("demo"));
     assert_eq!(base.string_var("SHOT").as_deref(), Some("010"));
@@ -93,7 +123,7 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
     }
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
 
     let dir_a = unique_test_dir("search-a");
     let dir_b = unique_test_dir("search-b");
@@ -115,9 +145,29 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
         Some(dir_b.to_string_lossy().as_ref())
     );
     assert_eq!(
-        ctx.working_dir().as_deref(),
+        ctx.try_search_path_by_index(0)
+            .expect("first search path query")
+            .as_deref(),
         Some(dir_a.to_string_lossy().as_ref())
     );
+    assert_eq!(
+        ctx.try_search_path_by_index(2)
+            .expect("missing search path query")
+            .as_deref(),
+        Some("")
+    );
+    assert_eq!(
+        ctx.try_working_dir()
+            .expect("working-directory query")
+            .as_deref(),
+        Some(dir_a.to_string_lossy().as_ref())
+    );
+    let search_path = ctx
+        .try_search_path()
+        .expect("search-path query")
+        .expect("search path");
+    assert!(search_path.contains(dir_a.to_string_lossy().as_ref()));
+    assert!(search_path.contains(dir_b.to_string_lossy().as_ref()));
 
     let copy = ctx.create_editable_copy().expect("editable copy");
     assert_eq!(copy.num_search_paths(), 2);
@@ -153,13 +203,14 @@ fn context_resolve_file_location_uses_working_dir_as_fallback_behavior() {
     fs::write(&working_file, "# working file\n").expect("write working file");
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
     ctx.set_working_dir(path_str(&working_dir))
         .expect("set working dir");
 
     let resolved_working = ctx
-        .resolve_file_location("working_only.spi1d")
-        .expect("resolve working file");
+        .try_resolve_file_location("working_only.spi1d")
+        .expect("resolve working file")
+        .expect("resolved working file");
 
     assert_eq!(PathBuf::from(resolved_working), working_file);
 
@@ -183,19 +234,37 @@ fn context_resolve_file_location_uses_explicit_search_paths_behavior() {
     fs::write(&search_file, "# search file\n").expect("write search file");
 
     let ctx = Context::create().expect("context create");
-    ctx.clear_search_paths();
+    ctx.try_clear_search_paths().expect("clear search paths");
     ctx.set_working_dir(path_str(&working_dir))
         .expect("set working dir");
     ctx.add_search_path(path_str(&search_dir))
         .expect("add search dir");
 
     let resolved_search = ctx
-        .resolve_file_location("search_only.spi3d")
-        .expect("resolve search file");
+        .try_resolve_file_location("search_only.spi3d")
+        .expect("resolve search file")
+        .expect("resolved search file");
 
     assert_eq!(PathBuf::from(resolved_search), search_file);
 
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
+    let _guard = context_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let ctx = Context::create().expect("context create");
+    let error = ctx
+        .try_resolve_file_location("definitely-not-present-ocio-rs.spi1d")
+        .expect_err("missing file resolution must report an OCIO error");
+    assert!(matches!(error, ocio_rs::OcioError::Ocio(_)));
+    assert!(ctx
+        .try_resolve_file_location("definitely-not-present\0.spi1d")
+        .is_err());
 }
 
 #[test]
@@ -206,12 +275,50 @@ fn context_cache_id_changes_with_mutation_behavior() {
     }
 
     let ctx = Context::create().expect("context create");
-    let initial_cache_id = ctx.cache_id().expect("initial cache id");
+    let initial_cache_id = ctx
+        .try_cache_id()
+        .expect("initial cache-id query")
+        .expect("initial cache id");
 
     ctx.set_string_var("SHOT", "abc123").expect("set SHOT");
     let after_string_var = ctx.cache_id().expect("cache id after string var");
     assert_ne!(after_string_var, initial_cache_id);
 
-    ctx.set_environment_mode(EnvironmentMode::LoadAll);
+    ctx.set_environment_mode(EnvironmentMode::LoadAll)
+        .expect("set environment mode");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+}
+
+#[test]
+fn context_load_environment_honors_selected_mode_behavior() {
+    let _guard = context_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    const VAR: &str = "OCIO_RS_CONTEXT_AUTHORED_TEST";
+
+    let ctx = Context::create().expect("context create");
+    ctx.try_clear_string_vars().expect("clear string vars");
+    ctx.set_string_var(VAR, "authored-default")
+        .expect("set authored default");
+    ctx.set_environment_mode(EnvironmentMode::LoadPredefined)
+        .expect("select predefined mode");
+    ctx.load_environment().expect("load predefined environment");
+    assert_eq!(ctx.string_var(VAR).as_deref(), Some("authored-default"));
+
+    ctx.try_clear_string_vars().expect("clear string vars");
+    ctx.load_environment()
+        .expect("reload predefined environment");
+    assert_eq!(ctx.num_string_vars(), 0);
+    let predefined_cache_id = ctx.cache_id().expect("predefined cache id");
+
+    ctx.set_environment_mode(EnvironmentMode::LoadAll)
+        .expect("select all mode");
+    ctx.load_environment().expect("load complete environment");
+    assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    assert_ne!(
+        ctx.cache_id().as_deref(),
+        Some(predefined_cache_id.as_str())
+    );
 }

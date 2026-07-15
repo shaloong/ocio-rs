@@ -10,13 +10,14 @@ pub struct ExponentTransform {
 }
 
 impl ExponentTransform {
+    /// Create a new identity exponent transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_exponent_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the per-channel exponent values.
     pub fn value(&self) -> Result<[f64; 4]> {
         let mut v = [1.0f64; 4];
         crate::clear_last_error();
@@ -27,12 +28,14 @@ impl ExponentTransform {
         Ok(v)
     }
 
+    /// Set the per-channel exponent values.
     pub fn set_value(&self, vec4: &[f64; 4]) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_exponent_transform_set_value(self.handle.as_ptr(), vec4.as_ptr()) };
         crate::ocio_call_status()
     }
 
+    /// Return the negative value handling style.
     pub fn negative_style(&self) -> NegativeStyle {
         let s =
             unsafe { ocio_sys::ocio_exponent_transform_get_negative_style(self.handle.as_ptr()) };
@@ -44,6 +47,7 @@ impl ExponentTransform {
         }
     }
 
+    /// Set the negative value handling style.
     pub fn set_negative_style(&self, style: NegativeStyle) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -55,6 +59,7 @@ impl ExponentTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_exponent_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -63,19 +68,29 @@ impl ExponentTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set exponent transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -91,6 +106,7 @@ impl ExponentTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_exponent_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())

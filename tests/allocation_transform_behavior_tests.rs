@@ -28,9 +28,15 @@ fn allocation_transform_value_copy_and_direction_behavior() {
     }
 
     let transform = AllocationTransform::create().expect("allocation transform create");
-    transform.set_allocation(Allocation::Lg2);
-    transform.set_vars(&[-1.0, 1.0, 0.0]);
-    transform.set_direction(TransformDirection::Forward);
+    transform
+        .try_set_allocation(Allocation::Lg2)
+        .expect("set allocation");
+    transform
+        .set_vars(&[-1.0, 1.0, 0.0])
+        .expect("set allocation variables");
+    transform
+        .try_set_direction(TransformDirection::Forward)
+        .expect("set direction");
 
     assert_eq!(transform.allocation(), Allocation::Lg2);
     assert_eq!(transform.num_vars(), 3);
@@ -40,9 +46,12 @@ fn allocation_transform_value_copy_and_direction_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("allocation transform editable copy");
-    copy.set_allocation(Allocation::Uniform);
-    copy.set_vars(&[-2.0, 2.0]);
-    copy.set_direction(TransformDirection::Inverse);
+    copy.try_set_allocation(Allocation::Uniform)
+        .expect("set copy allocation");
+    copy.set_vars(&[-2.0, 2.0])
+        .expect("set allocation copy variables");
+    copy.try_set_direction(TransformDirection::Inverse)
+        .expect("set copy direction");
 
     assert_eq!(copy.allocation(), Allocation::Uniform);
     assert_eq!(copy.num_vars(), 2);
@@ -64,8 +73,12 @@ fn allocation_transform_uniform_processor_behavior() {
 
     let config = create_test_config().expect("raw config");
     let transform = AllocationTransform::create().expect("allocation transform create");
-    transform.set_allocation(Allocation::Uniform);
-    transform.set_vars(&[-1.0, 1.0]);
+    transform
+        .try_set_allocation(Allocation::Uniform)
+        .expect("set allocation");
+    transform
+        .set_vars(&[-1.0, 1.0])
+        .expect("set allocation variables");
 
     let forward_cpu = config
         .processor_from_transform(&transform, TransformDirection::Forward)
@@ -106,8 +119,12 @@ fn allocation_transform_lg2_processor_behavior() {
 
     let config = create_test_config().expect("raw config");
     let transform = AllocationTransform::create().expect("allocation transform create");
-    transform.set_allocation(Allocation::Lg2);
-    transform.set_vars(&[-1.0, 1.0, 0.0]);
+    transform
+        .try_set_allocation(Allocation::Lg2)
+        .expect("set allocation");
+    transform
+        .set_vars(&[-1.0, 1.0, 0.0])
+        .expect("set allocation variables");
 
     let forward_cpu = config
         .processor_from_transform(&transform, TransformDirection::Forward)

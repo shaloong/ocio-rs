@@ -7,6 +7,12 @@ It aligns the safe Rust layer with OpenColorIO 2.5.2 instead of preserving
 previously generated compatibility shims that did not reflect real upstream
 behavior.
 
+`0.2.0` should be treated as a practical early-usable version: core OCIO 2.5
+Rust bindings are broadly present, bridge-backed, and usable for early
+adopters, while deeper edge-case reliability work continues into follow-up
+releases. It is not yet claiming to be a drop-in replacement for every C++
+OpenColorIO workflow or every edge-case production environment.
+
 ### GPU shader descriptors
 
 `GpuShaderDesc` now exposes typed GPU resources:
@@ -39,11 +45,20 @@ current Rust wrapper semantics:
 
 Display/view/looks/rule helpers were removed from `ViewTransform`. Use `DisplayViewTransform` for display/view mappings.
 
+### Processor metadata
+
+`ProcessorMetadata` is now modeled as its own safe Rust wrapper instead of
+being conflated with `FormatMetadata`. Use `Processor::processor_metadata()`
+to obtain it; bundled coverage validates standalone file/look mutation plus
+metadata extraction from a real processor.
+
 ### Config processors and file rules
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
-`Config::serialize()` and `Config::archive()` now return the real OCIO text output when the crate is linked against a real OCIO build. In stub mode they return `None`.
+`Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.
+They return the real OCIO text output in a real OCIO build, `Ok(None)` in stub
+mode, and `Err` when OCIO cannot serialize or archive the config.
 
 `color_space_from_filepath_by_ref_type` has been replaced by:
 
@@ -81,7 +96,7 @@ Use `config_yaml_by_name` or `config_yaml_by_index` when you need the raw built-
 
 ### Baker output
 
-`Baker::bake()` now truly treats its argument as a filesystem path in Rust space. The OCIO stream output is collected with `Baker::bake_to_string()` first and then written to disk by Rust.
+`Baker::bake()` now truly treats its argument as a filesystem path in Rust space. The OCIO stream output is collected with `Baker::bake_to_string()` first and then written to disk by Rust. `bake_to_string()` returns `Result<Option<String>>`: `Ok(None)` is reserved for stub mode and OCIO bake failures are returned as `Err`.
 
 The older ABI wiring passed a path pointer into an `ostream*` slot, which was not reliable in real OCIO mode.
 
@@ -155,6 +170,13 @@ The same treatment now applies to `Config` helpers that require external OCIO co
 ### Bundled builds
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
+
+Stub mode remains the default (`cargo build` without flags). Real OCIO mode
+is enabled either by setting `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`,
+or by building with `--features bundled`. `OCIO_SOURCE_DIR` alone does not
+enable real OCIO mode. The published `ocio-sys` crate vendors the upstream
+OpenColorIO source tree and transitive dependencies, and the packaged crate
+is validated with `cargo build --features bundled --offline`.
 
 ### Legacy GPU optimization
 

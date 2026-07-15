@@ -109,12 +109,14 @@ cargo run --release --bin bench_ocio_rs
 
 ## Performance
 
-FFI overhead: ~5-8 ns per pixel call. Use `apply_rgba_pixels()` for batch processing — it amortizes the FFI cost across thousands of pixels per call.
+Run `cargo bench --features bundled --bench pipeline` on the target machine to
+measure the real OCIO build used by an application. Do not treat stub-mode
+numbers as color-processing performance measurements.
 
-Reference (MatrixTransform + applyRGBA, 1M iterations):
-
-- C++ direct: ~7-10 ns/pixel
-- Rust FFI: ~15 ns/pixel
+The typed CPU helpers borrow caller-provided pixel buffers and do not allocate
+or copy pixel data. For throughput-sensitive code, prefer
+`apply_rgb_pixels()` / `apply_rgba_pixels()` or the typed packed-bit-depth
+helpers so one FFI call processes a batch of pixels.
 
 ## Continuous Integration
 
@@ -131,6 +133,11 @@ Bundled real-OCIO validation is kept on manual GitHub Actions workflows and runs
 
 - `cargo test --workspace --features bundled`
 - `pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline`
+
+The manual `Sanitizers` workflow runs the stub bridge and Rust wrapper tests
+under Linux AddressSanitizer. It is intended to catch memory-safety regressions
+at FFI boundaries; bundled OCIO behavior remains covered by the separate
+real-OCIO workflow.
 
 Recommended full CI pipeline:
 

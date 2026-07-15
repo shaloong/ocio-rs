@@ -22,13 +22,19 @@ fn lut1d_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_lut1d_transform() -> Lut1DTransform {
     let transform = Lut1DTransform::create().expect("lut1d transform create");
-    transform.set_length(2);
-    transform.set_interpolation(Interpolation::Linear);
-    transform.set_file_output_bit_depth(BitDepth::F32);
-    transform.set_values(&[
-        0.0, 0.0, 0.0, //
-        2.0, 2.0, 2.0,
-    ]);
+    transform.set_length(2).expect("set LUT length");
+    transform
+        .try_set_interpolation(Interpolation::Linear)
+        .expect("set interpolation");
+    transform
+        .try_set_file_output_bit_depth(BitDepth::F32)
+        .expect("set file output bit depth");
+    transform
+        .set_values(&[
+            0.0, 0.0, 0.0, //
+            2.0, 2.0, 2.0,
+        ])
+        .expect("set LUT values");
     transform
 }
 
@@ -45,8 +51,16 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.interpolation(), Interpolation::Linear);
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
     assert_eq!(transform.direction(), TransformDirection::Forward);
+    assert_eq!(
+        transform.try_value(0).expect("read first LUT entry"),
+        Some([0.0, 0.0, 0.0])
+    );
     assert_eq!(transform.value(0), Some([0.0, 0.0, 0.0]));
     assert_eq!(transform.value(1), Some([2.0, 2.0, 2.0]));
+    assert_eq!(
+        transform.try_value(2).expect("out-of-range LUT entry"),
+        None
+    );
 
     let values = transform.values();
     assert_vec_close(&values, &[0.0, 0.0, 0.0, 2.0, 2.0, 2.0], 1e-10);
@@ -54,9 +68,10 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("lut1d transform editable copy");
-    copy.set_value(1, [1.0, 1.0, 1.0]);
+    copy.set_value(1, [1.0, 1.0, 1.0]).expect("set LUT entry");
     copy.set_direction(TransformDirection::Inverse);
-    copy.set_file_output_bit_depth(BitDepth::Uint16);
+    copy.try_set_file_output_bit_depth(BitDepth::Uint16)
+        .expect("set copy file output bit depth");
 
     assert_eq!(copy.value(1), Some([1.0, 1.0, 1.0]));
     assert_eq!(copy.direction(), TransformDirection::Inverse);
@@ -65,6 +80,29 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.value(1), Some([2.0, 2.0, 2.0]));
     assert_eq!(transform.direction(), TransformDirection::Forward);
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
+}
+
+#[test]
+fn lut1d_transform_rejects_invalid_write_inputs() {
+    let _guard = lut1d_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = configured_lut1d_transform();
+    assert!(matches!(
+        transform.set_values(&[0.0; 5]),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        transform.set_value(2, [1.0, 1.0, 1.0]),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(
+        transform.try_value(2).expect("out-of-range LUT entry"),
+        None
+    );
+    assert_eq!(transform.value(1), Some([2.0, 2.0, 2.0]));
 }
 
 #[test]

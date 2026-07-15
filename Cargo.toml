@@ -1,18 +1,19 @@
 [package]
 name = "ocio-rs"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
 description = "Rust bindings for OpenColorIO v2.5.2"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
+documentation = "https://docs.rs/ocio-rs"
 keywords = ["opencolorio", "color", "ocio", "vfx", "imaging"]
 categories = ["multimedia", "api-bindings"]
 readme = "README.md"
 exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*"]
 
 [dependencies]
-ocio-sys = { version = "0.2.0", path = "ocio-sys" }
+ocio-sys = { version = "0.2.1", path = "ocio-sys" }
 thiserror = "1.0"
 
 [features]

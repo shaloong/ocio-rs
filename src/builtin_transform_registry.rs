@@ -26,30 +26,46 @@ impl BuiltinTransformRegistry {
 
     /// Return the stable OCIO style identifier at `index`.
     pub fn builtin_style(&self, index: i32) -> Option<String> {
+        self.try_builtin_style(index).ok().flatten()
+    }
+
+    /// Return a built-in style identifier while preserving bridge failures.
+    pub fn try_builtin_style(&self, index: i32) -> Result<Option<String>> {
         if index < 0 {
-            return None;
+            return Ok(None);
         }
-        unsafe {
+        crate::clear_last_error();
+        let style = unsafe {
             cstr_to_opt_string(ocio_sys::ocio_builtin_transform_registry_get_builtin_style(
                 self.handle.as_ptr(),
                 index as usize,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(style)
     }
 
     /// Return the human-readable description for the built-in style at `index`.
     pub fn builtin_description(&self, index: i32) -> Option<String> {
+        self.try_builtin_description(index).ok().flatten()
+    }
+
+    /// Return a built-in style description while preserving bridge failures.
+    pub fn try_builtin_description(&self, index: i32) -> Result<Option<String>> {
         if index < 0 {
-            return None;
+            return Ok(None);
         }
-        unsafe {
+        crate::clear_last_error();
+        let description = unsafe {
             cstr_to_opt_string(
                 ocio_sys::ocio_builtin_transform_registry_get_builtin_description(
                     self.handle.as_ptr(),
                     index as usize,
                 ),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(description)
     }
 }
 

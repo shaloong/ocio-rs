@@ -60,6 +60,19 @@ const char* ocio_get_version(void);
 int ocio_get_version_hex(void);
 int ocio_get_logging_level(void);
 void ocio_set_logging_level(int level);
+void ocio_log_message(int level, const char* message);
+typedef void (*OcioLogCallback)(const char* message);
+void ocio_set_logging_callback(OcioLogCallback callback);
+void ocio_reset_logging_callback(void);
+typedef bool (*OcioComputeHashCallback)(const uint8_t* input, size_t input_len, const uint8_t** output, size_t* output_len);
+void ocio_set_compute_hash_callback(OcioComputeHashCallback callback);
+void ocio_reset_compute_hash_callback(void);
+const char* ocio_resolve_config_path(const char* originalPath);
+void ocio_extract_ocioz_archive(const char* archivePath, const char* destinationDir);
+const char* ocio_get_env_variable(const char* name);
+void ocio_set_env_variable(const char* name, const char* value);
+void ocio_unset_env_variable(const char* name);
+bool ocio_is_env_variable_present(const char* name);
 
 // --- Global config ---
 void* ocio_get_current_config(void);
@@ -68,6 +81,7 @@ void ocio_clear_all_caches(void);
 
 // --- BuiltinConfigRegistry ---
 void* ocio_builtin_config_registry_get(void);
+void ocio_builtin_config_registry_destroy(void* handle);
 size_t ocio_builtin_config_registry_get_num_builtin_configs(void* handle);
 void* ocio_builtin_config_registry_get_builtin_config_name(void* handle, size_t configIndex);
 void* ocio_builtin_config_registry_get_builtin_config_ui_name(void* handle, size_t configIndex);
@@ -94,6 +108,7 @@ bool ocio_config_io_proxy_set_lut_data(
   size_t len,
   const char* fastHash);
 size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath);
+bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath);
 bool ocio_config_io_proxy_copy_lut_data(
   void* handle,
   const char* filepath,
@@ -497,6 +512,7 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir);
 
 // --- Transform ---
 void* ocio_transform_create_editable_copy(void* handle);
+void ocio_transform_destroy(void* handle);
 int ocio_transform_get_transform_type(void* handle);
 
 // --- Processor ---
@@ -669,8 +685,7 @@ void ocio_gpu_shader_desc_create_shader_text(
     const char* shaderFunctionBody,
     const char* shaderFunctionFooter);
 void ocio_gpu_shader_desc_finalize(void* handle);
-uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle, int index);
-uint32_t ocio_gpu_shader_desc_get_texture_max_height(void* handle, int index);
+uint32_t ocio_gpu_shader_desc_get_texture_max_width(void* handle);
 const char* ocio_gpu_shader_desc_get_texture_uid(void* handle, int index);
 
 // --- FormatMetadata ---

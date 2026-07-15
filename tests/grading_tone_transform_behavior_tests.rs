@@ -45,9 +45,9 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
     assert_close(value.whites.width, 8.0, 1e-10);
     assert_close(value.scontrast, 1.0, 1e-10);
 
-    transform.make_dynamic();
+    transform.try_make_dynamic().expect("make dynamic");
     assert!(transform.is_dynamic());
-    transform.make_non_dynamic();
+    transform.try_make_non_dynamic().expect("make non dynamic");
     assert!(!transform.is_dynamic());
 
     let copy = transform
@@ -71,7 +71,9 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
     changed.blacks.red = 1.3;
     changed.scontrast = 1.4;
     transform.set_value(&changed);
-    transform.set_style(GradingStyle::Video);
+    transform
+        .try_set_style(GradingStyle::Video)
+        .expect("set style video");
 
     let reset = transform.value();
     let expected = GradingTone::new(GradingStyle::Video);
@@ -147,4 +149,48 @@ fn grading_tone_legacy_value_handle_survives_parent_drop() {
         ocio_sys::ocio_grading_tone_value_destroy(value_handle);
         ocio_sys::ocio_grading_tone_transform_destroy(target);
     }
+}
+
+#[test]
+fn grading_tone_try_setters_surface_errors() {
+    let _guard = grading_tone_transform_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = GradingToneTransform::create(GradingStyle::Log).expect("grading tone create");
+
+    // try_set_style with valid values
+    transform
+        .try_set_style(GradingStyle::Lin)
+        .expect("try_set_style Lin");
+    assert_eq!(transform.style(), GradingStyle::Lin);
+
+    transform
+        .try_set_style(GradingStyle::Video)
+        .expect("try_set_style Video");
+    assert_eq!(transform.style(), GradingStyle::Video);
+
+    transform
+        .try_set_style(GradingStyle::Log)
+        .expect("try_set_style Log");
+    assert_eq!(transform.style(), GradingStyle::Log);
+
+    // try_make_dynamic / try_make_non_dynamic with readback
+    transform.try_make_dynamic().expect("try_make_dynamic");
+    assert!(transform.is_dynamic());
+
+    transform
+        .try_make_non_dynamic()
+        .expect("try_make_non_dynamic");
+    assert!(!transform.is_dynamic());
+
+    // try_set_value with readback
+    let mut custom = GradingTone::new(GradingStyle::Log);
+    custom.blacks.red = 1.5;
+    custom.scontrast = 1.2;
+    transform.try_set_value(&custom).expect("try_set_value");
+    let read_back = transform.value();
+    assert_close(read_back.blacks.red, 1.5, 1e-10);
+    assert_close(read_back.scontrast, 1.2, 1e-10);
 }

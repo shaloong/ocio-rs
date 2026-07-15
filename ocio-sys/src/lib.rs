@@ -37,6 +37,16 @@ pub struct OcioGpuUniformInfo {
     pub value_count: usize,
 }
 
+pub type OcioLogCallback = Option<unsafe extern "C" fn(message: *const i8)>;
+pub type OcioComputeHashCallback = Option<
+    unsafe extern "C" fn(
+        input: *const u8,
+        input_len: usize,
+        output: *mut *const u8,
+        output_len: *mut usize,
+    ) -> bool,
+>;
+
 unsafe extern "C" {
     // --- Error state ---
     pub fn ocio_error_get_last() -> *const i8;
@@ -50,6 +60,17 @@ unsafe extern "C" {
     pub fn ocio_get_version_hex() -> i32;
     pub fn ocio_get_logging_level() -> i32;
     pub fn ocio_set_logging_level(level: i32);
+    pub fn ocio_log_message(level: i32, message: *const i8);
+    pub fn ocio_set_logging_callback(callback: OcioLogCallback);
+    pub fn ocio_reset_logging_callback();
+    pub fn ocio_set_compute_hash_callback(callback: OcioComputeHashCallback);
+    pub fn ocio_reset_compute_hash_callback();
+    pub fn ocio_resolve_config_path(originalPath: *const i8) -> *const i8;
+    pub fn ocio_extract_ocioz_archive(archivePath: *const i8, destinationDir: *const i8);
+    pub fn ocio_get_env_variable(name: *const i8) -> *const i8;
+    pub fn ocio_set_env_variable(name: *const i8, value: *const i8);
+    pub fn ocio_unset_env_variable(name: *const i8);
+    pub fn ocio_is_env_variable_present(name: *const i8) -> bool;
 
     // --- Global config ---
     pub fn ocio_get_current_config() -> *mut c_void;
@@ -58,6 +79,7 @@ unsafe extern "C" {
 
     // --- BuiltinConfigRegistry ---
     pub fn ocio_builtin_config_registry_get() -> *mut c_void;
+    pub fn ocio_builtin_config_registry_destroy(handle: *mut c_void);
     pub fn ocio_builtin_config_registry_get_num_builtin_configs(handle: *mut c_void) -> usize;
     pub fn ocio_builtin_config_registry_get_builtin_config_name(
         handle: *mut c_void,
@@ -105,6 +127,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         filepath: *const i8,
     ) -> usize;
+    pub fn ocio_config_io_proxy_has_lut_data(handle: *mut c_void, filepath: *const i8) -> bool;
     pub fn ocio_config_io_proxy_copy_lut_data(
         handle: *mut c_void,
         filepath: *const i8,
@@ -1008,6 +1031,7 @@ unsafe extern "C" {
 
     // --- Transform ---
     pub fn ocio_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_transform_destroy(handle: *mut c_void);
     pub fn ocio_transform_get_transform_type(handle: *mut c_void) -> i32;
 
     // --- Processor ---
@@ -2344,9 +2368,7 @@ unsafe extern "C" {
 
     pub fn ocio_gpu_shader_desc_get_allow_texture_1d(shader_desc: *mut c_void) -> bool;
 
-    pub fn ocio_gpu_shader_desc_get_texture_max_height(desc: *mut c_void, index: i32) -> u32;
-
-    pub fn ocio_gpu_shader_desc_get_texture_max_width(desc: *mut c_void, index: i32) -> u32;
+    pub fn ocio_gpu_shader_desc_get_texture_max_width(desc: *mut c_void) -> u32;
 
     pub fn ocio_gpu_shader_desc_get_texture_uid(desc: *mut c_void, index: i32) -> *const i8;
 

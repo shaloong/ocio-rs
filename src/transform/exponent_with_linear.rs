@@ -10,13 +10,14 @@ pub struct ExponentWithLinearTransform {
 }
 
 impl ExponentWithLinearTransform {
+    /// Create a new exponent-with-linear transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_exponent_with_linear_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the per-channel gamma values.
     pub fn gamma(&self) -> Result<[f64; 4]> {
         let mut vec4 = [1.0f64; 4];
         crate::clear_last_error();
@@ -30,6 +31,7 @@ impl ExponentWithLinearTransform {
         Ok(vec4)
     }
 
+    /// Set the per-channel gamma values.
     pub fn set_gamma(&self, vec4: &[f64; 4]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -41,6 +43,7 @@ impl ExponentWithLinearTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the per-channel offset values.
     pub fn offset(&self) -> Result<[f64; 4]> {
         let mut vec4 = [0.0f64; 4];
         crate::clear_last_error();
@@ -54,6 +57,7 @@ impl ExponentWithLinearTransform {
         Ok(vec4)
     }
 
+    /// Set the per-channel offset values.
     pub fn set_offset(&self, vec4: &[f64; 4]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -65,6 +69,7 @@ impl ExponentWithLinearTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the negative value handling style.
     pub fn negative_style(&self) -> NegativeStyle {
         let s = unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_get_negative_style(self.handle.as_ptr())
@@ -77,6 +82,7 @@ impl ExponentWithLinearTransform {
         }
     }
 
+    /// Set the negative value handling style.
     pub fn set_negative_style(&self, style: NegativeStyle) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -88,6 +94,7 @@ impl ExponentWithLinearTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_get_direction(self.handle.as_ptr())
@@ -98,22 +105,32 @@ impl ExponentWithLinearTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set exponent-with-linear transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -129,6 +146,7 @@ impl ExponentWithLinearTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_exponent_with_linear_transform_equals(

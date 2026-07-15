@@ -31,12 +31,41 @@ fn file_rules_insert_rule_round_trip_behavior() {
         .expect("insert_rule");
 
     assert_eq!(rules.num_entries(), initial_entries + 1);
-    assert_eq!(rules.name(0).as_deref(), Some("UnitRule"));
-    assert_eq!(rules.color_space(0).as_deref(), Some("raw"));
-    assert_eq!(rules.pattern(0).as_deref(), Some("*.exr"));
-    assert_eq!(rules.extension(0).as_deref(), Some("exr"));
+    assert_eq!(
+        rules.try_name(0).expect("rule name query").as_deref(),
+        Some("UnitRule")
+    );
+    assert_eq!(
+        rules
+            .try_color_space(0)
+            .expect("rule color-space query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        rules.try_pattern(0).expect("rule pattern query").as_deref(),
+        Some("*.exr")
+    );
+    assert_eq!(
+        rules
+            .try_extension(0)
+            .expect("rule extension query")
+            .as_deref(),
+        Some("exr")
+    );
     assert_eq!(rules.index_for_rule("UnitRule"), 0);
+    assert_eq!(
+        rules
+            .try_index_for_rule("UnitRule")
+            .expect("existing rule index"),
+        0
+    );
     assert_eq!(rules.rule_index("UnitRule"), Some(0));
+    assert!(matches!(
+        rules.try_index_for_rule("DefinitelyMissingRule"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert_eq!(rules.index_for_rule("DefinitelyMissingRule"), u64::MAX);
     assert_eq!(rules.rule_index("DefinitelyMissingRule"), None);
     assert_eq!(rules.rule_index("bad\0rule"), None);
 }
@@ -56,12 +85,36 @@ fn file_rules_regex_and_custom_keys_round_trip_behavior() {
         .set_custom_key(0, "camera", "A001")
         .expect("set_custom_key");
 
-    assert_eq!(rules.name(0).as_deref(), Some("RegexRule"));
-    assert_eq!(rules.color_space(0).as_deref(), Some("raw"));
-    assert_eq!(rules.regex(0).as_deref(), Some(".*\\.(exr|dpx)"));
+    assert_eq!(
+        rules.try_name(0).expect("rule name query").as_deref(),
+        Some("RegexRule")
+    );
+    assert_eq!(
+        rules
+            .try_color_space(0)
+            .expect("rule color-space query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        rules.try_regex(0).expect("rule regex query").as_deref(),
+        Some(".*\\.(exr|dpx)")
+    );
     assert_eq!(rules.num_custom_keys(0), 1);
-    assert_eq!(rules.custom_key_name(0, 0).as_deref(), Some("camera"));
-    assert_eq!(rules.custom_key_value(0, 0).as_deref(), Some("A001"));
+    assert_eq!(
+        rules
+            .try_custom_key_name(0, 0)
+            .expect("custom-key name query")
+            .as_deref(),
+        Some("camera")
+    );
+    assert_eq!(
+        rules
+            .try_custom_key_value(0, 0)
+            .expect("custom-key value query")
+            .as_deref(),
+        Some("A001")
+    );
 }
 
 #[test]
@@ -80,7 +133,7 @@ fn config_file_rules_attachment_round_trip_behavior() {
         .set_default_rule_color_space("raw")
         .expect("set_default_rule_color_space");
 
-    config.set_file_rules(&rules);
+    config.set_file_rules(&rules).expect("attach file rules");
 
     let attached = config.file_rules().expect("config file_rules");
     assert!(attached.num_entries() >= 1);
@@ -110,22 +163,27 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
         .set_default_rule_color_space("raw")
         .expect("set default rule color space");
 
-    config.set_file_rules(&rules);
+    config.set_file_rules(&rules).expect("attach file rules");
 
     assert_eq!(
         config
-            .color_space_from_filepath_with_rule_index("plate_main.exr")
+            .try_color_space_from_filepath_with_rule_index("plate_main.exr")
+            .expect("plate filepath query")
             .as_ref()
             .map(|(_, rule_index)| *rule_index),
         Some(0)
     );
     assert_eq!(
         config
-            .color_space_from_filepath_with_rule_index("clip_proxy.mov")
+            .try_color_space_from_filepath_with_rule_index("clip_proxy.mov")
+            .expect("clip filepath query")
             .as_ref()
             .map(|(_, rule_index)| *rule_index),
         Some(1)
     );
+    assert!(config
+        .try_color_space_from_filepath_with_rule_index("plate_main\0.exr")
+        .is_err());
     assert_eq!(
         config
             .color_space_from_filepath("plate_main.exr")
@@ -155,6 +213,14 @@ fn file_rules_invalid_index_reports_error_behavior() {
 
     let rules = FileRules::create().expect("file_rules create");
     let invalid_index = rules.num_entries() + 100;
+
+    let name_error = rules
+        .try_name(invalid_index)
+        .expect_err("invalid index query should fail");
+    assert!(
+        matches!(name_error, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {name_error:?}"
+    );
 
     let set_pattern_error = rules
         .set_pattern(invalid_index, "*.exr")

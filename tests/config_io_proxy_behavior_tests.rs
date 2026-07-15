@@ -110,7 +110,10 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         )
         .expect("set config data");
     assert_eq!(
-        proxy.config_data().as_deref(),
+        proxy
+            .try_config_data()
+            .expect("proxy config-data query")
+            .as_deref(),
         Some(
             "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
         )
@@ -121,7 +124,8 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         .expect("set empty lut data"));
     assert_eq!(
         proxy
-            .fast_lut_file_hash("E:/virtual/context/empty.spi1d")
+            .try_fast_lut_file_hash("E:/virtual/context/empty.spi1d")
+            .expect("proxy LUT hash query")
             .as_deref(),
         Some("empty-hash")
     );
@@ -130,12 +134,19 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
         Some([].as_slice())
     );
     assert_eq!(proxy.lut_data("E:/virtual/context/missing.spi1d"), None);
+    assert!(proxy.try_fast_lut_file_hash("bad\0path").is_err());
 
     let config = Config::raw().expect("raw config");
-    config.set_config_io_proxy_object(&proxy);
+    config
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach config proxy");
     let config_proxy = config
         .config_io_proxy_object()
         .expect("config proxy object");
+    assert!(config
+        .try_config_io_proxy_object()
+        .expect("config proxy query")
+        .is_some());
     assert_eq!(config_proxy.config_data(), proxy.config_data());
     assert_eq!(
         config_proxy.fast_lut_file_hash("E:/virtual/context/empty.spi1d"),
@@ -143,10 +154,16 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     );
 
     let context = Context::create().expect("context create");
-    context.set_config_io_proxy_object(&proxy);
+    context
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach context proxy");
     let context_proxy = context
         .config_io_proxy_object()
         .expect("context proxy object");
+    assert!(context
+        .try_config_io_proxy_object()
+        .expect("context proxy query")
+        .is_some());
     assert_eq!(context_proxy.config_data(), proxy.config_data());
     assert_eq!(
         context_proxy.lut_data("E:/virtual/context/empty.spi1d"),
@@ -252,7 +269,9 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
 
     let config_proxy = {
         let config = Config::raw().expect("raw config");
-        config.set_config_io_proxy_object(&proxy);
+        config
+            .set_config_io_proxy_object(&proxy)
+            .expect("attach config proxy");
         config
             .config_io_proxy_object()
             .expect("config proxy object")
@@ -265,7 +284,9 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
 
     let context_proxy = {
         let context = Context::create().expect("context create");
-        context.set_config_io_proxy_object(&proxy);
+        context
+            .set_config_io_proxy_object(&proxy)
+            .expect("attach context proxy");
         context
             .config_io_proxy_object()
             .expect("context proxy object")
@@ -275,4 +296,44 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
         context_proxy.lut_data("E:/virtual/context/empty.spi1d"),
         Some(Vec::new())
     );
+}
+
+#[test]
+#[allow(deprecated)]
+fn raw_config_io_proxy_handles_are_owned_and_destroyable_behavior() {
+    let _guard = config_io_proxy_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let proxy = ConfigIOProxy::create().expect("config io proxy");
+    proxy
+        .set_config_data(
+            "ocio_profile_version: 2\nroles:\n  default: raw\ncolorspaces:\n  - !<ColorSpace> {name: raw, isdata: true}\n",
+        )
+        .expect("set config data");
+
+    let config = Config::raw().expect("raw config");
+    config
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach config proxy");
+    let config_raw = config.config_io_proxy();
+    assert!(!config_raw.is_null(), "config raw proxy handle");
+    unsafe { ocio_sys::ocio_config_io_proxy_destroy(config_raw) };
+    assert!(config
+        .try_config_io_proxy_object()
+        .expect("config proxy remains attached")
+        .is_some());
+
+    let context = Context::create().expect("context create");
+    context
+        .set_config_io_proxy_object(&proxy)
+        .expect("attach context proxy");
+    let context_raw = context.config_io_proxy();
+    assert!(!context_raw.is_null(), "context raw proxy handle");
+    unsafe { ocio_sys::ocio_config_io_proxy_destroy(context_raw) };
+    assert!(context
+        .try_config_io_proxy_object()
+        .expect("context proxy remains attached")
+        .is_some());
 }

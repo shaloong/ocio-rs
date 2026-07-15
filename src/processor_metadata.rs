@@ -54,22 +54,24 @@ impl ProcessorMetadata {
     /// Append a file reference to the metadata.
     pub fn add_file(&self, file_name: impl AsRef<str>) -> Result<()> {
         let file_name = cstring(file_name)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_processor_metadata_add_file(
                 self.handle.as_ptr(),
                 file_name.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
     /// Append a look reference to the metadata.
     pub fn add_look(&self, look: impl AsRef<str>) -> Result<()> {
         let look = cstring(look)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_processor_metadata_add_look(self.handle.as_ptr(), look.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 }
 

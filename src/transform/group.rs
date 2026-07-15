@@ -18,10 +18,9 @@ pub struct GroupTransform {
 impl GroupTransform {
     /// Create an empty group transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_group_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Return the number of child transforms in the group.
@@ -30,24 +29,35 @@ impl GroupTransform {
     }
 
     /// Append `child` to the end of the group.
-    pub fn append_transform(&self, child: &impl TransformHandle) {
+    pub fn append_transform(&self, child: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_append_transform(self.handle.as_ptr(), child.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     /// Insert `child` at the beginning of the group.
-    pub fn prepend_transform(&self, child: &impl TransformHandle) {
+    pub fn prepend_transform(&self, child: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_prepend_transform(self.handle.as_ptr(), child.as_ptr());
         }
+        crate::ocio_call_status()
     }
 
     /// Return the child transform at `index`, if present.
     pub fn transform(&self, index: i32) -> Option<Transform> {
+        self.try_transform(index).ok().flatten()
+    }
+
+    /// Return the child transform at `index` while preserving OCIO query failures.
+    pub fn try_transform(&self, index: i32) -> Result<Option<Transform>> {
+        crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
-        transform_from_raw_handle(handle)
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]
@@ -71,29 +81,40 @@ impl GroupTransform {
 
     /// Set the transform direction used when this group is evaluated.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set group transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
     /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     /// Remove the child transform at `index`.
-    pub fn remove_transform(&self, index: usize) {
+    pub fn remove_transform(&self, index: usize) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_remove_transform(self.handle.as_ptr(), index as u64)
         };
+        crate::ocio_call_status()
     }
 
     /// Remove every child transform from the group.
-    pub fn clear_transforms(&self) {
+    pub fn clear_transforms(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
+        crate::ocio_call_status()
     }
 
     /// # Safety
@@ -103,9 +124,11 @@ impl GroupTransform {
         note = "raw OCIO ostream entry point; prefer write_to_string(&Config, format_name) for Rust callers"
     )]
     pub unsafe fn write(&self, config: *mut c_void, format_name: *const i8, os: *mut c_void) {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_group_transform_write(self.handle.as_ptr(), config, format_name, os);
         }
+        let _ = crate::ocio_call_status();
     }
 
     /// Serialize this group transform using OCIO's writer for `format_name`.
@@ -117,13 +140,16 @@ impl GroupTransform {
         format_name: impl AsRef<str>,
     ) -> Result<Option<String>> {
         let format_name = cstring(format_name)?;
-        Ok(unsafe {
+        crate::clear_last_error();
+        let result = unsafe {
             cstr_from_mut(ocio_sys::ocio_group_transform_write_to_string(
                 self.handle.as_ptr(),
                 config.handle.as_ptr(),
                 format_name.as_ptr(),
             ))
-        })
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
     }
 
     /// Return format metadata attached to the group, when available.
@@ -191,21 +217,21 @@ mod tests {
     fn append_transform_no_crash() {
         let gt = GroupTransform::create().unwrap();
         let ft = FileTransform::create().unwrap();
-        gt.append_transform(&ft);
+        gt.append_transform(&ft).unwrap();
     }
 
     #[test]
     fn prepend_transform_no_crash() {
         let gt = GroupTransform::create().unwrap();
         let ft = FileTransform::create().unwrap();
-        gt.prepend_transform(&ft);
+        gt.prepend_transform(&ft).unwrap();
     }
 
     #[test]
     fn get_transform_no_crash() {
         let gt = GroupTransform::create().unwrap();
         let ft = FileTransform::create().unwrap();
-        gt.append_transform(&ft);
+        gt.append_transform(&ft).unwrap();
         let _ = gt.transform(0);
     }
 
@@ -228,15 +254,15 @@ mod tests {
         let gt = GroupTransform::create().unwrap();
         let ft = FileTransform::create().unwrap();
         let ct = CDLTransform::create().unwrap();
-        gt.append_transform(&ft);
-        gt.append_transform(&ct);
+        gt.append_transform(&ft).unwrap();
+        gt.append_transform(&ct).unwrap();
     }
 
     #[test]
     fn append_via_enum_no_crash() {
         let gt = GroupTransform::create().unwrap();
         let t = Transform::File(FileTransform::create().unwrap());
-        gt.append_transform(&t);
+        gt.append_transform(&t).unwrap();
     }
 
     #[test]
@@ -249,9 +275,9 @@ mod tests {
     fn remove_clear_no_crash() {
         let g = GroupTransform::create().unwrap();
         let cdl = CDLTransform::create().unwrap();
-        g.append_transform(&cdl);
-        g.remove_transform(0);
-        g.clear_transforms();
+        g.append_transform(&cdl).unwrap();
+        g.remove_transform(0).unwrap();
+        g.clear_transforms().unwrap();
     }
 
     #[test]
@@ -264,7 +290,7 @@ mod tests {
     fn write_to_string_no_crash() {
         let g = GroupTransform::create().unwrap();
         let cdl = CDLTransform::create().unwrap();
-        g.append_transform(&cdl);
+        g.append_transform(&cdl).unwrap();
 
         let config = Config::raw().unwrap();
         let written = g.write_to_string(&config, "Academy/ASC Common LUT Format");

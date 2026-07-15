@@ -29,18 +29,20 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
     baker.set_format("resolve_cube").expect("set baker format");
 
     let metadata = baker.format_metadata().expect("baker format metadata");
     let baseline_attributes = metadata.num_attributes();
     let baseline_children = metadata.num_children();
-    metadata
-        .set_element_name("Baker")
-        .expect("attempt to set root element name");
-    metadata
-        .set_element_value("unit-test-root")
-        .expect("attempt to set root element value");
+    assert!(matches!(
+        metadata.set_element_name("Baker"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(matches!(
+        metadata.set_element_value("unit-test-root"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
     metadata
         .add_attribute("origin", "ocio-rs")
         .expect("add origin attribute");
@@ -65,6 +67,14 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
         Some("ocio-rs")
     );
     assert_eq!(
+        metadata
+            .try_attribute_value("origin")
+            .expect("named attribute value query")
+            .as_deref(),
+        Some("ocio-rs")
+    );
+    assert!(metadata.try_attribute_value("origin\0").is_err());
+    assert_eq!(
         metadata.attribute_value("stage").as_deref(),
         Some("format-metadata")
     );
@@ -87,7 +97,8 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
     assert!(attr_values.iter().any(|value| value == "format-metadata"));
 
     let first_child = metadata
-        .child_element(baseline_children)
+        .try_child_element(baseline_children)
+        .expect("first child query")
         .expect("first added child");
     assert_eq!(
         first_child.element_name().as_deref(),
@@ -134,9 +145,10 @@ fn processor_transform_format_metadata_access_behavior() {
     let config = create_test_config().expect("raw config");
     let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).expect("matrix scale");
     let transform_metadata = transform.format_metadata().expect("matrix format metadata");
-    transform_metadata
-        .set_element_name("Matrix")
-        .expect("attempt to set root element name");
+    assert!(matches!(
+        transform_metadata.set_element_name("Matrix"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
     transform_metadata
         .add_attribute("test_attr", "matrix")
         .expect("set matrix attribute");
@@ -183,7 +195,7 @@ fn format_metadata_remains_usable_after_parent_drop() {
     let baker_metadata = {
         let baker = Baker::create().expect("baker create");
         let config = Config::raw().expect("raw config");
-        baker.set_config(&config);
+        baker.set_config(&config).expect("attach config");
         baker.set_format("resolve_cube").expect("set baker format");
         let metadata = baker.format_metadata().expect("baker format metadata");
         metadata
@@ -210,6 +222,77 @@ fn format_metadata_remains_usable_after_parent_drop() {
     assert_eq!(
         fixed_function_metadata.attribute_value("owner").as_deref(),
         Some("fixed-function")
+    );
+}
+
+#[test]
+fn format_metadata_child_survives_parent_sibling_growth_behavior() {
+    let _guard = format_metadata_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let baker = Baker::create().expect("baker create");
+    let config = Config::raw().expect("raw config");
+    baker.set_config(&config).expect("attach config");
+    baker.set_format("resolve_cube").expect("set baker format");
+
+    let metadata = baker.format_metadata().expect("baker format metadata");
+    let child_index = metadata.num_children();
+    metadata
+        .add_child_element("StableChild", "before growth")
+        .expect("add child");
+    let child = metadata
+        .try_child_element(child_index)
+        .expect("child query")
+        .expect("added child");
+    child
+        .add_child_element("StableGrandchild", "before growth")
+        .expect("add grandchild");
+    let grandchild = child
+        .try_child_element(0)
+        .expect("grandchild query")
+        .expect("added grandchild");
+
+    // OCIO stores child metadata in a vector. Grow siblings after obtaining a
+    // child wrapper to exercise possible vector reallocation in the bridge.
+    for index in 0..256 {
+        metadata
+            .add_child_element(format!("Sibling{index}"), "")
+            .expect("add sibling");
+    }
+    for index in 0..256 {
+        child
+            .add_child_element(format!("ChildSibling{index}"), "")
+            .expect("add child sibling");
+    }
+
+    child
+        .add_attribute("survived", "yes")
+        .expect("mutate child after sibling growth");
+    assert_eq!(child.element_name().as_deref(), Some("StableChild"));
+    assert_eq!(child.attribute_value("survived").as_deref(), Some("yes"));
+    grandchild
+        .add_attribute("nested_survived", "yes")
+        .expect("mutate grandchild after sibling growth");
+
+    let child_from_parent = metadata
+        .try_child_element(child_index)
+        .expect("re-query child")
+        .expect("child remains attached");
+    assert_eq!(
+        child_from_parent.attribute_value("survived").as_deref(),
+        Some("yes")
+    );
+    let grandchild_from_parent = child_from_parent
+        .try_child_element(0)
+        .expect("re-query grandchild")
+        .expect("grandchild remains attached");
+    assert_eq!(
+        grandchild_from_parent
+            .attribute_value("nested_survived")
+            .as_deref(),
+        Some("yes")
     );
 }
 

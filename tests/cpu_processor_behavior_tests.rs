@@ -14,7 +14,9 @@ use ocio_rs::{BitDepth, CPUProcessor, Processor, TransformDirection};
 
 fn cpu_processor_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn scaled_cpu_processor(scale: [f64; 4]) -> Option<CPUProcessor> {
@@ -154,6 +156,27 @@ fn cpu_rgb_packed_f32_matches_rgb_path_behavior() {
     assert_close(packed_output[3] as f64, 0.8, 1e-6);
     assert_close(packed_output[4] as f64, 0.2, 1e-6);
     assert_close(packed_output[5] as f64, 0.4, 1e-6);
+}
+
+#[test]
+fn cpu_packed_uint8_requires_matching_finalization_behavior() {
+    let _guard = cpu_processor_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = scaled_processor([2.0, 1.0, 0.5, 1.0]).expect("scaled processor");
+    let default_cpu = processor
+        .default_cpu_processor()
+        .expect("default CPU processor");
+
+    let mut rgba = vec![64u8, 128, 192, 255, 102, 51, 204, 255];
+    let default_error = default_cpu
+        .try_apply_rgba_packed_bit_depth(&mut rgba, BitDepth::Uint8, 2, 4)
+        .expect_err("F32-finalized processor must reject uint8 pixels");
+    assert!(matches!(default_error, ocio_rs::OcioError::Ocio(_)));
+
+    assert_eq!(rgba, vec![64, 128, 192, 255, 102, 51, 204, 255]);
 }
 
 #[test]

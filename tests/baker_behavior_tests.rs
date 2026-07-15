@@ -38,15 +38,15 @@ fn baker_property_round_trip_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
 
     baker.set_format("resolve_cube").expect("set format");
     baker.set_input_space("raw").expect("set input");
     baker.set_target_space("raw").expect("set target");
     baker.set_shaper_space("raw").expect("set shaper");
     baker.set_looks("").expect("set looks");
-    baker.set_shaper_size(8);
-    baker.set_cube_size(2);
+    baker.set_shaper_size(8).expect("set shaper size");
+    baker.set_cube_size(2).expect("set cube size");
 
     assert_eq!(baker.format().as_deref(), Some("resolve_cube"));
     assert_eq!(baker.input_space().as_deref(), Some("raw"));
@@ -98,13 +98,16 @@ fn baker_bake_to_string_and_file_behavior() {
 
     let baker = Baker::create().expect("baker create");
     let config = Config::raw().expect("raw config");
-    baker.set_config(&config);
+    baker.set_config(&config).expect("attach config");
     baker.set_format("resolve_cube").expect("set format");
     baker.set_input_space("raw").expect("set input");
     baker.set_target_space("raw").expect("set target");
-    baker.set_cube_size(2);
+    baker.set_cube_size(2).expect("set cube size");
 
-    let baked = baker.bake_to_string().expect("bake_to_string");
+    let baked = baker
+        .bake_to_string()
+        .expect("bake_to_string")
+        .expect("real baker output");
     assert!(!baked.trim().is_empty());
     assert!(baked.contains("LUT_1D_SIZE 2"));
     assert!(baked.lines().any(|line| line.contains("0.000000")));
@@ -134,4 +137,18 @@ fn baker_invalid_format_reports_error_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+}
+
+#[test]
+fn baker_unconfigured_bake_surfaces_ocio_error_behavior() {
+    let _guard = baker_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let baker = Baker::create().expect("baker create");
+    let err = baker
+        .bake_to_string()
+        .expect_err("unconfigured Baker must not silently produce no output");
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }

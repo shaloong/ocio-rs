@@ -36,8 +36,10 @@ fn scaled_view_transform() -> ViewTransform {
     let to_reference = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).expect("to-reference matrix");
     let from_reference =
         MatrixTransform::scale(&[0.5, 1.0, 2.0, 1.0]).expect("from-reference matrix");
-    vt.set_transform(Some(&to_reference), ViewTransformDirection::ToReference);
-    vt.set_transform(Some(&from_reference), ViewTransformDirection::FromReference);
+    vt.try_set_transform(Some(&to_reference), ViewTransformDirection::ToReference)
+        .expect("attach to-reference view transform");
+    vt.try_set_transform(Some(&from_reference), ViewTransformDirection::FromReference)
+        .expect("attach from-reference view transform");
     vt
 }
 
@@ -50,7 +52,8 @@ fn identity_color_space(name: &str) -> ColorSpace {
         .expect("set color space description");
     cs.set_is_data(false);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
     cs
 }
 
@@ -97,7 +100,8 @@ fn view_transform_attached_transform_and_copy_behavior() {
     let vt = scaled_view_transform();
 
     match vt
-        .transform(ViewTransformDirection::ToReference)
+        .try_transform(ViewTransformDirection::ToReference)
+        .expect("to-reference transform query")
         .expect("to-reference transform")
     {
         Transform::Matrix(matrix) => {
@@ -114,9 +118,13 @@ fn view_transform_attached_transform_and_copy_behavior() {
     copy.set_name("UnitViewTransformCopy").expect("rename copy");
     copy.remove_category("unit_category")
         .expect("remove category from copy");
+    copy.add_category("copy_category")
+        .expect("add category to copy");
+    copy.try_clear_categories()
+        .expect("clear categories from copy");
 
     assert_eq!(copy.name().as_deref(), Some("UnitViewTransformCopy"));
-    assert!(!copy.has_category("unit_category"));
+    assert_eq!(copy.num_categories(), 0);
 
     assert_eq!(vt.name().as_deref(), Some("UnitViewTransform"));
     assert!(vt.has_category("unit_category"));
@@ -202,4 +210,11 @@ fn view_transform_interchange_attribute_errors_surface_behavior() {
         matches!(invalid_attr_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {invalid_attr_err:?}"
     );
+    assert!(matches!(
+        vt.try_interchange_attribute("definitely_unknown_attr"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(vt
+        .interchange_attribute("definitely_unknown_attr")
+        .is_none());
 }

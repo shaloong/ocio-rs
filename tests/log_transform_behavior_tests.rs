@@ -22,7 +22,7 @@ fn log_transform_test_lock() -> MutexGuard<'static, ()> {
 
 fn configured_log_transform() -> LogTransform {
     let transform = LogTransform::create().expect("log transform create");
-    transform.set_base(2.0);
+    transform.try_set_base(2.0).expect("set logarithm base");
     transform
 }
 
@@ -40,7 +40,7 @@ fn log_transform_base_copy_and_direction_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("log transform editable copy");
-    copy.set_base(10.0);
+    copy.try_set_base(10.0).expect("set copy logarithm base");
     copy.set_direction(TransformDirection::Inverse);
 
     assert_close(copy.base(), 10.0, 1e-10);

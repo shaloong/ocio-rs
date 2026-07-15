@@ -38,12 +38,13 @@ fn fixed_function_style_params_and_copy_behavior() {
     let copy = transform
         .create_editable_copy()
         .expect("fixed function editable copy");
-    copy.set_params(&[0.75]);
+    copy.set_params(&[0.75]).expect("fixed function parameters");
     copy.set_direction(TransformDirection::Inverse);
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
 
-    copy.set_style(FixedFunctionStyle::RgbToHsv);
+    copy.try_set_style(FixedFunctionStyle::RgbToHsv)
+        .expect("set copy style");
 
     assert_eq!(copy.style(), FixedFunctionStyle::RgbToHsv);
     assert_eq!(copy.num_params(), copy.params().len() as i32);
@@ -92,4 +93,46 @@ fn fixed_function_rgb_to_hsv_processor_behavior() {
     assert_close(restored[1] as f64, original[1] as f64, 1e-6);
     assert_close(restored[2] as f64, original[2] as f64, 1e-6);
     assert_close(restored[3] as f64, original[3] as f64, 1e-6);
+}
+
+#[test]
+fn fixed_function_invalid_params_surface_real_error_behavior() {
+    let _guard = fixed_function_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let err = match FixedFunctionTransform::create_with_params(FixedFunctionStyle::RgbToHsv, &[1.0])
+    {
+        Ok(_) => panic!("RgbToHsv should reject unexpected parameters"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+}
+
+#[test]
+fn fixed_function_set_params_uses_ocio_delayed_validation() {
+    let _guard = fixed_function_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let transform = FixedFunctionTransform::create(FixedFunctionStyle::RgbToHsv)
+        .expect("fixed function create");
+    transform
+        .set_params(&[1.0])
+        .expect("OCIO accepts setter parameters before transform validation");
+
+    assert_eq!(transform.style(), FixedFunctionStyle::RgbToHsv);
+    assert_vec_close(&transform.params(), &[1.0], 1e-10);
+
+    let config = create_test_config().expect("raw config");
+    let err = match config.processor_from_transform(&transform, TransformDirection::Forward) {
+        Ok(_) => panic!("an invalid fixed-function parameter list must fail validation"),
+        Err(err) => err,
+    };
+    assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }

@@ -10,53 +10,92 @@ pub struct ExposureContrastTransform {
 }
 
 impl ExposureContrastTransform {
+    /// Create a new exposure-contrast transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_exposure_contrast_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current exposure value.
     pub fn exposure(&self) -> f64 {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_get_exposure(self.handle.as_ptr()) }
     }
 
+    /// Set the exposure value.
     pub fn set_exposure(&self, exposure: f64) {
+        self.try_set_exposure(exposure)
+            .expect("failed to set exposure");
+    }
+
+    /// Set exposure and surface any OCIO validation error.
+    pub fn try_set_exposure(&self, exposure: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_exposure(self.handle.as_ptr(), exposure)
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the current contrast value.
     pub fn contrast(&self) -> f64 {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_get_contrast(self.handle.as_ptr()) }
     }
 
+    /// Set the contrast value.
     pub fn set_contrast(&self, contrast: f64) {
+        self.try_set_contrast(contrast)
+            .expect("failed to set contrast");
+    }
+
+    /// Set contrast and surface any OCIO validation error.
+    pub fn try_set_contrast(&self, contrast: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_contrast(self.handle.as_ptr(), contrast)
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the current gamma value.
     pub fn gamma(&self) -> f64 {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_get_gamma(self.handle.as_ptr()) }
     }
 
+    /// Set the gamma value.
     pub fn set_gamma(&self, gamma: f64) {
+        self.try_set_gamma(gamma).expect("failed to set gamma");
+    }
+
+    /// Set gamma and surface any OCIO validation error.
+    pub fn try_set_gamma(&self, gamma: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_gamma(self.handle.as_ptr(), gamma)
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the current pivot value.
     pub fn pivot(&self) -> f64 {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_get_pivot(self.handle.as_ptr()) }
     }
 
+    /// Set the pivot value.
     pub fn set_pivot(&self, pivot: f64) {
+        self.try_set_pivot(pivot).expect("failed to set pivot");
+    }
+
+    /// Set pivot and surface any OCIO validation error.
+    pub fn try_set_pivot(&self, pivot: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_pivot(self.handle.as_ptr(), pivot)
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the current exposure-contrast style.
     pub fn style(&self) -> ExposureContrastStyle {
         let s =
             unsafe { ocio_sys::ocio_exposure_contrast_transform_get_style(self.handle.as_ptr()) };
@@ -67,99 +106,186 @@ impl ExposureContrastTransform {
         }
     }
 
+    /// Set the exposure-contrast style.
     pub fn set_style(&self, style: ExposureContrastStyle) {
+        self.try_set_style(style)
+            .expect("failed to set exposure contrast style");
+    }
+
+    /// Set the exposure/contrast style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: ExposureContrastStyle) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_style(
                 self.handle.as_ptr(),
                 style as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Return whether exposure is marked as dynamic.
     pub fn is_exposure_dynamic(&self) -> bool {
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_is_exposure_dynamic(self.handle.as_ptr())
         }
     }
 
+    /// Mark exposure as dynamic.
     pub fn make_exposure_dynamic(&self) {
+        self.try_make_exposure_dynamic()
+            .expect("failed to make exposure dynamic");
+    }
+
+    /// Mark exposure as dynamic and surface any OCIO validation error.
+    pub fn try_make_exposure_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_exposure_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
+    /// Return whether contrast is marked as dynamic.
     pub fn is_contrast_dynamic(&self) -> bool {
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_is_contrast_dynamic(self.handle.as_ptr())
         }
     }
 
+    /// Mark contrast as dynamic.
     pub fn make_contrast_dynamic(&self) {
+        self.try_make_contrast_dynamic()
+            .expect("failed to make contrast dynamic");
+    }
+
+    /// Mark contrast as dynamic and surface any OCIO validation error.
+    pub fn try_make_contrast_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_contrast_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
+    /// Mark exposure as non-dynamic.
     pub fn make_exposure_non_dynamic(&self) {
+        self.try_make_exposure_non_dynamic()
+            .expect("failed to make exposure non-dynamic");
+    }
+
+    /// Mark exposure as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_exposure_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_exposure_non_dynamic(
                 self.handle.as_ptr(),
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Mark contrast as non-dynamic.
     pub fn make_contrast_non_dynamic(&self) {
+        self.try_make_contrast_non_dynamic()
+            .expect("failed to make contrast non-dynamic");
+    }
+
+    /// Mark contrast as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_contrast_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_contrast_non_dynamic(
                 self.handle.as_ptr(),
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Return whether gamma is marked as dynamic.
     pub fn is_gamma_dynamic(&self) -> bool {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_is_gamma_dynamic(self.handle.as_ptr()) }
     }
 
+    /// Mark gamma as dynamic.
     pub fn make_gamma_dynamic(&self) {
+        self.try_make_gamma_dynamic()
+            .expect("failed to make gamma dynamic");
+    }
+
+    /// Mark gamma as dynamic and surface any OCIO validation error.
+    pub fn try_make_gamma_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_gamma_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
+    /// Mark gamma as non-dynamic.
     pub fn make_gamma_non_dynamic(&self) {
+        self.try_make_gamma_non_dynamic()
+            .expect("failed to make gamma non-dynamic");
+    }
+
+    /// Mark gamma as non-dynamic and surface any OCIO validation error.
+    pub fn try_make_gamma_non_dynamic(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_make_gamma_non_dynamic(self.handle.as_ptr())
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the log exposure step value.
     pub fn log_exposure_step(&self) -> f64 {
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_get_log_exposure_step(self.handle.as_ptr())
         }
     }
 
+    /// Set the log exposure step value.
     pub fn set_log_exposure_step(&self, step: f64) {
+        self.try_set_log_exposure_step(step)
+            .expect("failed to set log exposure step");
+    }
+
+    /// Set the log exposure step and surface any OCIO validation error.
+    pub fn try_set_log_exposure_step(&self, step: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_log_exposure_step(
                 self.handle.as_ptr(),
                 step,
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the log mid-gray value.
     pub fn log_mid_gray(&self) -> f64 {
         unsafe { ocio_sys::ocio_exposure_contrast_transform_get_log_mid_gray(self.handle.as_ptr()) }
     }
 
+    /// Set the log mid-gray value.
     pub fn set_log_mid_gray(&self, mid_gray: f64) {
+        self.try_set_log_mid_gray(mid_gray)
+            .expect("failed to set log mid gray");
+    }
+
+    /// Set the log mid-gray value and surface any OCIO validation error.
+    pub fn try_set_log_mid_gray(&self, mid_gray: f64) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_log_mid_gray(
                 self.handle.as_ptr(),
                 mid_gray,
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe {
             ocio_sys::ocio_exposure_contrast_transform_get_direction(self.handle.as_ptr())
@@ -170,22 +296,32 @@ impl ExposureContrastTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set exposure-contrast transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -201,6 +337,7 @@ impl ExposureContrastTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_exposure_contrast_transform_equals(
@@ -253,12 +390,12 @@ mod tests {
     #[test]
     fn make_dynamic_no_crash() {
         let t = ExposureContrastTransform::create().unwrap();
-        t.make_exposure_dynamic();
-        t.make_contrast_dynamic();
-        t.make_gamma_dynamic();
-        t.make_exposure_non_dynamic();
-        t.make_contrast_non_dynamic();
-        t.make_gamma_non_dynamic();
+        t.try_make_exposure_dynamic().unwrap();
+        t.try_make_contrast_dynamic().unwrap();
+        t.try_make_gamma_dynamic().unwrap();
+        t.try_make_exposure_non_dynamic().unwrap();
+        t.try_make_contrast_non_dynamic().unwrap();
+        t.try_make_gamma_non_dynamic().unwrap();
         let _ = t.log_exposure_step();
         t.set_log_exposure_step(0.088);
         let _ = t.log_mid_gray();

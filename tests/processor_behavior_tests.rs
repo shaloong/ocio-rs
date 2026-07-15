@@ -10,7 +10,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::{MatrixTransform, Transform};
-use ocio_rs::{GpuLanguage, GpuShaderDesc, TransformDirection};
+use ocio_rs::{DynamicPropertyType, GpuLanguage, GpuShaderDesc, OcioError, TransformDirection};
 
 fn processor_behavior_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -33,12 +33,13 @@ fn extract_shader_text(
     pixel_name: &str,
 ) -> Option<GpuShaderDesc> {
     let desc = GpuShaderDesc::create().ok()?;
-    desc.set_language(GpuLanguage::Glsl4_0);
+    desc.set_language(GpuLanguage::Glsl4_0)
+        .expect("set shader language");
     desc.set_function_name(function_name).ok()?;
     desc.set_pixel_name(pixel_name).ok()?;
     desc.set_resource_prefix("ocio_processor_test_").ok()?;
     let mut desc = desc;
-    gpu.extract_shader_info(&mut desc);
+    gpu.try_extract_shader_info(&mut desc).ok()?;
     Some(desc)
 }
 
@@ -54,27 +55,50 @@ fn processor_group_transform_and_metadata_behavior() {
     assert!(!processor.is_no_op());
     assert!(!processor.has_channel_crosstalk());
     assert!(!processor.is_dynamic());
+    assert_eq!(
+        processor.try_is_no_op().expect("processor no-op query"),
+        processor.is_no_op()
+    );
+    assert_eq!(
+        processor
+            .try_has_channel_crosstalk()
+            .expect("processor crosstalk query"),
+        processor.has_channel_crosstalk()
+    );
+    assert_eq!(
+        processor.try_is_dynamic().expect("processor dynamic query"),
+        processor.is_dynamic()
+    );
+    assert_eq!(
+        processor
+            .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+            .expect("processor dynamic property query"),
+        processor.has_dynamic_property_kind(DynamicPropertyType::Exposure)
+    );
     assert!(processor.num_transforms() > 0);
 
     let cache_id = processor.cache_id().expect("processor cache_id");
     assert!(!cache_id.trim().is_empty());
+    assert_eq!(
+        processor.try_cache_id().expect("processor cache id query"),
+        processor.cache_id()
+    );
 
     let format_metadata = processor
-        .format_metadata()
+        .try_format_metadata()
         .expect("processor format metadata");
     assert!(format_metadata.num_children() >= 0);
     let processor_metadata = processor
-        .processor_metadata()
+        .try_processor_metadata()
         .expect("processor metadata handle");
     assert!(processor_metadata.num_files() >= 0);
     assert!(processor_metadata.num_looks() >= 0);
-    assert!(
-        processor.transform_format_metadata(0).is_some(),
-        "expected transform metadata for first op"
-    );
+    processor
+        .try_transform_format_metadata(0)
+        .expect("transform metadata for first op");
 
     let group = processor
-        .create_group_transform()
+        .try_create_group_transform()
         .expect("group transform from processor");
     assert!(group.num_transforms() > 0);
     assert_eq!(group.direction(), TransformDirection::Forward);
@@ -112,6 +136,36 @@ fn processor_group_transform_and_metadata_behavior() {
 }
 
 #[test]
+fn missing_dynamic_property_surfaces_ocio_error_behavior() {
+    let _guard = processor_behavior_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let processor = scaled_matrix_processor().expect("scaled processor");
+    let processor_err = match processor.dynamic_property(DynamicPropertyType::Exposure) {
+        Ok(_) => panic!("matrix processor has no exposure property"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(processor_err, OcioError::Ocio(_)),
+        "unexpected processor error: {processor_err:?}"
+    );
+
+    let cpu = processor
+        .default_cpu_processor()
+        .expect("default CPU processor");
+    let cpu_err = match cpu.dynamic_property(DynamicPropertyType::Exposure) {
+        Ok(_) => panic!("matrix CPU processor has no exposure property"),
+        Err(err) => err,
+    };
+    assert!(
+        matches!(cpu_err, OcioError::Ocio(_)),
+        "unexpected CPU error: {cpu_err:?}"
+    );
+}
+
+#[test]
 fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
@@ -125,10 +179,44 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
 
     assert!(!default_cpu.is_no_op());
     assert!(!optimized_cpu.is_no_op());
+    assert_eq!(
+        default_cpu.try_is_no_op().expect("default cpu no-op query"),
+        default_cpu.is_no_op()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_is_no_op()
+            .expect("optimized cpu no-op query"),
+        optimized_cpu.is_no_op()
+    );
     assert!(!default_cpu.has_channel_crosstalk());
     assert!(!optimized_cpu.has_channel_crosstalk());
+    assert_eq!(
+        default_cpu
+            .try_has_channel_crosstalk()
+            .expect("default cpu crosstalk query"),
+        default_cpu.has_channel_crosstalk()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_has_channel_crosstalk()
+            .expect("optimized cpu crosstalk query"),
+        optimized_cpu.has_channel_crosstalk()
+    );
     assert!(!default_cpu.is_identity());
     assert!(!optimized_cpu.is_identity());
+    assert_eq!(
+        default_cpu
+            .try_is_identity()
+            .expect("default cpu identity query"),
+        default_cpu.is_identity()
+    );
+    assert_eq!(
+        optimized_cpu
+            .try_is_identity()
+            .expect("optimized cpu identity query"),
+        optimized_cpu.is_identity()
+    );
     assert_eq!(
         default_cpu.input_bit_depth(),
         optimized_cpu.input_bit_depth()
@@ -136,6 +224,30 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     assert_eq!(
         default_cpu.output_bit_depth(),
         optimized_cpu.output_bit_depth()
+    );
+    assert_eq!(
+        default_cpu
+            .try_input_bit_depth()
+            .expect("default cpu input bit depth query"),
+        default_cpu.input_bit_depth()
+    );
+    assert_eq!(
+        default_cpu
+            .try_output_bit_depth()
+            .expect("default cpu output bit depth query"),
+        default_cpu.output_bit_depth()
+    );
+    assert_eq!(
+        default_cpu
+            .try_is_dynamic()
+            .expect("default cpu dynamic query"),
+        default_cpu.is_dynamic()
+    );
+    assert_eq!(
+        default_cpu
+            .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+            .expect("default cpu dynamic property query"),
+        default_cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure)
     );
     assert!(!default_cpu
         .cache_id()
@@ -147,6 +259,12 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         .expect("optimized cpu cache id")
         .trim()
         .is_empty());
+    assert_eq!(
+        default_cpu
+            .try_cache_id()
+            .expect("default cpu cache id query"),
+        default_cpu.cache_id()
+    );
 
     let original = [0.25f32, 0.5, 0.75, 0.6];
     let mut via_default = original;
@@ -168,8 +286,30 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
 
     assert!(!default_gpu.is_no_op());
     assert!(!optimized_gpu.is_no_op());
+    assert_eq!(
+        default_gpu.try_is_no_op().expect("default gpu no-op query"),
+        default_gpu.is_no_op()
+    );
+    assert_eq!(
+        optimized_gpu
+            .try_is_no_op()
+            .expect("optimized gpu no-op query"),
+        optimized_gpu.is_no_op()
+    );
     assert!(!default_gpu.has_channel_crosstalk());
     assert!(!optimized_gpu.has_channel_crosstalk());
+    assert_eq!(
+        default_gpu
+            .try_has_channel_crosstalk()
+            .expect("default gpu crosstalk query"),
+        default_gpu.has_channel_crosstalk()
+    );
+    assert_eq!(
+        optimized_gpu
+            .try_has_channel_crosstalk()
+            .expect("optimized gpu crosstalk query"),
+        optimized_gpu.has_channel_crosstalk()
+    );
     assert!(!default_gpu
         .cache_id()
         .expect("default gpu cache id")
@@ -180,6 +320,12 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         .expect("optimized gpu cache id")
         .trim()
         .is_empty());
+    assert_eq!(
+        default_gpu
+            .try_cache_id()
+            .expect("default gpu cache id query"),
+        default_gpu.cache_id()
+    );
 
     let default_desc = extract_shader_text(
         &default_gpu,
@@ -206,6 +352,37 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
         default_desc.num_3d_textures(),
         optimized_desc.num_3d_textures()
     );
+}
+
+#[test]
+fn processor_execution_handles_survive_parent_drop_behavior() {
+    let _guard = processor_behavior_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let (cpu, gpu) = {
+        let processor = scaled_matrix_processor().expect("scaled processor");
+        (
+            processor.default_cpu_processor().expect("default cpu"),
+            processor.default_gpu_processor().expect("default gpu"),
+        )
+    };
+
+    let mut pixel = [0.25f32, 0.5, 0.75, 1.0];
+    cpu.try_apply_rgba(&mut pixel)
+        .expect("apply after processor drop");
+    assert_close(pixel[0] as f64, 0.275, 1e-6);
+    assert_close(pixel[1] as f64, 0.45, 1e-6);
+    assert_close(pixel[2] as f64, 0.9, 1e-6);
+    assert_close(pixel[3] as f64, 1.0, 1e-6);
+
+    let desc = extract_shader_text(&gpu, "ocio_owned_gpu_main", "ocio_owned_gpu_pixel")
+        .expect("extract shader after processor drop");
+    let shader = desc
+        .shader_text()
+        .expect("shader text after processor drop");
+    assert!(shader.contains("ocio_owned_gpu_main"));
 }
 
 #[allow(deprecated)]

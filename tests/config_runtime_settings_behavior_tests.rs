@@ -11,8 +11,8 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{
-    current_config, processor_cache_flags, set_current_config, set_processor_cache_flags,
-    ProcessorCacheFlags,
+    processor_cache_flags, try_clear_all_caches, try_current_config, try_set_current_config,
+    try_set_processor_cache_flags, ProcessorCacheFlags,
 };
 
 fn config_runtime_settings_test_lock() -> MutexGuard<'static, ()> {
@@ -91,12 +91,18 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
         (ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES).0 as i32
     );
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
-    config.set_processor_cache_flags(custom_flags.0 as i32);
+    config
+        .try_set_processor_cache_flags(custom_flags.0 as i32)
+        .expect("set processor cache flags");
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
 
-    config.clear_active_displays();
-    config.clear_active_views();
-    config.clear_environment_vars();
+    config
+        .try_clear_active_displays()
+        .expect("clear active displays");
+    config.try_clear_active_views().expect("clear active views");
+    config
+        .clear_environment_vars()
+        .expect("clear environment variables");
     assert_eq!(config.num_active_displays(), 0);
     assert_eq!(config.num_active_views(), 0);
     assert_eq!(config.num_environment_vars(), 0);
@@ -109,7 +115,7 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         return;
     }
 
-    let original = current_config();
+    let original = try_current_config().expect("read current config");
 
     let config = create_test_config()
         .expect("raw config")
@@ -117,19 +123,22 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         .expect("editable config copy");
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
 
-    set_current_config(&config);
-    let installed = current_config().expect("current config after install");
+    try_set_current_config(&config).expect("install current config");
+    let installed = try_current_config()
+        .expect("read current config after install")
+        .expect("current config after install");
     assert_eq!(
         installed.processor_cache_flags(),
         config.processor_cache_flags()
     );
 
-    set_processor_cache_flags(custom_flags);
+    try_set_processor_cache_flags(custom_flags).expect("set global processor cache flags");
     assert_eq!(processor_cache_flags(), custom_flags);
     assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
+    try_clear_all_caches().expect("clear global caches");
 
     if let Some(ref original_config) = original {
-        set_current_config(original_config);
+        try_set_current_config(original_config).expect("restore current config");
     }
 }
 

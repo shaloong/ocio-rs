@@ -31,7 +31,8 @@ fn identity_color_space(name: &str) -> ColorSpace {
         .expect("set description");
     cs.set_is_data(false);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
 
     let identity = MatrixTransform::identity().expect("identity matrix");
     cs.set_transform(&identity, ColorSpaceDirection::ToReference);
@@ -110,12 +111,34 @@ fn config_collection_registration_and_usage_behavior() {
     assert_eq!(config.num_view_transforms(), initial_view_transforms + 1);
     assert_eq!(config.num_displays_all(), initial_displays + 1);
 
-    assert!(config.color_space("UnitConfigUsedColorSpace").is_some());
-    assert!(config.color_space("UnitConfigUnusedColorSpace").is_some());
+    assert!(config
+        .try_color_space("UnitConfigUsedColorSpace")
+        .expect("color-space lookup")
+        .is_some());
+    assert!(config
+        .try_color_space("UnitConfigUnusedColorSpace")
+        .expect("color-space lookup")
+        .is_some());
+    assert!(used_color_space
+        .try_transform(ColorSpaceDirection::ToReference)
+        .expect("color-space transform query")
+        .is_some());
     assert_eq!(
         config.look_name_by_index(initial_looks).as_deref(),
         Some("UnitConfigLook")
     );
+    assert!(config
+        .try_look("UnitConfigLook")
+        .expect("look lookup")
+        .is_some());
+    assert!(config
+        .try_named_transform("UnitConfigNamedTransform")
+        .expect("named-transform lookup")
+        .is_some());
+    assert!(config
+        .try_view_transform("UnitConfigViewTransform")
+        .expect("view-transform lookup")
+        .is_some());
     assert_eq!(
         config.named_transform_index("UnitConfigNamedTransform"),
         initial_named_transforms
@@ -141,6 +164,17 @@ fn config_collection_registration_and_usage_behavior() {
 
     assert!(config.is_color_space_used("UnitConfigUsedColorSpace"));
     assert!(!config.is_color_space_used("UnitConfigUnusedColorSpace"));
+
+    assert!(config
+        .try_color_space("UnitConfigUsedColorSpace\0")
+        .is_err());
+    assert!(config.try_look("UnitConfigLook\0").is_err());
+    assert!(config
+        .try_named_transform("UnitConfigNamedTransform\0")
+        .is_err());
+    assert!(config
+        .try_view_transform("UnitConfigViewTransform\0")
+        .is_err());
 }
 
 #[test]
@@ -180,19 +214,32 @@ fn config_collection_remove_and_clear_behavior() {
         .expect("remove named transform");
     assert!(config.named_transform("UnitConfigNamedTransform").is_none());
 
+    config.add_named_transform(&named_transform);
+    config
+        .try_clear_named_transforms()
+        .expect("clear named transforms");
+    assert_eq!(config.num_named_transforms(), 0);
+    assert!(config.named_transform("UnitConfigNamedTransform").is_none());
+
     config
         .remove_color_space("UnitConfigUnusedColorSpace")
         .expect("remove unused color space");
     assert!(config.color_space("UnitConfigUnusedColorSpace").is_none());
     assert!(config.color_space("UnitConfigUsedColorSpace").is_some());
 
-    config.clear_looks();
+    config.try_clear_looks().expect("clear looks");
     assert_eq!(config.num_looks(), 0);
     assert!(config.look("UnitConfigLook").is_none());
 
-    config.clear_view_transforms();
+    config
+        .try_clear_view_transforms()
+        .expect("clear view transforms");
     assert_eq!(config.num_view_transforms(), 0);
     assert!(config.view_transform("UnitConfigViewTransform").is_none());
+
+    config.try_clear_color_spaces().expect("clear color spaces");
+    assert_eq!(config.num_color_spaces(), 0);
+    assert!(config.color_space("UnitConfigUsedColorSpace").is_none());
 
     config.clear_all();
     assert_eq!(config.num_color_spaces(), 0);
@@ -203,6 +250,51 @@ fn config_collection_remove_and_clear_behavior() {
     assert!(config.color_space("UnitConfigUsedColorSpace").is_none());
     assert_eq!(config.num_displays(), 0);
     assert_eq!(config.display(0).as_deref(), Some(""));
+}
+
+#[test]
+fn config_collection_handles_survive_parent_drop_behavior() {
+    let _guard = config_collection_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let (color_space, look, named_transform, view_transform) = {
+        let config = Config::raw().expect("raw config");
+        let color_space = identity_color_space("UnitOwnedColorSpace");
+        let look = scaling_look("UnitOwnedLook", "UnitOwnedColorSpace");
+        let named_transform = scaling_named_transform("UnitOwnedNamedTransform");
+        let view_transform = identity_view_transform("UnitOwnedViewTransform");
+
+        config.add_color_space(&color_space);
+        config.add_look(&look);
+        config.add_named_transform(&named_transform);
+        config.add_view_transform(&view_transform);
+
+        (
+            config
+                .color_space("UnitOwnedColorSpace")
+                .expect("owned color space"),
+            config.look("UnitOwnedLook").expect("owned look"),
+            config
+                .named_transform("UnitOwnedNamedTransform")
+                .expect("owned named transform"),
+            config
+                .view_transform("UnitOwnedViewTransform")
+                .expect("owned view transform"),
+        )
+    };
+
+    assert_eq!(color_space.name().as_deref(), Some("UnitOwnedColorSpace"));
+    assert_eq!(look.name().as_deref(), Some("UnitOwnedLook"));
+    assert_eq!(
+        named_transform.name().as_deref(),
+        Some("UnitOwnedNamedTransform")
+    );
+    assert_eq!(
+        view_transform.name().as_deref(),
+        Some("UnitOwnedViewTransform")
+    );
 }
 
 #[test]

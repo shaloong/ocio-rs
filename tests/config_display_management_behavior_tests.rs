@@ -10,7 +10,10 @@ use common::*;
 use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::{ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform};
+use ocio_rs::transform::MatrixTransform;
+use ocio_rs::{
+    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection,
+};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -23,6 +26,9 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     let view_transform =
         ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
     view_transform.set_name(name).expect("set name");
+    let identity = MatrixTransform::identity().expect("identity matrix");
+    view_transform.set_transform(Some(&identity), ViewTransformDirection::ToReference);
+    view_transform.set_transform(Some(&identity), ViewTransformDirection::FromReference);
     view_transform
 }
 
@@ -52,6 +58,12 @@ fn config_shared_view_and_display_lifecycle_behavior() {
         .create_editable_copy()
         .expect("editable config copy");
     let initial_displays = config.num_displays_all();
+    assert_eq!(
+        config
+            .try_num_displays_all()
+            .expect("all-display count query"),
+        initial_displays
+    );
 
     let view_transform = identity_view_transform("UnitLifecycleSharedTransform");
     config.add_view_transform(&view_transform);
@@ -79,11 +91,32 @@ fn config_shared_view_and_display_lifecycle_behavior() {
     );
     assert_eq!(
         config
+            .try_view("UnitLifecycleDisplay", 0)
+            .expect("display view query")
+            .as_deref(),
+        Some("UnitLifecycleSharedView")
+    );
+    assert_eq!(
+        config
             .display_view_transform_name("UnitLifecycleDisplay", "UnitLifecycleSharedView")
             .as_deref(),
         Some("UnitLifecycleSharedTransform")
     );
     assert_eq!(config.num_displays_all(), initial_displays + 1);
+    let all_display_index = config
+        .try_display_all_index("UnitLifecycleDisplay")
+        .expect("all-display index query");
+    assert!(all_display_index >= 0);
+    assert_eq!(
+        config
+            .try_display_all(all_display_index)
+            .expect("all-display name query")
+            .as_deref(),
+        Some("UnitLifecycleDisplay")
+    );
+    assert!(config
+        .try_display_all_index("UnitLifecycleDisplay\0")
+        .is_err());
 
     config
         .remove_view("UnitLifecycleDisplay", "UnitLifecycleSharedView")
@@ -112,10 +145,10 @@ fn config_shared_view_and_display_lifecycle_behavior() {
         .expect("re-add shared view");
     assert!(config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
 
-    config.clear_shared_views();
+    config.try_clear_shared_views().expect("clear shared views");
     assert!(!config.has_view("UnitLifecycleDisplay", "UnitLifecycleSharedView"));
 
-    config.clear_displays();
+    config.try_clear_displays().expect("clear displays");
     assert_eq!(config.num_displays_all(), 0);
     assert_eq!(config.num_displays(), 0);
 }
@@ -172,10 +205,45 @@ fn config_virtual_display_lifecycle_behavior() {
     );
     assert_eq!(
         config
+            .try_virtual_display_view_transform_name("UnitLifecycleVirtualView")
+            .expect("virtual display transform-name query")
+            .as_deref(),
+        Some("UnitLifecycleVirtualTransform")
+    );
+    assert_eq!(
+        config
             .virtual_display_view_color_space_name("UnitLifecycleVirtualView")
             .as_deref(),
         Some("raw")
     );
+    assert_eq!(
+        config
+            .try_virtual_display_view_color_space_name("UnitLifecycleVirtualView")
+            .expect("virtual display color-space query")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view_looks("UnitLifecycleVirtualView")
+            .expect("virtual display looks query"),
+        config.virtual_display_view_looks("UnitLifecycleVirtualView")
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view_rule("UnitLifecycleVirtualView")
+            .expect("virtual display rule query"),
+        config.virtual_display_view_rule("UnitLifecycleVirtualView")
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view_description("UnitLifecycleVirtualView")
+            .expect("virtual display description query"),
+        config.virtual_display_view_description("UnitLifecycleVirtualView")
+    );
+    assert!(config
+        .try_virtual_display_view_description("UnitLifecycleVirtualView\0")
+        .is_err());
 
     let scene_views = virtual_view_names(&config, SearchReferenceSpaceType::Scene);
     let all_views = virtual_view_names(&config, SearchReferenceSpaceType::All);
@@ -188,6 +256,19 @@ fn config_virtual_display_lifecycle_behavior() {
         config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
         1
     );
+    assert_eq!(
+        config
+            .try_virtual_display_num_views(SearchReferenceSpaceType::Scene)
+            .expect("virtual display view count"),
+        1
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view(SearchReferenceSpaceType::Scene, 0)
+            .expect("virtual display view query")
+            .as_deref(),
+        Some("UnitLifecycleVirtualSharedView")
+    );
 
     config
         .remove_virtual_display_view("UnitLifecycleVirtualView")
@@ -199,7 +280,9 @@ fn config_virtual_display_lifecycle_behavior() {
         1
     );
 
-    config.clear_virtual_display();
+    config
+        .try_clear_virtual_display()
+        .expect("clear virtual display");
     assert_eq!(
         config.virtual_display_num_views(SearchReferenceSpaceType::Scene),
         0
@@ -259,6 +342,39 @@ fn config_display_mutation_errors_surface_behavior() {
         matches!(duplicate_shared_view_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {duplicate_shared_view_err:?}"
     );
+
+    assert_eq!(
+        config
+            .try_num_displays_all()
+            .expect("all-display query after prior OCIO error"),
+        config.num_displays_all()
+    );
+    assert_eq!(
+        config
+            .try_active_displays()
+            .expect("active-display query after prior OCIO error"),
+        config.active_displays()
+    );
+}
+
+#[test]
+fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = ocio_rs::Config::raw().expect("raw config");
+    let err = config
+        .try_instantiate_display_from_icc_profile("missing-profile.icc")
+        .expect_err("missing virtual display should be an OCIO error");
+    assert!(
+        matches!(err, ocio_rs::OcioError::Ocio(_)),
+        "unexpected error variant: {err:?}"
+    );
+    assert!(config
+        .try_instantiate_display_from_monitor_name("monitor\0name")
+        .is_err());
 }
 
 #[test]

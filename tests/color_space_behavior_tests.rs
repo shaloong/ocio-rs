@@ -11,7 +11,7 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{Allocation, ColorSpace, ColorSpaceDirection, Config, ReferenceSpaceType};
+use ocio_rs::{Allocation, BitDepth, ColorSpace, ColorSpaceDirection, Config, ReferenceSpaceType};
 
 fn color_space_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -36,9 +36,12 @@ fn scaled_color_space(
     cs.set_equality_group(equality_group)
         .expect("set equality group");
     cs.set_encoding("scene-linear").expect("set encoding");
-    cs.set_is_data(false);
-    cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.try_set_bit_depth(BitDepth::F32).expect("set bit depth");
+    cs.try_set_is_data(false).expect("set data flag");
+    cs.try_set_allocation(Allocation::Lg2)
+        .expect("set allocation");
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
     cs.add_alias(alias).expect("add alias");
     cs.add_category(category).expect("add category");
     cs.set_interchange_attribute("amf_transform_ids", "urn:test:colorspace")
@@ -46,8 +49,10 @@ fn scaled_color_space(
 
     let to_reference = MatrixTransform::scale(&scale).expect("to-reference matrix");
     let from_reference = MatrixTransform::scale(&inverse_scale).expect("from-reference matrix");
-    cs.set_transform(&to_reference, ColorSpaceDirection::ToReference);
-    cs.set_transform(&from_reference, ColorSpaceDirection::FromReference);
+    cs.try_set_transform(&to_reference, ColorSpaceDirection::ToReference)
+        .expect("attach to-reference transform");
+    cs.try_set_transform(&from_reference, ColorSpaceDirection::FromReference)
+        .expect("attach from-reference transform");
     cs
 }
 
@@ -76,6 +81,7 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert_eq!(cs.equality_group().as_deref(), Some("unit-group-a"));
     assert_eq!(cs.encoding().as_deref(), Some("scene-linear"));
     assert_eq!(cs.reference_space_type(), ReferenceSpaceType::Scene);
+    assert_eq!(cs.bit_depth(), BitDepth::F32);
     assert!(!cs.is_data());
     assert_eq!(cs.allocation(), Allocation::Lg2);
     assert_eq!(cs.allocation_vars(), vec![-8.0, 8.0]);
@@ -86,7 +92,14 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
 
     assert_eq!(cs.num_categories(), 1);
     assert_eq!(cs.category().as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(1), None);
+    cs.add_category("delivery").expect("add second category");
+    assert_eq!(cs.num_categories(), 2);
+    assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
+    assert_eq!(cs.category_by_index(1).as_deref(), Some("delivery"));
     assert!(cs.has_category("unit_category"));
+    assert!(cs.has_category("delivery"));
 
     let _ = cs.interop_id();
     assert_eq!(
@@ -134,10 +147,16 @@ fn color_space_attached_transform_and_copy_behavior() {
         .expect("remove alias from copy");
     copy.remove_category("unit_category")
         .expect("remove category from copy");
+    copy.add_alias("copy_alias").expect("add alias to copy");
+    copy.add_category("copy_category")
+        .expect("add category to copy");
+    copy.try_clear_aliases().expect("clear aliases from copy");
+    copy.try_clear_categories()
+        .expect("clear categories from copy");
 
     assert_eq!(copy.name().as_deref(), Some("UnitColorSpaceCopy"));
-    assert!(!copy.has_alias("unit_cs_a"));
-    assert!(!copy.has_category("unit_category"));
+    assert_eq!(copy.num_aliases(), 0);
+    assert_eq!(copy.num_categories(), 0);
 
     assert_eq!(cs.name().as_deref(), Some("UnitColorSpaceA"));
     assert!(cs.has_alias("unit_cs_a"));
@@ -250,4 +269,11 @@ fn color_space_interop_and_interchange_errors_surface_behavior() {
         matches!(invalid_interchange_attr_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {invalid_interchange_attr_err:?}"
     );
+    assert!(matches!(
+        cs.try_interchange_attribute("definitely_unknown_attr"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(cs
+        .interchange_attribute("definitely_unknown_attr")
+        .is_none());
 }

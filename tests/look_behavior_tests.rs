@@ -31,7 +31,8 @@ fn identity_color_space(name: &str) -> ColorSpace {
         .expect("set color space description");
     cs.set_is_data(false);
     cs.set_allocation(Allocation::Lg2);
-    cs.set_allocation_vars(&[-8.0, 8.0]);
+    cs.set_allocation_vars(&[-8.0, 8.0])
+        .expect("set allocation variables");
     cs
 }
 
@@ -108,7 +109,11 @@ fn look_metadata_transform_and_copy_behavior() {
         Some("urn:test:look")
     );
 
-    match look.transform().expect("look forward transform") {
+    match look
+        .try_transform()
+        .expect("look forward transform query")
+        .expect("look forward transform")
+    {
         Transform::Matrix(matrix) => {
             let values = matrix.matrix();
             assert_close(values[0], 1.5, 1e-10);
@@ -118,7 +123,11 @@ fn look_metadata_transform_and_copy_behavior() {
         _ => panic!("expected look forward transform to be MatrixTransform"),
     }
 
-    match look.inverse_transform().expect("look inverse transform") {
+    match look
+        .try_inverse_transform()
+        .expect("look inverse transform query")
+        .expect("look inverse transform")
+    {
         Transform::Matrix(matrix) => {
             let values = matrix.matrix();
             assert_close(values[0], 2.0 / 3.0, 1e-10);
@@ -228,4 +237,11 @@ fn look_interchange_attribute_errors_surface_behavior() {
         matches!(invalid_attr_err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {invalid_attr_err:?}"
     );
+    assert!(matches!(
+        look.try_interchange_attribute("definitely_unknown_attr"),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert!(look
+        .interchange_attribute("definitely_unknown_attr")
+        .is_none());
 }

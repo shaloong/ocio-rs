@@ -10,13 +10,14 @@ pub struct RangeTransform {
 }
 
 impl RangeTransform {
+    /// Create a new identity range transform.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_range_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current range style.
     pub fn style(&self) -> RangeStyle {
         let s = unsafe { ocio_sys::ocio_range_transform_get_style(self.handle.as_ptr()) };
         match s {
@@ -25,42 +26,92 @@ impl RangeTransform {
         }
     }
 
+    /// Set the range style.
     pub fn set_style(&self, style: RangeStyle) {
-        unsafe { ocio_sys::ocio_range_transform_set_style(self.handle.as_ptr(), style as i32) };
+        self.try_set_style(style)
+            .expect("failed to set range style");
     }
 
+    /// Set the range style and surface any OCIO validation error.
+    pub fn try_set_style(&self, style: RangeStyle) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_set_style(self.handle.as_ptr(), style as i32) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the minimum input value.
     pub fn min_in_value(&self) -> f64 {
         unsafe { ocio_sys::ocio_range_transform_get_min_in_value(self.handle.as_ptr()) }
     }
 
+    /// Set the minimum input value.
     pub fn set_min_in_value(&self, value: f64) {
-        unsafe { ocio_sys::ocio_range_transform_set_min_in_value(self.handle.as_ptr(), value) };
+        self.try_set_min_in_value(value)
+            .expect("failed to set range minimum input value");
     }
 
+    /// Set the minimum input endpoint and surface any OCIO validation error.
+    pub fn try_set_min_in_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_set_min_in_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the maximum input value.
     pub fn max_in_value(&self) -> f64 {
         unsafe { ocio_sys::ocio_range_transform_get_max_in_value(self.handle.as_ptr()) }
     }
 
+    /// Set the maximum input value.
     pub fn set_max_in_value(&self, value: f64) {
-        unsafe { ocio_sys::ocio_range_transform_set_max_in_value(self.handle.as_ptr(), value) };
+        self.try_set_max_in_value(value)
+            .expect("failed to set range maximum input value");
     }
 
+    /// Set the maximum input endpoint and surface any OCIO validation error.
+    pub fn try_set_max_in_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_set_max_in_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the minimum output value.
     pub fn min_out_value(&self) -> f64 {
         unsafe { ocio_sys::ocio_range_transform_get_min_out_value(self.handle.as_ptr()) }
     }
 
+    /// Set the minimum output value.
     pub fn set_min_out_value(&self, value: f64) {
-        unsafe { ocio_sys::ocio_range_transform_set_min_out_value(self.handle.as_ptr(), value) };
+        self.try_set_min_out_value(value)
+            .expect("failed to set range minimum output value");
     }
 
+    /// Set the minimum output endpoint and surface any OCIO validation error.
+    pub fn try_set_min_out_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_set_min_out_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the maximum output value.
     pub fn max_out_value(&self) -> f64 {
         unsafe { ocio_sys::ocio_range_transform_get_max_out_value(self.handle.as_ptr()) }
     }
 
+    /// Set the maximum output value.
     pub fn set_max_out_value(&self, value: f64) {
-        unsafe { ocio_sys::ocio_range_transform_set_max_out_value(self.handle.as_ptr(), value) };
+        self.try_set_max_out_value(value)
+            .expect("failed to set range maximum output value");
     }
 
+    /// Set the maximum output endpoint and surface any OCIO validation error.
+    pub fn try_set_max_out_value(&self, value: f64) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_set_max_out_value(self.handle.as_ptr(), value) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the transform direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_range_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -69,51 +120,101 @@ impl RangeTransform {
         }
     }
 
+    /// Set the transform direction.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set range transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_range_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
+    /// Create an independent copy of this transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return whether the minimum input value is set.
     pub fn has_min_in_value(&self) -> bool {
         unsafe { ocio_sys::ocio_range_transform_has_min_in_value(self.handle.as_ptr()) }
     }
 
+    /// Unset the minimum input value.
     pub fn unset_min_in_value(&self) {
-        unsafe { ocio_sys::ocio_range_transform_unset_min_in_value(self.handle.as_ptr()) };
+        self.try_unset_min_in_value()
+            .expect("failed to unset range minimum input value");
     }
 
+    /// Unset the minimum input endpoint and surface any OCIO validation error.
+    pub fn try_unset_min_in_value(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_unset_min_in_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// Return whether the maximum input value is set.
     pub fn has_max_in_value(&self) -> bool {
         unsafe { ocio_sys::ocio_range_transform_has_max_in_value(self.handle.as_ptr()) }
     }
 
+    /// Unset the maximum input value.
     pub fn unset_max_in_value(&self) {
-        unsafe { ocio_sys::ocio_range_transform_unset_max_in_value(self.handle.as_ptr()) };
+        self.try_unset_max_in_value()
+            .expect("failed to unset range maximum input value");
     }
 
+    /// Unset the maximum input endpoint and surface any OCIO validation error.
+    pub fn try_unset_max_in_value(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_unset_max_in_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// Return whether the minimum output value is set.
     pub fn has_min_out_value(&self) -> bool {
         unsafe { ocio_sys::ocio_range_transform_has_min_out_value(self.handle.as_ptr()) }
     }
 
+    /// Unset the minimum output value.
     pub fn unset_min_out_value(&self) {
-        unsafe { ocio_sys::ocio_range_transform_unset_min_out_value(self.handle.as_ptr()) };
+        self.try_unset_min_out_value()
+            .expect("failed to unset range minimum output value");
     }
 
+    /// Unset the minimum output endpoint and surface any OCIO validation error.
+    pub fn try_unset_min_out_value(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_unset_min_out_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// Return whether the maximum output value is set.
     pub fn has_max_out_value(&self) -> bool {
         unsafe { ocio_sys::ocio_range_transform_has_max_out_value(self.handle.as_ptr()) }
     }
 
+    /// Unset the maximum output value.
     pub fn unset_max_out_value(&self) {
-        unsafe { ocio_sys::ocio_range_transform_unset_max_out_value(self.handle.as_ptr()) };
+        self.try_unset_max_out_value()
+            .expect("failed to unset range maximum output value");
     }
 
+    /// Unset the maximum output endpoint and surface any OCIO validation error.
+    pub fn try_unset_max_out_value(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_range_transform_unset_max_out_value(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// Return the bit depth declared for file-based input serialization.
     pub fn file_input_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_range_transform_get_file_input_bit_depth(self.handle.as_ptr())
@@ -131,15 +232,25 @@ impl RangeTransform {
         }
     }
 
+    /// Set the serialized input bit depth.
     pub fn set_file_input_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_input_bit_depth(bit_depth)
+            .expect("failed to set range file input bit depth");
+    }
+
+    /// Set the serialized input bit depth and surface any OCIO validation error.
+    pub fn try_set_file_input_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_range_transform_set_file_input_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the bit depth declared for file-based output serialization.
     pub fn file_output_bit_depth(&self) -> BitDepth {
         let b = unsafe {
             ocio_sys::ocio_range_transform_get_file_output_bit_depth(self.handle.as_ptr())
@@ -157,15 +268,25 @@ impl RangeTransform {
         }
     }
 
+    /// Set the serialized output bit depth.
     pub fn set_file_output_bit_depth(&self, bit_depth: BitDepth) {
+        self.try_set_file_output_bit_depth(bit_depth)
+            .expect("failed to set range file output bit depth");
+    }
+
+    /// Set the serialized output bit depth and surface any OCIO validation error.
+    pub fn try_set_file_output_bit_depth(&self, bit_depth: BitDepth) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_range_transform_set_file_output_bit_depth(
                 self.handle.as_ptr(),
                 bit_depth as i32,
             )
         };
+        crate::ocio_call_status()
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -181,6 +302,7 @@ impl RangeTransform {
         self.format_metadata()
     }
 
+    /// Return whether this transform is equivalent to `other`.
     pub fn equals(&self, other: &Self) -> bool {
         unsafe {
             ocio_sys::ocio_range_transform_equals(self.handle.as_ptr(), other.handle.as_ptr())
@@ -211,10 +333,10 @@ mod tests {
         let _ = rt.max_in_value();
         let _ = rt.min_out_value();
         let _ = rt.max_out_value();
-        rt.set_min_in_value(0.1);
-        rt.set_max_in_value(0.9);
-        rt.set_min_out_value(0.05);
-        rt.set_max_out_value(0.95);
+        rt.try_set_min_in_value(0.1).unwrap();
+        rt.try_set_max_in_value(0.9).unwrap();
+        rt.try_set_min_out_value(0.05).unwrap();
+        rt.try_set_max_out_value(0.95).unwrap();
     }
 
     #[test]
@@ -224,19 +346,19 @@ mod tests {
         let _ = rt.has_max_in_value();
         let _ = rt.has_min_out_value();
         let _ = rt.has_max_out_value();
-        rt.unset_min_in_value();
-        rt.unset_max_in_value();
-        rt.unset_min_out_value();
-        rt.unset_max_out_value();
+        rt.try_unset_min_in_value().unwrap();
+        rt.try_unset_max_in_value().unwrap();
+        rt.try_unset_min_out_value().unwrap();
+        rt.try_unset_max_out_value().unwrap();
     }
 
     #[test]
     fn bit_depth_no_crash() {
         let rt = RangeTransform::create().unwrap();
         let _ = rt.file_input_bit_depth();
-        rt.set_file_input_bit_depth(BitDepth::F32);
+        rt.try_set_file_input_bit_depth(BitDepth::F32).unwrap();
         let _ = rt.file_output_bit_depth();
-        rt.set_file_output_bit_depth(BitDepth::F32);
+        rt.try_set_file_output_bit_depth(BitDepth::F32).unwrap();
     }
 
     #[test]

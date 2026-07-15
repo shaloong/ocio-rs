@@ -11,75 +11,114 @@ pub struct AllocationTransform {
 
 impl AllocationTransform {
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_allocation_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    pub fn allocation(&self) -> Allocation {
+    pub fn try_allocation(&self) -> Result<Allocation> {
+        crate::clear_last_error();
         let v = unsafe { ocio_sys::ocio_allocation_transform_get_allocation(self.handle.as_ptr()) };
-        match v {
+        crate::ocio_call_status()?;
+        Ok(match v {
             1 => Allocation::Uniform,
             2 => Allocation::Lg2,
             _ => Allocation::Unknown,
-        }
+        })
+    }
+
+    pub fn allocation(&self) -> Allocation {
+        self.try_allocation().unwrap_or(Allocation::Unknown)
     }
 
     pub fn set_allocation(&self, allocation: Allocation) {
+        self.try_set_allocation(allocation)
+            .expect("failed to set allocation mode");
+    }
+
+    /// Set the allocation mode and surface any OCIO validation error.
+    pub fn try_set_allocation(&self, allocation: Allocation) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_allocation(
                 self.handle.as_ptr(),
                 allocation as i32,
             );
         }
+        crate::ocio_call_status()
+    }
+
+    pub fn try_num_vars(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let v = unsafe { ocio_sys::ocio_allocation_transform_get_num_vars(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
     pub fn num_vars(&self) -> i32 {
-        unsafe { ocio_sys::ocio_allocation_transform_get_num_vars(self.handle.as_ptr()) }
+        self.try_num_vars().unwrap_or(0)
     }
 
-    pub fn vars(&self) -> Vec<f32> {
-        let n = self.num_vars() as usize;
+    pub fn try_vars(&self) -> Result<Vec<f32>> {
+        let n = self.try_num_vars()? as usize;
         if n == 0 {
-            return vec![];
+            return Ok(vec![]);
         }
         let mut v = vec![0.0f32; n];
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_get_vars(
                 self.handle.as_ptr(),
                 v.as_mut_ptr() as *mut c_void,
             );
         }
-        v
+        crate::ocio_call_status()?;
+        Ok(v)
     }
 
-    pub fn set_vars(&self, vars: &[f32]) {
+    pub fn vars(&self) -> Vec<f32> {
+        self.try_vars().unwrap_or_default()
+    }
+
+    /// Set allocation-domain parameters.
+    pub fn set_vars(&self, vars: &[f32]) -> Result<()> {
+        let num_vars = i32::try_from(vars.len()).map_err(|_| {
+            OcioError::InvalidInput(
+                "AllocationTransform::set_vars: too many allocation values".to_owned(),
+            )
+        })?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_vars(
                 self.handle.as_ptr(),
-                vars.len() as i32,
+                num_vars,
                 vars.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
+    }
+
+    pub fn try_direction(&self) -> Result<TransformDirection> {
+        crate::clear_last_error();
+        let dir =
+            unsafe { ocio_sys::ocio_allocation_transform_get_direction(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(match dir {
+            1 => TransformDirection::Inverse,
+            _ => TransformDirection::Forward,
+        })
     }
 
     pub fn direction(&self) -> TransformDirection {
-        let dir =
-            unsafe { ocio_sys::ocio_allocation_transform_get_direction(self.handle.as_ptr()) };
-        match dir {
-            1 => TransformDirection::Inverse,
-            _ => TransformDirection::Forward,
-        }
+        self.try_direction().unwrap_or(TransformDirection::Forward)
     }
 
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_allocation_transform_create_editable_copy(self.handle.as_ptr())
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
@@ -88,12 +127,20 @@ impl AllocationTransform {
     }
 
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set allocation transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -131,22 +178,22 @@ mod tests {
     #[test]
     fn set_allocation_no_crash() {
         let t = AllocationTransform::create().unwrap();
-        t.set_allocation(Allocation::Uniform);
-        t.set_allocation(Allocation::Lg2);
+        t.try_set_allocation(Allocation::Uniform).unwrap();
+        t.try_set_allocation(Allocation::Lg2).unwrap();
     }
 
     #[test]
     fn set_vars_no_crash() {
         let t = AllocationTransform::create().unwrap();
         let vars: [f32; 3] = [1.0, 2.0, 3.0];
-        t.set_vars(&vars);
+        t.set_vars(&vars).unwrap();
     }
 
     #[test]
     fn direction_no_crash() {
         let t = AllocationTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]

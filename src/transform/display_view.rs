@@ -10,13 +10,14 @@ pub struct DisplayViewTransform {
 }
 
 impl DisplayViewTransform {
+    /// Create a display/view transform with default settings.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_display_view_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the source color space name.
     pub fn src(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_display_view_transform_get_src(
@@ -25,14 +26,17 @@ impl DisplayViewTransform {
         }
     }
 
+    /// Set the source color space name.
     pub fn set_src(&self, src: impl AsRef<str>) -> Result<()> {
         let s = cstring(src)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_src(self.handle.as_ptr(), s.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
+    /// Return the display name.
     pub fn display(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_display_view_transform_get_display(
@@ -41,17 +45,20 @@ impl DisplayViewTransform {
         }
     }
 
+    /// Set the display name.
     pub fn set_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_display(
                 self.handle.as_ptr(),
                 d.as_ptr().cast(),
             )
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
+    /// Return the view name.
     pub fn view(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_display_view_transform_get_view(
@@ -60,24 +67,37 @@ impl DisplayViewTransform {
         }
     }
 
+    /// Set the view name.
     pub fn set_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_view(self.handle.as_ptr(), v.as_ptr().cast())
         };
-        Ok(())
+        crate::ocio_call_status()
     }
 
+    /// Return whether looks bypass is enabled.
     pub fn looks_bypass(&self) -> bool {
         unsafe { ocio_sys::ocio_display_view_transform_get_looks_bypass(self.handle.as_ptr()) }
     }
 
+    /// Set looks bypass behavior, panicking on validation error.
     pub fn set_looks_bypass(&self, bypass: bool) {
+        self.try_set_looks_bypass(bypass)
+            .expect("failed to set display view looks bypass");
+    }
+
+    /// Set looks bypass behavior and surface any OCIO validation error.
+    pub fn try_set_looks_bypass(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_looks_bypass(self.handle.as_ptr(), bypass)
         };
+        crate::ocio_call_status()
     }
 
+    /// Return the evaluation direction.
     pub fn direction(&self) -> TransformDirection {
         let dir =
             unsafe { ocio_sys::ocio_display_view_transform_get_direction(self.handle.as_ptr()) };
@@ -87,39 +107,60 @@ impl DisplayViewTransform {
         }
     }
 
+    /// Set the evaluation direction, panicking on validation error.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set display view transform direction");
+    }
+
+    /// Set evaluation direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_direction(
                 self.handle.as_ptr(),
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
     }
 
+    /// Return whether data channel bypass is enabled.
     pub fn data_bypass(&self) -> bool {
         unsafe { ocio_sys::ocio_display_view_transform_get_data_bypass(self.handle.as_ptr()) }
     }
 
+    /// Set data bypass behavior, panicking on validation error.
     pub fn set_data_bypass(&self, bypass: bool) {
+        self.try_set_data_bypass(bypass)
+            .expect("failed to set display view data bypass");
+    }
+
+    /// Set data bypass behavior and surface any OCIO validation error.
+    pub fn try_set_data_bypass(&self, bypass: bool) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_display_view_transform_set_data_bypass(self.handle.as_ptr(), bypass)
         };
+        crate::ocio_call_status()
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_display_view_transform_create_editable_copy(self.handle.as_ptr())
         };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
     }
 
+    /// Validate the transform configuration and return any errors.
     pub fn validate(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_display_view_transform_validate(self.handle.as_ptr()) };
@@ -158,21 +199,21 @@ mod tests {
     fn direction_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.direction();
-        t.set_direction(TransformDirection::Inverse);
+        t.try_set_direction(TransformDirection::Inverse).unwrap();
     }
 
     #[test]
     fn looks_bypass_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.looks_bypass();
-        t.set_looks_bypass(true);
+        t.try_set_looks_bypass(true).unwrap();
     }
 
     #[test]
     fn data_bypass_no_crash() {
         let t = DisplayViewTransform::create().unwrap();
         let _ = t.data_bypass();
-        t.set_data_bypass(true);
+        t.try_set_data_bypass(true).unwrap();
     }
 
     #[test]

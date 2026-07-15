@@ -11,6 +11,10 @@
 real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但发布加固与长尾
 行为验证仍在继续。
 
+> [English](../README.md)
+
+> 破坏性 API 变更见 [MIGRATION_zh-CN.md](MIGRATION_zh-CN.md)。
+
 目前 bundled 验证已经不只是链接或 smoke test，下面这些高频运行时路径也有了
 真实行为覆盖：
 
@@ -21,10 +25,6 @@ real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但�
 - `GpuShaderDesc` 的提取结构、资源元数据、配置往返，以及手工 shader 片段 /
   texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
-
-> [English](../README.md)
-
-> 破坏性 API 变更见 [MIGRATION_zh-CN.md](MIGRATION_zh-CN.md)。
 
 ```toml
 [dependencies]
@@ -65,6 +65,10 @@ OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `share
 运行程序时仍需确保系统 loader 能找到 OCIO 动态库，例如通过 `LD_LIBRARY_PATH`、
 `DYLD_LIBRARY_PATH`、`PATH`，或包管理器提供的运行时配置。
 
+已发布的 `ocio-sys` crate 包含当前 bundled 构建配置所需的上游 OpenColorIO 源码树
+以及传递依赖源码。打包后的 `ocio-sys` crate 会在发布审计中通过
+`cargo build --features bundled --offline` 验证。
+
 ## 架构
 
 ```text
@@ -80,6 +84,7 @@ ocio-rs/
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |
 | 0.1.1   | v2.5.2 |
 | 0.1.0   | v2.5.1 |

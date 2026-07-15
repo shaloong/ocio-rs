@@ -10,13 +10,14 @@ pub struct BuiltinTransform {
 }
 
 impl BuiltinTransform {
+    /// Create a builtin transform with no style set.
     pub fn create() -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_builtin_transform_create() };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return the current builtin transform style name.
     pub fn style(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_builtin_transform_get_style(
@@ -25,6 +26,7 @@ impl BuiltinTransform {
         }
     }
 
+    /// Set the builtin transform style by name.
     pub fn set_style(&self, style: impl AsRef<str>) -> Result<()> {
         let s = cstring(style)?;
         crate::clear_last_error();
@@ -34,6 +36,7 @@ impl BuiltinTransform {
         crate::ocio_call_status()
     }
 
+    /// Return the evaluation direction.
     pub fn direction(&self) -> TransformDirection {
         let dir = unsafe { ocio_sys::ocio_builtin_transform_get_direction(self.handle.as_ptr()) };
         match dir {
@@ -42,12 +45,22 @@ impl BuiltinTransform {
         }
     }
 
+    /// Set the evaluation direction, panicking on validation error.
     pub fn set_direction(&self, direction: TransformDirection) {
+        self.try_set_direction(direction)
+            .expect("failed to set builtin transform direction");
+    }
+
+    /// Set the transform direction and surface any OCIO validation error.
+    pub fn try_set_direction(&self, direction: TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_builtin_transform_set_direction(self.handle.as_ptr(), direction as i32);
         }
+        crate::ocio_call_status()
     }
 
+    /// Return the human-readable description of the current builtin style.
     pub fn description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_builtin_transform_get_description(
@@ -56,13 +69,14 @@ impl BuiltinTransform {
         }
     }
 
+    /// Create an editable copy that is independent from the original transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
-        NonNull::new(handle)
-            .map(|h| Self { handle: h })
-            .ok_or(OcioError::AllocationFailed)
+        crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Return format metadata attached to the transform, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
         NonNull::new(handle).map(|h| crate::FormatMetadata { handle: h })
@@ -70,14 +84,17 @@ impl BuiltinTransform {
 
     // --- Static methods ---
 
+    /// Return the total number of available builtin transform styles.
     pub fn num_builtin_styles() -> i32 {
         unsafe { ocio_sys::ocio_builtin_transform_get_num_styles() }
     }
 
+    /// Return the builtin style name at the given index.
     pub fn builtin_style(index: i32) -> Option<String> {
         unsafe { cstr_to_opt_string(ocio_sys::ocio_builtin_transform_get_style_by_index(index)) }
     }
 
+    /// Return whether the given style name is a valid builtin transform style.
     pub fn is_valid_builtin_style(style: impl AsRef<str>) -> bool {
         let s = match crate::cstring(style) {
             Ok(s) => s,
