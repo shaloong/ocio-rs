@@ -168,6 +168,13 @@ impl ColorSpace {
         }
     }
 
+    /// All categories of the color space.
+    pub fn categories(&self) -> Vec<String> {
+        (0..self.num_categories())
+            .filter_map(|i| self.category_by_index(i))
+            .collect()
+    }
+
     /// Set the category of this color space.
     pub fn set_category(&self, category: impl AsRef<str>) -> Result<()> {
         let c = cstring(category)?;
