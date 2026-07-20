@@ -534,6 +534,14 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
             is_static_available: true,
         });
     }
+
+    // Static libOpenColorIO.a doesn't carry these either: OCIO's SystemMonitor
+    // support links them privately on Apple platforms (src/OpenColorIO/
+    // CMakeLists.txt's `if(APPLE)` block), so the final binary must link them
+    // when the archive is consumed directly.
+    #[cfg(target_os = "macos")]
+    lib.frameworks
+        .extend(["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"].map(String::from));
 }
 
 // Called by add_transitive_static_libs above: picks whichever candidate .lib
