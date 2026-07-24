@@ -49,8 +49,9 @@ consumed by the bundled build path, so use it together with
 OpenColorIO source tree.
 
 Installed-library resolution is owned by `system-deps`. The supported native
-range is `>= 2.5.2, < 2.6`; pkg-config is queried using the lower-case metadata
-key first and the upstream `OpenColorIO` package name as a fallback.
+range is `>= 2.4, < 2.6`, which the `v2_5` feature raises to `>= 2.5, < 2.6`
+through the feature-versions table; pkg-config is queried using the lower-case
+metadata key first and the upstream `OpenColorIO` package name as a fallback.
 `OCIO_INSTALL_DIR` augments `PKG_CONFIG_PATH` with the conventional metadata
 locations. If no `.pc` file exists there, the build script maps the prefix's
 `include`, `lib`, `lib64`, and bundled-extension directories to explicit
@@ -104,11 +105,45 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 
 ## OCIO Version Strategy
 
-`third_party/OpenColorIO` is a git submodule pinned to a specific OCIO release.
-`ocio-rs` uses its own semver while tracking an OCIO release line. The current
-`0.2.x` line targets OCIO `v2.5.2`.
+`third_party/OpenColorIO` is a git submodule pinned to a specific OCIO release
+(the version vendored for bundled builds). The supported baseline is older:
+any OpenColorIO >= 2.4 resolved through system-deps/pkg-config works without
+feature flags.
 
 Upgrade workflow: update submodule → run generator → fix compile errors → release.
+
+### Version-gated API
+
+API added by OCIO minors newer than the 2.4 baseline is exposed behind
+additive `vX_Y` cargo features (currently `v2_5`). Each API item is gated in
+every layer with the same marker:
+
+1. `bridge.cpp`: `#if OCIO_RS_API_HEX >= 0x02050000` around the definition
+   (`OCIO_RS_API_HEX` is `OCIO_VERSION_HEX`, or "newest" in stub mode).
+   Enum-variant-only additions need no bridge change (enums cross the FFI as
+   raw ints), but enumerator values that OCIO renumbered between releases must
+   be translated by name in the bridge (see `ocio_rs_gpu_language_to_abi`; the
+   Rust-visible numbering is the newest OCIO's and never shifts).
+2. `ocio-sys/src/lib.rs`: `#[cfg(feature = "v2_5")]` on the extern.
+3. Safe wrapper: `#[cfg(feature = "v2_5")]` plus
+   `#[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]`, and the feature listed
+   in `[package.metadata.docs.rs]`.
+4. Tests for the new API: same feature gate. Tests of version-dependent
+   *behavior* (config version acceptance, GPU binding indexes) assert
+   per-feature expectations instead of being disabled.
+
+The feature-to-version requirement lives in
+`[package.metadata.system-deps.opencolorio.vX_Y]` tables in
+`ocio-sys/Cargo.toml`; system-deps enforces it against the resolved library
+and fails with a clear error on mismatch. The bundled build always satisfies
+the newest feature.
+
+To enumerate what needs gating after a submodule bump:
+`git -C third_party/OpenColorIO diff <old-tag>..<new-tag> -- include/OpenColorIO/`.
+Compile the bridge against the *oldest* supported OCIO (e.g. a distro
+package via pkg-config) to let the compiler find ungated API; that build is
+also the CI job that keeps the gates honest; the bundled build has everything
+and cannot catch gating mistakes.
 
 ## Testing
 

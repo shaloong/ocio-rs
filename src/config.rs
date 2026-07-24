@@ -761,6 +761,8 @@ impl Config {
     }
 
     /// Return whether a given view is a shared view for a specific display.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn is_view_shared(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
         let display = match cstring(display) {
             Ok(v) => v,
@@ -787,6 +789,8 @@ impl Config {
         since = "0.2.0",
         note = "raw OCIO view-descriptor entry point; prefer higher-level display/view APIs unless you must interoperate with external OCIO ABI objects"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub unsafe fn are_views_equal(
         &self,
         first: *mut c_void,
@@ -818,6 +822,8 @@ impl Config {
     /// This is the safe counterpart to OCIO's `Config::AreViewsEqual`. It compares the strings
     /// in the definitions; it does not compare the identities of referenced color spaces or view
     /// transforms.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_are_views_equal(
         first: &Self,
         second: &Self,
@@ -1148,6 +1154,8 @@ impl Config {
     }
 
     /// Return whether the given view exists for the specified display.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn has_view(&self, display: impl AsRef<str>, view: impl AsRef<str>) -> bool {
         let display = match cstring(display) {
             Ok(v) => v,
@@ -2483,12 +2491,16 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn clear_shared_views(&self) {
         self.try_clear_shared_views()
             .expect("failed to clear shared views");
     }
 
     /// Clear every shared view and surface any OCIO validation error.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_clear_shared_views(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_shared_views(self.handle.as_ptr()) };
@@ -2546,6 +2558,8 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn has_virtual_view(&self, view_name: impl AsRef<str>) -> bool {
         let view_name = match cstring(view_name) {
             Ok(v) => v,
@@ -2556,6 +2570,8 @@ impl Config {
         }
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn is_virtual_view_shared(&self, view_name: impl AsRef<str>) -> bool {
         let view_name = match cstring(view_name) {
             Ok(v) => v,
@@ -2671,6 +2687,8 @@ impl Config {
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer virtual_display_view()")]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn get_virtual_display_view(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -2687,6 +2705,8 @@ impl Config {
         since = "0.2.0",
         note = "raw OCIO virtual-view entry point; prefer higher-level virtual display APIs unless you must interoperate with external OCIO ABI objects"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub unsafe fn are_virtual_views_equal(
         &self,
         first: *mut c_void,
@@ -2711,6 +2731,8 @@ impl Config {
     ///
     /// This is the safe counterpart to OCIO's `Config::AreVirtualViewsEqual`. It compares the
     /// strings in the definitions, not the identities of referenced color spaces or transforms.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_are_virtual_views_equal(
         first: &Self,
         second: &Self,
@@ -3056,6 +3078,8 @@ impl Config {
     }
 
     /// Remove a named transform by name.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn remove_named_transform(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3311,15 +3335,23 @@ impl Config {
     }
 
     /// Clear all config collections and surface any OCIO validation error.
+    ///
+    /// With OpenColorIO older than 2.5 (no `v2_5` feature), shared views and
+    /// the active display/view lists cannot be cleared through the OCIO API
+    /// and are left untouched.
     pub fn try_clear_all(&self) -> Result<()> {
         self.try_clear_color_spaces()?;
         self.try_clear_looks()?;
         self.try_clear_named_transforms()?;
         self.try_clear_view_transforms()?;
+        #[cfg(feature = "v2_5")]
         self.try_clear_shared_views()?;
         self.try_clear_displays()?;
-        self.try_clear_active_displays()?;
-        self.try_clear_active_views()?;
+        #[cfg(feature = "v2_5")]
+        {
+            self.try_clear_active_displays()?;
+            self.try_clear_active_views()?;
+        }
         Ok(())
     }
 
@@ -3556,6 +3588,8 @@ impl Config {
     // --- v2.5.1: Active display/view management ---
 
     /// Append a single display name to the active displays list.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let d = cstring(display)?;
         crate::clear_last_error();
@@ -3566,11 +3600,15 @@ impl Config {
     }
 
     /// Return the active display name at a given index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn active_display(&self, index: i32) -> Option<String> {
         self.try_active_display(index).ok().flatten()
     }
 
     /// Return an active display name at a given index, preserving query failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_active_display(&self, index: i32) -> Result<Option<String>> {
         crate::clear_last_error();
         let display = unsafe {
@@ -3585,11 +3623,15 @@ impl Config {
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer active_display()")]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn get_active_display(&self, index: i32) -> Option<String> {
         self.active_display(index)
     }
 
     /// Remove a single display name from the active displays list.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn remove_active_display(&self, display: impl AsRef<str>) -> Result<()> {
         let display = cstring(display)?;
         crate::clear_last_error();
@@ -3603,6 +3645,8 @@ impl Config {
     }
 
     /// Append a single view name to the active views list.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let v = cstring(view)?;
         crate::clear_last_error();
@@ -3611,11 +3655,15 @@ impl Config {
     }
 
     /// Return the active view name at a given index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn active_view(&self, index: i32) -> Option<String> {
         self.try_active_view(index).ok().flatten()
     }
 
     /// Return an active view name at a given index, preserving query failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_active_view(&self, index: i32) -> Result<Option<String>> {
         crate::clear_last_error();
         let view = unsafe {
@@ -3630,11 +3678,15 @@ impl Config {
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer active_view()")]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn get_active_view(&self, index: i32) -> Option<String> {
         self.active_view(index)
     }
 
     /// Remove a single view name from the active views list.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn remove_active_view(&self, view: impl AsRef<str>) -> Result<()> {
         let view = cstring(view)?;
         crate::clear_last_error();
@@ -3648,11 +3700,15 @@ impl Config {
         since = "0.2.0",
         note = "discarded OCIO errors; prefer try_clear_active_displays()"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn clear_active_displays(&self) {
         let _ = self.try_clear_active_displays();
     }
 
     /// Try to clear all active display overrides.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_clear_active_displays(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_active_displays(self.handle.as_ptr() as *mut c_void) };
@@ -3663,11 +3719,15 @@ impl Config {
         since = "0.2.0",
         note = "discarded OCIO errors; prefer try_clear_active_views()"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn clear_active_views(&self) {
         let _ = self.try_clear_active_views();
     }
 
     /// Try to clear all active view overrides.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_clear_active_views(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_active_views(self.handle.as_ptr() as *mut c_void) };
@@ -3675,11 +3735,15 @@ impl Config {
     }
 
     /// Return the count of active displays.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn num_active_displays(&self) -> i32 {
         self.try_num_active_displays().unwrap_or(0)
     }
 
     /// Return the count of active displays, preserving OCIO query failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_num_active_displays(&self) -> Result<i32> {
         crate::clear_last_error();
         let count = unsafe {
@@ -3689,11 +3753,15 @@ impl Config {
         Ok(count)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn num_active_views(&self) -> i32 {
         self.try_num_active_views().unwrap_or(0)
     }
 
     /// Return the count of active views, preserving OCIO query failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_num_active_views(&self) -> Result<i32> {
         crate::clear_last_error();
         let count = unsafe {
@@ -3780,6 +3848,8 @@ impl Config {
     /// Mark the display at `index` as temporary or persistent.
     ///
     /// Returns an error when `index` does not identify an existing display.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_display_temporary(&self, index: i32, temporary: bool) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -4411,6 +4481,7 @@ mod tests {
         let _ = config.named_transform_index("Default");
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn add_remove_named_transform_no_crash() {
         let config = Config::raw().unwrap();
@@ -4695,6 +4766,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn active_and_all_display_named_wrappers_no_crash() {
         let config = Config::raw().unwrap();
@@ -4903,7 +4975,11 @@ mod tests {
         let config = Config::raw().unwrap();
         let _ = config.get_num_color_spaces_v1();
         let _ = config.get_color_space_name_by_index_v1(0);
+        // A given OCIO release only accepts config versions up to its own.
+        #[cfg(feature = "v2_5")]
         assert!(config.set_version(2, 5).is_ok());
+        #[cfg(not(feature = "v2_5"))]
+        assert!(config.set_version(2, 4).is_ok());
         config.upgrade_to_latest_version().unwrap();
     }
 
@@ -4977,6 +5053,7 @@ mod tests {
         let _ = config.get_config_io_proxy();
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     #[allow(deprecated)]
     fn active_display_view_management_v251_no_crash() {
@@ -5058,6 +5135,7 @@ mod tests {
         config.clear_virtual_display();
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     #[allow(deprecated)]
     fn virtual_display_management_no_crash() {

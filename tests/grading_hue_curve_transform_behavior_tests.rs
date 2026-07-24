@@ -5,6 +5,8 @@
 //! curve editing, style-reset semantics, HSY conversion state, dynamic toggles,
 //! and editable-copy independence.
 
+#![cfg(feature = "v2_5")]
+
 mod common;
 use common::*;
 

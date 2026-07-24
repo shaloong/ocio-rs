@@ -175,7 +175,8 @@ Stub mode remains the default (`cargo build` without flags). Real OCIO mode
 is enabled either by setting `OCIO_RS_ENABLE_REAL=1` for pkg-config discovery,
 optionally with `OCIO_INSTALL_DIR` for a custom or legacy installation prefix,
 or by building with `--features bundled`. Installed packages must be in the
-supported `>= 2.5.2, < 2.6` line. `OCIO_SOURCE_DIR` alone does not enable real
+supported `>= 2.4, < 2.6` line (`>= 2.5, < 2.6` with the `v2_5` feature).
+`OCIO_SOURCE_DIR` alone does not enable real
 OCIO mode. The published `ocio-sys` crate vendors the upstream OpenColorIO
 source tree and transitive dependencies, and the packaged crate is validated
 with `cargo build --features bundled --offline`.

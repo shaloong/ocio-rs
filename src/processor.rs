@@ -2,9 +2,11 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
+#[cfg(feature = "v2_5")]
+use crate::HueCurveType;
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
-    GpuLanguage, HueCurveType, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
+    GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -1558,6 +1560,7 @@ impl GpuShaderDesc {
             1 => GpuLanguage::Glsl1_2,
             2 => GpuLanguage::Glsl1_3,
             3 => GpuLanguage::Glsl4_0,
+            #[cfg(feature = "v2_5")]
             4 => GpuLanguage::GlslVk4_6,
             5 => GpuLanguage::HlslSm5_0,
             6 => GpuLanguage::Osl1,
@@ -1711,12 +1714,16 @@ impl GpuShaderDesc {
         since = "0.2.0",
         note = "panics on OCIO errors; prefer try_set_descriptor_set_index()"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_descriptor_set_index(&self, index: u32, texture_binding_start: u32) {
         self.try_set_descriptor_set_index(index, texture_binding_start)
             .expect("GpuShaderDesc::set_descriptor_set_index failed");
     }
 
     /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_set_descriptor_set_index(
         &self,
         index: u32,
@@ -1734,11 +1741,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the configured descriptor-set index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn descriptor_set_index(&self) -> u32 {
         self.try_descriptor_set_index().unwrap_or(0)
     }
 
     /// Return the configured descriptor-set index, preserving bridge failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_descriptor_set_index(&self) -> Result<u32> {
         crate::clear_last_error();
         let index = unsafe {
@@ -1749,11 +1760,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the configured starting binding slot for extracted textures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn texture_binding_start(&self) -> u32 {
         self.try_texture_binding_start().unwrap_or(0)
     }
 
     /// Return the starting texture binding slot, preserving bridge failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_texture_binding_start(&self) -> Result<u32> {
         crate::clear_last_error();
         let index = unsafe {
@@ -1828,6 +1843,8 @@ impl GpuShaderDesc {
     }
 
     /// Appends text to the shader's parameter-declaration section.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_to_parameter_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
         crate::clear_last_error();
@@ -1841,6 +1858,8 @@ impl GpuShaderDesc {
     }
 
     /// Appends text to the shader's texture-declaration section.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_to_texture_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
         crate::clear_last_error();
@@ -2086,11 +2105,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the size in bytes of OCIO's packed uniform buffer layout.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn uniform_buffer_size(&self) -> usize {
         self.try_uniform_buffer_size().unwrap_or(0)
     }
 
     /// Return the packed uniform-buffer size, preserving bridge errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_uniform_buffer_size(&self) -> Result<usize> {
         crate::clear_last_error();
         let value = unsafe {
@@ -2102,6 +2125,8 @@ impl GpuShaderDesc {
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_buffer_size()")]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn get_uniform_buffer_size_bytes(&self) -> usize {
         self.uniform_buffer_size()
     }
@@ -2726,6 +2751,7 @@ impl DynamicProperty {
         self.require_property_type(DynamicPropertyType::GradingRgbCurve, operation)
     }
 
+    #[cfg(feature = "v2_5")]
     fn require_grading_hue_curve_property(&self, operation: &'static str) -> Result<()> {
         self.require_property_type(DynamicPropertyType::GradingHueCurve, operation)
     }
@@ -2741,6 +2767,7 @@ impl DynamicProperty {
             3 => DynamicPropertyType::GradingPrimary,
             4 => DynamicPropertyType::GradingRgbCurve,
             5 => DynamicPropertyType::GradingTone,
+            #[cfg(feature = "v2_5")]
             6 => DynamicPropertyType::GradingHueCurve,
             _ => DynamicPropertyType::Exposure,
         }
@@ -2987,6 +3014,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_num_control_points(&self, curve_type: HueCurveType) -> Result<i32> {
         self.require_grading_hue_curve_property(
             "DynamicProperty::grading_hue_curve_num_control_points",
@@ -3002,6 +3031,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_num_control_points(
         &self,
         curve_type: HueCurveType,
@@ -3027,6 +3058,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_control_point(
         &self,
         curve_type: HueCurveType,
@@ -3057,6 +3090,8 @@ impl DynamicProperty {
         Ok((x, y))
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_control_point(
         &self,
         curve_type: HueCurveType,
@@ -3086,6 +3121,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_slope(&self, curve_type: HueCurveType, index: i32) -> Result<f32> {
         self.require_grading_hue_curve_property("DynamicProperty::grading_hue_curve_slope")?;
         if index < 0 {
@@ -3105,6 +3142,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_slope(
         &self,
         curve_type: HueCurveType,
@@ -3130,6 +3169,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_slopes_are_default(&self, curve_type: HueCurveType) -> Result<bool> {
         self.require_grading_hue_curve_property(
             "DynamicProperty::grading_hue_curve_slopes_are_default",
@@ -3345,6 +3386,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn dynamic_property_grading_hue_curve_no_crash() {
         let config = Config::raw().unwrap();
@@ -3461,6 +3503,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn gpu_shader_desc_structured_accessors_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
@@ -3486,6 +3529,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     #[allow(deprecated)]
     fn gpu_shader_desc_compat_value_accessors_no_crash() {

@@ -8,6 +8,7 @@
 mod common;
 use common::*;
 
+#[cfg(feature = "v2_5")]
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -28,6 +29,7 @@ fn test_data_path(rel: &str) -> PathBuf {
         .join(rel)
 }
 
+#[cfg(feature = "v2_5")]
 fn packaged_context_test1_path() -> PathBuf {
     if cfg!(windows) {
         test_data_path("configs/context_test1/context_test1_windows.ocioz")
@@ -36,6 +38,7 @@ fn packaged_context_test1_path() -> PathBuf {
     }
 }
 
+#[cfg(feature = "v2_5")]
 fn assert_context_test1_metadata(config: &Config) {
     assert_eq!(config.major_version(), 2);
     assert_eq!(config.minor_version(), 0);
@@ -192,6 +195,7 @@ fn assert_context_test1_metadata(config: &Config) {
     config.validate().expect("validate config");
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_from_file_env_and_stream_load_context_test1_behavior() {
     let _guard = config_core_test_lock();
@@ -325,6 +329,7 @@ fn config_environment_declarations_and_loading_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_from_packaged_ocioz_loads_context_test1_behavior() {
     let _guard = config_core_test_lock();
@@ -436,6 +441,7 @@ fn config_unarchivable_archive_surfaces_ocio_error_behavior() {
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_cache_id_strict_parsing_and_luma_behavior() {
     let _guard = config_core_test_lock();

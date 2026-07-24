@@ -62,6 +62,7 @@ fn extracted_dynamic_gpu_shader_desc() -> Option<(ocio_rs::Processor, GpuShaderD
     Some((processor, desc))
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_config_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -147,6 +148,7 @@ fn gpu_shader_desc_config_round_trip_behavior() {
     assert!(cloned.allow_texture_1d());
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -164,6 +166,7 @@ fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -495,6 +498,7 @@ fn gpu_shader_desc_dynamic_property_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -551,6 +555,7 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     assert!(rebuilt.contains("ExplicitMain"));
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -641,6 +646,7 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert!(desc.texture_3d(99).is_none());
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
@@ -768,6 +774,9 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             texture_values.as_ptr(),
             texture_values.len(),
         );
+        // Shader binding indexes exist only since OCIO 2.5; the bridge
+        // reports 0 when built against older releases.
+        #[cfg(feature = "v2_5")]
         assert!(binding_2d > 0);
 
         let binding_3d = ocio_sys::ocio_gpu_shader_desc_add3d_texture(
@@ -779,7 +788,10 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             texture3d_values.as_ptr(),
             texture3d_values.len(),
         );
+        #[cfg(feature = "v2_5")]
         assert_eq!(binding_3d, binding_2d + 1);
+        #[cfg(not(feature = "v2_5"))]
+        let _ = (binding_2d, binding_3d);
 
         let mut raw_texture_name: *const i8 = std::ptr::null();
         let mut raw_sampler_name: *const i8 = std::ptr::null();

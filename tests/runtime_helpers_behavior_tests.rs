@@ -35,8 +35,11 @@ fn global_version_and_logging_helper_behavior() {
 
     let runtime_version = version().expect("runtime version");
     assert!(!runtime_version.trim().is_empty());
-    assert!(runtime_version.starts_with("2.5"));
-    assert!(version_hex() > 0);
+    // The runtime must provide at least the API level the crate targets.
+    #[cfg(feature = "v2_5")]
+    assert!(version_hex() >= 0x0205_0000);
+    #[cfg(not(feature = "v2_5"))]
+    assert!(version_hex() >= 0x0204_0000);
 
     let original_level = logging_level();
     try_set_logging_level(LoggingLevel::Warning).expect("set warning logging level");

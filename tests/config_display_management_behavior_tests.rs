@@ -7,13 +7,14 @@
 mod common;
 use common::*;
 
+#[cfg(feature = "v2_5")]
 use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{
-    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection,
-};
+#[cfg(feature = "v2_5")]
+use ocio_rs::SearchReferenceSpaceType;
+use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -32,6 +33,7 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     view_transform
 }
 
+#[cfg(feature = "v2_5")]
 fn virtual_view_names(
     config: &ocio_rs::Config,
     reference_space: SearchReferenceSpaceType,
@@ -46,6 +48,7 @@ fn virtual_view_names(
     names
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_shared_view_and_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();
@@ -153,6 +156,7 @@ fn config_shared_view_and_display_lifecycle_behavior() {
     assert_eq!(config.num_displays(), 0);
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_virtual_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();

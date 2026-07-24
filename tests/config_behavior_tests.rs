@@ -232,6 +232,7 @@ fn config_display_shared_view_metadata_round_trip_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_virtual_display_metadata_round_trip_behavior() {
     let _guard = config_test_lock();
@@ -276,6 +277,7 @@ fn config_virtual_display_metadata_round_trip_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_virtual_display_shared_view_behavior() {
     let _guard = config_test_lock();
@@ -380,6 +382,7 @@ fn config_builtin_processor_invalid_builtin_errors_surface_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_static_view_comparisons_preserve_real_behavior() {
     let _guard = config_test_lock();

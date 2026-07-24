@@ -7,11 +7,12 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This project targets OpenColorIO v2.5.2. The core OCIO 2.5 Rust wrapper
-surface is now broadly in place, including bundled real-OCIO builds, bridge
-parity across the exposed API surface, and broad safe-wrapper coverage. The
-remaining work is mostly release hardening and longer-tail behavioral
-validation rather than missing core binding coverage.
+This project supports OpenColorIO 2.4+ (OCIO 2.5 API is opt-in via the `v2_5`
+cargo feature; see Compatibility below). The core OCIO Rust wrapper surface
+is now broadly in place, including bundled real-OCIO builds, bridge parity
+across the exposed API surface, and broad safe-wrapper coverage. The remaining
+work is mostly release hardening and longer-tail behavioral validation rather
+than missing core binding coverage.
 
 > [中文文档](docs/README_zh-CN.md)
 
@@ -71,7 +72,8 @@ OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo 
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
 
-Installed mode accepts OpenColorIO `>= 2.5.2, < 2.6`. It first probes
+Installed mode accepts OpenColorIO `>= 2.4, < 2.6`, raised to `>= 2.5, < 2.6`
+by the `v2_5` feature. It first probes
 `opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
 the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
 directories; for older installations without a `.pc` file, the conventional
@@ -119,6 +121,18 @@ ocio-rs/
 ```
 
 ## Compatibility
+
+The baseline API works with any OpenColorIO >= 2.4. API added in newer OCIO
+versions is opt-in through additive `vX_Y` cargo features; enabling one raises
+the version requirement checked against the OpenColorIO resolved at build
+time, failing with a clear error on mismatch.
+
+| feature | OCIO API level | gates                                                        |
+| ------- | -------------- | ------------------------------------------------------------ |
+| (none)  | 2.4            | everything else                                               |
+| `v2_5`  | 2.5            | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
+
+Vendored OCIO per release:
 
 | ocio-rs | OCIO   |
 | ------- | ------ |

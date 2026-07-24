@@ -22,6 +22,7 @@ fn config_runtime_settings_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_active_display_view_environment_and_cache_flag_behavior() {
     let _guard = config_runtime_settings_test_lock();
@@ -142,6 +143,7 @@ fn global_current_config_and_processor_cache_flag_behavior() {
     }
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_active_display_view_mutation_errors_surface_behavior() {
     let _guard = config_runtime_settings_test_lock();

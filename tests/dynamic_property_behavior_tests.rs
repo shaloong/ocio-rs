@@ -11,13 +11,16 @@ use common::*;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::grading::GradingCurvePoint;
+#[cfg(feature = "v2_5")]
+use ocio_rs::transform::GradingHueCurveTransform;
 use ocio_rs::transform::{
-    ExposureContrastTransform, GradingHueCurveTransform, GradingPrimaryTransform,
-    GradingRGBCurveTransform, GradingToneTransform,
+    ExposureContrastTransform, GradingPrimaryTransform, GradingRGBCurveTransform,
+    GradingToneTransform,
 };
+#[cfg(feature = "v2_5")]
+use ocio_rs::HueCurveType;
 use ocio_rs::{
-    DynamicPropertyType, ExposureContrastStyle, GradingStyle, HueCurveType, RGBCurveType,
-    TransformDirection,
+    DynamicPropertyType, ExposureContrastStyle, GradingStyle, RGBCurveType, TransformDirection,
 };
 
 fn dynamic_property_test_lock() -> MutexGuard<'static, ()> {
@@ -69,6 +72,7 @@ fn dynamic_grading_rgb_curve_processor() -> Option<ocio_rs::Processor> {
         .ok()
 }
 
+#[cfg(feature = "v2_5")]
 fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
     let config = create_test_config()?;
     let transform = GradingHueCurveTransform::create(GradingStyle::Log).ok()?;
@@ -426,6 +430,7 @@ fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
     let _guard = dynamic_property_test_lock();
@@ -530,6 +535,7 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn dynamic_property_type_mismatch_surfaces_invalid_input_behavior() {
     let _guard = dynamic_property_test_lock();
@@ -597,6 +603,7 @@ fn dynamic_property_type_mismatch_surfaces_invalid_input_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn dynamic_property_curve_invalid_operations_surface_errors() {
     let _guard = dynamic_property_test_lock();

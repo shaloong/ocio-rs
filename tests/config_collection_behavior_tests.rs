@@ -177,6 +177,7 @@ fn config_collection_registration_and_usage_behavior() {
         .is_err());
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
 fn config_collection_remove_and_clear_behavior() {
     let _guard = config_collection_test_lock();
