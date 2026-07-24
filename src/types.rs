@@ -88,8 +88,9 @@ pub enum Interpolation {
     Linear = 2,
     Tetrahedral = 3,
     Cubic = 4,
-    Default = 5,
-    Best = 6,
+    // OCIO deliberately numbers the "meta" modes apart from the real ones.
+    Default = 254,
+    Best = 255,
 }
 
 /// Pixel sample bit depth understood by OCIO processors.

@@ -63,8 +63,8 @@ impl FileTransform {
             2 => Interpolation::Linear,
             3 => Interpolation::Tetrahedral,
             4 => Interpolation::Cubic,
-            5 => Interpolation::Default,
-            6 => Interpolation::Best,
+            254 => Interpolation::Default,
+            255 => Interpolation::Best,
             _ => Interpolation::Unknown,
         }
     }

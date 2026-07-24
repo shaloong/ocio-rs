@@ -8055,6 +8055,12 @@ static_assert(static_cast<int>(ocio::GPU_LANGUAGE_GLSL_VK_4_6) == 4,
 static_assert(static_cast<int>(ocio::GPU_LANGUAGE_MSL_2_0) == 9,
               "GpuLanguage ABI drift: update the bridge translation");
 #endif
+// Interpolation passes through the bridge as raw ints; its OCIO values have
+// been stable across releases (INTERP_DEFAULT/BEST sit apart at 254/255).
+static_assert(static_cast<int>(ocio::INTERP_DEFAULT) == 254,
+              "Interpolation ABI drift: translate in the bridge");
+static_assert(static_cast<int>(ocio::INTERP_BEST) == 255,
+              "Interpolation ABI drift: translate in the bridge");
 static int ocio_rs_gpu_language_to_abi(ocio::GpuLanguage lang) {
   switch (lang) {
     case ocio::GPU_LANGUAGE_CG: return 0;
