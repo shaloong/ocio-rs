@@ -58,7 +58,10 @@ cargo build --features bundled
 # Build bundled OCIO as shared libraries
 OCIO_RS_LINK=dynamic cargo build --features bundled
 
-# Use a pre-installed OCIO
+# Use a pre-installed OCIO discoverable through pkg-config
+OCIO_RS_ENABLE_REAL=1 cargo build
+
+# Use a pre-installed OCIO from a custom prefix
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
 # Use a pre-installed shared OCIO library instead of static libs
@@ -67,6 +70,20 @@ OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo 
 
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
+
+Installed mode accepts OpenColorIO `>= 2.5.2, < 2.6`. It first probes
+`opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
+the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
+directories; for older installations without a `.pc` file, the conventional
+`include`, `lib`, and `lib64` layout remains supported. `PKG_CONFIG_PATH` can
+also be set directly.
+
+The `bundled` feature builds the vendored source by default, preserving its
+historical behavior. Set
+`SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` to prefer a compatible installed
+OpenColorIO and fall back to the bundled source only when probing fails.
+The pkg-config discovery and bundled paths require a `pkg-config` executable;
+on Windows, `pkgconfiglite` is sufficient and is what the CI workflow uses.
 
 `OCIO_RS_LINK` defaults to `static` for compatibility. Set it to `dynamic`
 (`shared` and `dylib` are also accepted) when `OCIO_INSTALL_DIR` points at an

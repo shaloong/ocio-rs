@@ -7,6 +7,32 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+### Added
+
+- Build-configuration regression coverage for installed prefixes, legacy
+  installations without pkg-config metadata, bundled `auto` fallback, and
+  system-installed static OpenColorIO dependencies
+
+### Changed
+
+- Installed OpenColorIO discovery now uses `system-deps`, accepts the supported
+  `>= 2.5.2, < 2.6` ABI line, and recognizes both `opencolorio` and the upstream
+  `OpenColorIO` pkg-config package name
+- Weekly/manual bundled CI now validates Linux, macOS, and Windows
+
+### Fixed
+
+- `OCIO_INSTALL_DIR` once again supports custom pkg-config prefixes and the
+  legacy `include`/`lib` directory layout, including extension dependency and
+  Windows runtime-library directories
+- `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` now reaches the registered
+  bundled source fallback instead of failing because its metadata and closure
+  keys did not match
+- Static system OpenColorIO builds now link the transitive expat, yaml-cpp,
+  Imath, pystring, minizip-ng, zlib, and macOS framework dependencies
+- Windows stub builds no longer compile bundled-only helpers and imports,
+  keeping strict no-default-features Clippy clean
+
 ## [0.2.1] - 2026-07-15
 
 ### Added

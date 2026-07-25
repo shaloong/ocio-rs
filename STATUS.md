@@ -23,7 +23,7 @@ rather than missing core binding coverage.
 |---|---|
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
-| Bundled real-OCIO tests | **Weekly** on Ubuntu, plus manual `workflow_dispatch` |
+| Bundled real-OCIO tests | **Weekly**, plus manual `workflow_dispatch` (Linux, macOS, Windows) |
 | Release audit (full packaging + offline bundled) | **Manual** only (`workflow_dispatch`) |
 | AddressSanitizer (stub bridge) | **Manual** Linux nightly workflow |
 
@@ -54,7 +54,7 @@ rather than missing core binding coverage.
 | docs.rs documentation | All public methods documented; module-level docs for transform and grading modules |
 | Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
-| CI real-OCIO validation | Weekly bundled tests plus manual bundled and release-audit workflows on Ubuntu |
+| CI real-OCIO validation | Weekly/manual bundled matrix on Linux, macOS, and Windows; manual release audit on Ubuntu |
 
 The v0.2 line focuses on replacing generated stubs with real OCIO bridge
 implementations, removing APIs that are not present upstream, and backing the
@@ -173,13 +173,12 @@ published first:
 
 ## CI coverage
 
-GitHub Actions now runs stub-mode test coverage across Linux, macOS, and
-Windows for `--no-default-features`, while keeping the slower bundled native
-OCIO validation on manual Ubuntu workflows that use a recursive checkout. The
-manual paths cover both the dedicated bundled test job in `ci.yml`, the
-broader `Release Audit` workflow, which also validates packaging and offline
-bundled compilation, and the nightly AddressSanitizer workflow for the stub
-bridge and Rust wrapper layer.
+GitHub Actions runs stub-mode test coverage across Linux, macOS, and Windows
+for `--no-default-features`. The slower bundled native OCIO job uses a
+recursive checkout and runs weekly or on demand across the same three
+platforms. The broader manual `Release Audit` workflow also validates packaging
+and offline bundled compilation, while the nightly AddressSanitizer workflow
+covers the stub bridge and Rust wrapper layer.
 
 ## Current runtime semantics
 
