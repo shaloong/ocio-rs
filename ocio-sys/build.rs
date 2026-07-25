@@ -658,7 +658,7 @@ const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
     &["yaml-cpp", "yaml-cppd"],
     &["Imath-3_2", "Imath-3_2_d", "Imath-3_1", "Imath-3_1_d"],
     &["pystring"],
-    &["minizip-ng"],
+    &["libminizip-ng", "minizip-ng", "libminizip", "minizip"],
     &["zlibstatic", "zlib", "zlibstaticd", "zlibd"],
 ];
 
@@ -668,7 +668,7 @@ const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
     &["yaml-cpp"],
     &["Imath-3_2", "Imath-3_1"],
     &["pystring"],
-    &["minizip-ng"],
+    &["minizip-ng", "minizip"],
     &["z"],
 ];
 

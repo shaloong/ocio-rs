@@ -288,17 +288,15 @@ fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
 }
 
 #[test]
-fn static_system_install_detects_imath_abi_and_links_transitive_dependencies() {
+fn static_system_install_detects_transitive_dependency_names() {
     let fixture = ProbeFixture::new(false);
-    fs::write(
-        fixture.lib_dir.join(if cfg!(target_os = "windows") {
-            "Imath-3_1.lib"
-        } else {
-            "libImath-3_1.a"
-        }),
-        [],
-    )
-    .unwrap();
+    for file_name in if cfg!(target_os = "windows") {
+        ["Imath-3_1.lib", "minizip.lib"]
+    } else {
+        ["libImath-3_1.a", "libminizip.a"]
+    } {
+        fs::write(fixture.lib_dir.join(file_name), []).unwrap();
+    }
     let output = fixture.cargo_check(|command| {
         command
             .env("OCIO_RS_ENABLE_REAL", "1")
@@ -317,30 +315,25 @@ fn static_system_install_detects_imath_abi_and_links_transitive_dependencies() {
             "yaml-cpp",
             "Imath-3_1",
             "pystring",
-            "minizip-ng",
+            "minizip",
             "zlibstatic",
         ]
     } else {
-        [
-            "expat",
-            "yaml-cpp",
-            "Imath-3_1",
-            "pystring",
-            "minizip-ng",
-            "z",
-        ]
+        ["expat", "yaml-cpp", "Imath-3_1", "pystring", "minizip", "z"]
     };
     for library in expected {
+        let directive = format!("rustc-link-lib=static={library}");
         assert!(
-            text.contains(&format!("rustc-link-lib=static={library}")),
+            text.lines().any(|line| line.ends_with(&directive)),
             "static system OpenColorIO should link {library} explicitly:\n{text}"
         );
     }
 
     if cfg!(target_os = "macos") {
         for framework in ["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"] {
+            let directive = format!("rustc-link-lib=framework={framework}");
             assert!(
-                text.contains(&format!("rustc-link-lib=framework={framework}")),
+                text.lines().any(|line| line.ends_with(&directive)),
                 "static system OpenColorIO should link {framework} explicitly:\n{text}"
             );
         }
