@@ -229,7 +229,33 @@ fn installed_prefix_without_pkg_config_uses_the_legacy_layout() {
 }
 
 #[test]
-fn auto_mode_reaches_the_bundled_fallback_when_pkg_config_misses() {
+fn auto_mode_reaches_the_registered_fallback_when_pkg_config_misses() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_RS_ENABLE_REAL", "1")
+            .env("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "auto")
+            .env("FAKE_PKG_CONFIG_FAIL", "1");
+    });
+    let text = output_text(&output);
+
+    assert!(
+        !output.status.success(),
+        "the unavailable internal build should stop the fallback"
+    );
+    assert!(
+        text.contains("requires enabling ocio-sys' `bundled` feature"),
+        "auto mode should reach the registered fallback without requiring bundled dependencies:\n{text}"
+    );
+    assert!(
+        !text.contains("BuildInternalNoClosure"),
+        "auto mode must not lose the fallback closure through a name mismatch:\n{text}"
+    );
+}
+
+#[cfg(feature = "bundled")]
+#[test]
+fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
     let fixture = ProbeFixture::new(true);
     let invalid_source = fixture.root.join("invalid-ocio-source");
     fs::create_dir_all(&invalid_source).unwrap();

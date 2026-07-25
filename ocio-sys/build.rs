@@ -12,13 +12,14 @@ use std::path::Path;
 
 #[cfg(feature = "bundled")]
 const BUNDLED_OCIO_VERSION: &str = "2.5.2";
+const OPENCOLORIO_DEPENDENCY_NAME: &str = "opencolorio";
 
 fn main() {
     let link_mode = LinkMode::from_env();
 
     // Real OCIO is enabled when:
     // 1. OCIO_RS_ENABLE_REAL=1 is explicitly set (manual override), OR
-    // 2. The "bundled" feature is active (registers a from-source build fallback)
+    // 2. The "bundled" feature is active (enables the from-source build fallback)
     let is_bundled = env::var_os("CARGO_FEATURE_BUNDLED").is_some();
     let enable_real_ocio = env_flag("OCIO_RS_ENABLE_REAL") || is_bundled;
 
@@ -41,9 +42,10 @@ fn main() {
         include_paths.extend(install.include_paths.iter().cloned());
 
         // system-deps resolves OpenColorIO via, in order: a system pkg-config
-        // install, then this from-source build (if the "bundled" feature
-        // registered it) — see SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to control
-        // this fallback at build time.
+        // install, then the registered internal fallback — see
+        // SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to control this at build time.
+        // The "bundled" feature supplies the real from-source implementation;
+        // without it, selecting the fallback reports how to enable it.
         //
         // Forward OCIO_RS_LINK, this crate's public static/dynamic linking
         // knob, to system-deps' equivalent env var.
@@ -74,23 +76,23 @@ fn main() {
             }
         }
 
-        let config = system_deps::Config::new();
-
-        #[cfg(feature = "bundled")]
         let config = {
             let runtime_dll_dirs = runtime_dll_dirs.clone();
             let built_internally = built_internally.clone();
-            config.add_build_internal("opencolorio", move |_lib_name, version| {
-                built_internally.set(true);
-                build_ocio_from_source(version, link_mode, runtime_dll_dirs)
-            })
+            system_deps::Config::new().add_build_internal(
+                OPENCOLORIO_DEPENDENCY_NAME,
+                move |_lib_name, version| {
+                    built_internally.set(true);
+                    build_ocio_from_source(version, link_mode, runtime_dll_dirs)
+                },
+            )
         };
 
         let deps = config
             .probe()
             .expect("system-deps failed to resolve the opencolorio dependency");
         let lib = deps
-            .get_by_name("opencolorio")
+            .get_by_name(OPENCOLORIO_DEPENDENCY_NAME)
             .expect("system-deps should always resolve opencolorio when real OCIO is enabled");
         include_paths.extend(lib.include_paths.iter().cloned());
         if link_mode.is_static() && !built_internally.get() {
@@ -276,6 +278,17 @@ fn set_env_if_missing(name: &str, value: impl AsRef<std::ffi::OsStr>) {
             env::set_var(name, value);
         }
     }
+}
+
+#[cfg(not(feature = "bundled"))]
+fn build_ocio_from_source(
+    _version_requirement: &str,
+    _link_mode: LinkMode,
+    _runtime_dll_dirs: Rc<RefCell<Vec<PathBuf>>>,
+) -> Result<system_deps::Library, system_deps::BuildInternalClosureError> {
+    Err(system_deps::BuildInternalClosureError::failed(
+        "OpenColorIO internal fallback requires enabling ocio-sys' `bundled` feature",
+    ))
 }
 
 /// Builds OpenColorIO from source via CMake, to be used as a `system-deps`
