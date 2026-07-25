@@ -632,18 +632,10 @@ fn copy_runtime_dlls_to_cargo_target_dirs(runtime_paths: &[PathBuf]) {
 #[cfg(not(target_os = "windows"))]
 fn copy_runtime_dlls_to_cargo_target_dirs(_runtime_paths: &[PathBuf]) {}
 
-#[cfg(target_os = "windows")]
 fn emit_transitive_static_deps(link_paths: &[PathBuf]) {
-    for candidates in WINDOWS_TRANSITIVE_STATIC_LIBRARIES {
-        let selected = select_windows_static_lib(link_paths, candidates);
+    for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {
+        let selected = select_static_lib(link_paths, candidates);
         println!("cargo:rustc-link-lib=static={selected}");
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn emit_transitive_static_deps(_link_paths: &[PathBuf]) {
-    for name in TRANSITIVE_STATIC_LIBRARIES {
-        println!("cargo:rustc-link-lib=static={name}");
     }
 
     #[cfg(target_os = "macos")]
@@ -653,17 +645,27 @@ fn emit_transitive_static_deps(_link_paths: &[PathBuf]) {
 }
 
 #[cfg(target_os = "windows")]
-const WINDOWS_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
+const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
     &["libexpatMD", "expat", "libexpatdMD"],
     &["yaml-cpp", "yaml-cppd"],
-    &["Imath-3_2", "Imath-3_2_d"],
+    &["Imath-3_2", "Imath-3_2_d", "Imath-3_1", "Imath-3_1_d"],
     &["pystring"],
     &["minizip-ng"],
     &["zlibstatic", "zlib", "zlibstaticd", "zlibd"],
 ];
 
 #[cfg(not(target_os = "windows"))]
-const TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
+const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
+    &["expat"],
+    &["yaml-cpp"],
+    &["Imath-3_2", "Imath-3_1"],
+    &["pystring"],
+    &["minizip-ng"],
+    &["z"],
+];
+
+#[cfg(all(feature = "bundled", not(target_os = "windows")))]
+const BUNDLED_TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
     "expat",
     "yaml-cpp",
     "Imath-3_2",
@@ -675,17 +677,26 @@ const TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
 #[cfg(target_os = "macos")]
 const MACOS_STATIC_FRAMEWORKS: [&str; 4] = ["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"];
 
-#[cfg(target_os = "windows")]
-fn select_windows_static_lib<'a>(link_paths: &[PathBuf], candidates: &'a [&str]) -> &'a str {
+fn select_static_lib<'a>(link_paths: &[PathBuf], candidates: &'a [&str]) -> &'a str {
     candidates
         .iter()
         .copied()
         .find(|candidate| {
-            let file_name = format!("{candidate}.lib");
+            let file_name = static_library_file_name(candidate);
             link_paths.iter().any(|dir| dir.join(&file_name).exists())
         })
         .or_else(|| candidates.first().copied())
         .expect("every static dependency has at least one candidate")
+}
+
+#[cfg(target_os = "windows")]
+fn static_library_file_name(name: &str) -> String {
+    format!("{name}.lib")
+}
+
+#[cfg(not(target_os = "windows"))]
+fn static_library_file_name(name: &str) -> String {
+    format!("lib{name}.a")
 }
 
 // See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
@@ -709,7 +720,7 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
 // so pkg-config can't find them and they're linked explicitly instead.
 #[cfg(all(feature = "bundled", not(target_os = "windows")))]
 fn add_transitive_static_libs(lib: &mut system_deps::Library) {
-    for name in TRANSITIVE_STATIC_LIBRARIES {
+    for name in BUNDLED_TRANSITIVE_STATIC_LIBRARIES {
         lib.libs.push(system_deps::InternalLib {
             name: name.to_string(),
             is_static_available: true,
@@ -730,7 +741,7 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
 // differently), since pkg-config has no record of these libs to consult.
 #[cfg(all(feature = "bundled", target_os = "windows"))]
 fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candidates: &[&str]) {
-    let candidate = select_windows_static_lib(link_paths, candidates);
+    let candidate = select_static_lib(link_paths, candidates);
     lib.libs.push(system_deps::InternalLib {
         name: candidate.to_string(),
         is_static_available: true,

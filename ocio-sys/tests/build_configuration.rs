@@ -287,8 +287,17 @@ fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
 }
 
 #[test]
-fn static_system_install_links_open_color_io_transitive_dependencies() {
+fn static_system_install_detects_imath_abi_and_links_transitive_dependencies() {
     let fixture = ProbeFixture::new(false);
+    fs::write(
+        fixture.lib_dir.join(if cfg!(target_os = "windows") {
+            "Imath-3_1.lib"
+        } else {
+            "libImath-3_1.a"
+        }),
+        [],
+    )
+    .unwrap();
     let output = fixture.cargo_check(|command| {
         command
             .env("OCIO_RS_ENABLE_REAL", "1")
@@ -305,7 +314,7 @@ fn static_system_install_links_open_color_io_transitive_dependencies() {
         [
             "libexpatMD",
             "yaml-cpp",
-            "Imath-3_2",
+            "Imath-3_1",
             "pystring",
             "minizip-ng",
             "zlibstatic",
@@ -314,7 +323,7 @@ fn static_system_install_links_open_color_io_transitive_dependencies() {
         [
             "expat",
             "yaml-cpp",
-            "Imath-3_2",
+            "Imath-3_1",
             "pystring",
             "minizip-ng",
             "z",
