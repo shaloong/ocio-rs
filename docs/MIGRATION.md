@@ -172,11 +172,13 @@ The same treatment now applies to `Config` helpers that require external OCIO co
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
 
 Stub mode remains the default (`cargo build` without flags). Real OCIO mode
-is enabled either by setting `OCIO_RS_ENABLE_REAL=1` with `OCIO_INSTALL_DIR`,
-or by building with `--features bundled`. `OCIO_SOURCE_DIR` alone does not
-enable real OCIO mode. The published `ocio-sys` crate vendors the upstream
-OpenColorIO source tree and transitive dependencies, and the packaged crate
-is validated with `cargo build --features bundled --offline`.
+is enabled either by setting `OCIO_RS_ENABLE_REAL=1` for pkg-config discovery,
+optionally with `OCIO_INSTALL_DIR` for a custom or legacy installation prefix,
+or by building with `--features bundled`. Installed packages must be in the
+supported `>= 2.5.2, < 2.6` line. `OCIO_SOURCE_DIR` alone does not enable real
+OCIO mode. The published `ocio-sys` crate vendors the upstream OpenColorIO
+source tree and transitive dependencies, and the packaged crate is validated
+with `cargo build --features bundled --offline`.
 
 ### Legacy GPU optimization
 

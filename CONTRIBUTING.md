@@ -21,8 +21,17 @@ behavior, tests, release packaging, and documentation all matter.
 
 - Stub mode: default; used for fast API-shape validation and lightweight CI.
 - Real OCIO mode:
-  - Installed OCIO: `OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build`
+  - Installed OCIO via pkg-config: `OCIO_RS_ENABLE_REAL=1 cargo build`
+  - Installed OCIO under a custom prefix: `OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build`
   - Bundled OCIO: `cargo build --features bundled`
+
+The installed-library path supports OpenColorIO `>= 2.5.2, < 2.6`.
+`OCIO_INSTALL_DIR` supports both pkg-config metadata and the legacy
+`include`/`lib` layout. For bundled builds, set
+`SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` to prefer an installed compatible
+library before falling back to the vendored source.
+Pkg-config-based and bundled builds require a `pkg-config` executable; Windows
+contributors can use `pkgconfiglite`, matching CI.
 
 For release hardening, the packaged `ocio-sys` crate should also build with:
 
@@ -59,6 +68,8 @@ cargo package -p ocio-sys --allow-dirty --offline
 - Match existing naming and wrapper patterns unless there is a clear reason not
   to.
 - Add focused behavioral tests for real OCIO changes when practical.
+- Add build-resolution regressions to `ocio-sys/tests/build_configuration.rs`
+  when changing build-script or `system-deps` behavior.
 - Prefer small, reviewable commits with conventional commit messages.
 - Update `README.md`, `STATUS.md`, or `docs/RELEASING.md` when behavior,
   packaging, or project status changes.

@@ -13,12 +13,20 @@ build = "build.rs"
 
 [build-dependencies]
 cc = "1.0"
-cmake = "0.1"
+cmake = { version = "0.1", optional = true }
+system-deps = "7"
 
 [features]
 default = []
-bundled = []
+# Registers the from-source CMake builder with system-deps. The build script
+# defaults it to `always` for compatibility; use `auto` to prefer pkg-config
+# and fall back to source. See SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL.
+bundled = ["dep:cmake"]
 
 [package.metadata.docs.rs]
 no-default-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.system-deps.opencolorio]
+fallback-names = ["OpenColorIO"]
+version = ">= 2.5.2, < 2.6"
