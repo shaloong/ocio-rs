@@ -204,6 +204,31 @@ fn installed_prefix_is_added_to_pkg_config_search_path() {
     );
 }
 
+#[cfg(feature = "bundled")]
+#[test]
+fn installed_prefix_takes_precedence_over_the_bundled_default() {
+    let fixture = ProbeFixture::new(true);
+    let invalid_source = fixture.root.join("invalid-ocio-source");
+    fs::create_dir_all(&invalid_source).unwrap();
+    fs::write(
+        invalid_source.join("CMakeLists.txt"),
+        "this is deliberately not valid CMake\n",
+    )
+    .unwrap();
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_INSTALL_DIR", &fixture.install_dir)
+            .env("OCIO_SOURCE_DIR", &invalid_source)
+            .env("FAKE_PKG_CONFIG_EXPECT_PATH", &fixture.pkg_config_dir);
+    });
+
+    assert!(
+        output.status.success(),
+        "an explicit OCIO_INSTALL_DIR should be used before the bundled fallback:\n{}",
+        output_text(&output)
+    );
+}
+
 #[test]
 fn installed_prefix_without_pkg_config_uses_the_legacy_layout() {
     let fixture = ProbeFixture::new(false);

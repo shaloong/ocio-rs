@@ -64,13 +64,13 @@ fn main() {
 
         // `add_build_internal`'s status always defaults to `never` regardless of
         // whether a closure is registered. The "bundled" feature previously
-        // always built from source unconditionally (it never tried an existing
-        // system install first), so default to `always` here to match — still
-        // overridable by the user via SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto
-        // if they'd rather prefer a system-provided OpenColorIO when one
-        // satisfies the version requirement.
+        // built from source by default, but an explicit OCIO_INSTALL_DIR took
+        // precedence. Preserve both behaviors while still allowing
+        // SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to override the default.
         #[cfg(feature = "bundled")]
-        if env::var_os("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL").is_none() {
+        if env::var_os("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL").is_none()
+            && env::var_os("OCIO_INSTALL_DIR").is_none()
+        {
             // SAFETY: build scripts are single-threaded at this point.
             unsafe {
                 env::set_var("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "always");
