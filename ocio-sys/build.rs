@@ -13,6 +13,7 @@ use std::path::Path;
 #[cfg(feature = "bundled")]
 const BUNDLED_OCIO_VERSION: &str = "2.5.2";
 const OPENCOLORIO_DEPENDENCY_NAME: &str = "opencolorio";
+const OPENCOLORIO_PKG_CONFIG_FILES: [&str; 2] = ["OpenColorIO.pc", "opencolorio.pc"];
 
 fn main() {
     let link_mode = LinkMode::from_env();
@@ -197,7 +198,14 @@ fn configure_install_dir(
         install_dir.join("share").join("pkgconfig"),
     ]
     .into_iter()
-    .filter(|path| path.is_dir())
+    // Other dependencies may create the pkgconfig directory without
+    // installing OpenColorIO metadata. Only skip the legacy prefix layout
+    // when this prefix can actually satisfy the OpenColorIO probe.
+    .filter(|path| {
+        OPENCOLORIO_PKG_CONFIG_FILES
+            .iter()
+            .any(|file_name| path.join(file_name).is_file())
+    })
     .collect::<Vec<_>>();
 
     let extension_roots = [

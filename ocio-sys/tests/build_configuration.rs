@@ -105,6 +105,7 @@ impl ProbeFixture {
         let lib_dir = install_dir.join("lib");
         fs::create_dir_all(&pkg_config_dir).unwrap();
         fs::create_dir_all(&lib_dir).unwrap();
+        fs::write(pkg_config_dir.join("OpenColorIO.pc"), []).unwrap();
         prepare_headers(&ocio_sys_dir, &include_dir);
         fs::write(
             lib_dir.join(if cfg!(target_os = "windows") {
@@ -206,7 +207,7 @@ fn installed_prefix_is_added_to_pkg_config_search_path() {
 #[test]
 fn installed_prefix_without_pkg_config_uses_the_legacy_layout() {
     let fixture = ProbeFixture::new(false);
-    fs::remove_dir_all(&fixture.pkg_config_dir).unwrap();
+    fs::remove_file(fixture.pkg_config_dir.join("OpenColorIO.pc")).unwrap();
     let output = fixture.cargo_check(|command| {
         command
             .env("OCIO_RS_ENABLE_REAL", "1")
