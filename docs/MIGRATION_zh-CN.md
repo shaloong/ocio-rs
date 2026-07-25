@@ -95,10 +95,11 @@ matrix processor 做 bundled 行为验证，包括带 padding 的 RGB/RGBA buffe
 Windows bundled 构建现在强制使用 Release CMake profile，并优先链接 Release transitive libraries，避免 Rust 测试运行 bundled OCIO 时遇到 Debug CRT 不匹配。
 
 Stub 模式仍为默认（不带 flag 的 `cargo build`）。真实 OCIO 模式通过
-设置 `OCIO_RS_ENABLE_REAL=1` 并指定 `OCIO_INSTALL_DIR`，或使用
-`--features bundled` 来启用。单独设置 `OCIO_SOURCE_DIR` 不会启用真实
-OCIO 模式。已发布的 `ocio-sys` crate 包含上游 OpenColorIO 源码树和传递依赖，
-打包后的 crate 通过 `cargo build --features bundled --offline` 验证。
+设置 `OCIO_RS_ENABLE_REAL=1` 进行 pkg-config 探测（自定义或旧式安装前缀可再指定
+`OCIO_INSTALL_DIR`），或使用 `--features bundled` 来启用。系统安装必须位于支持的
+`>= 2.5.2, < 2.6` 版本线。单独设置 `OCIO_SOURCE_DIR` 不会启用真实 OCIO 模式。
+已发布的 `ocio-sys` crate 包含上游 OpenColorIO 源码树和传递依赖，打包后的 crate
+通过 `cargo build --features bundled --offline` 验证。
 
 ### Baker 输出
 

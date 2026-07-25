@@ -30,7 +30,10 @@ cargo test
 # Bundled: cmake builds OCIO from the submodule
 cargo build --features bundled
 
-# Pre-installed OCIO
+# Pre-installed OCIO discovered through pkg-config
+OCIO_RS_ENABLE_REAL=1 cargo build
+
+# Pre-installed OCIO under a custom prefix
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
 # Pre-installed OCIO, linked dynamically
@@ -44,6 +47,24 @@ OCIO_RS_ENABLE_REAL=1 OCIO_SOURCE_DIR=/path/to/ocio cargo build --features bundl
 consumed by the bundled build path, so use it together with
 `OCIO_RS_ENABLE_REAL=1` and `--features bundled` when overriding the vendored
 OpenColorIO source tree.
+
+Installed-library resolution is owned by `system-deps`. The supported native
+range is `>= 2.5.2, < 2.6`; pkg-config is queried using the lower-case metadata
+key first and the upstream `OpenColorIO` package name as a fallback.
+`OCIO_INSTALL_DIR` augments `PKG_CONFIG_PATH` with the conventional metadata
+locations. If no `.pc` file exists there, the build script maps the prefix's
+`include`, `lib`, `lib64`, and bundled-extension directories to explicit
+`system-deps` flags for backward compatibility.
+
+The `bundled` feature registers the CMake source build with `system-deps` and
+defaults `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL` to `always`, matching the
+previous behavior. Set it to `auto` to prefer an installed compatible package
+and use the source build only as a fallback, or to `never` to require the
+installed package.
+
+Both pkg-config discovery and the internally built package's generated `.pc`
+file require a `pkg-config` executable. Windows CI installs `pkgconfiglite`;
+Linux and macOS runners already provide a compatible implementation.
 
 `OCIO_RS_LINK` controls how real OCIO is linked. It defaults to `static` for
 compatibility and accepts `dynamic`, `shared`, or `dylib` for shared-library
@@ -129,9 +150,10 @@ Current CI (`ci.yml`) runs:
 - `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features`
 - `cargo package -p ocio-sys --allow-dirty`
 
-Bundled real-OCIO validation is kept on manual GitHub Actions workflows and runs:
+Bundled real-OCIO validation runs weekly and through `workflow_dispatch` on
+Linux, macOS, and Windows:
 
-- `cargo test --workspace --features bundled`
+- `cargo test --workspace --features bundled -- --test-threads=1`
 - `pwsh -File tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline`
 
 The manual `Sanitizers` workflow runs the stub bridge and Rust wrapper tests
@@ -153,5 +175,6 @@ steps:
 
 Real-OCIO tests require a built OCIO library, which adds significant build
 time. Stub-mode tests cover most wrapper and API-shape regressions, while the
-manual bundled workflows are the release-facing checks for bridge correctness,
-packaging, and offline bundled viability.
+weekly/manual bundled matrix and manual release audit are the release-facing
+checks for bridge correctness, platform portability, packaging, and offline
+bundled viability.

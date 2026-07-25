@@ -50,7 +50,10 @@ cargo build --features bundled
 # 将 bundled OCIO 编译为动态库
 OCIO_RS_LINK=dynamic cargo build --features bundled
 
-# 使用预装的 OCIO
+# 使用 pkg-config 可发现的预装 OCIO
+OCIO_RS_ENABLE_REAL=1 cargo build
+
+# 使用自定义安装前缀中的预装 OCIO
 OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
 # 使用预装的 OCIO 动态库，而不是静态库
@@ -59,6 +62,18 @@ OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo 
 
 `OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
 OCIO 模式。
+
+预装模式接受 OpenColorIO `>= 2.5.2, < 2.6`，并依次通过 pkg-config 探测
+`opencolorio` / `OpenColorIO`。`OCIO_INSTALL_DIR` 会把安装前缀下的
+`lib/pkgconfig`、`lib64/pkgconfig` 和 `share/pkgconfig` 加入搜索路径；对于没有
+`.pc` 文件的旧安装，传统的 `include`、`lib`、`lib64` 布局仍然可用。也可以直接
+设置 `PKG_CONFIG_PATH`。
+
+`bundled` feature 默认构建 vendored 源码，以保持历史行为。设置
+`SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` 后，会优先使用兼容的系统安装，
+探测失败时再回退到 bundled 源码。
+pkg-config 探测和 bundled 路径都需要系统中存在 `pkg-config` 可执行文件；Windows
+可以使用 `pkgconfiglite`，CI 工作流也采用这一实现。
 
 `OCIO_RS_LINK` 默认是 `static`，以保持兼容性。如果 `OCIO_INSTALL_DIR` 指向的
 OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `shared` 和 `dylib`）。

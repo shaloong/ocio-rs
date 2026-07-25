@@ -1,14 +1,17 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-#[cfg(target_os = "windows")]
+#[cfg(all(feature = "bundled", target_os = "windows"))]
 use std::collections::hash_map::DefaultHasher;
-#[cfg(target_os = "windows")]
+#[cfg(all(feature = "bundled", target_os = "windows"))]
 use std::hash::{Hash, Hasher};
-#[cfg(target_os = "windows")]
+#[cfg(all(feature = "bundled", target_os = "windows"))]
 use std::path::Path;
+
+#[cfg(feature = "bundled")]
+const BUNDLED_OCIO_VERSION: &str = "2.5.2";
 
 fn main() {
     let link_mode = LinkMode::from_env();
@@ -25,6 +28,7 @@ fn main() {
     // Windows only: `rustc-link-search` only affects linking, not the loader path
     // test/example binaries use at runtime, so these need to be copied alongside them.
     let runtime_dll_dirs = Rc::new(RefCell::new(Vec::<PathBuf>::new()));
+    let built_internally = Rc::new(Cell::new(false));
 
     let has_real_ocio = if !enable_real_ocio {
         println!("cargo:warning=OCIO_RS_ENABLE_REAL is not set; building ocio-sys in stub mode.");
@@ -33,6 +37,9 @@ fn main() {
         );
         false
     } else {
+        let install = configure_install_dir(link_mode, &runtime_dll_dirs);
+        include_paths.extend(install.include_paths.iter().cloned());
+
         // system-deps resolves OpenColorIO via, in order: a system pkg-config
         // install, then this from-source build (if the "bundled" feature
         // registered it) — see SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to control
@@ -72,7 +79,9 @@ fn main() {
         #[cfg(feature = "bundled")]
         let config = {
             let runtime_dll_dirs = runtime_dll_dirs.clone();
-            config.add_build_internal("OpenColorIO", move |_lib_name, version| {
+            let built_internally = built_internally.clone();
+            config.add_build_internal("opencolorio", move |_lib_name, version| {
+                built_internally.set(true);
                 build_ocio_from_source(version, link_mode, runtime_dll_dirs)
             })
         };
@@ -84,6 +93,13 @@ fn main() {
             .get_by_name("opencolorio")
             .expect("system-deps should always resolve opencolorio when real OCIO is enabled");
         include_paths.extend(lib.include_paths.iter().cloned());
+        if link_mode.is_static() && !built_internally.get() {
+            let mut transitive_link_paths = lib.link_paths.clone();
+            for path in install.link_paths {
+                push_existing_path(&mut transitive_link_paths, path);
+            }
+            emit_transitive_static_deps(&transitive_link_paths);
+        }
 
         true
     };
@@ -160,8 +176,106 @@ fn main() {
     println!("cargo:rerun-if-changed=src/bridge.hpp");
     println!("cargo:rerun-if-changed=src/bridge.cpp");
     println!("cargo:rerun-if-env-changed=OCIO_SOURCE_DIR");
+    println!("cargo:rerun-if-env-changed=OCIO_INSTALL_DIR");
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
     println!("cargo:rerun-if-env-changed=OCIO_RS_LINK");
+}
+
+fn configure_install_dir(
+    link_mode: LinkMode,
+    runtime_dll_dirs: &Rc<RefCell<Vec<PathBuf>>>,
+) -> InstallDirConfiguration {
+    let Some(install_dir) = env::var_os("OCIO_INSTALL_DIR").map(PathBuf::from) else {
+        return InstallDirConfiguration::default();
+    };
+
+    let mut pkg_config_paths = [
+        install_dir.join("lib").join("pkgconfig"),
+        install_dir.join("lib64").join("pkgconfig"),
+        install_dir.join("share").join("pkgconfig"),
+    ]
+    .into_iter()
+    .filter(|path| path.is_dir())
+    .collect::<Vec<_>>();
+
+    let extension_roots = [
+        install_dir.join("ext").join("dist"),
+        install_dir.join("share").join("ocio").join("ext"),
+    ];
+    let include_paths = std::iter::once(install_dir.join("include"))
+        .chain(extension_roots.iter().map(|root| root.join("include")))
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+    let link_paths = [install_dir.clone()]
+        .into_iter()
+        .chain(extension_roots.iter().cloned())
+        .flat_map(|root| [root.join("lib"), root.join("lib64")])
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+
+    if link_mode.is_dynamic() {
+        let mut runtime_paths = runtime_dll_dirs.borrow_mut();
+        for root in [install_dir.clone()]
+            .into_iter()
+            .chain(extension_roots.iter().cloned())
+        {
+            for directory in [root.join("bin"), root.join("lib"), root.join("lib64")] {
+                push_existing_path(&mut runtime_paths, directory);
+            }
+        }
+    }
+
+    if pkg_config_paths.is_empty() {
+        set_env_if_missing("SYSTEM_DEPS_OPENCOLORIO_NO_PKG_CONFIG", "1");
+        set_env_if_missing("SYSTEM_DEPS_OPENCOLORIO_LIB", "OpenColorIO");
+        if !link_paths.is_empty() {
+            let joined = env::join_paths(&link_paths)
+                .expect("OCIO_INSTALL_DIR produced invalid library search paths");
+            set_env_if_missing("SYSTEM_DEPS_OPENCOLORIO_SEARCH_NATIVE", joined);
+        }
+        if !include_paths.is_empty() {
+            let joined = env::join_paths(&include_paths)
+                .expect("OCIO_INSTALL_DIR produced invalid include paths");
+            set_env_if_missing("SYSTEM_DEPS_OPENCOLORIO_INCLUDE", joined);
+        }
+    } else {
+        if let Some(existing) = env::var_os("PKG_CONFIG_PATH") {
+            pkg_config_paths.extend(env::split_paths(&existing));
+        }
+        let joined = env::join_paths(pkg_config_paths)
+            .expect("OCIO_INSTALL_DIR produced an invalid pkg-config path");
+        // SAFETY: build scripts are single-threaded at this point.
+        unsafe {
+            env::set_var("PKG_CONFIG_PATH", joined);
+        }
+
+        // OpenColorIO's pkg-config file omits its private static dependencies.
+        // Keep the legacy extension directories visible to the linker so the
+        // explicit transitive libraries below can be resolved.
+        for path in &link_paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
+    }
+
+    InstallDirConfiguration {
+        include_paths,
+        link_paths,
+    }
+}
+
+#[derive(Default)]
+struct InstallDirConfiguration {
+    include_paths: Vec<PathBuf>,
+    link_paths: Vec<PathBuf>,
+}
+
+fn set_env_if_missing(name: &str, value: impl AsRef<std::ffi::OsStr>) {
+    if env::var_os(name).is_none() {
+        // SAFETY: build scripts are single-threaded at this point.
+        unsafe {
+            env::set_var(name, value);
+        }
+    }
 }
 
 /// Builds OpenColorIO from source via CMake, to be used as a `system-deps`
@@ -171,7 +285,7 @@ fn main() {
 /// plus the transitive static dependencies it doesn't declare there itself.
 #[cfg(feature = "bundled")]
 fn build_ocio_from_source(
-    version: &str,
+    _version_requirement: &str,
     link_mode: LinkMode,
     runtime_dll_dirs: Rc<RefCell<Vec<PathBuf>>>,
 ) -> Result<system_deps::Library, system_deps::BuildInternalClosureError> {
@@ -305,8 +419,14 @@ fn build_ocio_from_source(
         .map(|dir| dir.join("pkgconfig"))
         .find(|dir| dir.exists())
         .unwrap_or_else(|| dst.join("lib").join("pkgconfig"));
-    let mut lib =
-        system_deps::Library::from_internal_pkg_config(&pkgconfig_dir, "OpenColorIO", version)?;
+    // `from_internal_pkg_config` accepts a minimum version rather than the
+    // full range syntax used by package metadata. The vendored source is
+    // pinned to this exact release, so probe it with that concrete version.
+    let mut lib = system_deps::Library::from_internal_pkg_config(
+        &pkgconfig_dir,
+        "OpenColorIO",
+        BUNDLED_OCIO_VERSION,
+    )?;
 
     let mut runtime_paths = Vec::new();
     if link_mode.is_dynamic() {
@@ -412,7 +532,6 @@ impl LinkMode {
     }
 }
 
-#[cfg(feature = "bundled")]
 fn push_existing_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
     if path.exists() && !paths.iter().any(|existing| existing == &path) {
         paths.push(path);
@@ -500,6 +619,62 @@ fn copy_runtime_dlls_to_cargo_target_dirs(runtime_paths: &[PathBuf]) {
 #[cfg(not(target_os = "windows"))]
 fn copy_runtime_dlls_to_cargo_target_dirs(_runtime_paths: &[PathBuf]) {}
 
+#[cfg(target_os = "windows")]
+fn emit_transitive_static_deps(link_paths: &[PathBuf]) {
+    for candidates in WINDOWS_TRANSITIVE_STATIC_LIBRARIES {
+        let selected = select_windows_static_lib(link_paths, candidates);
+        println!("cargo:rustc-link-lib=static={selected}");
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn emit_transitive_static_deps(_link_paths: &[PathBuf]) {
+    for name in TRANSITIVE_STATIC_LIBRARIES {
+        println!("cargo:rustc-link-lib=static={name}");
+    }
+
+    #[cfg(target_os = "macos")]
+    for framework in MACOS_STATIC_FRAMEWORKS {
+        println!("cargo:rustc-link-lib=framework={framework}");
+    }
+}
+
+#[cfg(target_os = "windows")]
+const WINDOWS_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
+    &["libexpatMD", "expat", "libexpatdMD"],
+    &["yaml-cpp", "yaml-cppd"],
+    &["Imath-3_2", "Imath-3_2_d"],
+    &["pystring"],
+    &["minizip-ng"],
+    &["zlibstatic", "zlib", "zlibstaticd", "zlibd"],
+];
+
+#[cfg(not(target_os = "windows"))]
+const TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
+    "expat",
+    "yaml-cpp",
+    "Imath-3_2",
+    "pystring",
+    "minizip-ng",
+    "z",
+];
+
+#[cfg(target_os = "macos")]
+const MACOS_STATIC_FRAMEWORKS: [&str; 4] = ["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"];
+
+#[cfg(target_os = "windows")]
+fn select_windows_static_lib<'a>(link_paths: &[PathBuf], candidates: &'a [&str]) -> &'a str {
+    candidates
+        .iter()
+        .copied()
+        .find(|candidate| {
+            let file_name = format!("{candidate}.lib");
+            link_paths.iter().any(|dir| dir.join(&file_name).exists())
+        })
+        .or_else(|| candidates.first().copied())
+        .expect("every static dependency has at least one candidate")
+}
+
 // See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
 // so pkg-config can't find them and they're linked explicitly instead.
 #[cfg(all(feature = "bundled", target_os = "windows"))]
@@ -521,14 +696,7 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
 // so pkg-config can't find them and they're linked explicitly instead.
 #[cfg(all(feature = "bundled", not(target_os = "windows")))]
 fn add_transitive_static_libs(lib: &mut system_deps::Library) {
-    for name in [
-        "expat",
-        "yaml-cpp",
-        "Imath-3_2",
-        "pystring",
-        "minizip-ng",
-        "z",
-    ] {
+    for name in TRANSITIVE_STATIC_LIBRARIES {
         lib.libs.push(system_deps::InternalLib {
             name: name.to_string(),
             is_static_available: true,
@@ -541,7 +709,7 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
     // when the archive is consumed directly.
     #[cfg(target_os = "macos")]
     lib.frameworks
-        .extend(["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"].map(String::from));
+        .extend(MACOS_STATIC_FRAMEWORKS.map(String::from));
 }
 
 // Called by add_transitive_static_libs above: picks whichever candidate .lib
@@ -549,23 +717,11 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
 // differently), since pkg-config has no record of these libs to consult.
 #[cfg(all(feature = "bundled", target_os = "windows"))]
 fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candidates: &[&str]) {
-    for candidate in candidates {
-        let file_name = format!("{candidate}.lib");
-        if link_paths.iter().any(|dir| dir.join(&file_name).exists()) {
-            lib.libs.push(system_deps::InternalLib {
-                name: candidate.to_string(),
-                is_static_available: true,
-            });
-            return;
-        }
-    }
-
-    if let Some(candidate) = candidates.first() {
-        lib.libs.push(system_deps::InternalLib {
-            name: candidate.to_string(),
-            is_static_available: true,
-        });
-    }
+    let candidate = select_windows_static_lib(link_paths, candidates);
+    lib.libs.push(system_deps::InternalLib {
+        name: candidate.to_string(),
+        is_static_available: true,
+    });
 }
 
 fn env_flag(name: &str) -> bool {
@@ -642,7 +798,7 @@ fn find_msvc_include() -> Option<PathBuf> {
     None
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(all(feature = "bundled", target_os = "windows"))]
 fn find_msvc_compiler() -> Option<PathBuf> {
     let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
     for year in &["2022", "2019"] {
