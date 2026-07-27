@@ -13,6 +13,7 @@ use std::path::Path;
 #[cfg(feature = "bundled")]
 const BUNDLED_OCIO_VERSION: &str = "2.5.2";
 const OPENCOLORIO_DEPENDENCY_NAME: &str = "opencolorio";
+const OPENCOLORIO_LIB_NAME: &str = "OpenColorIO";
 const OPENCOLORIO_PKG_CONFIG_FILES: [&str; 2] = ["OpenColorIO.pc", "opencolorio.pc"];
 
 fn main() {
@@ -101,7 +102,9 @@ fn main() {
             for path in install.link_paths {
                 push_existing_path(&mut transitive_link_paths, path);
             }
-            emit_transitive_static_deps(&transitive_link_paths);
+            if resolved_static_opencolorio(lib, &transitive_link_paths) {
+                emit_transitive_static_deps(&transitive_link_paths);
+            }
         }
 
         true
@@ -639,6 +642,22 @@ fn copy_runtime_dlls_to_cargo_target_dirs(runtime_paths: &[PathBuf]) {
 
 #[cfg(not(target_os = "windows"))]
 fn copy_runtime_dlls_to_cargo_target_dirs(_runtime_paths: &[PathBuf]) {}
+
+// OpenColorIO's `.pc` file omits its private dependencies, so a static OCIO has
+// to spell them out. Only do that when OCIO itself actually resolved to a static
+// archive: a prefix shipping only a shared library (Homebrew, most distros)
+// satisfies `OCIO_RS_LINK=static` dynamically, and emitting `static=expat`
+// against it fails the link with "could not find native static library".
+fn resolved_static_opencolorio(lib: &system_deps::Library, link_paths: &[PathBuf]) -> bool {
+    if !lib.libs.is_empty() {
+        return lib.libs.iter().any(|entry| entry.is_static_available);
+    }
+
+    // The legacy OCIO_INSTALL_DIR layout bypasses pkg-config, so system-deps
+    // reports no per-library detail and the archive has to be found on disk.
+    let file_name = static_library_file_name(OPENCOLORIO_LIB_NAME);
+    link_paths.iter().any(|dir| dir.join(&file_name).exists())
+}
 
 fn emit_transitive_static_deps(link_paths: &[PathBuf]) {
     for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {

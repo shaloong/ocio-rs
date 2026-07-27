@@ -365,6 +365,51 @@ fn static_system_install_detects_transitive_dependency_names() {
     }
 }
 
+#[test]
+fn shared_only_system_install_skips_transitive_static_deps() {
+    let fixture = ProbeFixture::new(false);
+    // Homebrew and most distributions ship OpenColorIO as a shared library only.
+    // `OCIO_RS_LINK` still defaults to static, but the probe can only satisfy it
+    // dynamically, so the private dependencies must not be requested as archives.
+    fs::remove_file(fixture.lib_dir.join(if cfg!(target_os = "windows") {
+        "OpenColorIO.lib"
+    } else {
+        "libOpenColorIO.a"
+    }))
+    .unwrap();
+    fs::write(
+        fixture.lib_dir.join(if cfg!(target_os = "windows") {
+            "OpenColorIO.dll"
+        } else if cfg!(target_os = "macos") {
+            "libOpenColorIO.dylib"
+        } else {
+            "libOpenColorIO.so"
+        }),
+        [],
+    )
+    .unwrap();
+
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_RS_ENABLE_REAL", "1")
+            .env("OCIO_RS_LINK", "static");
+    });
+    let text = output_text(&output);
+
+    assert!(
+        output.status.success(),
+        "a shared-only system OpenColorIO should still be probeable:\n{text}"
+    );
+
+    for library in ["expat", "yaml-cpp", "pystring"] {
+        let directive = format!("rustc-link-lib=static={library}");
+        assert!(
+            !text.lines().any(|line| line.ends_with(&directive)),
+            "a shared-only system OpenColorIO must not request {library} as a static archive:\n{text}"
+        );
+    }
+}
+
 fn prepare_headers(ocio_sys_dir: &Path, include_dir: &Path) {
     let source = ocio_sys_dir
         .join("vendor")
