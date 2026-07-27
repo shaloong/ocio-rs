@@ -451,3 +451,79 @@ fn output_text(output: &Output) -> String {
         String::from_utf8_lossy(&output.stderr)
     )
 }
+
+#[test]
+fn default_build_links_an_installed_opencolorio_without_opt_in() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|_| {});
+    let text = output_text(&output);
+
+    assert!(
+        output.status.success(),
+        "an installed OpenColorIO should be usable without OCIO_RS_ENABLE_REAL:\n{text}"
+    );
+    assert!(
+        !text.contains("rustc-cfg=ocio_stub"),
+        "an installed OpenColorIO should not fall back to the stub:\n{text}"
+    );
+}
+
+#[test]
+fn default_build_falls_back_to_the_stub_when_no_opencolorio_is_installed() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|command| {
+        command.env("FAKE_PKG_CONFIG_FAIL", "1");
+    });
+    let text = output_text(&output);
+
+    assert!(
+        output.status.success(),
+        "a machine without OpenColorIO should still build the crate:\n{text}"
+    );
+    assert!(
+        text.contains("rustc-cfg=ocio_stub"),
+        "the stub fallback should advertise itself through the ocio_stub cfg:\n{text}"
+    );
+    assert!(
+        text.contains("No usable OpenColorIO was found"),
+        "the stub fallback should say why it happened:\n{text}"
+    );
+}
+
+#[test]
+fn enable_real_turns_a_failed_probe_into_an_error() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_RS_ENABLE_REAL", "1")
+            .env("FAKE_PKG_CONFIG_FAIL", "1");
+    });
+    let text = output_text(&output);
+
+    assert!(
+        !output.status.success(),
+        "OCIO_RS_ENABLE_REAL should refuse to silently produce a stub:\n{text}"
+    );
+    assert!(
+        text.contains("OCIO_RS_ENABLE_REAL is set"),
+        "the failure should name what made a real OpenColorIO mandatory:\n{text}"
+    );
+}
+
+#[test]
+fn enable_real_set_to_a_false_value_forces_the_stub() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|command| {
+        command.env("OCIO_RS_ENABLE_REAL", "0");
+    });
+    let text = output_text(&output);
+
+    assert!(
+        output.status.success(),
+        "OCIO_RS_ENABLE_REAL=0 should build:\n{text}"
+    );
+    assert!(
+        text.contains("rustc-cfg=ocio_stub"),
+        "OCIO_RS_ENABLE_REAL=0 should force the stub even where OpenColorIO is installed:\n{text}"
+    );
+}

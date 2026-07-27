@@ -19,11 +19,7 @@ const OPENCOLORIO_PKG_CONFIG_FILES: [&str; 2] = ["OpenColorIO.pc", "opencolorio.
 fn main() {
     let link_mode = LinkMode::from_env();
 
-    // Real OCIO is enabled when:
-    // 1. OCIO_RS_ENABLE_REAL=1 is explicitly set (manual override), OR
-    // 2. The "bundled" feature is active (enables the from-source build fallback)
-    let is_bundled = env::var_os("CARGO_FEATURE_BUNDLED").is_some();
-    let enable_real_ocio = env_flag("OCIO_RS_ENABLE_REAL") || is_bundled;
+    let real_ocio = RealOcio::from_env();
 
     let mut include_paths = Vec::<PathBuf>::new();
 
@@ -33,11 +29,8 @@ fn main() {
     let runtime_dll_dirs = Rc::new(RefCell::new(Vec::<PathBuf>::new()));
     let built_internally = Rc::new(Cell::new(false));
 
-    let has_real_ocio = if !enable_real_ocio {
-        println!("cargo:warning=OCIO_RS_ENABLE_REAL is not set; building ocio-sys in stub mode.");
-        println!(
-            "cargo:warning=Enable the 'bundled' feature, or set OCIO_RS_ENABLE_REAL=1, for real OCIO."
-        );
+    let has_real_ocio = if real_ocio.is_disabled() {
+        println!("cargo:warning=OCIO_RS_ENABLE_REAL is set to a false value; building ocio-sys in stub mode.");
         false
     } else {
         let install = configure_install_dir(link_mode, &runtime_dll_dirs);
@@ -90,24 +83,37 @@ fn main() {
             )
         };
 
-        let deps = config
-            .probe()
-            .expect("system-deps failed to resolve the opencolorio dependency");
-        let lib = deps
-            .get_by_name(OPENCOLORIO_DEPENDENCY_NAME)
-            .expect("system-deps should always resolve opencolorio when real OCIO is enabled");
-        include_paths.extend(lib.include_paths.iter().cloned());
-        if link_mode.is_static() && !built_internally.get() {
-            let mut transitive_link_paths = lib.link_paths.clone();
-            for path in install.link_paths {
-                push_existing_path(&mut transitive_link_paths, path);
+        // A missing or too-old OpenColorIO is only fatal when this build was
+        // asked for one. Left to itself the crate falls back to the stub so
+        // `cargo build` still works on a machine without OCIO, which is what
+        // docs.rs relies on.
+        match config.probe() {
+            Ok(deps) => {
+                let lib = deps.get_by_name(OPENCOLORIO_DEPENDENCY_NAME).expect(
+                    "system-deps should always resolve opencolorio when the probe succeeds",
+                );
+                include_paths.extend(lib.include_paths.iter().cloned());
+                if link_mode.is_static() && !built_internally.get() {
+                    let mut transitive_link_paths = lib.link_paths.clone();
+                    for path in install.link_paths {
+                        push_existing_path(&mut transitive_link_paths, path);
+                    }
+                    if resolved_static_opencolorio(lib, &transitive_link_paths) {
+                        emit_transitive_static_deps(&transitive_link_paths);
+                    }
+                }
+
+                true
             }
-            if resolved_static_opencolorio(lib, &transitive_link_paths) {
-                emit_transitive_static_deps(&transitive_link_paths);
+            Err(error) if real_ocio.is_required() => {
+                panic!("{}", required_ocio_failure(&real_ocio, &error));
+            }
+            Err(error) => {
+                warn_stub_fallback(&error);
+                include_paths.clear();
+                false
             }
         }
-
-        true
     };
 
     if cfg!(target_os = "windows") && link_mode.is_dynamic() {
@@ -192,6 +198,11 @@ fn main() {
     println!("cargo:rerun-if-env-changed=OCIO_INSTALL_DIR");
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
     println!("cargo:rerun-if-env-changed=OCIO_RS_LINK");
+    // Cargo cannot watch pkg-config's view of the system, so a stub fallback
+    // survives installing OpenColorIO afterwards. These cover the usual ways of
+    // pointing the probe somewhere new; see DEVELOPMENT.md for the rest.
+    println!("cargo:rerun-if-env-changed=PKG_CONFIG");
+    println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH");
 }
 
 fn configure_install_dir(
@@ -780,6 +791,86 @@ fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candid
         name: candidate.to_string(),
         is_static_available: true,
     });
+}
+
+/// How hard this build should try to reach a real OpenColorIO.
+///
+/// The default is `Preferred`: probe for an installed OCIO and use it when one
+/// is there, otherwise fall back to the stub so a machine without OCIO can
+/// still build the crate. Anything that states an intent (`--features bundled`,
+/// `OCIO_RS_ENABLE_REAL=1`, or pointing `OCIO_INSTALL_DIR` at a prefix) makes a
+/// failed probe fatal instead, so a misconfigured environment fails loudly
+/// rather than quietly producing a stub that no longer tests anything.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RealOcio {
+    Required(RequiredBecause),
+    Preferred,
+    Disabled,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RequiredBecause {
+    BundledFeature,
+    EnableRealFlag,
+    InstallDir,
+}
+
+impl RealOcio {
+    fn from_env() -> Self {
+        if env::var_os("CARGO_FEATURE_BUNDLED").is_some() {
+            return Self::Required(RequiredBecause::BundledFeature);
+        }
+        match env::var("OCIO_RS_ENABLE_REAL") {
+            Ok(_) if env_flag("OCIO_RS_ENABLE_REAL") => {
+                Self::Required(RequiredBecause::EnableRealFlag)
+            }
+            // Explicitly switched off: force the stub even where OCIO is installed.
+            Ok(_) => Self::Disabled,
+            Err(_) if env::var_os("OCIO_INSTALL_DIR").is_some() => {
+                Self::Required(RequiredBecause::InstallDir)
+            }
+            Err(_) => Self::Preferred,
+        }
+    }
+
+    fn is_required(self) -> bool {
+        matches!(self, Self::Required(_))
+    }
+
+    fn is_disabled(self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+}
+
+fn required_ocio_failure(real_ocio: &RealOcio, error: &system_deps::Error) -> String {
+    let asked_by = match real_ocio {
+        RealOcio::Required(RequiredBecause::BundledFeature) => "the 'bundled' feature is enabled",
+        RealOcio::Required(RequiredBecause::EnableRealFlag) => "OCIO_RS_ENABLE_REAL is set",
+        RealOcio::Required(RequiredBecause::InstallDir) => "OCIO_INSTALL_DIR is set",
+        _ => "a real OpenColorIO was requested",
+    };
+    format!(
+        "{asked_by}, so ocio-sys requires a usable OpenColorIO, but resolving one failed.\n\
+         Unset it to fall back to stub mode instead.\n\n{error}"
+    )
+}
+
+fn warn_stub_fallback(error: &system_deps::Error) {
+    println!("cargo:warning=No usable OpenColorIO was found; building ocio-sys in stub mode.");
+    // cargo:warning is line-oriented, so a multi-line probe error has to be split.
+    for line in error
+        .to_string()
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+    {
+        println!("cargo:warning=  {line}");
+    }
+    println!(
+        "cargo:warning=Install OpenColorIO and rebuild, or use --features bundled to build it from source."
+    );
+    println!(
+        "cargo:warning=Set OCIO_RS_ENABLE_REAL=1 to make this a hard error instead of a stub build."
+    );
 }
 
 fn env_flag(name: &str) -> bool {

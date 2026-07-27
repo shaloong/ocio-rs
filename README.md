@@ -39,10 +39,11 @@ ocio-rs = "0.2"
 
 ## Build
 
-**Stub mode** (default): compiles and tests run without an OCIO installation.
-APIs return safe defaults for API-shape testing and CI, but do not perform real
-color management. Real application use should rely on installed or bundled OCIO
-mode.
+`cargo build` uses an installed OpenColorIO when it finds one, and otherwise
+warns and falls back to **stub mode**, where APIs return safe defaults for
+API-shape testing and CI but perform no real color management. Stub builds
+report their OCIO-dependent tests as ignored rather than passed, so a green run
+is never mistaken for a verified one.
 
 ```bash
 cargo build
@@ -60,13 +61,19 @@ cargo build --features bundled
 OCIO_RS_LINK=dynamic cargo build --features bundled
 
 # Use a pre-installed OCIO discoverable through pkg-config
+cargo build
+
+# Same, but fail rather than fall back to the stub when none is usable
 OCIO_RS_ENABLE_REAL=1 cargo build
 
 # Use a pre-installed OCIO from a custom prefix
-OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+OCIO_INSTALL_DIR=/path/to/ocio cargo build
 
 # Use a pre-installed shared OCIO library instead of static libs
-OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
+OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
+
+# Force stub mode even where OCIO is installed
+OCIO_RS_ENABLE_REAL=0 cargo build
 ```
 
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting

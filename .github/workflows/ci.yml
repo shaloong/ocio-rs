@@ -13,6 +13,11 @@ permissions:
 jobs:
   stub:
     name: Stub (${{ matrix.os }})
+    # Pin the mode: the build now probes for an installed OpenColorIO by
+    # default, so without this a runner image that gains OCIO would silently
+    # stop exercising the stub.
+    env:
+      OCIO_RS_ENABLE_REAL: 0
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +43,8 @@ jobs:
   stub-audit:
     name: Stub Audit (ubuntu-latest)
     runs-on: ubuntu-latest
+    env:
+      OCIO_RS_ENABLE_REAL: 0
     steps:
       - uses: actions/checkout@v4
         with:

@@ -16,6 +16,7 @@ jobs:
       CFLAGS: -fsanitize=address -fno-omit-frame-pointer
       CXXFLAGS: -fsanitize=address -fno-omit-frame-pointer
       RUSTFLAGS: -Zsanitizer=address -C debuginfo=1
+      OCIO_RS_ENABLE_REAL: 0
     steps:
       - uses: actions/checkout@v4
         with:
