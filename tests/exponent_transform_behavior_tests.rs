@@ -32,6 +32,7 @@ fn configured_exponent_transform() -> ExponentTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exponent_transform_value_copy_and_direction_behavior() {
     let _guard = exponent_transform_test_lock();
     if is_stub() {
@@ -77,6 +78,7 @@ fn exponent_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exponent_transform_invalid_negative_style_surfaces_error() {
     let _guard = exponent_transform_test_lock();
     if is_stub() {
@@ -98,6 +100,7 @@ fn exponent_transform_invalid_negative_style_surfaces_error() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exponent_transform_positive_domain_processor_behavior() {
     let _guard = exponent_transform_test_lock();
     if is_stub() {

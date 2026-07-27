@@ -25,6 +25,7 @@ fn known_builtin_style() -> &'static str {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_transform_style_description_and_copy_behavior() {
     let _guard = builtin_transform_test_lock();
     if is_stub() {
@@ -64,6 +65,7 @@ fn builtin_transform_style_description_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_transform_invalid_style_surfaces_error_behavior() {
     let _guard = builtin_transform_test_lock();
     if is_stub() {
@@ -81,6 +83,7 @@ fn builtin_transform_invalid_style_surfaces_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_transform_processor_round_trip_behavior() {
     let _guard = builtin_transform_test_lock();
     if is_stub() {

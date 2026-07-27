@@ -58,6 +58,7 @@ fn scaled_color_space(
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_metadata_alias_category_round_trip_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -113,6 +114,7 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_attached_transform_and_copy_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -168,6 +170,7 @@ fn color_space_attached_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_config_registration_lookup_and_processor_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -248,6 +251,7 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_interop_and_interchange_errors_surface_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {

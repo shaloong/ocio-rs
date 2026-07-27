@@ -22,6 +22,7 @@ fn grading_tone_transform_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_tone_default_style_dynamic_and_copy_behavior() {
     let _guard = grading_tone_transform_test_lock();
     if is_stub() {
@@ -82,6 +83,7 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_tone_legacy_value_handle_survives_parent_drop() {
     let _guard = grading_tone_transform_test_lock();
     if is_stub() {
@@ -152,6 +154,7 @@ fn grading_tone_legacy_value_handle_survives_parent_drop() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_tone_try_setters_surface_errors() {
     let _guard = grading_tone_transform_test_lock();
     if is_stub() {

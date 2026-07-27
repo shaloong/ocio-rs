@@ -39,6 +39,7 @@ fn configured_lut1d_transform() -> Lut1DTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_value_copy_and_direction_behavior() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {
@@ -96,6 +97,7 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_rejects_invalid_write_inputs() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {
@@ -119,6 +121,7 @@ fn lut1d_transform_rejects_invalid_write_inputs() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_processor_behavior() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {

@@ -27,6 +27,7 @@ fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_version_and_logging_helper_behavior() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
@@ -108,6 +109,7 @@ fn global_logging_and_environment_helpers_preserve_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
@@ -127,6 +129,7 @@ fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
@@ -158,6 +161,7 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_compute_hash_callback_panic_does_not_cross_ffi() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
@@ -188,6 +192,7 @@ fn global_compute_hash_callback_panic_does_not_cross_ffi() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_version_mutation_and_upgrade_behavior() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {
@@ -223,6 +228,7 @@ fn config_version_mutation_and_upgrade_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_version_mutation_surfaces_invalid_version_errors() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {

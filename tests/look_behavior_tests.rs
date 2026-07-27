@@ -88,6 +88,7 @@ fn configured_look_pipeline() -> Config {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_metadata_transform_and_copy_behavior() {
     let _guard = look_test_lock();
     if is_stub() {
@@ -153,6 +154,7 @@ fn look_metadata_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_display_pipeline_and_looks_bypass_behavior() {
     let _guard = look_test_lock();
     if is_stub() {
@@ -228,6 +230,7 @@ fn look_display_pipeline_and_looks_bypass_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_interchange_attribute_errors_surface_behavior() {
     let _guard = look_test_lock();
     if is_stub() {

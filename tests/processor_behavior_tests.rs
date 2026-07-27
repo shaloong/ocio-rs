@@ -44,6 +44,7 @@ fn extract_shader_text(
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_group_transform_and_metadata_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
@@ -136,6 +137,7 @@ fn processor_group_transform_and_metadata_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn missing_dynamic_property_surfaces_ocio_error_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
@@ -166,6 +168,7 @@ fn missing_dynamic_property_surfaces_ocio_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
@@ -355,6 +358,7 @@ fn processor_cpu_and_gpu_helpers_match_scaled_matrix_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_execution_handles_survive_parent_drop_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
@@ -387,6 +391,7 @@ fn processor_execution_handles_survive_parent_drop_behavior() {
 
 #[allow(deprecated)]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_legacy_gpu_helper_emits_real_shader_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {

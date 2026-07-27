@@ -30,6 +30,7 @@ fn unique_temp_path(label: &str, extension: &str) -> PathBuf {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_property_round_trip_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -64,6 +65,7 @@ fn baker_property_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_static_format_registry_contains_resolve_cube_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -90,6 +92,7 @@ fn baker_static_format_registry_contains_resolve_cube_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_bake_to_string_and_file_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -123,6 +126,7 @@ fn baker_bake_to_string_and_file_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_invalid_format_reports_error_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -140,6 +144,7 @@ fn baker_invalid_format_reports_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_unconfigured_bake_surfaces_ocio_error_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {

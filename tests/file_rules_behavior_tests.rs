@@ -17,6 +17,7 @@ fn file_rules_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_rules_insert_rule_round_trip_behavior() {
     let _guard = file_rules_test_lock();
     if is_stub() {
@@ -71,6 +72,7 @@ fn file_rules_insert_rule_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_rules_regex_and_custom_keys_round_trip_behavior() {
     let _guard = file_rules_test_lock();
     if is_stub() {
@@ -118,6 +120,7 @@ fn file_rules_regex_and_custom_keys_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_file_rules_attachment_round_trip_behavior() {
     let _guard = file_rules_test_lock();
     if is_stub() {
@@ -142,6 +145,7 @@ fn config_file_rules_attachment_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_file_rules_drive_filepath_resolution_behavior() {
     let _guard = file_rules_test_lock();
     if is_stub() {
@@ -205,6 +209,7 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_rules_invalid_index_reports_error_behavior() {
     let _guard = file_rules_test_lock();
     if is_stub() {

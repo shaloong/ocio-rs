@@ -59,6 +59,7 @@ fn identity_color_space(name: &str) -> ColorSpace {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_metadata_category_and_interchange_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -95,6 +96,7 @@ fn view_transform_metadata_category_and_interchange_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_attached_transform_and_copy_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -135,6 +137,7 @@ fn view_transform_attached_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_display_pipeline_round_trip_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -201,6 +204,7 @@ fn view_transform_display_pipeline_round_trip_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_interchange_attribute_errors_surface_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {

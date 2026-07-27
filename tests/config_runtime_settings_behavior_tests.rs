@@ -24,6 +24,7 @@ fn config_runtime_settings_test_lock() -> MutexGuard<'static, ()> {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_active_display_view_environment_and_cache_flag_behavior() {
     let _guard = config_runtime_settings_test_lock();
     if is_stub() {
@@ -110,6 +111,7 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_current_config_and_processor_cache_flag_behavior() {
     let _guard = config_runtime_settings_test_lock();
     if is_stub() {
@@ -145,6 +147,7 @@ fn global_current_config_and_processor_cache_flag_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_active_display_view_mutation_errors_surface_behavior() {
     let _guard = config_runtime_settings_test_lock();
     if is_stub() {
@@ -190,6 +193,7 @@ fn config_active_display_view_mutation_errors_surface_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_default_display_view_compat_aliases_follow_active_lists_behavior() {
     let _guard = config_runtime_settings_test_lock();
     if is_stub() {

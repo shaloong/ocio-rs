@@ -29,6 +29,7 @@ fn test_data_path(rel: &str) -> PathBuf {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_transform_round_trip_and_copy_behavior() {
     let _guard = file_transform_test_lock();
     if is_stub() {
@@ -83,6 +84,7 @@ fn file_transform_round_trip_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_transform_clf_processor_behavior() {
     let _guard = file_transform_test_lock();
     if is_stub() {
@@ -129,6 +131,7 @@ fn file_transform_clf_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_transform_ccc_id_and_default_direction_behavior() {
     let _guard = file_transform_test_lock();
     if is_stub() {
@@ -177,6 +180,7 @@ fn file_transform_ccc_id_and_default_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn file_transform_validate_reports_real_ocio_errors() {
     let _guard = file_transform_test_lock();
     if is_stub() {

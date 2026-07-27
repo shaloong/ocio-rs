@@ -83,6 +83,7 @@ fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -145,6 +146,7 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_exposure_cpu_property_round_trip_and_output_behavior() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -190,6 +192,7 @@ fn dynamic_exposure_cpu_property_round_trip_and_output_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -260,6 +263,7 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -327,6 +331,7 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -432,6 +437,7 @@ fn dynamic_grading_rgb_curve_round_trip_between_processor_and_cpu() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -537,6 +543,7 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_property_type_mismatch_surfaces_invalid_input_behavior() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {
@@ -605,6 +612,7 @@ fn dynamic_property_type_mismatch_surfaces_invalid_input_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_property_curve_invalid_operations_surface_errors() {
     let _guard = dynamic_property_test_lock();
     if is_stub() {

@@ -97,6 +97,7 @@ fn populate_context_test_proxy(proxy: &ConfigIOProxy) {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     let _guard = config_io_proxy_test_lock();
     if is_stub() {
@@ -172,6 +173,7 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_io_proxy_embedded_context_config_processing_behavior() {
     let _guard = config_io_proxy_test_lock();
     if is_stub() {
@@ -251,6 +253,7 @@ fn config_io_proxy_embedded_context_config_processing_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_io_proxy_handle_survives_parent_drop_behavior() {
     let _guard = config_io_proxy_test_lock();
     if is_stub() {
@@ -299,6 +302,7 @@ fn config_io_proxy_handle_survives_parent_drop_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 #[allow(deprecated)]
 fn raw_config_io_proxy_handles_are_owned_and_destroyable_behavior() {
     let _guard = config_io_proxy_test_lock();

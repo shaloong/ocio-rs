@@ -69,6 +69,7 @@ fn scaling_named_transform(name: &str) -> NamedTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_collection_registration_and_usage_behavior() {
     let _guard = config_collection_test_lock();
     if is_stub() {
@@ -179,6 +180,7 @@ fn config_collection_registration_and_usage_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_collection_remove_and_clear_behavior() {
     let _guard = config_collection_test_lock();
     if is_stub() {
@@ -254,6 +256,7 @@ fn config_collection_remove_and_clear_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_collection_handles_survive_parent_drop_behavior() {
     let _guard = config_collection_test_lock();
     if is_stub() {
@@ -299,6 +302,7 @@ fn config_collection_handles_survive_parent_drop_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_collection_registration_errors_surface_behavior() {
     let _guard = config_collection_test_lock();
     if is_stub() {

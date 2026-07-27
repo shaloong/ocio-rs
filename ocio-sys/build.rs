@@ -140,8 +140,15 @@ fn main() {
         println!("cargo:rustc-link-lib=winspool");
     }
 
+    // Stub mode is a compile-time property of the build, so expose it as a cfg
+    // rather than only as the `is_stub_build()` runtime query. Dependents read
+    // it through the `links` metadata below, which is how the test suite marks
+    // its OCIO-dependent tests ignored instead of silently passing.
+    println!("cargo:rustc-check-cfg=cfg(ocio_stub)");
     if !has_real_ocio {
         build.define("OCIO_RS_STUB", None);
+        println!("cargo:rustc-cfg=ocio_stub");
+        println!("cargo:stub=1");
     }
 
     // MSVC standard headers (e.g. <stddef.h>) may not be found when cc-rs

@@ -64,6 +64,7 @@ fn extracted_dynamic_gpu_shader_desc() -> Option<(ocio_rs::Processor, GpuShaderD
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_config_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -150,6 +151,7 @@ fn gpu_shader_desc_config_round_trip_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -168,6 +170,7 @@ fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -259,6 +262,7 @@ fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_extraction_structural_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -368,6 +372,7 @@ fn gpu_shader_desc_extraction_structural_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_extracts_multiple_target_languages_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -415,6 +420,7 @@ fn gpu_shader_desc_extracts_multiple_target_languages_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_dynamic_property_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -500,6 +506,7 @@ fn gpu_shader_desc_dynamic_property_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -557,6 +564,7 @@ fn gpu_shader_desc_manual_shader_text_assembly_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -648,6 +656,7 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -741,6 +750,7 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
@@ -894,6 +904,7 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_real_config_extraction_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {

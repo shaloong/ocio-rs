@@ -50,6 +50,7 @@ fn virtual_view_names(
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_shared_view_and_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -158,6 +159,7 @@ fn config_shared_view_and_display_lifecycle_behavior() {
 
 #[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -296,6 +298,7 @@ fn config_virtual_display_lifecycle_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_display_mutation_errors_surface_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -362,6 +365,7 @@ fn config_display_mutation_errors_surface_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -382,6 +386,7 @@ fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() 
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_mutation_errors_surface_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {

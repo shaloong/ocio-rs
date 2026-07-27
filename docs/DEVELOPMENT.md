@@ -74,7 +74,32 @@ minizip-ng, zlib, plus platform system libs. With `--features bundled`, OCIO's
 cmake fetches and builds all transitive dependencies automatically. Dynamic
 linking only links the primary OpenColorIO library from Rust; the platform
 loader must be able to find the OCIO runtime library when tests or applications
-run.
+run. `static` is a preference, not a guarantee: a prefix that ships only a
+shared OpenColorIO satisfies the probe dynamically, and the transitive static
+dependencies above are then left out rather than requested as missing archives.
+
+## Stub mode and test reporting
+
+Without `--features bundled` or `OCIO_RS_ENABLE_REAL=1`, `ocio-sys` compiles the
+bridge with `-DOCIO_RS_STUB` and every entry point returns a dummy, so the crate
+builds on machines with no OpenColorIO at all. That is what docs.rs uses.
+
+A stub build cannot verify behavior, so it must not look like it did. The build
+script emits `cargo:rustc-cfg=ocio_stub`, republished to this crate through the
+`links = "OpenColorIO"` metadata as `cargo:stub=1`, and tests whose assertions
+all sit behind an `is_stub()` guard carry
+`#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]`:
+
+| Build | Reported |
+|-------|----------|
+| stub | 388 passed, 174 ignored |
+| system or bundled | 562+ passed, 0 ignored |
+
+Before this the two were indistinguishable, both reporting 561 passed, because
+the guards return early and an early return counts as a pass. The runtime guards
+stay in place as a safety net for `cargo test -- --ignored`.
+`stub_mode_reporting_tests.rs` asserts the cfg agrees with `is_stub_build()`, so
+the two cannot drift apart.
 
 ## Code Generator
 
