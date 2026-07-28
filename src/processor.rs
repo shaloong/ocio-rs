@@ -1229,9 +1229,9 @@ impl Drop for GPUProcessor {
 ///
 /// For manual shader assembly, the section-based helpers
 /// ([`add_to_function_shader_code`](Self::add_to_function_shader_code),
-/// [`add_to_parameter_declare_shader_code`](Self::add_to_parameter_declare_shader_code),
-/// etc.) and [`create_shader_text`](Self::create_shader_text) let you build
-/// the final shader string from OCIO-provided fragments.
+/// `add_to_parameter_declare_shader_code` (`v2_5` feature), etc.) and
+/// [`create_shader_text`](Self::create_shader_text) let you build the final
+/// shader string from OCIO-provided fragments.
 ///
 /// [`GpuLanguage`]: crate::GpuLanguage
 /// [`GPUProcessor::extract_shader_info`]: crate::GPUProcessor::extract_shader_info
