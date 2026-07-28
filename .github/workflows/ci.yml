@@ -72,6 +72,40 @@ jobs:
       - name: Package
         run: cargo package -p ocio-sys --allow-dirty
 
+  system-ocio:
+    # The one configuration that can catch API used without its version gate:
+    # a real install of the oldest supported OpenColorIO. The bundled build
+    # always carries the newest API and cannot. Fedora 43 ships 2.4.2.
+    name: System OpenColorIO 2.4 (fedora:43)
+    runs-on: ubuntu-latest
+    container: fedora:43
+    env:
+      # State the intent so a failed probe fails the job instead of
+      # silently falling back to the stub.
+      OCIO_RS_ENABLE_REAL: 1
+    steps:
+      - name: Install native dependencies
+        run: dnf install -y gcc-c++ git pkgconf-pkg-config OpenColorIO-devel rust cargo
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Test against the system OpenColorIO
+        # Real-OCIO suites exercise process-global config/env/cache paths,
+        # so run serially like the bundled job.
+        run: cargo test --workspace -- --test-threads=1
+
+      - name: Test examples
+        run: cargo test --examples
+
+      - name: Check v2_5 is rejected by a 2.4 install
+        run: |
+          if cargo check -p ocio-sys --features v2_5; then
+            echo "the v2_5 feature built against OpenColorIO 2.4: version gating is broken"
+            exit 1
+          fi
+
   bundled:
     name: Bundled (${{ matrix.os }})
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

@@ -210,6 +210,12 @@ Current CI (`ci.yml`) runs:
 - `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features`
 - `cargo package -p ocio-sys --allow-dirty`
 
+A `fedora:43` container job builds and tests against the distro OpenColorIO
+2.4.2, the oldest supported release, on every push. This is the
+configuration that catches API used without its version gate (the bundled
+build always has the newest API and cannot), and it also asserts that the
+`v2_5` feature fails against a 2.4 install.
+
 Bundled real-OCIO validation runs weekly and through `workflow_dispatch` on
 Linux, macOS, and Windows:
 
