@@ -16,7 +16,6 @@ jobs:
       CFLAGS: -fsanitize=address -fno-omit-frame-pointer
       CXXFLAGS: -fsanitize=address -fno-omit-frame-pointer
       RUSTFLAGS: -Zsanitizer=address -C debuginfo=1
-      OCIO_RS_ENABLE_REAL: 0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,4 +27,4 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
 
       - name: Test with AddressSanitizer
-        run: cargo test --workspace --no-default-features
+        run: cargo test --workspace --no-default-features --features v2_5
