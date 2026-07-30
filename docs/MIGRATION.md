@@ -171,15 +171,22 @@ The same treatment now applies to `Config` helpers that require external OCIO co
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
 
-`cargo build` without flags now links an installed OpenColorIO when pkg-config
-finds one, and falls back to stub mode with a warning when it does not, instead
-of always producing a stub. `OCIO_RS_ENABLE_REAL=1`, `OCIO_INSTALL_DIR`, and
-`--features bundled` make a failed probe a hard error; `OCIO_RS_ENABLE_REAL=0`
-forces the stub. Installed packages must be in the supported `>= 2.4, < 2.6`
-line (`>= 2.5, < 2.6` with the `v2_5` feature). `OCIO_SOURCE_DIR` alone does not
+`cargo build` without a backend feature remains deterministic stub mode.
+Use `--features system` for an installed OpenColorIO or `--features bundled`
+for the vendored source build. The features are additive: `bundled` takes
+precedence if Cargo unifies both, and real backends never silently fall back.
+`OCIO_RS_ENABLE_REAL=0/1` remains a legacy adapter.
+Installed packages must be in the supported `>= 2.4.1, < 2.6` line
+(`>= 2.5.1, < 2.6` with the `v2_5` feature). `OCIO_SOURCE_DIR` alone does not
 enable real OCIO mode. The published `ocio-sys` crate vendors the upstream OpenColorIO
 source tree and transitive dependencies, and the packaged crate is validated
 with `cargo build --features bundled --offline`.
+
+GPU texture binding indexes and uniform-buffer offsets are now optional
+metadata. OpenColorIO 2.4 performs texture insertion but cannot report these
+2.5.1 additions, so `GpuTexture2D::binding_index`,
+`GpuTexture3D::binding_index`, and `GpuUniform::buffer_offset` are `Option`
+values, and manual texture insertion returns `Result<Option<u32>>`.
 
 ### Legacy GPU optimization
 

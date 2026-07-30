@@ -7,7 +7,7 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This project supports OpenColorIO 2.4+ (OCIO 2.5 API is opt-in via the `v2_5`
+This project supports OpenColorIO 2.4.1+ (OCIO 2.5.1 API is opt-in via the `v2_5`
 cargo feature; see Compatibility below). The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
 across the exposed API surface, and broad safe-wrapper coverage. The remaining
@@ -39,9 +39,9 @@ ocio-rs = "0.2"
 
 ## Build
 
-`cargo build` uses an installed OpenColorIO when it finds one, and otherwise
-warns and falls back to **stub mode**, where APIs return safe defaults for
-API-shape testing and CI but perform no real color management. Stub builds
+`cargo build` uses deterministic **stub mode** by default, where APIs return
+safe defaults for API-shape testing and CI but perform no real color
+management. Stub builds
 report their OCIO-dependent tests as ignored rather than passed, so a green run
 is never mistaken for a verified one.
 
@@ -61,38 +61,45 @@ cargo build --features bundled
 OCIO_RS_LINK=dynamic cargo build --features bundled
 
 # Use a pre-installed OCIO discoverable through pkg-config
-cargo build
+cargo build --features system
 
-# Same, but fail rather than fall back to the stub when none is usable
+# Legacy equivalent retained for compatibility
 OCIO_RS_ENABLE_REAL=1 cargo build
 
 # Use a pre-installed OCIO from a custom prefix
-OCIO_INSTALL_DIR=/path/to/ocio cargo build
+OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 
 # Use a pre-installed shared OCIO library instead of static libs
-OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
+OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features system
 
-# Force stub mode even where OCIO is installed
+# Force the default stub backend explicitly for legacy scripts
 OCIO_RS_ENABLE_REAL=0 cargo build
 ```
 
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
 
-Installed mode accepts OpenColorIO `>= 2.4, < 2.6`, raised to `>= 2.5, < 2.6`
-by the `v2_5` feature. It first probes
+Installed mode accepts OpenColorIO `>= 2.4.1, < 2.6`, raised to
+`>= 2.5.1, < 2.6` by the `v2_5` feature. It first probes
 `opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
 the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
 directories; for older installations without a `.pc` file, the conventional
 `include`, `lib`, and `lib64` layout remains supported. `PKG_CONFIG_PATH` can
 also be set directly.
 
+Backend features are additive, as Cargo requires for dependency unification:
+no backend feature is deterministic stub mode, `system` requires an installed
+library, and `bundled` adds the source-build Adapter and takes precedence when
+combined with `system`. `OCIO_RS_ENABLE_REAL=0/1` remains as a legacy adapter,
+but invalid values and conflicts with real-backend features fail the build.
+
 The `bundled` feature builds the vendored source by default, preserving its
 historical behavior. Set
 `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` to prefer a compatible installed
 OpenColorIO and fall back to the bundled source only when probing fails.
-The pkg-config discovery and bundled paths require a `pkg-config` executable;
-on Windows, `pkgconfiglite` is sufficient and is what the CI workflow uses.
+Installed-library discovery requires a `pkg-config` executable. The bundled
+source build describes its own install prefix directly and does not require
+pkg-config, including on Windows.
 
 `OCIO_RS_LINK` defaults to `static` for compatibility. Set it to `dynamic`
 (`shared` and `dylib` are also accepted) when `OCIO_INSTALL_DIR` points at an
@@ -129,15 +136,15 @@ ocio-rs/
 
 ## Compatibility
 
-The baseline API works with any OpenColorIO >= 2.4. API added in newer OCIO
+The baseline API works with any OpenColorIO >= 2.4.1. API added in newer OCIO
 versions is opt-in through additive `vX_Y` cargo features; enabling one raises
 the version requirement checked against the OpenColorIO resolved at build
 time, failing with a clear error on mismatch.
 
 | feature | OCIO API level | gates                                                        |
 | ------- | -------------- | ------------------------------------------------------------ |
-| (none)  | 2.4            | everything else                                               |
-| `v2_5`  | 2.5            | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
+| (none)  | 2.4.1          | everything else                                               |
+| `v2_5`  | 2.5.1          | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
 
 Vendored OCIO per release:
 
