@@ -270,6 +270,7 @@ mod tests {
 
     #[cfg(feature = "v2_5")]
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn interchange_attribute_real_round_trip() {
         if crate::is_stub_build() {
             return;

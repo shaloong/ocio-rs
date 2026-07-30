@@ -16,6 +16,15 @@ fn normalized(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+fn version_tuple(value: &str) -> (u32, u32, u32) {
+    let mut parts = value.split('.').map(|part| part.parse::<u32>().unwrap_or(0));
+    (
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+    )
+}
+
 fn main() {
     if env::var_os("FAKE_PKG_CONFIG_FAIL").is_some() {
         eprintln!("fake pkg-config: requested probe failure");
@@ -47,8 +56,34 @@ fn main() {
             }
         }
     }
+    let version = env::var("FAKE_PKG_CONFIG_VERSION").unwrap_or_else(|_| "2.5.2".into());
+    let current = version_tuple(&version);
+    for arg in &args {
+        if let Some(required) = arg.strip_prefix("--atleast-version=") {
+            if current < version_tuple(required) {
+                process::exit(4);
+            }
+        }
+        let requirement = arg.split_whitespace().collect::<Vec<_>>();
+        if requirement.len() == 3 {
+            if requirement[1] == ">=" && current < version_tuple(requirement[2]) {
+                process::exit(4);
+            }
+            if requirement[1] == "<" && current >= version_tuple(requirement[2]) {
+                process::exit(4);
+            }
+        }
+    }
+    for requirement in args.windows(3) {
+        if requirement[1] == ">=" && current < version_tuple(&requirement[2]) {
+            process::exit(4);
+        }
+        if requirement[1] == "<" && current >= version_tuple(&requirement[2]) {
+            process::exit(4);
+        }
+    }
     if args.iter().any(|arg| arg == "--modversion") {
-        println!("2.5.2");
+        println!("{version}");
         return;
     }
 
@@ -74,6 +109,14 @@ struct ProbeFixture {
 
 impl ProbeFixture {
     fn new(enable_bundled: bool) -> Self {
+        if enable_bundled {
+            Self::with_features(&["bundled"])
+        } else {
+            Self::with_features(&[])
+        }
+    }
+
+    fn with_features(features: &[&str]) -> Self {
         let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
         let root = std::env::temp_dir().join(format!(
             "ocio-sys-build-configuration-{}-{id}",
@@ -82,13 +125,18 @@ impl ProbeFixture {
         fs::create_dir_all(root.join("src")).unwrap();
 
         let ocio_sys_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let dependency = if enable_bundled {
+        let dependency = if features.is_empty() {
+            format!("ocio-sys = {{ path = '{}' }}", toml_path(&ocio_sys_dir))
+        } else {
+            let features = features
+                .iter()
+                .map(|feature| format!("'{feature}'"))
+                .collect::<Vec<_>>()
+                .join(", ");
             format!(
-                "ocio-sys = {{ path = '{}', features = ['bundled'] }}",
+                "ocio-sys = {{ path = '{}', features = [{features}] }}",
                 toml_path(&ocio_sys_dir)
             )
-        } else {
-            format!("ocio-sys = {{ path = '{}' }}", toml_path(&ocio_sys_dir))
         };
         fs::write(
             root.join("Cargo.toml"),
@@ -163,6 +211,7 @@ impl ProbeFixture {
             .env("PKG_CONFIG", &self.fake_pkg_config)
             .env("FAKE_PKG_CONFIG_INCLUDE", &self.include_dir)
             .env("FAKE_PKG_CONFIG_LIB", &self.lib_dir)
+            .env("FAKE_PKG_CONFIG_VERSION", "2.5.2")
             .env_remove("PKG_CONFIG_PATH")
             .env_remove("FAKE_PKG_CONFIG_EXPECT_ARG")
             .env_remove("SYSTEM_DEPS_BUILD_INTERNAL")
@@ -303,7 +352,7 @@ fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
         "the deliberately missing source tree should stop the fallback"
     );
     assert!(
-        text.contains("OpenColorIO bundled build failed"),
+        text.contains("does not declare project(OpenColorIO)"),
         "auto mode should reach the registered bundled fallback:\n{text}"
     );
     assert!(
@@ -453,18 +502,18 @@ fn output_text(output: &Output) -> String {
 }
 
 #[test]
-fn default_build_links_an_installed_opencolorio_without_opt_in() {
+fn default_build_stays_stub_with_an_ambient_opencolorio() {
     let fixture = ProbeFixture::new(false);
     let output = fixture.cargo_check(|_| {});
     let text = output_text(&output);
 
     assert!(
         output.status.success(),
-        "an installed OpenColorIO should be usable without OCIO_RS_ENABLE_REAL:\n{text}"
+        "the deterministic default stub build should succeed:\n{text}"
     );
     assert!(
-        !text.contains("rustc-cfg=ocio_stub"),
-        "an installed OpenColorIO should not fall back to the stub:\n{text}"
+        text.contains("rustc-cfg=ocio_stub"),
+        "an ambient OpenColorIO installation must not change the default backend:\n{text}"
     );
 }
 
@@ -485,8 +534,8 @@ fn default_build_falls_back_to_the_stub_when_no_opencolorio_is_installed() {
         "the stub fallback should advertise itself through the ocio_stub cfg:\n{text}"
     );
     assert!(
-        text.contains("No usable OpenColorIO was found"),
-        "the stub fallback should say why it happened:\n{text}"
+        text.contains("building ocio-sys in stub mode"),
+        "the default should report the selected backend:\n{text}"
     );
 }
 
@@ -526,4 +575,67 @@ fn enable_real_set_to_a_false_value_forces_the_stub() {
         text.contains("rustc-cfg=ocio_stub"),
         "OCIO_RS_ENABLE_REAL=0 should force the stub even where OpenColorIO is installed:\n{text}"
     );
+}
+
+#[test]
+fn system_feature_requires_and_links_installed_opencolorio() {
+    let fixture = ProbeFixture::with_features(&["system"]);
+    let output = fixture.cargo_check(|_| {});
+    let text = output_text(&output);
+
+    assert!(
+        output.status.success(),
+        "the system feature should use a compatible installed OpenColorIO:\n{text}"
+    );
+    assert!(
+        !text.contains("rustc-cfg=ocio_stub"),
+        "the system feature must never fall back to the stub:\n{text}"
+    );
+}
+
+#[test]
+fn invalid_enable_real_value_is_rejected() {
+    let fixture = ProbeFixture::new(false);
+    let output = fixture.cargo_check(|command| {
+        command.env("OCIO_RS_ENABLE_REAL", "tru");
+    });
+    let text = output_text(&output);
+
+    assert!(!output.status.success(), "invalid backend intent must fail");
+    assert!(
+        text.contains("OCIO_RS_ENABLE_REAL must be one of"),
+        "the failure should identify the invalid setting:\n{text}"
+    );
+}
+
+#[test]
+fn baseline_accepts_2_4_1_and_rejects_2_4_0() {
+    for (version, should_succeed) in [("2.4.1", true), ("2.4.0", false)] {
+        let fixture = ProbeFixture::with_features(&["system"]);
+        let output = fixture.cargo_check(|command| {
+            command.env("FAKE_PKG_CONFIG_VERSION", version);
+        });
+        assert_eq!(
+            output.status.success(),
+            should_succeed,
+            "unexpected baseline result for OpenColorIO {version}:\n{}",
+            output_text(&output)
+        );
+    }
+}
+
+#[test]
+fn v2_5_accepts_2_5_1_and_rejects_2_5_0() {
+    for (version, should_succeed) in [("2.5.1", true), ("2.5.0", false)] {
+        let fixture = ProbeFixture::with_features(&["system", "v2_5"]);
+        let output = fixture.cargo_check(|command| {
+            command.env("FAKE_PKG_CONFIG_VERSION", version);
+        });
+        assert_eq!(
+            output.status.success(),
+            should_succeed,
+            "unexpected v2_5 result for OpenColorIO {version}:\n{}",
+            output_text(&output)
+        );
+    }
 }

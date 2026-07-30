@@ -17,6 +17,7 @@ pub struct OcioGpuTexture2DInfo {
     pub channel: i32,
     pub dimensions: i32,
     pub interpolation: i32,
+    pub has_binding_index: bool,
     pub binding_index: u32,
 }
 
@@ -26,6 +27,7 @@ pub struct OcioGpuTexture3DInfo {
     pub sampler_name: *const i8,
     pub edge_len: u32,
     pub interpolation: i32,
+    pub has_binding_index: bool,
     pub binding_index: u32,
 }
 
@@ -33,6 +35,7 @@ pub struct OcioGpuTexture3DInfo {
 pub struct OcioGpuUniformInfo {
     pub name: *const i8,
     pub type_: i32,
+    pub has_buffer_offset: bool,
     pub buffer_offset: usize,
     pub value_count: usize,
 }
@@ -281,7 +284,6 @@ unsafe extern "C" {
         description: *const i8,
     ) -> ();
     pub fn ocio_config_remove_shared_view(handle: *mut c_void, view: *const i8) -> ();
-    #[cfg(feature = "v2_5")]
     pub fn ocio_config_clear_shared_views(handle: *mut c_void) -> ();
     pub fn ocio_config_get_default_display(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_num_displays(handle: *mut c_void) -> i32;
@@ -1244,7 +1246,9 @@ unsafe extern "C" {
         interpolation: i32,
         values: *const f32,
         len: usize,
-    ) -> u32;
+        has_binding_index: *mut bool,
+        binding_index: *mut u32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_texture_info(
         handle: *mut c_void,
@@ -1266,7 +1270,9 @@ unsafe extern "C" {
         interpolation: i32,
         values: *const f32,
         len: usize,
-    ) -> u32;
+        has_binding_index: *mut bool,
+        binding_index: *mut u32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num3d_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get3d_texture_info(
         handle: *mut c_void,
@@ -1720,15 +1726,20 @@ unsafe extern "C" {
     pub fn ocio_grading_rgb_curve_transform_make_non_dynamic(handle: *mut c_void) -> ();
 
     // --- GradingHueCurveTransform ---
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_create() -> *mut c_void;
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_create_with_style(style: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_destroy(handle: *mut c_void);
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata(handle: *mut c_void)
         -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata_v2(
         handle: *mut c_void,
     ) -> *mut c_void;
@@ -1750,6 +1761,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         value: *mut c_void,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_destroy(handle: *mut c_void) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_num_control_points(

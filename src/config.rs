@@ -2491,16 +2491,12 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    #[cfg(feature = "v2_5")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn clear_shared_views(&self) {
         self.try_clear_shared_views()
             .expect("failed to clear shared views");
     }
 
     /// Clear every shared view and surface any OCIO validation error.
-    #[cfg(feature = "v2_5")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_clear_shared_views(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_config_clear_shared_views(self.handle.as_ptr()) };
@@ -3336,22 +3332,15 @@ impl Config {
 
     /// Clear all config collections and surface any OCIO validation error.
     ///
-    /// With OpenColorIO older than 2.5 (no `v2_5` feature), shared views and
-    /// the active display/view lists cannot be cleared through the OCIO API
-    /// and are left untouched.
     pub fn try_clear_all(&self) -> Result<()> {
         self.try_clear_color_spaces()?;
         self.try_clear_looks()?;
         self.try_clear_named_transforms()?;
         self.try_clear_view_transforms()?;
-        #[cfg(feature = "v2_5")]
         self.try_clear_shared_views()?;
         self.try_clear_displays()?;
-        #[cfg(feature = "v2_5")]
-        {
-            self.try_clear_active_displays()?;
-            self.try_clear_active_views()?;
-        }
+        self.set_active_displays("")?;
+        self.set_active_views("")?;
         Ok(())
     }
 
@@ -5001,6 +4990,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn config_io_proxy_object_no_crash() {
         if crate::is_stub_build() {
             return;
@@ -5014,6 +5004,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn create_from_config_io_proxy_real_behavior() {
         if crate::is_stub_build() {
             return;
