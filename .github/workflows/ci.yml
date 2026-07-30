@@ -124,7 +124,10 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
 
       - name: Select exact OpenColorIO source
-        run: git -C third_party/OpenColorIO checkout "v${{ matrix.ocio }}"
+        run: |
+          git -C third_party/OpenColorIO fetch --depth=1 origin \
+            "refs/tags/v${{ matrix.ocio }}:refs/tags/v${{ matrix.ocio }}"
+          git -C third_party/OpenColorIO checkout --detach "v${{ matrix.ocio }}"
 
       - name: Test exact minimum
         run: cargo test --workspace --no-default-features --features "${{ matrix.features }}" -- --test-threads=1
