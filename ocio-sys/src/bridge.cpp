@@ -7680,6 +7680,7 @@ bool ocio_gpu_shader_desc_add_texture(
     if (bindingIndex) *bindingIndex = result;
     return true;
 #else
+    (void)bindingIndex;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addTexture(
       textureName,
       samplerName,
@@ -7804,6 +7805,7 @@ bool ocio_gpu_shader_desc_add3d_texture(
     if (bindingIndex) *bindingIndex = result;
     return true;
 #else
+    (void)bindingIndex;
     ocio_rs_bridge::get_real_gpu_shader_desc(handle)->add3DTexture(
       textureName,
       samplerName,

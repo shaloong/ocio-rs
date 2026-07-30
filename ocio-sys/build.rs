@@ -527,9 +527,9 @@ fn build_ocio_from_source(
         // https://github.com/AcademySoftwareFoundation/OpenColorIO/pull/2328
         // ships in a vendored release.
         //
-        // Library file names vary by platform and build type; we emit the most
-        // common name for each. If a particular name is wrong, the linker will
-        // report which library is missing.
+        // Library file names vary by OpenColorIO release, platform, and build
+        // type, so select the candidate archive that the bundled build actually
+        // installed.
         add_transitive_static_libs(&mut lib);
     }
 
@@ -765,16 +765,6 @@ const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
     &["z"],
 ];
 
-#[cfg(all(feature = "bundled", not(target_os = "windows")))]
-const BUNDLED_TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
-    "expat",
-    "yaml-cpp",
-    "Imath-3_2",
-    "pystring",
-    "minizip-ng",
-    "z",
-];
-
 #[cfg(target_os = "macos")]
 const MACOS_STATIC_FRAMEWORKS: [&str; 4] = ["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"];
 
@@ -802,30 +792,11 @@ fn static_library_file_name(name: &str) -> String {
 
 // See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
 // so pkg-config can't find them and they're linked explicitly instead.
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(feature = "bundled")]
 fn add_transitive_static_libs(lib: &mut system_deps::Library) {
     let link_paths = lib.link_paths.clone();
-    add_static_lib(lib, &link_paths, &["libexpatMD", "expat", "libexpatdMD"]);
-    add_static_lib(lib, &link_paths, &["yaml-cpp", "yaml-cppd"]);
-    add_static_lib(lib, &link_paths, &["Imath-3_2", "Imath-3_2_d"]);
-    add_static_lib(lib, &link_paths, &["pystring"]);
-    add_static_lib(lib, &link_paths, &["minizip-ng"]);
-    add_static_lib(
-        lib,
-        &link_paths,
-        &["zlibstatic", "zlib", "zlibstaticd", "zlibd"],
-    );
-}
-
-// See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
-// so pkg-config can't find them and they're linked explicitly instead.
-#[cfg(all(feature = "bundled", not(target_os = "windows")))]
-fn add_transitive_static_libs(lib: &mut system_deps::Library) {
-    for name in BUNDLED_TRANSITIVE_STATIC_LIBRARIES {
-        lib.libs.push(system_deps::InternalLib {
-            name: name.to_string(),
-            is_static_available: true,
-        });
+    for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {
+        add_static_lib(lib, &link_paths, candidates);
     }
 
     // Static libOpenColorIO.a doesn't carry these either: OCIO's SystemMonitor
@@ -837,10 +808,11 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
         .extend(MACOS_STATIC_FRAMEWORKS.map(String::from));
 }
 
-// Called by add_transitive_static_libs above: picks whichever candidate .lib
-// file name actually exists (debug/release and MD/MT builds name them
-// differently), since pkg-config has no record of these libs to consult.
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+// Called by add_transitive_static_libs above: picks whichever candidate archive
+// actually exists. Dependency versions and debug/release naming differ across
+// supported OpenColorIO releases and platforms, and pkg-config has no record of
+// these privately linked libraries to consult.
+#[cfg(feature = "bundled")]
 fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candidates: &[&str]) {
     let candidate = select_static_lib(link_paths, candidates);
     lib.libs.push(system_deps::InternalLib {
