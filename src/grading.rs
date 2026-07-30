@@ -3,7 +3,7 @@
 //! This module defines the data structures used by [`GradingPrimaryTransform`](crate::transform::GradingPrimaryTransform),
 //! [`GradingToneTransform`](crate::transform::GradingToneTransform),
 //! [`GradingRGBCurveTransform`](crate::transform::GradingRGBCurveTransform), and
-//! [`GradingHueCurveTransform`](crate::transform::GradingHueCurveTransform).
+//! `GradingHueCurveTransform` (available with the `v2_5` feature).
 //!
 //! Each grading transform has a corresponding value type that holds the full
 //! set of controls for that transform. Values are style-dependent (Log, Lin,

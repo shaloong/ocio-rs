@@ -76,7 +76,7 @@ request, plus one manual job:
   (`check_parity --quiet -- --check-l3`), and `cargo package -p ocio-sys`
   on Ubuntu.
 - **Bundled** (weekly plus manual `workflow_dispatch`): runs
-  `cargo test --workspace --features bundled -- --test-threads=1` on Linux,
+  `cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1` on Linux,
   macOS, and Windows with a recursive submodule checkout. This job runs weekly,
   but does **not** run automatically on push or pull request.
 - **Sanitizers** (manual): runs the stub bridge and Rust wrapper suite under

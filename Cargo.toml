@@ -3,7 +3,7 @@ name = "ocio-rs"
 version = "0.2.1"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
-description = "Rust bindings for OpenColorIO v2.5.2"
+description = "Rust bindings for OpenColorIO 2.4.1+"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
 documentation = "https://docs.rs/ocio-rs"
@@ -19,9 +19,14 @@ thiserror = "1.0"
 [features]
 default = []
 bundled = ["ocio-sys/bundled"]
+system = ["ocio-sys/system"]
+# Additive OpenColorIO API version features. The baseline (no feature)
+# targets OCIO 2.4.1.
+v2_5 = ["ocio-sys/v2_5"]
 
 [package.metadata.docs.rs]
 no-default-features = true
+features = ["v2_5"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]

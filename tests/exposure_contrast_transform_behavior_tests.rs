@@ -33,6 +33,7 @@ fn linear_exposure_transform() -> ExposureContrastTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     let _guard = exposure_contrast_test_lock();
     if is_stub() {
@@ -87,6 +88,7 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exposure_contrast_copy_direction_and_equals_behavior() {
     let _guard = exposure_contrast_test_lock();
     if is_stub() {
@@ -111,6 +113,7 @@ fn exposure_contrast_copy_direction_and_equals_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn exposure_contrast_linear_processor_forward_inverse_behavior() {
     let _guard = exposure_contrast_test_lock();
     if is_stub() {

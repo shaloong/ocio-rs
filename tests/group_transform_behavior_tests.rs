@@ -31,6 +31,7 @@ fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_order_copy_and_mutation_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {
@@ -120,6 +121,7 @@ fn group_transform_order_copy_and_mutation_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_child_handle_survives_parent_drop_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {
@@ -140,6 +142,7 @@ fn group_child_handle_survives_parent_drop_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_writer_and_format_query_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {

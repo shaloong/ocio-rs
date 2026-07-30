@@ -44,6 +44,7 @@ fn scaled_color_space(
         .expect("set allocation variables");
     cs.add_alias(alias).expect("add alias");
     cs.add_category(category).expect("add category");
+    #[cfg(feature = "v2_5")]
     cs.set_interchange_attribute("amf_transform_ids", "urn:test:colorspace")
         .expect("set interchange attribute");
 
@@ -57,6 +58,7 @@ fn scaled_color_space(
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_metadata_alias_category_round_trip_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -101,14 +103,18 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert!(cs.has_category("unit_category"));
     assert!(cs.has_category("delivery"));
 
-    let _ = cs.interop_id();
-    assert_eq!(
-        cs.interchange_attribute("amf_transform_ids").as_deref(),
-        Some("urn:test:colorspace")
-    );
+    #[cfg(feature = "v2_5")]
+    {
+        let _ = cs.interop_id();
+        assert_eq!(
+            cs.interchange_attribute("amf_transform_ids").as_deref(),
+            Some("urn:test:colorspace")
+        );
+    }
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_attached_transform_and_copy_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -164,6 +170,7 @@ fn color_space_attached_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_config_registration_lookup_and_processor_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {
@@ -242,7 +249,9 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
     assert_close(second_pixel[3] as f64, 1.0, 1e-6);
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_interop_and_interchange_errors_surface_behavior() {
     let _guard = color_space_test_lock();
     if is_stub() {

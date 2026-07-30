@@ -204,6 +204,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn proxy_payload_round_trip() {
         if crate::is_stub_build() {
             return;

@@ -45,6 +45,7 @@ fn sample_rgb_curve_value() -> GradingRGBCurveValue {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
     let _guard = grading_rgb_curve_transform_test_lock();
     if is_stub() {
@@ -140,6 +141,7 @@ fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 #[allow(deprecated)]
 fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
     let _guard = grading_rgb_curve_transform_test_lock();
@@ -189,6 +191,7 @@ fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_rgb_curve_invalid_operations_surface_errors() {
     let _guard = grading_rgb_curve_transform_test_lock();
     if is_stub() {
@@ -234,6 +237,7 @@ fn grading_rgb_curve_invalid_operations_surface_errors() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_rgb_curve_try_setters_surface_errors() {
     let _guard = grading_rgb_curve_transform_test_lock();
     if is_stub() {

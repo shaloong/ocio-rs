@@ -430,6 +430,8 @@ impl ColorSpace {
     }
 
     /// Get the interop identifier for this color space.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interop_id(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_interop_id(
@@ -439,6 +441,8 @@ impl ColorSpace {
     }
 
     /// Set the interop identifier for this color space.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_interop_id(&self, interop_id: impl AsRef<str>) -> Result<()> {
         let interop_id = cstring(interop_id)?;
         crate::clear_last_error();
@@ -452,6 +456,8 @@ impl ColorSpace {
     }
 
     /// Set an interchange attribute by name and value.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_interchange_attribute(
         &self,
         name: impl AsRef<str>,
@@ -471,11 +477,15 @@ impl ColorSpace {
     }
 
     /// Get an interchange attribute value by name.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
         self.try_interchange_attribute(name).ok().flatten()
     }
 
     /// Get an interchange attribute value while preserving invalid-name errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_interchange_attribute(&self, name: impl AsRef<str>) -> Result<Option<String>> {
         let name = cstring(name)?;
         crate::clear_last_error();
@@ -490,6 +500,8 @@ impl ColorSpace {
     }
 
     /// Get all interchange attributes as a map.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
         let mut attrs = BTreeMap::new();
         let count = unsafe {
@@ -596,6 +608,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn interchange_attribute_no_crash() {
         let cs = ColorSpace::create().unwrap();
@@ -606,7 +619,9 @@ mod tests {
         let _ = cs.interchange_attributes();
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn interchange_attribute_real_round_trip() {
         if crate::is_stub_build() {
             return;
