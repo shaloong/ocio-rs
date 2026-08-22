@@ -82,8 +82,10 @@ The `bundled` feature builds the vendored source by default, preserving its
 historical behavior. Set
 `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` to prefer a compatible installed
 OpenColorIO and fall back to the bundled source only when probing fails.
-The pkg-config discovery and bundled paths require a `pkg-config` executable;
-on Windows, `pkgconfiglite` is sufficient and is what the CI workflow uses.
+Installed-library discovery requires a `pkg-config` executable. Bundled Windows
+builds consume their freshly built CMake install directly and do not require
+`pkg-config`; bundled Linux and macOS builds continue to use the generated
+package metadata.
 
 `OCIO_RS_LINK` defaults to `static` for compatibility. Set it to `dynamic`
 (`shared` and `dylib` are also accepted) when `OCIO_INSTALL_DIR` points at an
