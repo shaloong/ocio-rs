@@ -72,8 +72,9 @@ OCIO 模式。
 `bundled` feature 默认构建 vendored 源码，以保持历史行为。设置
 `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` 后，会优先使用兼容的系统安装，
 探测失败时再回退到 bundled 源码。
-pkg-config 探测和 bundled 路径都需要系统中存在 `pkg-config` 可执行文件；Windows
-可以使用 `pkgconfiglite`，CI 工作流也采用这一实现。
+预装库探测需要系统中存在 `pkg-config` 可执行文件。Windows 的 bundled 构建会直接
+使用刚由 CMake 生成的安装目录，不再要求 `pkg-config`；Linux 和 macOS 的 bundled
+构建仍使用生成的包元数据。
 
 `OCIO_RS_LINK` 默认是 `static`，以保持兼容性。如果 `OCIO_INSTALL_DIR` 指向的
 OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `shared` 和 `dylib`）。

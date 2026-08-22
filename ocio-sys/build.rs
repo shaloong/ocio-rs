@@ -300,10 +300,10 @@ fn build_ocio_from_source(
 }
 
 /// Builds OpenColorIO from source via CMake, to be used as a `system-deps`
-/// `add_build_internal` fallback. Returns a [`system_deps::Library`] built from the
-/// real `.pc` file OpenColorIO's own CMake build generates and installs (see
-/// `src/OpenColorIO/CMakeLists.txt`'s `configure_file(res/OpenColorIO.pc.in ...)`),
-/// plus the transitive static dependencies it doesn't declare there itself.
+/// `add_build_internal` fallback. Returns a [`system_deps::Library`] describing
+/// the CMake install directly on Windows or built from OpenColorIO's generated
+/// `.pc` file on Unix, plus the transitive static dependencies that metadata
+/// doesn't declare itself.
 #[cfg(feature = "bundled")]
 fn build_ocio_from_source(
     _version_requirement: &str,
@@ -431,18 +431,22 @@ fn build_ocio_from_source(
         BuildInternalClosureError::failed(&format!("OpenColorIO bundled build failed: {msg}"))
     })?;
 
-    // CMAKE_INSTALL_LIBDIR (and so where OpenColorIO.pc ends up) defaults to "lib" on
-    // some platforms and "lib64" on others (e.g. Fedora); check both. This version of
-    // system-deps only accepts a single directory here, unlike its still-unmerged
-    // `binary` branch, so pick whichever one actually exists.
+    // Windows bundled builds already have an exact, locally-built install prefix.
+    // Describe that prefix directly: requiring an unrelated pkg-config executable
+    // after CMake has succeeded makes otherwise self-contained Windows builds fail.
+    #[cfg(target_os = "windows")]
+    let mut lib = windows_bundled_library(&dst, link_mode)?;
+
+    // On Unix, consume the generated .pc file so platform-specific compiler and
+    // linker flags remain delegated to pkg-config. CMAKE_INSTALL_LIBDIR defaults
+    // to "lib" on some platforms and "lib64" on others (e.g. Fedora), so check both.
+    #[cfg(not(target_os = "windows"))]
     let pkgconfig_dir = [dst.join("lib"), dst.join("lib64")]
         .into_iter()
         .map(|dir| dir.join("pkgconfig"))
         .find(|dir| dir.exists())
         .unwrap_or_else(|| dst.join("lib").join("pkgconfig"));
-    // `from_internal_pkg_config` accepts a minimum version rather than the
-    // full range syntax used by package metadata. The vendored source is
-    // pinned to this exact release, so probe it with that concrete version.
+    #[cfg(not(target_os = "windows"))]
     let mut lib = system_deps::Library::from_internal_pkg_config(
         &pkgconfig_dir,
         "OpenColorIO",
@@ -502,6 +506,53 @@ fn build_ocio_from_source(
     }
 
     Ok(lib)
+}
+
+#[cfg(all(feature = "bundled", target_os = "windows"))]
+fn windows_bundled_library(
+    dst: &Path,
+    link_mode: LinkMode,
+) -> Result<system_deps::Library, system_deps::BuildInternalClosureError> {
+    use system_deps::{BuildInternalClosureError, InternalLib, Library, Source};
+
+    let include_dir = dst.join("include");
+    if !include_dir.join("OpenColorIO").is_dir() {
+        return Err(BuildInternalClosureError::failed(&format!(
+            "bundled OpenColorIO headers were not installed under '{}'",
+            include_dir.display()
+        )));
+    }
+
+    let link_paths = [dst.join("lib"), dst.join("lib64")]
+        .into_iter()
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+    if !link_paths
+        .iter()
+        .any(|path| path.join("OpenColorIO.lib").is_file())
+    {
+        return Err(BuildInternalClosureError::failed(&format!(
+            "bundled OpenColorIO library was not installed under '{}'",
+            dst.display()
+        )));
+    }
+
+    Ok(Library {
+        name: "OpenColorIO".to_string(),
+        source: Source::EnvVariables,
+        libs: vec![InternalLib {
+            name: "OpenColorIO".to_string(),
+            is_static_available: link_mode.is_static(),
+        }],
+        link_paths,
+        frameworks: Vec::new(),
+        framework_paths: Vec::new(),
+        include_paths: vec![include_dir],
+        ld_args: Vec::new(),
+        defines: Default::default(),
+        version: BUNDLED_OCIO_VERSION.to_string(),
+        statik: link_mode.is_static(),
+    })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

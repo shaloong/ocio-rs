@@ -85,13 +85,6 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
 
-      # system-deps resolves the internally-built OpenColorIO through its
-      # generated .pc file, so the bundled path needs a pkg-config binary;
-      # the Windows runner image is the only one that doesn't ship one.
-      - name: Install pkg-config (Windows)
-        if: runner.os == 'Windows'
-        run: choco install pkgconfiglite --no-progress -y
-
       - name: Test with bundled OCIO
         # The real-OCIO bundled suite exercises process-global config/env/cache
         # paths, so run it serially for deterministic CI behavior.

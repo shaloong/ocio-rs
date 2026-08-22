@@ -62,9 +62,10 @@ previous behavior. Set it to `auto` to prefer an installed compatible package
 and use the source build only as a fallback, or to `never` to require the
 installed package.
 
-Both pkg-config discovery and the internally built package's generated `.pc`
-file require a `pkg-config` executable. Windows CI installs `pkgconfiglite`;
-Linux and macOS runners already provide a compatible implementation.
+Installed-package discovery requires a `pkg-config` executable. Internally built
+Windows packages are resolved directly from their CMake install prefix, so the
+bundled Windows path does not need `pkg-config`. Bundled Linux and macOS builds
+continue to consume the generated `.pc` file.
 
 `OCIO_RS_LINK` controls how real OCIO is linked. It defaults to `static` for
 compatibility and accepts `dynamic`, `shared`, or `dylib` for shared-library
