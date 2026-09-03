@@ -44,13 +44,12 @@ fn f32s_to_bytes(values: &[f32]) -> Vec<u8> {
 }
 
 fn bytes_to_f32s(bytes: &[u8]) -> Vec<f32> {
-    bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .copied()
-        .map(f32::from_ne_bytes)
-        .collect()
+    let (chunks, remainder) = bytes.as_chunks::<4>();
+    assert!(
+        remainder.is_empty(),
+        "f32 byte input must be 4-byte aligned"
+    );
+    chunks.iter().copied().map(f32::from_ne_bytes).collect()
 }
 
 #[test]
