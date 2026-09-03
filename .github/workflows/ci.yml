@@ -29,8 +29,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++
 
-      - name: Test
+      - name: Test baseline interface
         run: cargo test --workspace --no-default-features
+
+      - name: Test v2_5 interface
+        run: cargo test --workspace --no-default-features --features v2_5
 
       - name: Test examples
         run: cargo test --examples --no-default-features
@@ -41,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: recursive
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -52,18 +55,82 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
 
       - name: Docs
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --no-deps --no-default-features
+        run: cargo doc --workspace --no-deps --no-default-features --features v2_5
 
       - name: Parity
         run: cargo run --bin check_parity --quiet -- --check-l3
 
       - name: Package
         run: cargo package -p ocio-sys --allow-dirty
+
+  system-ocio:
+    # A representative 2.4 configuration that catches 2.5 API used without
+    # its Interface gate. Exact version floors are covered by the build
+    # configuration tests.
+    name: System OpenColorIO 2.4 (fedora:43)
+    runs-on: ubuntu-latest
+    container: fedora:43
+    steps:
+      - name: Install native dependencies
+        run: dnf install -y gcc-c++ git pkgconf-pkg-config OpenColorIO-devel rust cargo
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Test against the system OpenColorIO
+        # Real-OCIO suites exercise process-global config/env/cache paths,
+        # so run serially like the bundled job.
+        run: cargo test --workspace --no-default-features --features system -- --test-threads=1
+
+      - name: Test examples
+        run: cargo test --examples --no-default-features --features system
+
+      - name: Check v2_5 is rejected by a 2.4 install
+        run: |
+          if cargo check -p ocio-sys --no-default-features --features system,v2_5; then
+            echo "the v2_5 feature built against OpenColorIO 2.4: version gating is broken"
+            exit 1
+          fi
+
+  minimum-ocio:
+    name: Minimum OpenColorIO (${{ matrix.ocio }})
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ocio: 2.4.1
+            features: bundled
+          - ocio: 2.5.1
+            features: bundled,v2_5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install native dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
+
+      - name: Select exact OpenColorIO source
+        run: |
+          git -C third_party/OpenColorIO fetch --depth=1 origin \
+            "refs/tags/v${{ matrix.ocio }}:refs/tags/v${{ matrix.ocio }}"
+          git -C third_party/OpenColorIO checkout --detach "v${{ matrix.ocio }}"
+
+      - name: Test exact minimum
+        run: cargo test --workspace --no-default-features --features "${{ matrix.features }}" -- --test-threads=1
 
   bundled:
     name: Bundled (${{ matrix.os }})
@@ -88,4 +155,23 @@ jobs:
       - name: Test with bundled OCIO
         # The real-OCIO bundled suite exercises process-global config/env/cache
         # paths, so run it serially for deterministic CI behavior.
-        run: cargo test --workspace --features bundled -- --test-threads=1
+        run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+
+  bundled-zlib-ng:
+    name: Bundled with system zlib-ng (Arch Linux)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 90
+    steps:
+      - name: Install native dependencies
+        run: pacman -Syu --noconfirm git cmake ninja rust zlib-ng
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Test hermetic bundled dependency selection
+        # The host deliberately provides zlib-ng. The bundled OpenColorIO
+        # build must still use the classic zlib archive it builds itself.
+        run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1

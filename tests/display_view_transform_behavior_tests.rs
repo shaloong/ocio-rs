@@ -72,6 +72,7 @@ fn configured_display_pipeline(source_name: &str, is_data: bool) -> Config {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn display_view_transform_metadata_copy_and_validate_behavior() {
     let _guard = display_view_transform_test_lock();
     if is_stub() {
@@ -121,6 +122,7 @@ fn display_view_transform_metadata_copy_and_validate_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn display_view_transform_matches_processor_display_behavior() {
     let _guard = display_view_transform_test_lock();
     if is_stub() {
@@ -169,6 +171,7 @@ fn display_view_transform_matches_processor_display_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn display_view_transform_data_bypass_behavior() {
     let _guard = display_view_transform_test_lock();
     if is_stub() {

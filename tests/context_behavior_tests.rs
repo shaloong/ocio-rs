@@ -35,6 +35,7 @@ fn path_str(path: &Path) -> String {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_string_vars_round_trip_and_copy_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -94,6 +95,7 @@ fn context_string_vars_round_trip_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_add_string_vars_merges_other_context_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -116,6 +118,7 @@ fn context_add_string_vars_merges_other_context_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_search_paths_and_working_dir_round_trip_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -189,6 +192,7 @@ fn context_search_paths_and_working_dir_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_resolve_file_location_uses_working_dir_as_fallback_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -218,6 +222,7 @@ fn context_resolve_file_location_uses_working_dir_as_fallback_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_resolve_file_location_uses_explicit_search_paths_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -251,6 +256,7 @@ fn context_resolve_file_location_uses_explicit_search_paths_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -268,6 +274,7 @@ fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_cache_id_changes_with_mutation_behavior() {
     let _guard = context_test_lock();
     if is_stub() {
@@ -290,6 +297,7 @@ fn context_cache_id_changes_with_mutation_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_load_environment_honors_selected_mode_behavior() {
     let _guard = context_test_lock();
     if is_stub() {

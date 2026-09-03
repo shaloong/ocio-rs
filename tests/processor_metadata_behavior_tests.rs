@@ -21,6 +21,7 @@ fn processor_metadata_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_metadata_manual_round_trip_behavior() {
     let _guard = processor_metadata_test_lock();
     if is_stub() {
@@ -45,6 +46,7 @@ fn processor_metadata_manual_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_metadata_from_real_processor_behavior() {
     let _guard = processor_metadata_test_lock();
     if is_stub() {

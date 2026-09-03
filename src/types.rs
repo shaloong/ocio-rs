@@ -57,6 +57,7 @@ pub enum TransformType {
     ExposureContrast = 7,
     File = 8,
     FixedFunction = 9,
+    #[cfg(feature = "v2_5")]
     GradingHueCurve = 10,
     GradingPrimary = 11,
     GradingRgbCurve = 12,
@@ -87,8 +88,9 @@ pub enum Interpolation {
     Linear = 2,
     Tetrahedral = 3,
     Cubic = 4,
-    Default = 5,
-    Best = 6,
+    // OCIO deliberately numbers the "meta" modes apart from the real ones.
+    Default = 254,
+    Best = 255,
 }
 
 /// Pixel sample bit depth understood by OCIO processors.
@@ -123,6 +125,7 @@ pub enum GpuLanguage {
     Glsl1_2 = 1,
     Glsl1_3 = 2,
     Glsl4_0 = 3,
+    #[cfg(feature = "v2_5")]
     GlslVk4_6 = 4,
     HlslSm5_0 = 5,
     Osl1 = 6,
@@ -171,8 +174,11 @@ pub enum FixedFunctionStyle {
     AcesRgbToJmh20 = 17,
     AcesTonescaleCompress20 = 18,
     AcesGamutCompress20 = 19,
+    #[cfg(feature = "v2_5")]
     RgbToHsyLin = 20,
+    #[cfg(feature = "v2_5")]
     RgbToHsyLog = 21,
+    #[cfg(feature = "v2_5")]
     RgbToHsyVid = 22,
 }
 
@@ -214,6 +220,8 @@ pub enum RGBCurveType {
 }
 
 /// One of OCIO's hue-dependent grading curve families.
+#[cfg(feature = "v2_5")]
+#[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum HueCurveType {
@@ -228,6 +236,8 @@ pub enum HueCurveType {
 }
 
 /// HSY conversion style used by hue-curve operations.
+#[cfg(feature = "v2_5")]
+#[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum HSYTransformStyle {
@@ -350,6 +360,7 @@ pub enum DynamicPropertyType {
     GradingPrimary = 3,
     GradingRgbCurve = 4,
     GradingTone = 5,
+    #[cfg(feature = "v2_5")]
     GradingHueCurve = 6,
 }
 
