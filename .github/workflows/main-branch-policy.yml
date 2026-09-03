@@ -1,0 +1,27 @@
+name: Main branch policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  require-develop:
+    name: Main accepts develop only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate pull request source
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          TARGET_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "$HEAD_REPOSITORY" != "$TARGET_REPOSITORY" || "$HEAD_BRANCH" != "develop" ]]; then
+            echo "::error::Pull requests to main must originate from this repository's develop branch."
+            exit 1
+          fi
+
+          echo "Validated develop-to-main promotion."
