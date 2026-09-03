@@ -1,12 +1,13 @@
 name: Main branch policy
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
-permissions:
-  contents: read
+# This privileged event intentionally does not check out or execute pull request
+# code. The policy must run from the trusted default branch.
+permissions: {}
 
 jobs:
   require-develop:
