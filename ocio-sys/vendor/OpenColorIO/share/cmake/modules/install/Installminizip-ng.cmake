@@ -92,6 +92,11 @@ if(NOT minizip-ng_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_P
             -DMZ_ICONV=OFF
             -DMZ_FETCH_LIBS=OFF
             -DMZ_FORCE_FETCH_LIBS=OFF
+            # Do not let minizip-ng pick up a system zlib-ng: this minizip-ng
+            # version prefers find_package(ZLIBNG) over the classic ZLIB we
+            # pass below, and would then emit zng_* references the vendored
+            # zlib cannot satisfy (observed on Arch with zlib-ng installed).
+            -DCMAKE_DISABLE_FIND_PACKAGE_ZLIBNG=ON
             -DZLIB_LIBRARY=${ZLIB_LIBRARIES}
             -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIRS}
         )

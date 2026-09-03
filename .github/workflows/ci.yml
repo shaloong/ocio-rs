@@ -156,3 +156,22 @@ jobs:
         # The real-OCIO bundled suite exercises process-global config/env/cache
         # paths, so run it serially for deterministic CI behavior.
         run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+
+  bundled-zlib-ng:
+    name: Bundled with system zlib-ng (Arch Linux)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 90
+    steps:
+      - name: Install native dependencies
+        run: pacman -Syu --noconfirm git cmake ninja rust zlib-ng
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Test hermetic bundled dependency selection
+        # The host deliberately provides zlib-ng. The bundled OpenColorIO
+        # build must still use the classic zlib archive it builds itself.
+        run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
