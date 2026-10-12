@@ -261,23 +261,53 @@ pub struct OptimizationFlags(pub u32);
 impl OptimizationFlags {
     pub const NONE: Self = Self(0x00000000);
     pub const IDENTITY: Self = Self(0x00000001);
-    pub const PAIR_IDENTITY_CDL: Self = Self(0x00000002);
-    pub const PAIR_IDENTITY_LUT1D: Self = Self(0x00000004);
-    pub const PAIR_IDENTITY_LUT3D: Self = Self(0x00000008);
-    pub const PAIR_IDENTITY_LOG: Self = Self(0x00000010);
-    pub const PAIR_IDENTITY_EXPONENT: Self = Self(0x00000020);
-    pub const COMP_EXPONENT: Self = Self(0x00000040);
-    pub const COMP_MATRIX: Self = Self(0x00000080);
-    pub const COMP_RANGE: Self = Self(0x00000100);
-    pub const LUT_INV_FAST: Self = Self(0x00000200);
-    pub const FAST_LOG_EXP_POW: Self = Self(0x00000400);
-    pub const SIMPLIFY_OPS: Self = Self(0x00000800);
-    pub const NO_DYNAMIC_PROPERTIES: Self = Self(0x00001000);
-    pub const LOSSLESS: Self = Self(Self::IDENTITY.0);
-    pub const VERY_GOOD: Self = Self(0x000001ff);
-    pub const GOOD: Self = Self(0x000003ff);
-    pub const DRAFT: Self = Self(0x00000fff);
+    pub const IDENTITY_GAMMA: Self = Self(0x00000002);
+    pub const PAIR_IDENTITY_CDL: Self = Self(0x00000040);
+    pub const PAIR_IDENTITY_EXPOSURE_CONTRAST: Self = Self(0x00000080);
+    pub const PAIR_IDENTITY_FIXED_FUNCTION: Self = Self(0x00000100);
+    pub const PAIR_IDENTITY_GAMMA: Self = Self(0x00000200);
+    pub const PAIR_IDENTITY_LUT1D: Self = Self(0x00000400);
+    pub const PAIR_IDENTITY_LUT3D: Self = Self(0x00000800);
+    pub const PAIR_IDENTITY_LOG: Self = Self(0x00001000);
+    pub const PAIR_IDENTITY_GRADING: Self = Self(0x00002000);
+    pub const COMP_EXPONENT: Self = Self(0x00040000);
+    pub const COMP_GAMMA: Self = Self(0x00080000);
+    pub const COMP_MATRIX: Self = Self(0x00100000);
+    pub const COMP_LUT1D: Self = Self(0x00200000);
+    pub const COMP_LUT3D: Self = Self(0x00400000);
+    pub const COMP_RANGE: Self = Self(0x00800000);
+    pub const COMP_SEPARABLE_PREFIX: Self = Self(0x01000000);
+    pub const LUT_INV_FAST: Self = Self(0x02000000);
+    pub const FAST_LOG_EXP_POW: Self = Self(0x04000000);
+    pub const SIMPLIFY_OPS: Self = Self(0x08000000);
+    pub const NO_DYNAMIC_PROPERTIES: Self = Self(0x10000000);
+    pub const LOSSLESS: Self = Self(
+        Self::IDENTITY.0
+            | Self::IDENTITY_GAMMA.0
+            | Self::PAIR_IDENTITY_CDL.0
+            | Self::PAIR_IDENTITY_EXPOSURE_CONTRAST.0
+            | Self::PAIR_IDENTITY_FIXED_FUNCTION.0
+            | Self::PAIR_IDENTITY_GAMMA.0
+            | Self::PAIR_IDENTITY_GRADING.0
+            | Self::PAIR_IDENTITY_LOG.0
+            | Self::PAIR_IDENTITY_LUT1D.0
+            | Self::PAIR_IDENTITY_LUT3D.0
+            | Self::COMP_EXPONENT.0
+            | Self::COMP_GAMMA.0
+            | Self::COMP_MATRIX.0
+            | Self::COMP_RANGE.0
+            | Self::SIMPLIFY_OPS.0,
+    );
+    pub const VERY_GOOD: Self = Self(
+        Self::LOSSLESS.0
+            | Self::COMP_LUT1D.0
+            | Self::LUT_INV_FAST.0
+            | Self::FAST_LOG_EXP_POW.0
+            | Self::COMP_SEPARABLE_PREFIX.0,
+    );
+    pub const GOOD: Self = Self(Self::VERY_GOOD.0 | Self::COMP_LUT3D.0);
     pub const ALL: Self = Self(0xFFFFFFFF);
+    pub const DRAFT: Self = Self::ALL;
     pub const DEFAULT: Self = Self::VERY_GOOD;
 }
 

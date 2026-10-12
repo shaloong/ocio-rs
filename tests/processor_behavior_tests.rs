@@ -423,3 +423,45 @@ fn processor_legacy_gpu_helper_emits_real_shader_behavior() {
     );
     assert_eq!(desc.pixel_name().as_deref(), Some("ocio_legacy_gpu_pixel"));
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn typed_optimization_flags_match_native_default_and_control_math_precision() {
+    let _guard = processor_behavior_test_lock();
+    assert!(!is_stub(), "requires real OCIO pixel execution");
+    let config = create_test_config().expect("real config");
+    let gamma = ocio_rs::transform::ExponentTransform::create().expect("gamma");
+    gamma
+        .set_value(&[2.4, 2.4, 2.4, 1.0])
+        .expect("gamma values");
+    let processor = config
+        .processor_from_transform(&gamma, TransformDirection::Forward)
+        .expect("processor");
+    let native_default = processor.default_cpu_processor().expect("native default");
+    let typed_default = processor
+        .optimized_cpu_processor(u64::from(ocio_rs::OptimizationFlags::DEFAULT.0))
+        .expect("typed default");
+    let flags =
+        ocio_rs::OptimizationFlags::DEFAULT.0 & !ocio_rs::OptimizationFlags::FAST_LOG_EXP_POW.0;
+    let precise = processor
+        .optimized_cpu_processor(u64::from(flags))
+        .expect("precise CPU");
+    for source in [[1.0_f32, 0.35, 0.7, 0.25], [0.123, 0.456, 0.789, 0.0]] {
+        let mut native_pixel = source;
+        let mut typed_pixel = source;
+        native_default.apply_rgba(&mut native_pixel);
+        typed_default.apply_rgba(&mut typed_pixel);
+        assert_eq!(
+            native_pixel, typed_pixel,
+            "typed DEFAULT must select native DEFAULT optimizations"
+        );
+        let mut precise_pixel = source;
+        precise.apply_rgba(&mut precise_pixel);
+        for channel in 0..3 {
+            let expected = f64::from(source[channel]).powf(2.4);
+            assert!((f64::from(precise_pixel[channel]) - expected).abs() <= 2.0e-7,
+                "disabling FAST_LOG_EXP_POW must use precise native math: source={source:?} actual={precise_pixel:?}");
+        }
+        assert_eq!(precise_pixel[3], source[3], "alpha is unchanged");
+    }
+}
