@@ -7,13 +7,14 @@
 mod common;
 use common::*;
 
+#[cfg(feature = "v2_5")]
 use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-use ocio_rs::{
-    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection,
-};
+#[cfg(feature = "v2_5")]
+use ocio_rs::SearchReferenceSpaceType;
+use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -32,6 +33,7 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     view_transform
 }
 
+#[cfg(feature = "v2_5")]
 fn virtual_view_names(
     config: &ocio_rs::Config,
     reference_space: SearchReferenceSpaceType,
@@ -46,7 +48,9 @@ fn virtual_view_names(
     names
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_shared_view_and_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -154,6 +158,53 @@ fn config_shared_view_and_display_lifecycle_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn clear_all_preserves_semantics_on_the_baseline_interface() {
+    let _guard = config_display_management_test_lock();
+    if is_stub() {
+        return;
+    }
+
+    let config = create_test_config()
+        .expect("raw config")
+        .create_editable_copy()
+        .expect("editable config copy");
+    let view_transform = identity_view_transform("BaselineClearSharedTransform");
+    config.add_view_transform(&view_transform);
+    config
+        .add_shared_view(
+            "BaselineClearSharedView",
+            "BaselineClearSharedTransform",
+            "raw",
+            "",
+            "",
+            "baseline clear-all test",
+        )
+        .expect("add shared view");
+    config
+        .add_display_shared_view("BaselineClearDisplay", "BaselineClearSharedView")
+        .expect("attach shared view to display");
+    assert_eq!(config.num_views("BaselineClearDisplay"), 1);
+    config
+        .try_clear_shared_views()
+        .expect("clear baseline shared views");
+    assert_eq!(config.num_views("BaselineClearDisplay"), 0);
+    config
+        .set_active_displays("DisplayA,DisplayB")
+        .expect("set active displays");
+    config
+        .set_active_views("ViewA,ViewB")
+        .expect("set active views");
+
+    config.try_clear_all().expect("clear all collections");
+
+    assert!(config.active_displays().unwrap_or_default().is_empty());
+    assert!(config.active_views().unwrap_or_default().is_empty());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_lifecycle_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -292,6 +343,7 @@ fn config_virtual_display_lifecycle_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_display_mutation_errors_surface_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -358,6 +410,7 @@ fn config_display_mutation_errors_surface_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {
@@ -378,6 +431,7 @@ fn config_icc_display_instantiation_surfaces_missing_virtual_display_behavior() 
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_mutation_errors_surface_behavior() {
     let _guard = config_display_management_test_lock();
     if is_stub() {

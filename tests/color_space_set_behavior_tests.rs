@@ -42,6 +42,7 @@ fn set_names(set: &ColorSpaceSet) -> BTreeSet<String> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_mutation_and_copy_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {
@@ -113,6 +114,7 @@ fn color_space_set_mutation_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_color_space_set_category_filter_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {
@@ -172,6 +174,7 @@ fn config_color_space_set_category_filter_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_registration_errors_surface_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {

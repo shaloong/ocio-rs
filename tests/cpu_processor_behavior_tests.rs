@@ -53,6 +53,7 @@ fn bytes_to_f32s(bytes: &[u8]) -> Vec<f32> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgba_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
@@ -83,6 +84,7 @@ fn cpu_rgba_pixels_stride_preserves_padding_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgb_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
@@ -111,6 +113,7 @@ fn cpu_rgb_pixels_stride_preserves_padding_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgba_packed_f32_matches_rgba_path_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
@@ -137,6 +140,7 @@ fn cpu_rgba_packed_f32_matches_rgba_path_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgb_packed_f32_matches_rgb_path_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
@@ -161,6 +165,7 @@ fn cpu_rgb_packed_f32_matches_rgb_path_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_packed_uint8_requires_matching_finalization_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {

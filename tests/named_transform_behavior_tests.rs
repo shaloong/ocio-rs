@@ -40,6 +40,7 @@ fn configured_named_transform() -> NamedTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_metadata_alias_category_round_trip_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {
@@ -66,6 +67,7 @@ fn named_transform_metadata_alias_category_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_attached_matrix_round_trip_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {
@@ -107,6 +109,7 @@ fn named_transform_attached_matrix_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_editable_copy_is_independent_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {
@@ -143,6 +146,7 @@ fn named_transform_editable_copy_is_independent_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_config_registration_and_processor_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {
@@ -196,6 +200,7 @@ fn named_transform_config_registration_and_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_missing_name_errors_surface_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {

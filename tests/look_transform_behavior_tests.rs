@@ -94,6 +94,7 @@ fn configured_look_transform_config() -> Config {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_transform_field_copy_and_validate_behavior() {
     let _guard = look_transform_test_lock();
     if is_stub() {
@@ -137,6 +138,7 @@ fn look_transform_field_copy_and_validate_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_transform_skip_color_space_conversion_behavior() {
     let _guard = look_transform_test_lock();
     if is_stub() {

@@ -63,8 +63,8 @@ impl FileTransform {
             2 => Interpolation::Linear,
             3 => Interpolation::Tetrahedral,
             4 => Interpolation::Cubic,
-            5 => Interpolation::Default,
-            6 => Interpolation::Best,
+            254 => Interpolation::Default,
+            255 => Interpolation::Best,
             _ => Interpolation::Unknown,
         }
     }
@@ -259,6 +259,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn static_format_queries_real_behavior() {
         if crate::is_stub_build() {
             return;

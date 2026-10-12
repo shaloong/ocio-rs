@@ -21,6 +21,7 @@ fn fixed_function_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_style_params_and_copy_behavior() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
@@ -55,6 +56,7 @@ fn fixed_function_style_params_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_rgb_to_hsv_processor_behavior() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
@@ -96,6 +98,7 @@ fn fixed_function_rgb_to_hsv_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_invalid_params_surface_real_error_behavior() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
@@ -114,6 +117,7 @@ fn fixed_function_invalid_params_surface_real_error_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_set_params_uses_ocio_delayed_validation() {
     let _guard = fixed_function_test_lock();
     if is_stub() {

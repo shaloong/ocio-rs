@@ -1,3 +1,9 @@
+#[path = "build_support/backend.rs"]
+mod backend;
+#[path = "build_support/compatibility.rs"]
+mod compatibility;
+
+use backend::Backend;
 use std::cell::{Cell, RefCell};
 use std::env;
 use std::path::PathBuf;
@@ -10,19 +16,15 @@ use std::hash::{Hash, Hasher};
 #[cfg(all(feature = "bundled", target_os = "windows"))]
 use std::path::Path;
 
-#[cfg(feature = "bundled")]
-const BUNDLED_OCIO_VERSION: &str = "2.5.2";
 const OPENCOLORIO_DEPENDENCY_NAME: &str = "opencolorio";
+const OPENCOLORIO_LIB_NAME: &str = "OpenColorIO";
 const OPENCOLORIO_PKG_CONFIG_FILES: [&str; 2] = ["OpenColorIO.pc", "opencolorio.pc"];
 
 fn main() {
     let link_mode = LinkMode::from_env();
 
-    // Real OCIO is enabled when:
-    // 1. OCIO_RS_ENABLE_REAL=1 is explicitly set (manual override), OR
-    // 2. The "bundled" feature is active (enables the from-source build fallback)
-    let is_bundled = env::var_os("CARGO_FEATURE_BUNDLED").is_some();
-    let enable_real_ocio = env_flag("OCIO_RS_ENABLE_REAL") || is_bundled;
+    let backend = Backend::select();
+    let compatibility_include = compatibility::prepare();
 
     let mut include_paths = Vec::<PathBuf>::new();
 
@@ -32,11 +34,8 @@ fn main() {
     let runtime_dll_dirs = Rc::new(RefCell::new(Vec::<PathBuf>::new()));
     let built_internally = Rc::new(Cell::new(false));
 
-    let has_real_ocio = if !enable_real_ocio {
-        println!("cargo:warning=OCIO_RS_ENABLE_REAL is not set; building ocio-sys in stub mode.");
-        println!(
-            "cargo:warning=Enable the 'bundled' feature, or set OCIO_RS_ENABLE_REAL=1, for real OCIO."
-        );
+    let has_real_ocio = if backend.is_stub() {
+        println!("cargo:warning=building ocio-sys in stub mode; enable the 'system' or 'bundled' feature for real OpenColorIO.");
         false
     } else {
         let install = configure_install_dir(link_mode, &runtime_dll_dirs);
@@ -89,22 +88,26 @@ fn main() {
             )
         };
 
-        let deps = config
-            .probe()
-            .expect("system-deps failed to resolve the opencolorio dependency");
-        let lib = deps
-            .get_by_name(OPENCOLORIO_DEPENDENCY_NAME)
-            .expect("system-deps should always resolve opencolorio when real OCIO is enabled");
-        include_paths.extend(lib.include_paths.iter().cloned());
-        if link_mode.is_static() && !built_internally.get() {
-            let mut transitive_link_paths = lib.link_paths.clone();
-            for path in install.link_paths {
-                push_existing_path(&mut transitive_link_paths, path);
-            }
-            emit_transitive_static_deps(&transitive_link_paths);
-        }
+        match config.probe() {
+            Ok(deps) => {
+                let lib = deps.get_by_name(OPENCOLORIO_DEPENDENCY_NAME).expect(
+                    "system-deps should always resolve opencolorio when the probe succeeds",
+                );
+                include_paths.extend(lib.include_paths.iter().cloned());
+                if link_mode.is_static() && !built_internally.get() {
+                    let mut transitive_link_paths = lib.link_paths.clone();
+                    for path in install.link_paths {
+                        push_existing_path(&mut transitive_link_paths, path);
+                    }
+                    if resolved_static_opencolorio(lib, &transitive_link_paths) {
+                        emit_transitive_static_deps(&transitive_link_paths);
+                    }
+                }
 
-        true
+                true
+            }
+            Err(error) => panic!("{}", backend.resolution_failure(&error)),
+        }
     };
 
     if cfg!(target_os = "windows") && link_mode.is_dynamic() {
@@ -137,8 +140,18 @@ fn main() {
         println!("cargo:rustc-link-lib=winspool");
     }
 
+    // Stub mode is a compile-time property of the build, so expose it as a cfg
+    // rather than only as the `is_stub_build()` runtime query. Dependents read
+    // it through the `links` metadata below, which is how the test suite marks
+    // its OCIO-dependent tests ignored instead of silently passing.
+    println!("cargo:rustc-check-cfg=cfg(ocio_stub)");
     if !has_real_ocio {
         build.define("OCIO_RS_STUB", None);
+        println!("cargo:rustc-cfg=ocio_stub");
+        println!("cargo:stub=1");
+    }
+    if cfg!(feature = "v2_5") {
+        build.define("OCIO_RS_FEATURE_V2_5", None);
     }
 
     // MSVC standard headers (e.g. <stddef.h>) may not be found when cc-rs
@@ -155,6 +168,7 @@ fn main() {
     }
 
     build.include("src");
+    build.include(compatibility_include);
     for include in &include_paths {
         if include.exists() {
             build.include(include);
@@ -182,6 +196,11 @@ fn main() {
     println!("cargo:rerun-if-env-changed=OCIO_INSTALL_DIR");
     println!("cargo:rerun-if-env-changed=OCIO_RS_ENABLE_REAL");
     println!("cargo:rerun-if-env-changed=OCIO_RS_LINK");
+    // Cargo cannot watch pkg-config's view of the system, so a stub fallback
+    // survives installing OpenColorIO afterwards. These cover the usual ways of
+    // pointing the probe somewhere new; see DEVELOPMENT.md for the rest.
+    println!("cargo:rerun-if-env-changed=PKG_CONFIG");
+    println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH");
 }
 
 fn configure_install_dir(
@@ -300,10 +319,10 @@ fn build_ocio_from_source(
 }
 
 /// Builds OpenColorIO from source via CMake, to be used as a `system-deps`
-/// `add_build_internal` fallback. Returns a [`system_deps::Library`] describing
-/// the CMake install directly on Windows or built from OpenColorIO's generated
-/// `.pc` file on Unix, plus the transitive static dependencies that metadata
-/// doesn't declare itself.
+/// `add_build_internal` fallback. Returns a [`system_deps::Library`] built from the
+/// real `.pc` file OpenColorIO's own CMake build generates and installs (see
+/// `src/OpenColorIO/CMakeLists.txt`'s `configure_file(res/OpenColorIO.pc.in ...)`),
+/// plus the transitive static dependencies it doesn't declare there itself.
 #[cfg(feature = "bundled")]
 fn build_ocio_from_source(
     _version_requirement: &str,
@@ -317,6 +336,7 @@ fn build_ocio_from_source(
             "OpenColorIO source not found. Use a recursive checkout or set OCIO_SOURCE_DIR.",
         )
     })?;
+    let source_version = ocio_source_version(&ocio_source)?;
 
     let dst = std::panic::catch_unwind(|| {
         let mut config = cmake::Config::new(&ocio_source);
@@ -431,27 +451,35 @@ fn build_ocio_from_source(
         BuildInternalClosureError::failed(&format!("OpenColorIO bundled build failed: {msg}"))
     })?;
 
-    // Windows bundled builds already have an exact, locally-built install prefix.
-    // Describe that prefix directly: requiring an unrelated pkg-config executable
-    // after CMake has succeeded makes otherwise self-contained Windows builds fail.
-    #[cfg(target_os = "windows")]
-    let mut lib = windows_bundled_library(&dst, link_mode)?;
-
-    // On Unix, consume the generated .pc file so platform-specific compiler and
-    // linker flags remain delegated to pkg-config. CMAKE_INSTALL_LIBDIR defaults
-    // to "lib" on some platforms and "lib64" on others (e.g. Fedora), so check both.
-    #[cfg(not(target_os = "windows"))]
-    let pkgconfig_dir = [dst.join("lib"), dst.join("lib64")]
-        .into_iter()
-        .map(|dir| dir.join("pkgconfig"))
-        .find(|dir| dir.exists())
-        .unwrap_or_else(|| dst.join("lib").join("pkgconfig"));
-    #[cfg(not(target_os = "windows"))]
-    let mut lib = system_deps::Library::from_internal_pkg_config(
-        &pkgconfig_dir,
-        "OpenColorIO",
-        BUNDLED_OCIO_VERSION,
-    )?;
+    // The source build already owns the install prefix, so describe it directly
+    // instead of invoking an external pkg-config executable to rediscover it.
+    // This keeps bundled builds self-contained on Windows while system builds
+    // continue to use pkg-config for discovery.
+    let mut lib = system_deps::Library {
+        name: OPENCOLORIO_DEPENDENCY_NAME.to_owned(),
+        source: system_deps::Source::EnvVariables,
+        libs: vec![system_deps::InternalLib {
+            name: OPENCOLORIO_LIB_NAME.to_owned(),
+            is_static_available: link_mode.is_static(),
+        }],
+        link_paths: [dst.join("lib"), dst.join("lib64")]
+            .into_iter()
+            .filter(|path| path.is_dir())
+            .collect(),
+        frameworks: Vec::new(),
+        framework_paths: Vec::new(),
+        include_paths: [dst.join("include")]
+            .into_iter()
+            .filter(|path| path.is_dir())
+            .collect(),
+        ld_args: Vec::new(),
+        defines: Default::default(),
+        // `OCIO_SOURCE_DIR` may intentionally point at an older supported
+        // release, so report the source tree's declared version rather than
+        // assuming the repository's vendored pin.
+        version: source_version,
+        statik: link_mode.is_static(),
+    };
 
     let mut runtime_paths = Vec::new();
     if link_mode.is_dynamic() {
@@ -499,60 +527,58 @@ fn build_ocio_from_source(
         // https://github.com/AcademySoftwareFoundation/OpenColorIO/pull/2328
         // ships in a vendored release.
         //
-        // Library file names vary by platform and build type; we emit the most
-        // common name for each. If a particular name is wrong, the linker will
-        // report which library is missing.
+        // Library file names vary by OpenColorIO release, platform, and build
+        // type, so select the candidate archive that the bundled build actually
+        // installed.
         add_transitive_static_libs(&mut lib);
     }
 
     Ok(lib)
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
-fn windows_bundled_library(
-    dst: &Path,
-    link_mode: LinkMode,
-) -> Result<system_deps::Library, system_deps::BuildInternalClosureError> {
-    use system_deps::{BuildInternalClosureError, InternalLib, Library, Source};
-
-    let include_dir = dst.join("include");
-    if !include_dir.join("OpenColorIO").is_dir() {
-        return Err(BuildInternalClosureError::failed(&format!(
-            "bundled OpenColorIO headers were not installed under '{}'",
-            include_dir.display()
-        )));
-    }
-
-    let link_paths = [dst.join("lib"), dst.join("lib64")]
-        .into_iter()
-        .filter(|path| path.is_dir())
-        .collect::<Vec<_>>();
-    if !link_paths
-        .iter()
-        .any(|path| path.join("OpenColorIO.lib").is_file())
-    {
-        return Err(BuildInternalClosureError::failed(&format!(
-            "bundled OpenColorIO library was not installed under '{}'",
-            dst.display()
-        )));
-    }
-
-    Ok(Library {
-        name: "OpenColorIO".to_string(),
-        source: Source::EnvVariables,
-        libs: vec![InternalLib {
-            name: "OpenColorIO".to_string(),
-            is_static_available: link_mode.is_static(),
-        }],
-        link_paths,
-        frameworks: Vec::new(),
-        framework_paths: Vec::new(),
-        include_paths: vec![include_dir],
-        ld_args: Vec::new(),
-        defines: Default::default(),
-        version: BUNDLED_OCIO_VERSION.to_string(),
-        statik: link_mode.is_static(),
-    })
+#[cfg(feature = "bundled")]
+fn ocio_source_version(
+    source_dir: &std::path::Path,
+) -> Result<String, system_deps::BuildInternalClosureError> {
+    let cmake_path = source_dir.join("CMakeLists.txt");
+    let cmake = std::fs::read_to_string(&cmake_path).map_err(|error| {
+        system_deps::BuildInternalClosureError::Failed(format!(
+            "failed to read {}: {error}",
+            cmake_path.display()
+        ))
+    })?;
+    let project = cmake.find("project(OpenColorIO").ok_or_else(|| {
+        system_deps::BuildInternalClosureError::Failed(format!(
+            "{} does not declare project(OpenColorIO)",
+            cmake_path.display()
+        ))
+    })?;
+    let declaration = &cmake[project..];
+    let declaration = &declaration[..declaration.find(')').unwrap_or(declaration.len())];
+    let mut tokens = declaration.split_whitespace();
+    let version = tokens
+        .find(|token| token.eq_ignore_ascii_case("VERSION"))
+        .and_then(|_| tokens.next())
+        .map(|version| {
+            version.trim_matches(|character: char| {
+                character == ')' || character == '"' || character == '\''
+            })
+        })
+        .filter(|version| {
+            let parts = version.split('.').collect::<Vec<_>>();
+            parts.len() >= 3
+                && parts[0] == "2"
+                && parts.iter().all(|part| {
+                    !part.is_empty() && part.chars().all(|character| character.is_ascii_digit())
+                })
+        })
+        .ok_or_else(|| {
+            system_deps::BuildInternalClosureError::Failed(format!(
+                "failed to read OpenColorIO's project version from {}",
+                cmake_path.display()
+            ))
+        })?;
+    Ok(version.to_owned())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -691,6 +717,22 @@ fn copy_runtime_dlls_to_cargo_target_dirs(runtime_paths: &[PathBuf]) {
 #[cfg(not(target_os = "windows"))]
 fn copy_runtime_dlls_to_cargo_target_dirs(_runtime_paths: &[PathBuf]) {}
 
+// OpenColorIO's `.pc` file omits its private dependencies, so a static OCIO has
+// to spell them out. Only do that when OCIO itself actually resolved to a static
+// archive: a prefix shipping only a shared library (Homebrew, most distros)
+// satisfies `OCIO_RS_LINK=static` dynamically, and emitting `static=expat`
+// against it fails the link with "could not find native static library".
+fn resolved_static_opencolorio(lib: &system_deps::Library, link_paths: &[PathBuf]) -> bool {
+    if !lib.libs.is_empty() {
+        return lib.libs.iter().any(|entry| entry.is_static_available);
+    }
+
+    // The legacy OCIO_INSTALL_DIR layout bypasses pkg-config, so system-deps
+    // reports no per-library detail and the archive has to be found on disk.
+    let file_name = static_library_file_name(OPENCOLORIO_LIB_NAME);
+    link_paths.iter().any(|dir| dir.join(&file_name).exists())
+}
+
 fn emit_transitive_static_deps(link_paths: &[PathBuf]) {
     for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {
         let selected = select_static_lib(link_paths, candidates);
@@ -723,16 +765,6 @@ const SYSTEM_TRANSITIVE_STATIC_LIBRARIES: &[&[&str]] = &[
     &["z"],
 ];
 
-#[cfg(all(feature = "bundled", not(target_os = "windows")))]
-const BUNDLED_TRANSITIVE_STATIC_LIBRARIES: [&str; 6] = [
-    "expat",
-    "yaml-cpp",
-    "Imath-3_2",
-    "pystring",
-    "minizip-ng",
-    "z",
-];
-
 #[cfg(target_os = "macos")]
 const MACOS_STATIC_FRAMEWORKS: [&str; 4] = ["ColorSync", "CoreFoundation", "CoreGraphics", "IOKit"];
 
@@ -760,30 +792,11 @@ fn static_library_file_name(name: &str) -> String {
 
 // See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
 // so pkg-config can't find them and they're linked explicitly instead.
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(feature = "bundled")]
 fn add_transitive_static_libs(lib: &mut system_deps::Library) {
     let link_paths = lib.link_paths.clone();
-    add_static_lib(lib, &link_paths, &["libexpatMD", "expat", "libexpatdMD"]);
-    add_static_lib(lib, &link_paths, &["yaml-cpp", "yaml-cppd"]);
-    add_static_lib(lib, &link_paths, &["Imath-3_2", "Imath-3_2_d"]);
-    add_static_lib(lib, &link_paths, &["pystring"]);
-    add_static_lib(lib, &link_paths, &["minizip-ng"]);
-    add_static_lib(
-        lib,
-        &link_paths,
-        &["zlibstatic", "zlib", "zlibstaticd", "zlibd"],
-    );
-}
-
-// See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
-// so pkg-config can't find them and they're linked explicitly instead.
-#[cfg(all(feature = "bundled", not(target_os = "windows")))]
-fn add_transitive_static_libs(lib: &mut system_deps::Library) {
-    for name in BUNDLED_TRANSITIVE_STATIC_LIBRARIES {
-        lib.libs.push(system_deps::InternalLib {
-            name: name.to_string(),
-            is_static_available: true,
-        });
+    for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {
+        add_static_lib(lib, &link_paths, candidates);
     }
 
     // Static libOpenColorIO.a doesn't carry these either: OCIO's SystemMonitor
@@ -795,26 +808,17 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
         .extend(MACOS_STATIC_FRAMEWORKS.map(String::from));
 }
 
-// Called by add_transitive_static_libs above: picks whichever candidate .lib
-// file name actually exists (debug/release and MD/MT builds name them
-// differently), since pkg-config has no record of these libs to consult.
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+// Called by add_transitive_static_libs above: picks whichever candidate archive
+// actually exists. Dependency versions and debug/release naming differ across
+// supported OpenColorIO releases and platforms, and pkg-config has no record of
+// these privately linked libraries to consult.
+#[cfg(feature = "bundled")]
 fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candidates: &[&str]) {
     let candidate = select_static_lib(link_paths, candidates);
     lib.libs.push(system_deps::InternalLib {
         name: candidate.to_string(),
         is_static_available: true,
     });
-}
-
-fn env_flag(name: &str) -> bool {
-    match env::var(name) {
-        Ok(value) => {
-            let value = value.trim();
-            value == "1" || value.eq_ignore_ascii_case("true") || value.eq_ignore_ascii_case("yes")
-        }
-        Err(_) => false,
-    }
 }
 
 #[cfg(feature = "bundled")]

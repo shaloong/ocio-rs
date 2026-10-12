@@ -7,9 +7,9 @@
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-当前版本面向 OpenColorIO v2.5.2。OCIO 2.5 的主要 safe wrapper、bundled
-real-OCIO 构建链路，以及核心 C++ API 桥接面已经基本到位，但发布加固与长尾
-行为验证仍在继续。
+当前版本支持 OpenColorIO 2.4.1 及以上版本；OCIO 2.5.1 新增的接口通过
+`v2_5` feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
+核心 C++ API 桥接面已经基本到位，但发布加固与长尾行为验证仍在继续。
 
 > [English](../README.md)
 
@@ -51,30 +51,35 @@ cargo build --features bundled
 OCIO_RS_LINK=dynamic cargo build --features bundled
 
 # 使用 pkg-config 可发现的预装 OCIO
-OCIO_RS_ENABLE_REAL=1 cargo build
+cargo build --features system
 
 # 使用自定义安装前缀中的预装 OCIO
-OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 
 # 使用预装的 OCIO 动态库，而不是静态库
-OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build
+OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features system
 ```
 
 `OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
 OCIO 模式。
 
-预装模式接受 OpenColorIO `>= 2.5.2, < 2.6`，并依次通过 pkg-config 探测
+预装模式接受 OpenColorIO `>= 2.4.1, < 2.6`；启用 `v2_5` 时要求
+`>= 2.5.1, < 2.6`。系统依次通过 pkg-config 探测
 `opencolorio` / `OpenColorIO`。`OCIO_INSTALL_DIR` 会把安装前缀下的
 `lib/pkgconfig`、`lib64/pkgconfig` 和 `share/pkgconfig` 加入搜索路径；对于没有
 `.pc` 文件的旧安装，传统的 `include`、`lib`、`lib64` 布局仍然可用。也可以直接
 设置 `PKG_CONFIG_PATH`。
 
+后端 feature 遵循 Cargo 的加法语义：没有后端 feature 时确定使用 stub；
+`system` 要求系统安装；`bundled` 增加源码构建 Adapter，并在 Cargo 同时合并
+`system` 时优先。构建结果不会因为机器上碰巧安装了某个 OCIO 版本而改变。
+`OCIO_RS_ENABLE_REAL=0/1` 仅作为旧调用方式的兼容 Adapter 保留。
+
 `bundled` feature 默认构建 vendored 源码，以保持历史行为。设置
 `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` 后，会优先使用兼容的系统安装，
 探测失败时再回退到 bundled 源码。
-预装库探测需要系统中存在 `pkg-config` 可执行文件。Windows 的 bundled 构建会直接
-使用刚由 CMake 生成的安装目录，不再要求 `pkg-config`；Linux 和 macOS 的 bundled
-构建仍使用生成的包元数据。
+系统安装的发现需要 `pkg-config` 可执行文件。bundled 源码构建会直接描述它已知的
+安装前缀，因此包括 Windows 在内都不再额外依赖 pkg-config。
 
 `OCIO_RS_LINK` 默认是 `static`，以保持兼容性。如果 `OCIO_INSTALL_DIR` 指向的
 OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `shared` 和 `dylib`）。
@@ -97,6 +102,11 @@ ocio-rs/
 ```
 
 ## 兼容性
+
+| feature | OCIO 接口级别 |
+| ------- | ------------- |
+| （无）  | 2.4.1         |
+| `v2_5`  | 2.5.1         |
 
 | ocio-rs | OCIO   |
 | ------- | ------ |

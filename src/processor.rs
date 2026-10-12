@@ -2,9 +2,11 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
+#[cfg(feature = "v2_5")]
+use crate::HueCurveType;
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
-    GpuLanguage, HueCurveType, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
+    GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -1227,9 +1229,9 @@ impl Drop for GPUProcessor {
 ///
 /// For manual shader assembly, the section-based helpers
 /// ([`add_to_function_shader_code`](Self::add_to_function_shader_code),
-/// [`add_to_parameter_declare_shader_code`](Self::add_to_parameter_declare_shader_code),
-/// etc.) and [`create_shader_text`](Self::create_shader_text) let you build
-/// the final shader string from OCIO-provided fragments.
+/// `add_to_parameter_declare_shader_code` (`v2_5` feature), etc.) and
+/// [`create_shader_text`](Self::create_shader_text) let you build the final
+/// shader string from OCIO-provided fragments.
 ///
 /// [`GpuLanguage`]: crate::GpuLanguage
 /// [`GPUProcessor::extract_shader_info`]: crate::GPUProcessor::extract_shader_info
@@ -1333,8 +1335,10 @@ pub struct GpuTexture2D {
     pub dimensions: GpuTextureDimensions,
     /// Interpolation mode OCIO expects the texture to use.
     pub interpolation: Interpolation,
-    /// API-facing binding slot reported by OCIO for this texture.
-    pub binding_index: u32,
+    /// API-facing binding slot reported by OCIO 2.5.1 and newer.
+    ///
+    /// OpenColorIO 2.4 does not expose binding indexes.
+    pub binding_index: Option<u32>,
     /// Flattened texel payload in row-major order.
     pub values: Vec<f32>,
 }
@@ -1357,8 +1361,10 @@ pub struct GpuTexture3D {
     pub edge_len: u32,
     /// Interpolation mode OCIO expects the 3D LUT to use.
     pub interpolation: Interpolation,
-    /// API-facing binding slot reported by OCIO for this texture.
-    pub binding_index: u32,
+    /// API-facing binding slot reported by OCIO 2.5.1 and newer.
+    ///
+    /// OpenColorIO 2.4 does not expose binding indexes.
+    pub binding_index: Option<u32>,
     /// Flattened texel payload in OCIO's native 3D LUT ordering.
     pub values: Vec<f32>,
 }
@@ -1389,8 +1395,9 @@ pub struct GpuUniform {
     pub name: String,
     /// OCIO-reported uniform value encoding.
     pub uniform_type: GpuUniformType,
-    /// Byte offset into the packed uniform buffer layout, when applicable.
-    pub buffer_offset: usize,
+    /// Byte offset into the packed uniform buffer layout on OpenColorIO 2.5.1
+    /// and newer.
+    pub buffer_offset: Option<usize>,
     /// Logical scalar count for the current uniform payload.
     pub value_count: usize,
     /// Typed uniform payload copied into Rust-owned memory.
@@ -1412,17 +1419,6 @@ impl GpuShaderDesc {
         } else {
             match crate::ocio_call_status() {
                 Ok(()) => Ok(false),
-                Err(err) => Err(err),
-            }
-        }
-    }
-
-    fn binding_index_result(binding_index: u32) -> Result<u32> {
-        if binding_index != 0 {
-            Ok(binding_index)
-        } else {
-            match crate::ocio_call_status() {
-                Ok(()) => Err(OcioError::AllocationFailed),
                 Err(err) => Err(err),
             }
         }
@@ -1493,6 +1489,7 @@ impl GpuShaderDesc {
             channel: 0,
             dimensions: 0,
             interpolation: 0,
+            has_binding_index: false,
             binding_index: 0,
         };
         crate::clear_last_error();
@@ -1540,7 +1537,7 @@ impl GpuShaderDesc {
             channel,
             dimensions: GpuTextureDimensions::from_raw(info.dimensions),
             interpolation: interpolation_from_raw(info.interpolation),
-            binding_index: info.binding_index,
+            binding_index: info.has_binding_index.then_some(info.binding_index),
             values,
         }))
     }
@@ -1558,6 +1555,7 @@ impl GpuShaderDesc {
             1 => GpuLanguage::Glsl1_2,
             2 => GpuLanguage::Glsl1_3,
             3 => GpuLanguage::Glsl4_0,
+            #[cfg(feature = "v2_5")]
             4 => GpuLanguage::GlslVk4_6,
             5 => GpuLanguage::HlslSm5_0,
             6 => GpuLanguage::Osl1,
@@ -1711,12 +1709,16 @@ impl GpuShaderDesc {
         since = "0.2.0",
         note = "panics on OCIO errors; prefer try_set_descriptor_set_index()"
     )]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_descriptor_set_index(&self, index: u32, texture_binding_start: u32) {
         self.try_set_descriptor_set_index(index, texture_binding_start)
             .expect("GpuShaderDesc::set_descriptor_set_index failed");
     }
 
     /// Configures the descriptor-set index and starting texture-binding slot used by OCIO.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_set_descriptor_set_index(
         &self,
         index: u32,
@@ -1734,11 +1736,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the configured descriptor-set index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn descriptor_set_index(&self) -> u32 {
         self.try_descriptor_set_index().unwrap_or(0)
     }
 
     /// Return the configured descriptor-set index, preserving bridge failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_descriptor_set_index(&self) -> Result<u32> {
         crate::clear_last_error();
         let index = unsafe {
@@ -1749,11 +1755,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the configured starting binding slot for extracted textures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn texture_binding_start(&self) -> u32 {
         self.try_texture_binding_start().unwrap_or(0)
     }
 
     /// Return the starting texture binding slot, preserving bridge failures.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_texture_binding_start(&self) -> Result<u32> {
         crate::clear_last_error();
         let index = unsafe {
@@ -1828,6 +1838,8 @@ impl GpuShaderDesc {
     }
 
     /// Appends text to the shader's parameter-declaration section.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_to_parameter_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
         crate::clear_last_error();
@@ -1841,6 +1853,8 @@ impl GpuShaderDesc {
     }
 
     /// Appends text to the shader's texture-declaration section.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn add_to_texture_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
         let shader_code = cstring(shader_code)?;
         crate::clear_last_error();
@@ -1912,7 +1926,11 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
-    /// Adds a manual 1D/2D texture resource to the descriptor and returns its OCIO binding index.
+    /// Adds a manual 1D/2D texture resource to the descriptor.
+    ///
+    /// The result contains the OCIO shader binding index on OpenColorIO 2.5.1
+    /// and newer. OpenColorIO 2.4 performs the insertion but returns `None`
+    /// because that release does not expose binding indexes.
     #[allow(clippy::too_many_arguments)]
     pub fn add_texture_2d(
         &self,
@@ -1924,7 +1942,7 @@ impl GpuShaderDesc {
         dimensions: GpuTextureDimensions,
         interpolation: Interpolation,
         values: &[f32],
-    ) -> Result<u32> {
+    ) -> Result<Option<u32>> {
         let expected = width as usize * height as usize * channel.channel_count();
         if values.len() != expected {
             return Err(OcioError::ValidationFailed(format!(
@@ -1935,7 +1953,9 @@ impl GpuShaderDesc {
         let texture_name = cstring(texture_name)?;
         let sampler_name = cstring(sampler_name)?;
         crate::clear_last_error();
-        let binding_index = unsafe {
+        let mut has_binding_index = false;
+        let mut binding_index = 0;
+        let inserted = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add_texture(
                 self.handle.as_ptr(),
                 texture_name.as_ptr(),
@@ -1947,9 +1967,17 @@ impl GpuShaderDesc {
                 interpolation as i32,
                 values.as_ptr(),
                 values.len(),
+                &mut has_binding_index,
+                &mut binding_index,
             )
         };
-        Self::binding_index_result(binding_index)
+        crate::ocio_call_status()?;
+        if !inserted {
+            return Err(OcioError::ValidationFailed(
+                "OpenColorIO rejected the 1D/2D texture".to_owned(),
+            ));
+        }
+        Ok(has_binding_index.then_some(binding_index))
     }
 
     /// Rebuilds the full shader text from the provided OCIO shader sections.
@@ -2086,11 +2114,15 @@ impl GpuShaderDesc {
     }
 
     /// Returns the size in bytes of OCIO's packed uniform buffer layout.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn uniform_buffer_size(&self) -> usize {
         self.try_uniform_buffer_size().unwrap_or(0)
     }
 
     /// Return the packed uniform-buffer size, preserving bridge errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_uniform_buffer_size(&self) -> Result<usize> {
         crate::clear_last_error();
         let value = unsafe {
@@ -2102,6 +2134,8 @@ impl GpuShaderDesc {
 
     #[doc(hidden)]
     #[deprecated(since = "0.2.0", note = "compat alias; prefer uniform_buffer_size()")]
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn get_uniform_buffer_size_bytes(&self) -> usize {
         self.uniform_buffer_size()
     }
@@ -2299,6 +2333,7 @@ impl GpuShaderDesc {
         let mut info = ocio_sys::OcioGpuUniformInfo {
             name: std::ptr::null(),
             type_: 5,
+            has_buffer_offset: false,
             buffer_offset: 0,
             value_count: 0,
         };
@@ -2356,7 +2391,7 @@ impl GpuShaderDesc {
         Ok(Some(GpuUniform {
             name,
             uniform_type,
-            buffer_offset: info.buffer_offset,
+            buffer_offset: info.has_buffer_offset.then_some(info.buffer_offset),
             value_count: info.value_count,
             value,
         }))
@@ -2482,6 +2517,7 @@ impl GpuShaderDesc {
             sampler_name: std::ptr::null(),
             edge_len: 0,
             interpolation: 0,
+            has_binding_index: false,
             binding_index: 0,
         };
         crate::clear_last_error();
@@ -2531,7 +2567,7 @@ impl GpuShaderDesc {
             sampler_name,
             edge_len: info.edge_len,
             interpolation: interpolation_from_raw(info.interpolation),
-            binding_index: info.binding_index,
+            binding_index: info.has_binding_index.then_some(info.binding_index),
             values,
         }))
     }
@@ -2565,7 +2601,11 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
-    /// Adds a manual 3D texture resource to the descriptor and returns its OCIO binding index.
+    /// Adds a manual 3D texture resource to the descriptor.
+    ///
+    /// The result contains the OCIO shader binding index on OpenColorIO 2.5.1
+    /// and newer. OpenColorIO 2.4 performs the insertion but returns `None`
+    /// because that release does not expose binding indexes.
     pub fn add_texture_3d(
         &self,
         texture_name: impl AsRef<str>,
@@ -2573,7 +2613,7 @@ impl GpuShaderDesc {
         edge_len: u32,
         interpolation: Interpolation,
         values: &[f32],
-    ) -> Result<u32> {
+    ) -> Result<Option<u32>> {
         let edge = edge_len as usize;
         let expected = edge * edge * edge * 3;
         if values.len() != expected {
@@ -2585,7 +2625,9 @@ impl GpuShaderDesc {
         let texture_name = cstring(texture_name)?;
         let sampler_name = cstring(sampler_name)?;
         crate::clear_last_error();
-        let binding_index = unsafe {
+        let mut has_binding_index = false;
+        let mut binding_index = 0;
+        let inserted = unsafe {
             ocio_sys::ocio_gpu_shader_desc_add3d_texture(
                 self.handle.as_ptr(),
                 texture_name.as_ptr(),
@@ -2594,9 +2636,17 @@ impl GpuShaderDesc {
                 interpolation as i32,
                 values.as_ptr(),
                 values.len(),
+                &mut has_binding_index,
+                &mut binding_index,
             )
         };
-        Self::binding_index_result(binding_index)
+        crate::ocio_call_status()?;
+        if !inserted {
+            return Err(OcioError::ValidationFailed(
+                "OpenColorIO rejected the 3D texture".to_owned(),
+            ));
+        }
+        Ok(has_binding_index.then_some(binding_index))
     }
 
     #[doc(hidden)]
@@ -2632,7 +2682,8 @@ impl GpuShaderDesc {
 
     /// Returns the binding index for a 3D texture resource, if present.
     pub fn texture_3d_shader_binding_index(&self, index: u32) -> Option<u32> {
-        self.texture_3d(index).map(|texture| texture.binding_index)
+        self.texture_3d(index)
+            .and_then(|texture| texture.binding_index)
     }
 
     #[doc(hidden)]
@@ -2646,7 +2697,8 @@ impl GpuShaderDesc {
 
     /// Returns the binding index for a 1D/2D texture resource, if present.
     pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
-        self.texture_2d(index).map(|texture| texture.binding_index)
+        self.texture_2d(index)
+            .and_then(|texture| texture.binding_index)
     }
 
     /// Returns the uniform symbol name for the given index, if present.
@@ -2679,8 +2731,8 @@ fn interpolation_from_raw(value: i32) -> Interpolation {
         2 => Interpolation::Linear,
         3 => Interpolation::Tetrahedral,
         4 => Interpolation::Cubic,
-        5 => Interpolation::Default,
-        6 => Interpolation::Best,
+        254 => Interpolation::Default,
+        255 => Interpolation::Best,
         _ => Interpolation::Unknown,
     }
 }
@@ -2726,6 +2778,7 @@ impl DynamicProperty {
         self.require_property_type(DynamicPropertyType::GradingRgbCurve, operation)
     }
 
+    #[cfg(feature = "v2_5")]
     fn require_grading_hue_curve_property(&self, operation: &'static str) -> Result<()> {
         self.require_property_type(DynamicPropertyType::GradingHueCurve, operation)
     }
@@ -2741,6 +2794,7 @@ impl DynamicProperty {
             3 => DynamicPropertyType::GradingPrimary,
             4 => DynamicPropertyType::GradingRgbCurve,
             5 => DynamicPropertyType::GradingTone,
+            #[cfg(feature = "v2_5")]
             6 => DynamicPropertyType::GradingHueCurve,
             _ => DynamicPropertyType::Exposure,
         }
@@ -2987,6 +3041,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_num_control_points(&self, curve_type: HueCurveType) -> Result<i32> {
         self.require_grading_hue_curve_property(
             "DynamicProperty::grading_hue_curve_num_control_points",
@@ -3002,6 +3058,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_num_control_points(
         &self,
         curve_type: HueCurveType,
@@ -3027,6 +3085,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_control_point(
         &self,
         curve_type: HueCurveType,
@@ -3057,6 +3117,8 @@ impl DynamicProperty {
         Ok((x, y))
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_control_point(
         &self,
         curve_type: HueCurveType,
@@ -3086,6 +3148,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_slope(&self, curve_type: HueCurveType, index: i32) -> Result<f32> {
         self.require_grading_hue_curve_property("DynamicProperty::grading_hue_curve_slope")?;
         if index < 0 {
@@ -3105,6 +3169,8 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_slope(
         &self,
         curve_type: HueCurveType,
@@ -3130,6 +3196,8 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_slopes_are_default(&self, curve_type: HueCurveType) -> Result<bool> {
         self.require_grading_hue_curve_property(
             "DynamicProperty::grading_hue_curve_slopes_are_default",
@@ -3345,6 +3413,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn dynamic_property_grading_hue_curve_no_crash() {
         let config = Config::raw().unwrap();
@@ -3461,6 +3530,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn gpu_shader_desc_structured_accessors_no_crash() {
         if let Ok(desc) = GpuShaderDesc::create() {
@@ -3486,6 +3556,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     #[allow(deprecated)]
     fn gpu_shader_desc_compat_value_accessors_no_crash() {

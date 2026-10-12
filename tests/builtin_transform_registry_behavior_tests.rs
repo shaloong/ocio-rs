@@ -22,6 +22,7 @@ fn builtin_transform_registry_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_transform_registry_matches_builtin_transform_helpers() {
     let _guard = builtin_transform_registry_test_lock();
     if is_stub() {
@@ -54,6 +55,7 @@ fn builtin_transform_registry_matches_builtin_transform_helpers() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_transform_instance_round_trip_behavior() {
     let _guard = builtin_transform_registry_test_lock();
     if is_stub() {

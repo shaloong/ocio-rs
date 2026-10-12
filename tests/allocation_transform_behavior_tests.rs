@@ -21,6 +21,7 @@ fn allocation_transform_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn allocation_transform_value_copy_and_direction_behavior() {
     let _guard = allocation_transform_test_lock();
     if is_stub() {
@@ -65,6 +66,7 @@ fn allocation_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn allocation_transform_uniform_processor_behavior() {
     let _guard = allocation_transform_test_lock();
     if is_stub() {
@@ -111,6 +113,7 @@ fn allocation_transform_uniform_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn allocation_transform_lg2_processor_behavior() {
     let _guard = allocation_transform_test_lock();
     if is_stub() {

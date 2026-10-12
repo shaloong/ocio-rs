@@ -21,6 +21,7 @@ fn format_metadata_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_format_metadata_round_trip_and_copy_behavior() {
     let _guard = format_metadata_test_lock();
     if is_stub() {
@@ -136,6 +137,7 @@ fn baker_format_metadata_round_trip_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_transform_format_metadata_access_behavior() {
     let _guard = format_metadata_test_lock();
     if is_stub() {
@@ -173,6 +175,7 @@ fn processor_transform_format_metadata_access_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn format_metadata_remains_usable_after_parent_drop() {
     let _guard = format_metadata_test_lock();
     if is_stub() {
@@ -226,6 +229,7 @@ fn format_metadata_remains_usable_after_parent_drop() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn format_metadata_child_survives_parent_sibling_growth_behavior() {
     let _guard = format_metadata_test_lock();
     if is_stub() {
@@ -297,6 +301,7 @@ fn format_metadata_child_survives_parent_sibling_growth_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn legacy_sys_metadata_handles_remain_usable_after_parent_drop() {
     let _guard = format_metadata_test_lock();
     if is_stub() {

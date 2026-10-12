@@ -17,6 +17,7 @@ pub struct OcioGpuTexture2DInfo {
     pub channel: i32,
     pub dimensions: i32,
     pub interpolation: i32,
+    pub has_binding_index: bool,
     pub binding_index: u32,
 }
 
@@ -26,6 +27,7 @@ pub struct OcioGpuTexture3DInfo {
     pub sampler_name: *const i8,
     pub edge_len: u32,
     pub interpolation: i32,
+    pub has_binding_index: bool,
     pub binding_index: u32,
 }
 
@@ -33,6 +35,7 @@ pub struct OcioGpuTexture3DInfo {
 pub struct OcioGpuUniformInfo {
     pub name: *const i8,
     pub type_: i32,
+    pub has_buffer_offset: bool,
     pub buffer_offset: usize,
     pub value_count: usize,
 }
@@ -265,6 +268,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         roleName: *const i8,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_is_view_shared(
         handle: *mut c_void,
         dispName: *const i8,
@@ -304,6 +308,7 @@ unsafe extern "C" {
         colorspaceName: *const i8,
         index: i32,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_are_views_equal(
         handle: *mut c_void,
         first: *mut c_void,
@@ -336,6 +341,7 @@ unsafe extern "C" {
         display: *const i8,
         view: *const i8,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_has_view(
         handle: *mut c_void,
         dispName: *const i8,
@@ -369,7 +375,9 @@ unsafe extern "C" {
         view: *const i8,
     ) -> ();
     pub fn ocio_config_clear_displays(handle: *mut c_void) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_has_virtual_view(handle: *mut c_void, viewName: *const i8) -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_is_virtual_view_shared(handle: *mut c_void, viewName: *const i8) -> bool;
     pub fn ocio_config_add_virtual_display_view(
         handle: *mut c_void,
@@ -390,6 +398,7 @@ unsafe extern "C" {
         type_param: i32,
         index: i32,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_are_virtual_views_equal(
         handle: *mut c_void,
         first: *mut c_void,
@@ -428,22 +437,33 @@ unsafe extern "C" {
     ) -> i32;
     pub fn ocio_config_set_active_displays(handle: *mut c_void, displays: *const i8) -> ();
     pub fn ocio_config_get_active_displays(handle: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_get_num_active_displays(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_get_active_display(handle: *mut c_void, index: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_add_active_display(handle: *mut c_void, display: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_remove_active_display(handle: *mut c_void, display: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_clear_active_displays(handle: *mut c_void) -> ();
     pub fn ocio_config_set_active_views(handle: *mut c_void, views: *const i8) -> ();
     pub fn ocio_config_get_active_views(handle: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_get_num_active_views(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_get_active_view(handle: *mut c_void, index: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_add_active_view(handle: *mut c_void, view: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_remove_active_view(handle: *mut c_void, view: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_clear_active_views(handle: *mut c_void) -> ();
     pub fn ocio_config_get_num_displays_all(handle: *mut c_void) -> i32;
     pub fn ocio_config_get_display_all(handle: *mut c_void, index: i32) -> *mut c_void;
     pub fn ocio_config_get_display_all_by_name(handle: *mut c_void, arg0: *mut c_void) -> i32;
     pub fn ocio_config_is_display_temporary(handle: *mut c_void, index: i32) -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_set_display_temporary(
         handle: *mut c_void,
         index: i32,
@@ -497,6 +517,7 @@ unsafe extern "C" {
     pub fn ocio_config_get_index_for_named_transform(handle: *mut c_void, name: *const i8) -> i32;
     pub fn ocio_config_get_named_transform(handle: *mut c_void, name: *const i8) -> *mut c_void;
     pub fn ocio_config_add_named_transform(handle: *mut c_void, namedTransform: *mut c_void) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_config_remove_named_transform(handle: *mut c_void, name: *const i8) -> ();
     pub fn ocio_config_clear_named_transforms(handle: *mut c_void) -> ();
     pub fn ocio_config_get_file_rules(handle: *mut c_void) -> *mut c_void;
@@ -851,22 +872,29 @@ unsafe extern "C" {
         -> ();
     pub fn ocio_color_space_get_description(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_set_description(handle: *mut c_void, description: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_get_interop_id(handle: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_set_interop_id(handle: *mut c_void, interopID: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_get_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_get_interchange_attribute_name_by_index(
         handle: *mut c_void,
         index: i32,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_color_space_get_interchange_attribute_value_by_index(
         handle: *mut c_void,
         index: i32,
@@ -937,20 +965,25 @@ unsafe extern "C" {
     pub fn ocio_look_set_inverse_transform(handle: *mut c_void, transform: *mut c_void) -> ();
     pub fn ocio_look_get_description(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_look_set_description(handle: *mut c_void, description: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_look_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_look_get_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_look_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_look_get_interchange_attribute_name_by_index(
         handle: *mut c_void,
         index: i32,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_look_get_interchange_attribute_value_by_index(
         handle: *mut c_void,
         index: i32,
@@ -997,20 +1030,25 @@ unsafe extern "C" {
     pub fn ocio_view_transform_set_family(handle: *mut c_void, family: *const i8) -> ();
     pub fn ocio_view_transform_get_description(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_view_transform_set_description(handle: *mut c_void, description: *const i8) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_view_transform_set_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
         value: *const i8,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_view_transform_get_interchange_attribute(
         handle: *mut c_void,
         attrName: *const i8,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_view_transform_get_num_interchange_attributes(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_view_transform_get_interchange_attribute_name_by_index(
         handle: *mut c_void,
         index: i32,
     ) -> *const i8;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_view_transform_get_interchange_attribute_value_by_index(
         handle: *mut c_void,
         index: i32,
@@ -1154,6 +1192,7 @@ unsafe extern "C" {
         values: *mut i32,
         len: usize,
     ) -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(handle: *mut c_void) -> usize;
     pub fn ocio_gpu_shader_desc_add_uniform_double(
         handle: *mut c_void,
@@ -1207,7 +1246,9 @@ unsafe extern "C" {
         interpolation: i32,
         values: *const f32,
         len: usize,
-    ) -> u32;
+        has_binding_index: *mut bool,
+        binding_index: *mut u32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_texture_info(
         handle: *mut c_void,
@@ -1229,7 +1270,9 @@ unsafe extern "C" {
         interpolation: i32,
         values: *const f32,
         len: usize,
-    ) -> u32;
+        has_binding_index: *mut bool,
+        binding_index: *mut u32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num3d_textures_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get3d_texture_info(
         handle: *mut c_void,
@@ -1250,6 +1293,7 @@ unsafe extern "C" {
         index: *mut c_void,
         data: *mut c_void,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num_textures(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_texture(
@@ -1268,6 +1312,7 @@ unsafe extern "C" {
         index: *mut c_void,
         values: *mut c_void,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_texture_shader_binding_index(
         handle: *mut c_void,
         index: *mut c_void,
@@ -1286,6 +1331,7 @@ unsafe extern "C" {
         index: *mut c_void,
         values: *mut c_void,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get3d_texture_shader_binding_index(
         handle: *mut c_void,
         index: *mut c_void,
@@ -1680,33 +1726,49 @@ unsafe extern "C" {
     pub fn ocio_grading_rgb_curve_transform_make_non_dynamic(handle: *mut c_void) -> ();
 
     // --- GradingHueCurveTransform ---
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_create() -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_create_with_style(style: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_destroy(handle: *mut c_void);
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata(handle: *mut c_void)
         -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata_v1(
         handle: *mut c_void,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_format_metadata_v2(
         handle: *mut c_void,
     ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_equals(handle: *mut c_void, other: *mut c_void)
         -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_direction(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_direction(handle: *mut c_void, dir: i32) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_style(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_style(handle: *mut c_void, style: i32) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_value(handle: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_value(
         handle: *mut c_void,
         value: *mut c_void,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_destroy(handle: *mut c_void) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_num_control_points(
         handle: *mut c_void,
         c: i32,
     ) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_control_point(
         handle: *mut c_void,
         c: i32,
@@ -1714,11 +1776,13 @@ unsafe extern "C" {
         x: *mut f32,
         y: *mut f32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_num_control_points(
         handle: *mut c_void,
         c: i32,
         num: i32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_control_point(
         handle: *mut c_void,
         c: i32,
@@ -1726,23 +1790,31 @@ unsafe extern "C" {
         x: f32,
         y: f32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_slope(
         handle: *mut c_void,
         c: i32,
         index: usize,
     ) -> f32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_slope(
         handle: *mut c_void,
         c: i32,
         index: usize,
         slope: f32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_slopes_are_default(handle: *mut c_void, c: i32)
         -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_rgb_to_hsy(handle: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_set_rgb_to_hsy(handle: *mut c_void, style: i32) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_is_dynamic(handle: *mut c_void) -> bool;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_make_dynamic(handle: *mut c_void) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_make_non_dynamic(handle: *mut c_void) -> ();
 
     // --- GradingToneTransform ---
@@ -2112,6 +2184,7 @@ unsafe extern "C" {
 
     pub fn ocio_dynamic_property_double_set_value(prop: *mut c_void, value: f64) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_get_control_point(
         prop: *mut c_void,
         curveType: i32,
@@ -2120,17 +2193,20 @@ unsafe extern "C" {
         y: *mut f32,
     ) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_get_num_control_points(
         prop: *mut c_void,
         curveType: i32,
     ) -> i32;
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_get_slope(
         prop: *mut c_void,
         curveType: i32,
         index: i32,
     ) -> f32;
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_set_control_point(
         prop: *mut c_void,
         curveType: i32,
@@ -2139,12 +2215,14 @@ unsafe extern "C" {
         y: f32,
     ) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_set_num_control_points(
         prop: *mut c_void,
         curveType: i32,
         num: i32,
     ) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_set_slope(
         prop: *mut c_void,
         curveType: i32,
@@ -2152,6 +2230,7 @@ unsafe extern "C" {
         slope: f32,
     ) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_slopes_are_default(
         prop: *mut c_void,
         curveType: i32,
@@ -2317,10 +2396,12 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_begin(shader_desc: *mut c_void, uid: *const i8) -> ();
     pub fn ocio_gpu_shader_desc_end(shader_desc: *mut c_void) -> ();
     pub fn ocio_gpu_shader_desc_get_next_resource_index(shader_desc: *mut c_void) -> u32;
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
         shader_desc: *mut c_void,
         shader_code: *const i8,
     ) -> ();
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_add_to_texture_declare_shader_code(
         shader_desc: *mut c_void,
         shader_code: *const i8,
@@ -2362,8 +2443,10 @@ unsafe extern "C" {
 
     pub fn ocio_gpu_shader_desc_get_resource_prefix(shader_desc: *mut c_void) -> *const i8;
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_descriptor_set_index(shader_desc: *mut c_void) -> u32;
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_texture_binding_start(shader_desc: *mut c_void) -> u32;
 
     pub fn ocio_gpu_shader_desc_get_allow_texture_1d(shader_desc: *mut c_void) -> bool;
@@ -2385,6 +2468,7 @@ unsafe extern "C" {
         prefix: *const i8,
     ) -> ();
 
+    #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_set_descriptor_set_index(
         shader_desc: *mut c_void,
         index: u32,

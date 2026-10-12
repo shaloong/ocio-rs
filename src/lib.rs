@@ -1,9 +1,17 @@
-//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO v2.5).
+//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4+).
 //!
 //! This crate wraps the OpenColorIO C++ API through a generated FFI layer
 //! ([`ocio_sys`]) and exposes safe Rust types for configuration, color-space
 //! queries, processor creation, CPU/GPU execution, GPU shader extraction, and
 //! transform composition.
+//!
+//! # OCIO version support
+//!
+//! The baseline API works with any OpenColorIO >= 2.4. API added in newer
+//! OCIO versions is opt-in through additive `vX_Y` cargo features (e.g.
+//! `v2_5` for hue-curve grading, interchange attributes, and GPU uniform
+//! buffers); enabling one raises the OpenColorIO version requirement checked
+//! at build time.
 //!
 //! # Getting started
 //!

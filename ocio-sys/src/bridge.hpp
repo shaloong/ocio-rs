@@ -34,6 +34,7 @@ typedef struct OcioGpuTexture2DInfo {
   int channel;
   int dimensions;
   int interpolation;
+  bool has_binding_index;
   unsigned binding_index;
 } OcioGpuTexture2DInfo;
 
@@ -42,12 +43,14 @@ typedef struct OcioGpuTexture3DInfo {
   const char* sampler_name;
   unsigned edge_len;
   int interpolation;
+  bool has_binding_index;
   unsigned binding_index;
 } OcioGpuTexture3DInfo;
 
 typedef struct OcioGpuUniformInfo {
   const char* name;
   int type;
+  bool has_buffer_offset;
   size_t buffer_offset;
   size_t value_count;
 } OcioGpuUniformInfo;
@@ -611,7 +614,7 @@ unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
 void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
 void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);
 bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type);
-uint32_t ocio_gpu_shader_desc_add_texture(
+bool ocio_gpu_shader_desc_add_texture(
     void* handle,
     const char* textureName,
     const char* samplerName,
@@ -621,19 +624,23 @@ uint32_t ocio_gpu_shader_desc_add_texture(
     int dimensions,
     int interpolation,
     const float* values,
-    size_t len);
+    size_t len,
+    bool* hasBindingIndex,
+    uint32_t* bindingIndex);
 unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
 size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len);
-uint32_t ocio_gpu_shader_desc_add3d_texture(
+bool ocio_gpu_shader_desc_add3d_texture(
     void* handle,
     const char* textureName,
     const char* samplerName,
     uint32_t edgeLen,
     int interpolation,
     const float* values,
-    size_t len);
+    size_t len,
+    bool* hasBindingIndex,
+    uint32_t* bindingIndex);
 unsigned ocio_gpu_shader_desc_get_num3d_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioGpuTexture3DInfo* out);
 size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned index);
@@ -1019,6 +1026,7 @@ void ocio_grading_rgb_curve_transform_make_dynamic(void* handle);
 void ocio_grading_rgb_curve_transform_make_non_dynamic(void* handle);
 
 // --- GradingHueCurveTransform ---
+#ifdef OCIO_RS_FEATURE_V2_5
 void* ocio_grading_hue_curve_transform_create(void);
 void* ocio_grading_hue_curve_transform_create_with_style(int style);
 void ocio_grading_hue_curve_transform_destroy(void* handle);
@@ -1046,6 +1054,7 @@ void ocio_grading_hue_curve_transform_set_rgb_to_hsy(void* handle, int style);
 bool ocio_grading_hue_curve_transform_is_dynamic(void* handle);
 void ocio_grading_hue_curve_transform_make_dynamic(void* handle);
 void ocio_grading_hue_curve_transform_make_non_dynamic(void* handle);
+#endif
 
 // --- GradingToneTransform ---
 void* ocio_grading_tone_transform_create(void);

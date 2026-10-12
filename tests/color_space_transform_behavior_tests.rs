@@ -70,6 +70,7 @@ fn configured_color_space_transform_config(source_is_data: bool) -> Config {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_transform_field_copy_and_validate_behavior() {
     let _guard = color_space_transform_test_lock();
     if is_stub() {
@@ -127,6 +128,7 @@ fn color_space_transform_field_copy_and_validate_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_transform_matches_named_processor_behavior() {
     let _guard = color_space_transform_test_lock();
     if is_stub() {
@@ -170,6 +172,7 @@ fn color_space_transform_matches_named_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_transform_data_bypass_behavior() {
     let _guard = color_space_transform_test_lock();
     if is_stub() {

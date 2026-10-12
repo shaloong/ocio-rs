@@ -54,6 +54,7 @@ fn configured_cdl_transform() -> CDLTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cdl_transform_round_trip_and_copy_behavior() {
     let _guard = cdl_transform_test_lock();
     if is_stub() {
@@ -114,6 +115,7 @@ fn cdl_transform_round_trip_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cdl_transform_processor_behavior() {
     let _guard = cdl_transform_test_lock();
     if is_stub() {
@@ -153,6 +155,7 @@ fn cdl_transform_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cdl_transform_file_loading_behavior() {
     let _guard = cdl_transform_test_lock();
     if is_stub() {

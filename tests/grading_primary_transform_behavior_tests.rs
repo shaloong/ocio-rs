@@ -36,6 +36,7 @@ fn configured_linear_grading_primary_transform() -> GradingPrimaryTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_primary_default_style_dynamic_and_copy_behavior() {
     let _guard = grading_primary_transform_test_lock();
     if is_stub() {
@@ -105,6 +106,7 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_primary_linear_processor_forward_inverse_behavior() {
     let _guard = grading_primary_transform_test_lock();
     if is_stub() {
@@ -148,6 +150,7 @@ fn grading_primary_linear_processor_forward_inverse_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_primary_legacy_value_handle_survives_parent_drop() {
     let _guard = grading_primary_transform_test_lock();
     if is_stub() {

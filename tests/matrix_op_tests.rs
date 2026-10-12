@@ -45,6 +45,7 @@ fn _apply_matrix(matrix: &MatrixTransform, pixels: &mut [[f32; 4]]) {
 // ─── MatrixTransform static factories ───
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn matrix_fit_static_values() {
     if is_stub() {
         return;
@@ -117,6 +118,7 @@ fn matrix_view_identity_when_all_channels_hot() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn matrix_view_luma_mix_values() {
     if is_stub() {
         return;

@@ -30,6 +30,7 @@ fn scaled_view_transform() -> ViewTransform {
     vt.set_description("view transform behavior test")
         .expect("set description");
     vt.add_category("unit_category").expect("add category");
+    #[cfg(feature = "v2_5")]
     vt.set_interchange_attribute("amf_transform_ids", "urn:test:view-transform")
         .expect("set interchange attribute");
 
@@ -58,6 +59,7 @@ fn identity_color_space(name: &str) -> ColorSpace {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_metadata_category_and_interchange_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -78,19 +80,23 @@ fn view_transform_metadata_category_and_interchange_behavior() {
     assert_eq!(vt.category(0).as_deref(), Some("unit_category"));
     assert!(vt.has_category("unit_category"));
 
-    assert_eq!(
-        vt.interchange_attribute("amf_transform_ids").as_deref(),
-        Some("urn:test:view-transform")
-    );
-    assert_eq!(
-        vt.interchange_attributes()
-            .get("amf_transform_ids")
-            .map(String::as_str),
-        Some("urn:test:view-transform")
-    );
+    #[cfg(feature = "v2_5")]
+    {
+        assert_eq!(
+            vt.interchange_attribute("amf_transform_ids").as_deref(),
+            Some("urn:test:view-transform")
+        );
+        assert_eq!(
+            vt.interchange_attributes()
+                .get("amf_transform_ids")
+                .map(String::as_str),
+            Some("urn:test:view-transform")
+        );
+    }
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_attached_transform_and_copy_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -131,6 +137,7 @@ fn view_transform_attached_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_display_pipeline_round_trip_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {
@@ -195,7 +202,9 @@ fn view_transform_display_pipeline_round_trip_behavior() {
     assert_close(round_tripped[3] as f64, original[3] as f64, 1e-6);
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_transform_interchange_attribute_errors_surface_behavior() {
     let _guard = view_transform_test_lock();
     if is_stub() {

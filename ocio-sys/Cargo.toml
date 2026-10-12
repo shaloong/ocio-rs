@@ -3,7 +3,7 @@ name = "ocio-sys"
 version = "0.2.1"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
-description = "Low-level FFI bindings for OpenColorIO v2.5.2"
+description = "Low-level FFI bindings for OpenColorIO 2.4.1+"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
 links = "OpenColorIO"
@@ -22,11 +22,21 @@ default = []
 # defaults it to `always` for compatibility; use `auto` to prefer pkg-config
 # and fall back to source. See SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL.
 bundled = ["dep:cmake"]
+system = []
+# Additive OpenColorIO API version features. The baseline (no feature)
+# targets OCIO 2.4.1; enable vX_Y to use API added in that OCIO version.
+# system-deps raises the resolved library requirement accordingly (see the
+# feature-versions tables below).
+v2_5 = []
 
 [package.metadata.docs.rs]
 no-default-features = true
+features = ["v2_5"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.system-deps.opencolorio]
 fallback-names = ["OpenColorIO"]
-version = ">= 2.5.2, < 2.6"
+version = ">= 2.4.1, < 2.6"
+
+[package.metadata.system-deps.opencolorio.v2_5]
+version = ">= 2.5.1, < 2.6"

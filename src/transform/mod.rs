@@ -25,6 +25,7 @@ mod exponent_with_linear;
 mod exposure_contrast;
 mod file;
 mod fixed_function;
+#[cfg(feature = "v2_5")]
 mod grading_hue_curve;
 mod grading_primary;
 mod grading_rgb_curve;
@@ -54,6 +55,7 @@ pub use exponent_with_linear::ExponentWithLinearTransform;
 pub use exposure_contrast::ExposureContrastTransform;
 pub use file::FileTransform;
 pub use fixed_function::FixedFunctionTransform;
+#[cfg(feature = "v2_5")]
 pub use grading_hue_curve::GradingHueCurveTransform;
 pub use grading_primary::GradingPrimaryTransform;
 pub use grading_rgb_curve::GradingRGBCurveTransform;
@@ -172,6 +174,7 @@ impl TransformHandle for GradingRGBCurveTransform {
         self.handle.as_ptr()
     }
 }
+#[cfg(feature = "v2_5")]
 impl TransformHandle for GradingHueCurveTransform {
     fn as_ptr(&self) -> *mut c_void {
         self.handle.as_ptr()
@@ -210,6 +213,7 @@ pub enum Transform {
     LogCamera(LogCameraTransform),
     GradingPrimary(GradingPrimaryTransform),
     GradingRGBCurve(GradingRGBCurveTransform),
+    #[cfg(feature = "v2_5")]
     GradingHueCurve(GradingHueCurveTransform),
     GradingTone(GradingToneTransform),
 }
@@ -238,6 +242,7 @@ impl TransformHandle for Transform {
             Transform::LogCamera(t) => t.as_ptr(),
             Transform::GradingPrimary(t) => t.as_ptr(),
             Transform::GradingRGBCurve(t) => t.as_ptr(),
+            #[cfg(feature = "v2_5")]
             Transform::GradingHueCurve(t) => t.as_ptr(),
             Transform::GradingTone(t) => t.as_ptr(),
         }
@@ -283,6 +288,7 @@ pub(crate) fn transform_from_raw_handle(handle: *mut c_void) -> Option<Transform
         11 => Some(Transform::GradingPrimary(GradingPrimaryTransform {
             handle: nn,
         })),
+        #[cfg(feature = "v2_5")]
         10 => Some(Transform::GradingHueCurve(GradingHueCurveTransform {
             handle: nn,
         })),

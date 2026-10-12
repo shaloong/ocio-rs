@@ -27,6 +27,7 @@ fn configured_log_transform() -> LogTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_transform_base_copy_and_direction_behavior() {
     let _guard = log_transform_test_lock();
     if is_stub() {
@@ -51,6 +52,7 @@ fn log_transform_base_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_transform_positive_domain_processor_behavior() {
     let _guard = log_transform_test_lock();
     if is_stub() {

@@ -486,6 +486,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn resolve_with_used_context_retains_variables() {
         if crate::is_stub_build() {
             return;
@@ -552,6 +553,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn context_config_io_proxy_object_no_crash() {
         if crate::is_stub_build() {
             return;

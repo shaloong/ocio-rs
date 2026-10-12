@@ -39,6 +39,7 @@ fn configured_log_affine_transform() -> LogAffineTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_affine_transform_value_copy_and_direction_behavior() {
     let _guard = log_affine_transform_test_lock();
     if is_stub() {
@@ -156,6 +157,7 @@ fn log_affine_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_affine_transform_processor_behavior() {
     let _guard = log_affine_transform_test_lock();
     if is_stub() {
@@ -198,6 +200,7 @@ fn log_affine_transform_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_affine_transform_invalid_base_surfaces_real_error() {
     let _guard = log_affine_transform_test_lock();
     if is_stub() {

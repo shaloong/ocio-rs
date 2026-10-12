@@ -53,6 +53,7 @@ fn scaling_look(name: &str, process_space: &str) -> Look {
         .expect("set process space");
     look.set_description("look behavior test")
         .expect("set look description");
+    #[cfg(feature = "v2_5")]
     look.set_interchange_attribute("amf_transform_ids", "urn:test:look")
         .expect("set interchange attribute");
 
@@ -87,6 +88,7 @@ fn configured_look_pipeline() -> Config {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_metadata_transform_and_copy_behavior() {
     let _guard = look_test_lock();
     if is_stub() {
@@ -98,16 +100,19 @@ fn look_metadata_transform_and_copy_behavior() {
     assert_eq!(look.name().as_deref(), Some("UnitLook"));
     assert_eq!(look.process_space().as_deref(), Some("UnitLookInput"));
     assert_eq!(look.description().as_deref(), Some("look behavior test"));
-    assert_eq!(
-        look.interchange_attribute("amf_transform_ids").as_deref(),
-        Some("urn:test:look")
-    );
-    assert_eq!(
-        look.interchange_attributes()
-            .get("amf_transform_ids")
-            .map(String::as_str),
-        Some("urn:test:look")
-    );
+    #[cfg(feature = "v2_5")]
+    {
+        assert_eq!(
+            look.interchange_attribute("amf_transform_ids").as_deref(),
+            Some("urn:test:look")
+        );
+        assert_eq!(
+            look.interchange_attributes()
+                .get("amf_transform_ids")
+                .map(String::as_str),
+            Some("urn:test:look")
+        );
+    }
 
     match look
         .try_transform()
@@ -149,6 +154,7 @@ fn look_metadata_transform_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_display_pipeline_and_looks_bypass_behavior() {
     let _guard = look_test_lock();
     if is_stub() {
@@ -222,7 +228,9 @@ fn look_display_pipeline_and_looks_bypass_behavior() {
     assert_close(bypassed_pixel[3] as f64, original[3] as f64, 1e-6);
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_interchange_attribute_errors_surface_behavior() {
     let _guard = look_test_lock();
     if is_stub() {

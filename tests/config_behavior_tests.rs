@@ -30,6 +30,7 @@ fn configured_view_transform(name: &str) -> ViewTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_with_interchange_rejects_empty_interchange_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -52,6 +53,7 @@ fn config_processor_from_configs_with_interchange_rejects_empty_interchange_beha
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
 {
     let _guard = config_test_lock();
@@ -79,6 +81,7 @@ fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_int
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_to_display_with_interchange_rejects_empty_interchange_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -106,6 +109,7 @@ fn config_processor_from_configs_to_display_with_interchange_rejects_empty_inter
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_to_display_with_contexts_and_interchange_rejects_empty_interchange_behavior(
 ) {
     let _guard = config_test_lock();
@@ -138,6 +142,7 @@ fn config_processor_from_configs_to_display_with_contexts_and_interchange_reject
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_display_view_metadata_round_trip_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -188,6 +193,7 @@ fn config_display_view_metadata_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_display_shared_view_metadata_round_trip_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -232,7 +238,9 @@ fn config_display_shared_view_metadata_round_trip_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_metadata_round_trip_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -276,7 +284,9 @@ fn config_virtual_display_metadata_round_trip_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_virtual_display_shared_view_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -324,6 +334,7 @@ fn config_virtual_display_shared_view_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_role_mutation_errors_surface_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -341,6 +352,7 @@ fn config_role_mutation_errors_surface_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_missing_color_space_errors_surface_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -359,6 +371,7 @@ fn config_processor_missing_color_space_errors_surface_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_builtin_processor_invalid_builtin_errors_surface_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -380,7 +393,9 @@ fn config_builtin_processor_invalid_builtin_errors_surface_behavior() {
     );
 }
 
+#[cfg(feature = "v2_5")]
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_static_view_comparisons_preserve_real_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -415,6 +430,7 @@ fn config_static_view_comparisons_preserve_real_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_static_color_space_identification_preserves_errors() {
     let _guard = config_test_lock();
     if is_stub() {

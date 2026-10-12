@@ -46,6 +46,7 @@ fn configured_log_camera_transform() -> LogCameraTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_camera_transform_value_copy_and_direction_behavior() {
     let _guard = log_camera_transform_test_lock();
     if is_stub() {
@@ -139,6 +140,7 @@ fn log_camera_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_camera_transform_linear_slope_optional_state_behavior() {
     let _guard = log_camera_transform_test_lock();
     if is_stub() {
@@ -186,6 +188,7 @@ fn log_camera_transform_linear_slope_optional_state_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_camera_transform_processor_behavior() {
     let _guard = log_camera_transform_test_lock();
     if is_stub() {
@@ -230,6 +233,7 @@ fn log_camera_transform_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn log_camera_transform_invalid_base_surfaces_real_error() {
     let _guard = log_camera_transform_test_lock();
     if is_stub() {

@@ -37,6 +37,7 @@ fn configured_range_transform(style: RangeStyle) -> RangeTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn range_transform_parameter_unset_and_copy_behavior() {
     let _guard = range_transform_test_lock();
     if is_stub() {
@@ -74,6 +75,7 @@ fn range_transform_parameter_unset_and_copy_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn range_transform_clamp_processor_behavior() {
     let _guard = range_transform_test_lock();
     if is_stub() {
@@ -99,6 +101,7 @@ fn range_transform_clamp_processor_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn range_transform_inverse_processor_behavior() {
     let _guard = range_transform_test_lock();
     if is_stub() {

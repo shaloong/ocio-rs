@@ -101,6 +101,8 @@ impl ViewTransform {
     }
 
     /// Set an interchange attribute (e.g. ACES transform ID) by name and value.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn set_interchange_attribute(
         &self,
         name: impl AsRef<str>,
@@ -120,11 +122,15 @@ impl ViewTransform {
     }
 
     /// Get an interchange attribute value by name.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attribute(&self, name: impl AsRef<str>) -> Option<String> {
         self.try_interchange_attribute(name).ok().flatten()
     }
 
     /// Get an interchange attribute value while preserving invalid-name errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_interchange_attribute(&self, name: impl AsRef<str>) -> Result<Option<String>> {
         let name = cstring(name)?;
         crate::clear_last_error();
@@ -139,6 +145,8 @@ impl ViewTransform {
     }
 
     /// Get all interchange attributes as a map.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
         let mut attrs = BTreeMap::new();
         let count = unsafe {
@@ -315,6 +323,7 @@ mod tests {
         assert!(vt.is_ok());
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
     fn metadata_round_trip_no_crash() {
         let vt = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
@@ -331,7 +340,9 @@ mod tests {
         let _ = vt.interchange_attributes();
     }
 
+    #[cfg(feature = "v2_5")]
     #[test]
+    #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
     fn interchange_attribute_real_round_trip() {
         if crate::is_stub_build() {
             return;

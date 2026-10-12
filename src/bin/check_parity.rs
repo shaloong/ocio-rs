@@ -1068,7 +1068,23 @@ fn main() {
     let l2 = run_l2(&bridge_funcs, &rust_methods);
 
     let l3 = if check_l3 {
-        let cpp_classes = parse_ocio_cpp_headers(&root.join(OCIO_INCLUDE));
+        let include_dir = root.join(OCIO_INCLUDE);
+        let primary_header = include_dir.join("OpenColorIO.h");
+        if !primary_header.is_file() {
+            eprintln!(
+                "L3 requested, but the OpenColorIO headers are missing at {}",
+                primary_header.display()
+            );
+            process::exit(2);
+        }
+        let cpp_classes = parse_ocio_cpp_headers(&include_dir);
+        if cpp_classes.values().all(Vec::is_empty) {
+            eprintln!(
+                "L3 requested, but no OpenColorIO methods were parsed from {}",
+                include_dir.display()
+            );
+            process::exit(2);
+        }
         Some(run_l3(&bridge_funcs, &cpp_classes))
     } else {
         None

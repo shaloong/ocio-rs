@@ -19,6 +19,7 @@ fn builtin_config_registry_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn builtin_config_registry_round_trip_behavior() {
     let _guard = builtin_config_registry_test_lock();
     if is_stub() {
@@ -89,6 +90,7 @@ fn builtin_config_registry_round_trip_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_create_from_builtin_config_matches_registry_behavior() {
     let _guard = builtin_config_registry_test_lock();
     if is_stub() {
@@ -116,6 +118,7 @@ fn config_create_from_builtin_config_matches_registry_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_create_from_builtin_config_invalid_name_reports_error_behavior() {
     let _guard = builtin_config_registry_test_lock();
     if is_stub() {

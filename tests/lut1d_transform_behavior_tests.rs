@@ -39,6 +39,7 @@ fn configured_lut1d_transform() -> Lut1DTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_value_copy_and_direction_behavior() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {
@@ -49,6 +50,19 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
 
     assert_eq!(transform.length(), 2);
     assert_eq!(transform.interpolation(), Interpolation::Linear);
+
+    // DEFAULT and BEST sit apart from the real modes in OCIO (254/255);
+    // they must round-trip and not be misread as Unknown.
+    for meta in [Interpolation::Default, Interpolation::Best] {
+        transform
+            .try_set_interpolation(meta)
+            .expect("set meta interpolation mode");
+        assert_eq!(transform.interpolation(), meta);
+    }
+    transform
+        .try_set_interpolation(Interpolation::Linear)
+        .expect("restore linear interpolation");
+
     assert_eq!(transform.file_output_bit_depth(), BitDepth::F32);
     assert_eq!(transform.direction(), TransformDirection::Forward);
     assert_eq!(
@@ -83,6 +97,7 @@ fn lut1d_transform_value_copy_and_direction_behavior() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_rejects_invalid_write_inputs() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {
@@ -106,6 +121,7 @@ fn lut1d_transform_rejects_invalid_write_inputs() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut1d_transform_processor_behavior() {
     let _guard = lut1d_transform_test_lock();
     if is_stub() {

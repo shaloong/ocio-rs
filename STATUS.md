@@ -16,8 +16,8 @@ rather than missing core binding coverage.
 | Mode | Status |
 |---|---|
 | Stub (`--no-default-features`) | Available — default for CI and API-shape testing |
-| Real OCIO via installed library | Available (`OCIO_RS_ENABLE_REAL=1`) |
-| Bundled OCIO from source | Available, validated by weekly bundled CI plus manual workflows (`--features bundled`) |
+| Real OCIO via installed library | Available (`--features system`; `OCIO_RS_ENABLE_REAL=1` is the legacy adapter) |
+| Bundled OCIO from source | Available, validated by weekly bundled CI plus manual workflows (`--features bundled,v2_5`) |
 
 | CI coverage | Runs |
 |---|---|
@@ -82,7 +82,7 @@ Current release checklist highlights:
   constructor-style entry points.
 - `cargo test --workspace --no-default-features` passes.
 - `cargo test --examples --no-default-features` passes.
-- `cargo test --workspace --features bundled` passes.
+- `cargo test --workspace --no-default-features --features bundled,v2_5` passes.
 - `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
   passes.
 - `cargo doc --workspace --no-deps --no-default-features` passes.
