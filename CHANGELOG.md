@@ -39,6 +39,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- `Config::color_spaces()` and `looks()` now enumerate names through typed
+  accessors instead of interpreting object handles as C strings; the temporary
+  color-space set is released, and fallible `try_*` list queries are available
 - `Interpolation::Default` and `Best` now send OCIO's valid `254` and `255` values
 - Windows bundled builds no longer require a pkg-config executable
 - Keep AddressSanitizer instrumentation on the explicit Linux target instead

@@ -282,12 +282,24 @@ impl Config {
 
     /// Return a comma-separated list of all color-space names in this config.
     pub fn color_spaces(&self) -> Option<String> {
-        unsafe {
-            cstr_from_mut(ocio_sys::ocio_config_get_color_spaces(
-                self.handle.as_ptr(),
-                std::ptr::null(),
-            ))
-        }
+        self.try_color_spaces().ok()
+    }
+
+    /// Return all color-space names, preserving failures and releasing the set.
+    pub fn try_color_spaces(&self) -> Result<String> {
+        // getColorSpaces returns an owned ColorSpaceSet handle, not a C string.
+        // Let the typed wrapper release it on both success and early errors.
+        let set = self.color_space_set(None::<&str>)?;
+        let names = (0..set.num_color_spaces())
+            .map(|index| {
+                set.try_color_space_name_by_index(index)?.ok_or_else(|| {
+                    OcioError::ValidationFailed(format!(
+                        "missing color-space name at index {index}"
+                    ))
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(names.join(","))
     }
 
     /// Return the canonical name for the given color-space name, or `None` if not found.
@@ -873,12 +885,19 @@ impl Config {
 
     /// Return a comma-separated string of all look names.
     pub fn looks(&self) -> Option<String> {
-        unsafe {
-            cstr_from_mut(ocio_sys::ocio_config_get_look(
-                self.handle.as_ptr(),
-                std::ptr::null(),
-            ))
-        }
+        self.try_looks().ok()
+    }
+
+    /// Return all look names as a comma-separated list, preserving query errors.
+    pub fn try_looks(&self) -> Result<String> {
+        let names = (0..self.num_looks())
+            .map(|index| {
+                self.try_look_name_by_index(index)?.ok_or_else(|| {
+                    OcioError::ValidationFailed(format!("missing look name at index {index}"))
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(names.join(","))
     }
 
     // --- Luma coefficients ---
@@ -4934,8 +4953,14 @@ mod tests {
     #[test]
     fn color_spaces_looks_string_no_crash() {
         let config = Config::raw().unwrap();
-        let _ = config.color_spaces();
-        let _ = config.looks();
+        let spaces = config.try_color_spaces().unwrap();
+        let looks = config.try_looks().unwrap();
+        assert_eq!(config.color_spaces(), Some(spaces.clone()));
+        assert_eq!(config.looks(), Some(looks.clone()));
+        if crate::is_stub_build() {
+            assert!(spaces.is_empty());
+            assert!(looks.is_empty());
+        }
     }
 
     #[test]

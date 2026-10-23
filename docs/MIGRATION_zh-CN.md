@@ -45,6 +45,10 @@ OCIO 2.4 可以成功插入纹理，但无法报告这些元数据。遇到 `Non
 
 ### 构建与测试
 
+`Config::color_spaces()` / `looks()` 现在返回真实的逗号分隔名称列表，空集合
+返回空字符串。旧实现误把 OCIO 对象 handle 当作字符串，并泄漏了 color-space set。
+需要保留查询错误时，使用 `try_color_spaces()` / `try_looks()`。
+
 系统发现使用 `system-deps`，支持 `opencolorio` / `OpenColorIO` pkg-config 名称。
 纯 bundled 构建在 Windows 上不再需要 pkg-config。vendored minizip-ng 会使用
 bundled classic zlib，不会被主机的 zlib-ng 干扰。stub 模式下真实 OCIO 测试
