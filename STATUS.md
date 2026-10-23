@@ -2,7 +2,9 @@
 
 ## At a glance
 
-**Core OCIO 2.5 Rust bindings are broadly in place.** The safe-wrapper
+**The 0.3 line supports OpenColorIO `>= 2.4.1, < 2.6`.** API introduced in
+2.5.1 requires `v2_5`; no backend feature or legacy override means stub mode.
+The safe-wrapper
 surface, bridge parity, and bundled validation cover the major runtime
 paths — Config, Context, Processor, CPU/GPU execution, GPU shader
 extraction, dynamic properties, and the full transform family. Fallible safe
@@ -23,6 +25,9 @@ rather than missing core binding coverage.
 |---|---|
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
+| Installed OpenColorIO 2.4.x | **Automatic** Fedora 43 job on pushes/PRs |
+| Bundled with host zlib-ng | **PRs**, weekly and manual runs (Arch Linux) |
+| Exact native minima 2.4.1 and 2.5.1 | **Weekly** and manual Linux source builds |
 | Bundled real-OCIO tests | **Weekly**, plus manual `workflow_dispatch` (Linux, macOS, Windows) |
 | Release audit (full packaging + offline bundled) | **Manual** only (`workflow_dispatch`) |
 | AddressSanitizer (stub bridge) | **Manual** Linux nightly workflow |
@@ -31,8 +36,13 @@ rather than missing core binding coverage.
 
 - Documentation builds cleanly with `RUSTDOCFLAGS=-D warnings`;
   full `missing_docs` enforcement is not yet a release gate.
-- Stub mode returns safe defaults; it is not a substitute for bundled
-  real-OCIO validation.
+- Stub mode performs no color processing. Native behavior tests are ignored
+  there; use a system or bundled backend for real runtime validation.
+- `system` requires pkg-config and a compatible installed library. For
+  distribution shared libraries set `OCIO_RS_LINK=dynamic`. The default link
+  preference remains static. Pure bundled builds do not require pkg-config.
+- GPU binding indexes and uniform offsets are optional on the 2.4 baseline.
+- 0.3 breaks parts of the 0.2 API; see [migration notes](docs/MIGRATION.md#030).
 - The crate is not yet claiming to be a drop-in replacement for every
   C++ OpenColorIO workflow or every edge-case production environment.
 
@@ -51,15 +61,15 @@ rather than missing core binding coverage.
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, manual texture/uniform insertion, and real-config extraction validation |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Strong but still expanding — fallible safe APIs preserve C++ exceptions for mutators and audited getters; legacy low-level compatibility endpoints may retain default-return semantics |
-| docs.rs documentation | All public methods documented; module-level docs for transform and grading modules |
+| docs.rs documentation | Built in stub mode with `v2_5` and feature annotations; missing-doc enforcement is not a release gate |
 | Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
-| CI real-OCIO validation | Weekly/manual bundled matrix on Linux, macOS, and Windows; manual release audit on Ubuntu |
+| CI real-OCIO validation | Automatic Fedora system backend, PR Arch/zlib-ng bundled backend, weekly/manual bundled matrix and exact minima; manual release audit |
 
-The v0.2 line focuses on replacing generated stubs with real OCIO bridge
-implementations, removing APIs that are not present upstream, and backing the
-remaining surface with bundled and no-default-features test coverage so the
-crate can be treated as substantially complete for core OCIO 2.5 usage.
+The 0.3 line makes installed-library integration and the 2.4 baseline available
+to registry consumers while retaining opt-in 2.5 API. Optimization flags and
+interpolation values now match native OCIO. The [changelog](CHANGELOG.md)
+records changes from 0.2.1.
 Error propagation from C++ to Rust is being strengthened incrementally:
 fallible safe APIs clear and consume bridge errors for mutators and audited
 getters. Some legacy low-level compatibility endpoints still return OCIO-style
@@ -67,32 +77,29 @@ default values on failure and are not equivalent to fallible safe APIs.
 
 ## Release checklist
 
-Current release checklist highlights:
+The commands below are release gates, not a claim that a historic CI run
+validates every later commit. Record the candidate commit and completed Actions
+runs in each release PR. See [RELEASING.md](docs/RELEASING.md) for the full flow.
 
-- The `0.2.1` release line maintains a practical bar: core OCIO 2.5 Rust
+- The `0.3.0` release line maintains a practical bar: core OCIO Rust
   bindings are broadly present, bridge-backed, and usable for early adopters,
   while deeper edge-case reliability work continues into follow-up releases.
 - Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
   surface exposed by this crate.
-- The parity checker currently reports clean results across all three layers:
-  `1079` bridge.hpp functions, `1080` `lib.rs` declarations (with
-  `ocio_error_get_last` as the remaining compatibility extra), `1051`
-  bridge-backed safe-wrapper matches, and `822/822` OCIO C++ header methods
-  accounted for, including normalized coverage for static `Create`
-  constructor-style entry points.
-- `cargo test --workspace --no-default-features` passes.
-- `cargo test --examples --no-default-features` passes.
-- `cargo test --workspace --no-default-features --features bundled,v2_5` passes.
+- Run the parity checker with `--check-l3`; its output is the source of truth
+  for counts. One compatibility-only FFI extra (`ocio_error_get_last`) is
+  intentional. Parity establishes coverage, not behavioral equivalence.
+- Run `cargo test --workspace --no-default-features` and with `--features v2_5`.
+- Run `cargo test --examples --no-default-features`.
+- Run `cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1`.
 - `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
-  passes.
-- `cargo doc --workspace --no-deps --no-default-features` passes.
-- `cargo run --bin check_parity --quiet -- --check-l3` passes with
-  `822/822` L3 OCIO C++ methods bridged and only one intentional
-  compatibility-only FFI extra (`ocio_error_get_last`).
-- `cargo package -p ocio-sys --allow-dirty --offline` passes.
-- `cargo build --features bundled --offline` passes from the extracted
-  `target/package/ocio-sys-0.2.1` package directory.
-- `cargo test --workspace --features bundled` now covers the dedicated
+  and the same command with `--features v2_5` must pass.
+- Build docs with warnings denied, both without and with `v2_5`.
+- Package both crates together with `cargo package --workspace`; Cargo stages
+  the matching local `ocio-sys` package for verification before publication.
+- Build the extracted `ocio-sys` package offline with both `bundled` and
+  `bundled,v2_5` using the release audit script.
+- Real bundled testing covers the dedicated
   `allocation_transform_behavior`, `baker_behavior`,
   `builtin_config_registry_behavior`, `color_space_behavior`,
   `color_space_set_behavior`,
@@ -134,19 +141,13 @@ Current release checklist highlights:
 
 ## Release-audit coverage
 
-The most recently completed release-audit run, before the `0.2.1` metadata
-update, validated the following repository-side coverage. The top-level package
-check remains expected to wait for the matching `ocio-sys` version to be
-published first:
+The release audit checks both Cargo interface levels, both package payloads
+when requested, and offline native compilation of the extracted `ocio-sys`
+package. It does not downgrade packaging failures to historical warnings.
+Test counts vary with the selected features and native backend; consult the
+candidate's logs rather than treating a fixed count as a release guarantee.
 
-- `./tools/release_audit.ps1 -IncludeBundled -Offline` passes end to end.
-- `./tools/release_audit.ps1 -IncludeTopLevelPackage -Offline` passes all
-  repository-side checks and reports only the known registry sequencing warning
-  for top-level `cargo package`.
-- The release audit now validates the extracted `ocio-sys` package with
-  `cargo build --features bundled --offline` in addition to repository builds.
-- The current bundled validation path exercises `613` test cases across `388`
-  crate unit tests and forty-seven dedicated integration suites covering baker
+The runtime suites cover baker
   output, builtin-config registry
   enumeration, builtin-transform registry enumeration, builtin-transform
   execution, color-space metadata and processor behavior, config behavior,
@@ -174,11 +175,15 @@ published first:
 ## CI coverage
 
 GitHub Actions runs stub-mode test coverage across Linux, macOS, and Windows
-for `--no-default-features`. The slower bundled native OCIO job uses a
+for both baseline and `v2_5`. Fedora validates the system backend on pushes
+and PRs; Arch validates bundled dependency isolation on PRs. The slower
+cross-platform bundled native OCIO job uses a
 recursive checkout and runs weekly or on demand across the same three
 platforms. The broader manual `Release Audit` workflow also validates packaging
 and offline bundled compilation, while the nightly AddressSanitizer workflow
-covers the stub bridge and Rust wrapper layer.
+covers the stub bridge and Rust wrapper layer. Exact 2.4.1 and 2.5.1 source
+builds run weekly and manually. Scheduled workflows run from `main`, the default
+branch. The main-source policy uses trusted default-branch workflow code.
 
 ## Current runtime semantics
 
@@ -410,7 +415,7 @@ Current runtime semantics worth calling out explicitly:
 - `Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` implement
   `Send + Sync`, enabling use in multi-threaded rendering pipelines.
 
-Release note: `ocio-sys` must be published before `ocio-rs` for matching
-versions because the top-level crate depends on the registry version of
-`ocio-sys` during `cargo package` verification. At the moment, that publish
-order remains the only known blocker observed by the repository audit.
+Publish `ocio-sys` before `ocio-rs` at the same release version, then verify a
+registry-only consumer. Workspace package verification can stage both crates
+before publication; it does not prove registry availability or runtime-loader
+configuration on a downstream system.

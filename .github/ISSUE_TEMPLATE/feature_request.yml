@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an OCIO 2.5 binding, bridge, test, packaging, or documentation improvement.
+description: Suggest an OCIO 2.4/2.5 binding, bridge, test, packaging, or documentation improvement.
 title: "[feature] "
 labels:
   - enhancement

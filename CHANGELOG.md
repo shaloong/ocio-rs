@@ -7,8 +7,22 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-23
+
+### Breaking
+
+- Support OpenColorIO `>= 2.4.1, < 2.6` as the baseline, with previously
+  unconditional 2.5-only API now requiring the additive `v2_5` feature
+  (`>= 2.5.1, < 2.6`)
+- GPU texture binding indexes and uniform offsets are now `Option` metadata;
+  manual texture insertion returns `Result<Option<u32>>`
+- Remove the nonexistent `OptimizationFlags::PAIR_IDENTITY_EXPONENT` constant
+  and correct optimization bit positions and presets to match native OCIO
+
 ### Added
 
+- Explicit `system` backend feature for installed OpenColorIO, including
+  distribution and GStreamer plugin consumers
 - Build-configuration regression coverage for installed prefixes, legacy
   installations without pkg-config metadata, bundled `auto` fallback, and
   system-installed static OpenColorIO dependencies
@@ -16,12 +30,25 @@ Versioning as closely as practical for a still-maturing binding crate.
 ### Changed
 
 - Installed OpenColorIO discovery now uses `system-deps`, accepts the supported
-  `>= 2.5.2, < 2.6` ABI line, and recognizes both `opencolorio` and the upstream
+  `>= 2.4.1, < 2.6` ABI range, and recognizes both `opencolorio` and the upstream
   `OpenColorIO` pkg-config package name
 - Weekly/manual bundled CI now validates Linux, macOS, and Windows
+- Default backend selection is deterministic stub mode without a backend
+  feature or explicit legacy override; real backend failures never become stubs
+- Document the 0.3 migration, system/shared usage, and release branch synchronization
 
 ### Fixed
 
+- `Config::color_spaces()` and `looks()` now enumerate names through typed
+  accessors instead of interpreting object handles as C strings; the temporary
+  color-space set is released, and fallible `try_*` list queries are available
+- `Interpolation::Default` and `Best` now send OCIO's valid `254` and `255` values
+- Windows bundled builds no longer require a pkg-config executable
+- Keep AddressSanitizer instrumentation on the explicit Linux target instead
+  of instrumenting host proc-macro crates
+- Vendored minizip-ng consistently uses bundled classic zlib even on zlib-ng hosts
+- Report real-OCIO tests as ignored in stub mode instead of counting early returns
+  as successful native tests
 - `OCIO_INSTALL_DIR` once again supports custom pkg-config prefixes and the
   legacy `include`/`lib` directory layout, including extension dependency and
   Windows runtime-library directories

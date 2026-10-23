@@ -30,7 +30,7 @@ body:
     attributes:
       label: Version or commit
       description: Crate version, branch, or commit SHA
-      placeholder: 0.2.1-dev / main / abc1234
+      placeholder: 0.3.0 / develop / abc1234
 
   - type: textarea
     id: repro
@@ -59,5 +59,5 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: OS, Rust toolchain, OCIO version, and anything else relevant.
+      description: OS, Rust toolchain, native OCIO version, Cargo features, OCIO_RS_LINK, and relevant environment overrides.
       render: text
