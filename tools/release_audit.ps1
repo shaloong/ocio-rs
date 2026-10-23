@@ -11,7 +11,14 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
 $script:Failures = @()
-$script:Warnings = @()
+$metadataText = & cargo metadata --no-deps --format-version 1
+if ($LASTEXITCODE -ne 0) { throw "Cannot read workspace package versions." }
+$metadata = $metadataText | ConvertFrom-Json
+$sysPackage = $metadata.packages | Where-Object name -EQ "ocio-sys"
+$wrapperPackage = $metadata.packages | Where-Object name -EQ "ocio-rs"
+if (-not $sysPackage -or -not $wrapperPackage -or $sysPackage.version -ne $wrapperPackage.version) {
+    throw "ocio-rs and ocio-sys must have matching release versions."
+}
 
 function Invoke-Check {
     param(
@@ -20,8 +27,7 @@ function Invoke-Check {
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
         [string]$WorkingDirectory = $repoRoot,
-        [hashtable]$Environment = @{},
-        [switch]$AllowKnownTopLevelPackageBlocker
+        [hashtable]$Environment = @{}
     )
 
     Write-Host ""
@@ -66,17 +72,6 @@ function Invoke-Check {
         return
     }
 
-    if ($AllowKnownTopLevelPackageBlocker) {
-        $knownBlocker =
-            $text -match 'failed to select a version for the requirement `ocio-sys = "\^0\.2\.1"`' -and
-            $text -match 'candidate versions found which didn''t match: 0\.2\.0'
-        if ($knownBlocker) {
-            $script:Warnings += "$Name blocked by registry state: publish ocio-sys 0.2.1 before packaging ocio-rs."
-            Write-Host "    WARN: blocked by registry state, not by repository contents" -ForegroundColor Yellow
-            return
-        }
-    }
-
     $script:Failures += "$Name failed."
     Write-Host "    FAIL" -ForegroundColor Red
 }
@@ -119,8 +114,8 @@ function Test-OcioSysBundledPayload {
 
     $hasBundledSource = $text -match 'OpenColorIO[/\\]CMakeLists\.txt' -or $text -match 'third_party[/\\]OpenColorIO'
     if (-not $hasBundledSource) {
-        $script:Warnings += "Published ocio-sys package does not currently vendor the OpenColorIO source tree."
-        Write-Host "    WARN: bundled source tree not present in packaged ocio-sys payload" -ForegroundColor Yellow
+        $script:Failures += "Packaged ocio-sys is missing its bundled OpenColorIO source tree."
+        Write-Host "    FAIL: bundled source tree not present in packaged ocio-sys payload" -ForegroundColor Red
         return
     }
 
@@ -134,16 +129,13 @@ function Get-OcioSysPackageDir {
         $packageRoots += (Join-Path $script:OcioSysPackageTargetDir "package")
     }
 
-    $packageRoots += (Join-Path $repoRoot "target/package")
-
     foreach ($packageRoot in $packageRoots) {
         if (-not (Test-Path -LiteralPath $packageRoot)) {
             continue
         }
 
         $match = Get-ChildItem -LiteralPath $packageRoot -Directory |
-            Where-Object { $_.Name -like "ocio-sys-*" } |
-            Sort-Object LastWriteTime -Descending |
+            Where-Object { $_.Name -eq "ocio-sys-$($sysPackage.version)" } |
             Select-Object -First 1 -ExpandProperty FullName
 
         if ($match) {
@@ -154,36 +146,6 @@ function Get-OcioSysPackageDir {
     return $null
 }
 
-function Clear-PackageArtifacts {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$CrateName
-    )
-
-    $packageRoot = Join-Path $repoRoot "target/package"
-    if (-not (Test-Path -LiteralPath $packageRoot)) {
-        return
-    }
-
-    $resolvedRoot = (Resolve-Path -LiteralPath $packageRoot).Path
-    $expectedPrefix = [System.IO.Path]::GetFullPath($resolvedRoot + [System.IO.Path]::DirectorySeparatorChar)
-
-    Get-ChildItem -LiteralPath $packageRoot -Force |
-        Where-Object {
-            $_.Name -eq "$CrateName.crate" -or
-            $_.Name -like "$CrateName-*"
-        } |
-        ForEach-Object {
-            $targetPath = $_.FullName
-            $resolvedTarget = [System.IO.Path]::GetFullPath($targetPath)
-            if (-not $resolvedTarget.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                throw "Refusing to remove package artifact outside target/package: $resolvedTarget"
-            }
-
-            Remove-Item -LiteralPath $resolvedTarget -Recurse -Force -ErrorAction SilentlyContinue
-        }
-}
-
 function New-PackageTargetDir {
     param(
         [Parameter(Mandatory = $true)]
@@ -191,7 +153,7 @@ function New-PackageTargetDir {
     )
 
     $auditRoot = Join-Path $repoRoot "target/release-audit"
-    Join-Path $auditRoot $CrateName
+    Join-Path $auditRoot "$CrateName-$([guid]::NewGuid())"
 }
 
 function Ensure-StandalonePackageManifest {
@@ -215,26 +177,35 @@ function Ensure-StandalonePackageManifest {
 
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
 Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--", "-D", "warnings")
+Invoke-Check -Name "Clippy (v2_5)" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--features", "v2_5", "--", "-D", "warnings")
 Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features")
+Invoke-Check -Name "Tests (stub, v2_5)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "v2_5")
 Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-default-features")
+Invoke-Check -Name "Examples (stub, v2_5)" -Arguments @("test", "--examples", "--no-default-features", "--features", "v2_5")
 Invoke-Check `
     -Name "Docs (stub)" `
     -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features") `
     -Environment @{ RUSTDOCFLAGS = "-D warnings" }
+Invoke-Check `
+    -Name "Docs (stub, v2_5)" `
+    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features", "--features", "v2_5") `
+    -Environment @{ RUSTDOCFLAGS = "-D warnings" }
 Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet", "--", "--check-l3")
 
-Clear-PackageArtifacts -CrateName "ocio-sys"
-$ocioSysPackageArgs = @("package", "-p", "ocio-sys", "--allow-dirty")
+# Cargo stages interdependent workspace packages for verification before either
+# has been published. Do not hide packaging failures as publish-order warnings.
+$ocioSysPackageArgs = if ($IncludeTopLevelPackage) {
+    @("package", "--workspace", "--allow-dirty")
+} else {
+    @("package", "-p", "ocio-sys", "--allow-dirty")
+}
 if ($Offline) {
     $ocioSysPackageArgs += "--offline"
 }
 $ocioSysPackageTargetDir = New-PackageTargetDir -CrateName "ocio-sys"
 $script:OcioSysPackageTargetDir = $ocioSysPackageTargetDir
-if (Test-Path -LiteralPath $ocioSysPackageTargetDir) {
-    Remove-Item -LiteralPath $ocioSysPackageTargetDir -Recurse -Force -ErrorAction SilentlyContinue
-}
 Invoke-Check `
-    -Name "Package ocio-sys" `
+    -Name "Package verification" `
     -Arguments $ocioSysPackageArgs `
     -Environment @{ CARGO_TARGET_DIR = $ocioSysPackageTargetDir }
 Test-OcioSysBundledPayload
@@ -250,6 +221,11 @@ if ($ocioSysPackageDir) {
         -Name "Packaged bundled build (ocio-sys)" `
         -Arguments $ocioSysBundledBuildArgs `
         -WorkingDirectory $ocioSysPackageDir
+    $ocioSysV25BuildArgs = @("build", "--no-default-features", "--features", "bundled,v2_5", "--offline")
+    Invoke-Check `
+        -Name "Packaged bundled v2_5 build (ocio-sys, offline)" `
+        -Arguments $ocioSysV25BuildArgs `
+        -WorkingDirectory $ocioSysPackageDir
 } else {
     $script:Failures += "Packaged bundled build (ocio-sys) could not locate extracted package directory."
     Write-Host ""
@@ -258,35 +234,12 @@ if ($ocioSysPackageDir) {
 }
 
 if ($IncludeBundled) {
-    Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--features", "bundled", "--", "--test-threads=1")
-}
-
-if ($IncludeTopLevelPackage) {
-    Clear-PackageArtifacts -CrateName "ocio-rs"
-    $topLevelPackageArgs = @("package", "--allow-dirty")
-    if ($Offline) {
-        $topLevelPackageArgs += "--offline"
-    }
-    $ocioRsPackageTargetDir = New-PackageTargetDir -CrateName "ocio-rs"
-    if (Test-Path -LiteralPath $ocioRsPackageTargetDir) {
-        Remove-Item -LiteralPath $ocioRsPackageTargetDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    Invoke-Check `
-        -Name "Package ocio-rs" `
-        -Arguments $topLevelPackageArgs `
-        -Environment @{ CARGO_TARGET_DIR = $ocioRsPackageTargetDir } `
-        -AllowKnownTopLevelPackageBlocker
+    Invoke-Check -Name "Tests (bundled)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "bundled", "--", "--test-threads=1")
+    Invoke-Check -Name "Tests (bundled, v2_5)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "bundled,v2_5", "--", "--test-threads=1")
 }
 
 Write-Host ""
 Write-Host "==> Release audit summary"
-
-if ($script:Warnings.Count -gt 0) {
-    Write-Host "Warnings:" -ForegroundColor Yellow
-    foreach ($warning in $script:Warnings) {
-        Write-Host "  - $warning"
-    }
-}
 
 if ($script:Failures.Count -gt 0) {
     Write-Host "Failures:" -ForegroundColor Red
@@ -294,11 +247,6 @@ if ($script:Failures.Count -gt 0) {
         Write-Host "  - $failure"
     }
     exit 1
-}
-
-if ($script:Warnings.Count -gt 0) {
-    Write-Host "Result: repository checks passed; external publish-order state still pending." -ForegroundColor Yellow
-    exit 0
 }
 
 Write-Host "Result: all selected release checks passed." -ForegroundColor Green

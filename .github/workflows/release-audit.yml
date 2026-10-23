@@ -21,5 +21,17 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build powershell
 
       - name: Run release audit
+        # Populate Cargo's cache before checking offline package/native builds.
+        # The audit itself must not depend on already-published sibling crates.
         shell: pwsh
-        run: ./tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline
+        run: |
+          cargo fetch --locked
+          if ($LASTEXITCODE -ne 0) { throw "cargo fetch failed" }
+          ./tools/release_audit.ps1 -IncludeBundled -IncludeTopLevelPackage -Offline
+
+      - name: Retain release package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: target/release-audit/**/*.crate
+          if-no-files-found: error

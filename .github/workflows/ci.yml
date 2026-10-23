@@ -75,6 +75,8 @@ jobs:
     name: System OpenColorIO 2.4 (fedora:43)
     runs-on: ubuntu-latest
     container: fedora:43
+    env:
+      OCIO_RS_LINK: dynamic
     steps:
       - name: Install native dependencies
         run: dnf install -y gcc-c++ git pkgconf-pkg-config OpenColorIO-devel rust cargo
@@ -90,6 +92,9 @@ jobs:
 
       - name: Test examples
         run: cargo test --examples --no-default-features --features system
+
+      - name: Verify distribution shared-library processing
+        run: cargo run --example native_smoke --no-default-features --features system
 
       - name: Check v2_5 is rejected by a 2.4 install
         run: |

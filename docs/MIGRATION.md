@@ -1,5 +1,68 @@
 # Migration Notes
 
+## 0.3.0
+
+`0.3.0` is a breaking release relative to `0.2.1`. Both `ocio-rs` and
+`ocio-sys` move to 0.3 together. The supported native range is now
+OpenColorIO `>= 2.4.1, < 2.6`; `v2_5` raises the minimum to 2.5.1.
+
+### Select the backend and API level explicitly
+
+```toml
+[dependencies]
+ocio-rs = { version = "0.3", features = ["system"] }
+# For 2.5-only API: features = ["system", "v2_5"]
+# For a source build: features = ["bundled"]
+```
+
+The default without backend features or legacy overrides is stub mode, which
+does not process colors. `system` requires an installed compatible library;
+`bundled` builds vendored sources and takes precedence when both are enabled.
+Real backend failures are fatal. `OCIO_INSTALL_DIR` explicitly requests a real
+installation; `OCIO_RS_ENABLE_REAL=0/1` remains a legacy override. When using a
+distribution's shared library, set `OCIO_RS_LINK=dynamic` in the build environment.
+Do not enable `bundled` in a downstream plugin that must use the system library.
+
+Previously unconditional 2.5 APIs now require `v2_5`, including hue-curve
+grading, interchange attributes, view/display list management, Vulkan GLSL
+4.6, uniform-buffer access, and descriptor-set settings. This applies to both
+safe wrappers and low-level FFI. Installing OCIO 2.5 does not enable the Cargo
+feature automatically. Existing 2.5 users should opt in explicitly.
+
+### GPU resource metadata
+
+- `GpuTexture2D::binding_index` and `GpuTexture3D::binding_index` are now
+  `Option<u32>`.
+- `GpuUniform::buffer_offset` is now `Option<usize>`.
+- `GpuShaderDesc::add_texture_2d` and `add_texture_3d` now return
+  `Result<Option<u32>>`.
+
+On OCIO 2.4, insertion still succeeds but binding indexes and uniform-buffer
+offsets are unavailable. Handle `None` using your renderer's resource binding
+strategy; do not interpret it as an OCIO error or assume a fabricated slot.
+`Some(0)` is a valid binding index.
+
+### Corrected native numeric values
+
+`Interpolation::Default` and `Best` now use OCIO's `254` and `255` instead of
+the invalid `5` and `6`. `OptimizationFlags` now uses the native bit positions
+and compound presets. `PAIR_IDENTITY_EXPONENT` was removed because OCIO has no
+corresponding flag; use an appropriate native flag such as
+`PAIR_IDENTITY_GAMMA` only if that is the operation you intend to optimize.
+Persist symbolic names or migrate stored numeric values before reusing them.
+`OptimizationFlags::DEFAULT` now matches native `VERY_GOOD`; disabling
+`FAST_LOG_EXP_POW` requests the more precise math path.
+
+### Build and test integration
+
+Installed discovery uses `system-deps` with pkg-config package names
+`opencolorio` and `OpenColorIO`. Pure bundled builds no longer require
+pkg-config on Windows. Vendored minizip-ng uses the bundled classic zlib even
+on hosts that provide zlib-ng. Real-OCIO tests are reported as ignored in stub
+mode; a successful stub run does not validate native runtime behavior.
+
+The sections below describe earlier releases, not the current backend contract.
+
 ## 0.2.0
 
 `0.2.0` is the first broadly usable OCIO 2.5 cleanup release for `ocio-rs`.
@@ -171,22 +234,9 @@ The same treatment now applies to `Config` helpers that require external OCIO co
 
 Bundled Windows builds now force a Release CMake profile and link against Release transitive libraries where available. This avoids Debug CRT mismatches when Rust tests run against the bundled OCIO build.
 
-`cargo build` without a backend feature remains deterministic stub mode.
-Use `--features system` for an installed OpenColorIO or `--features bundled`
-for the vendored source build. The features are additive: `bundled` takes
-precedence if Cargo unifies both, and real backends never silently fall back.
-`OCIO_RS_ENABLE_REAL=0/1` remains a legacy adapter.
-Installed packages must be in the supported `>= 2.4.1, < 2.6` line
-(`>= 2.5.1, < 2.6` with the `v2_5` feature). `OCIO_SOURCE_DIR` alone does not
-enable real OCIO mode. The published `ocio-sys` crate vendors the upstream OpenColorIO
-source tree and transitive dependencies, and the packaged crate is validated
-with `cargo build --features bundled --offline`.
-
-GPU texture binding indexes and uniform-buffer offsets are now optional
-metadata. OpenColorIO 2.4 performs texture insertion but cannot report these
-2.5.1 additions, so `GpuTexture2D::binding_index`,
-`GpuTexture3D::binding_index`, and `GpuUniform::buffer_offset` are `Option`
-values, and manual texture insertion returns `Result<Option<u32>>`.
+The 0.2 release packaged the OpenColorIO source tree and transitive dependencies
+for offline bundled builds. See the 0.3.0 section above for the current backend
+selection and optional GPU metadata contracts.
 
 ### Legacy GPU optimization
 

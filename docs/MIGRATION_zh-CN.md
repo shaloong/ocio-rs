@@ -1,5 +1,57 @@
 # 迁移说明
 
+## 0.3.0
+
+`0.3.0` 相对 `0.2.1` 包含破坏性变更，`ocio-rs` 和 `ocio-sys` 同步升级。
+支持的原生库范围为 `>= 2.4.1, < 2.6`；`v2_5` 将最低版本提高到 2.5.1。
+
+### 明确选择后端和接口级别
+
+```toml
+[dependencies]
+ocio-rs = { version = "0.3", features = ["system"] }
+# 需要 2.5 接口时：features = ["system", "v2_5"]
+# 需要源码构建时：features = ["bundled"]
+```
+
+没有后端 feature 或旧式环境变量覆盖时仍使用 stub，不执行颜色处理。
+`system` 要求已安装兼容库；`bundled` 构建 vendored 源码，并在同时启用两个
+feature 时优先。真实后端失败直接报错。`OCIO_INSTALL_DIR` 明确请求真实安装；
+`OCIO_RS_ENABLE_REAL=0/1` 保留为兼容覆盖项。发行版需要动态链接时，在构建
+环境中设置 `OCIO_RS_LINK=dynamic`。必须使用系统库的插件不应启用 `bundled`。
+
+此前默认可用的部分 2.5 API 现在需要 `v2_5`：包括 hue-curve grading、
+interchange attributes、view/display 列表管理、Vulkan GLSL 4.6、uniform buffer
+和 descriptor-set 设置。安全封装与低级 FFI 都遵循此规则；安装 OCIO 2.5
+不会自动启用 Cargo feature，原有 2.5 用户需要显式 opt in。
+
+### GPU 元数据
+
+- `GpuTexture2D::binding_index` 和 `GpuTexture3D::binding_index` 改为 `Option<u32>`。
+- `GpuUniform::buffer_offset` 改为 `Option<usize>`。
+- `add_texture_2d` / `add_texture_3d` 改为返回 `Result<Option<u32>>`。
+
+OCIO 2.4 可以成功插入纹理，但无法报告这些元数据。遇到 `None` 应由渲染器
+采用自己的资源绑定策略，不能把它当作插入失败，也不能凭空假设一个 slot。
+`Some(0)` 是有效 binding index。
+
+### 原生数值修复
+
+`Interpolation::Default` / `Best` 改用原生 `254` / `255`，旧值 `5` / `6`
+无效。`OptimizationFlags` 的位位置和组合 preset 也已修正为 OCIO 的真实值。
+删除了没有原生对应项的 `PAIR_IDENTITY_EXPONENT`；仅在语义匹配时使用
+`PAIR_IDENTITY_GAMMA` 等原生 flag。持久化配置应存符号名，或迁移旧整数后再使用。
+`DEFAULT` 现在匹配原生 `VERY_GOOD`；清除 `FAST_LOG_EXP_POW` 可请求更精确的计算。
+
+### 构建与测试
+
+系统发现使用 `system-deps`，支持 `opencolorio` / `OpenColorIO` pkg-config 名称。
+纯 bundled 构建在 Windows 上不再需要 pkg-config。vendored minizip-ng 会使用
+bundled classic zlib，不会被主机的 zlib-ng 干扰。stub 模式下真实 OCIO 测试
+报告 ignored，不能把 stub 测试成功当作原生行为验证。
+
+以下章节记录历史版本；当前后端与元数据约定以上面的 0.3.0 章节为准。
+
 ## 0.2.0
 
 `0.2.0` 是 alpha 阶段的破坏性清理：安全 Rust 层优先对齐 OpenColorIO 2.5.2 的真实模型，不继续保留此前生成层里的错误兼容 shim。
@@ -94,12 +146,8 @@ matrix processor 做 bundled 行为验证，包括带 padding 的 RGB/RGBA buffe
 
 Windows bundled 构建现在强制使用 Release CMake profile，并优先链接 Release transitive libraries，避免 Rust 测试运行 bundled OCIO 时遇到 Debug CRT 不匹配。
 
-Stub 模式仍为默认（不带 flag 的 `cargo build`）。真实 OCIO 模式通过
-设置 `OCIO_RS_ENABLE_REAL=1` 进行 pkg-config 探测（自定义或旧式安装前缀可再指定
-`OCIO_INSTALL_DIR`），或使用 `--features bundled` 来启用。系统安装必须位于支持的
-`>= 2.5.2, < 2.6` 版本线。单独设置 `OCIO_SOURCE_DIR` 不会启用真实 OCIO 模式。
-已发布的 `ocio-sys` crate 包含上游 OpenColorIO 源码树和传递依赖，打包后的 crate
-通过 `cargo build --features bundled --offline` 验证。
+0.2 发布包包含上游 OpenColorIO 源码树和传递依赖，用于离线 bundled 构建。
+当前后端选择、系统库版本范围和可选 GPU 元数据约定见上面的 0.3.0 章节。
 
 ### Baker 输出
 

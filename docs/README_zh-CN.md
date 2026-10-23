@@ -3,11 +3,11 @@
 [![CI](https://github.com/shaloong/ocio-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/shaloong/ocio-rs/actions)
 [![crates.io](https://img.shields.io/crates/v/ocio-rs)](https://crates.io/crates/ocio-rs)
 [![docs.rs](https://img.shields.io/docsrs/ocio-rs)](https://docs.rs/ocio-rs)
-[![license](https://img.shields.io/crates/l/ocio-rs)](LICENSE)
+[![license](https://img.shields.io/crates/l/ocio-rs)](../LICENSE)
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-当前版本支持 OpenColorIO 2.4.1 及以上版本；OCIO 2.5.1 新增的接口通过
+0.3 版本支持 OpenColorIO `>= 2.4.1, < 2.6`；OCIO 2.5.1 新增的接口通过
 `v2_5` feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
 核心 C++ API 桥接面已经基本到位，但发布加固与长尾行为验证仍在继续。
 
@@ -28,12 +28,20 @@
 
 ```toml
 [dependencies]
-ocio-rs = "0.2"
+ocio-rs = { version = "0.3", features = ["system"] }
 ```
+
+此配置使用系统安装的 OpenColorIO，适合发行版打包和 GStreamer 等插件。
+构建时设置 `OCIO_RS_LINK=dynamic` 可明确选择动态链接；同时需要安装 OCIO
+开发包和 `pkg-config`。需要源码构建时改用 `features = ["bundled"]`；
+仅在使用 2.5 新接口时额外启用 `"v2_5"`。
+从 0.2 升级请阅读 [0.3 迁移说明](MIGRATION_zh-CN.md#030)。
 
 ## 构建
 
-**Stub 模式**（默认）：无需 OCIO 即可编译和测试。API 返回安全默认值，适合开发与 CI。
+**Stub 模式**（默认）：无需 OCIO 即可编译和测试。API 返回占位默认值，不执行颜色
+管理，仅用于接口验证。依赖真实 OCIO 的测试会报告 ignored，不能把 stub 绿灯
+当作真实颜色处理已通过验证。
 
 ```bash
 cargo build
@@ -43,8 +51,9 @@ cargo test
 **真实 OCIO 模式**：
 
 ```bash
-# 编译子模块中的 OCIO，静态链接
+# 编译 vendored OCIO 源码，静态链接
 git clone --recursive https://github.com/shaloong/ocio-rs
+cd ocio-rs
 cargo build --features bundled
 
 # 将 bundled OCIO 编译为动态库
@@ -72,8 +81,9 @@ OCIO 模式。
 
 后端 feature 遵循 Cargo 的加法语义：没有后端 feature 时确定使用 stub；
 `system` 要求系统安装；`bundled` 增加源码构建 Adapter，并在 Cargo 同时合并
-`system` 时优先。构建结果不会因为机器上碰巧安装了某个 OCIO 版本而改变。
-`OCIO_RS_ENABLE_REAL=0/1` 仅作为旧调用方式的兼容 Adapter 保留。
+`system` 时优先。没有后端 feature 且没有旧式环境变量覆盖时，不会自动探测本机
+OCIO。`OCIO_RS_ENABLE_REAL=0/1` 作为旧调用方式保留；显式设置
+`OCIO_INSTALL_DIR` 也会请求真实后端。无效值和与 feature 冲突的配置会报错。
 
 `bundled` feature 默认构建 vendored 源码，以保持历史行为。设置
 `SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL=auto` 后，会优先使用兼容的系统安装，
@@ -86,11 +96,22 @@ OpenColorIO 安装提供动态库，可以设置为 `dynamic`（也接受 `share
 运行程序时仍需确保系统 loader 能找到 OCIO 动态库，例如通过 `LD_LIBRARY_PATH`、
 `DYLD_LIBRARY_PATH`、`PATH`，或包管理器提供的运行时配置。
 
-已发布的 `ocio-sys` crate 包含当前 bundled 构建配置所需的上游 OpenColorIO 源码树
+`ocio-sys` 包含当前 bundled 构建配置所需的上游 OpenColorIO 源码树
 以及传递依赖源码。打包后的 `ocio-sys` crate 会在发布审计中通过
-`cargo build --features bundled --offline` 验证。
+`cargo build --features bundled --offline` 验证；执行前须先填充 Cargo 的 Rust
+依赖缓存。
 
 ## 架构
+
+不依赖外部 config 文件的真实处理验证：
+
+```bash
+OCIO_RS_LINK=dynamic cargo run --example native_smoke --features system
+```
+
+该示例在 stub 模式下会明确报错，并检查实际矩阵变换的像素结果。
+
+## 目录结构
 
 ```text
 ocio-rs/
@@ -103,6 +124,9 @@ ocio-rs/
 
 ## 兼容性
 
+支持范围为 `>= 2.4.1, < 2.6`；`v2_5` 将最低版本提高到 2.5.1。OCIO 2.6
+及以后的版本需要单独验证，目前不在支持范围内。接口 feature 不决定后端选择。
+
 | feature | OCIO 接口级别 |
 | ------- | ------------- |
 | （无）  | 2.4.1         |
@@ -110,6 +134,7 @@ ocio-rs/
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |
 | 0.1.1   | v2.5.2 |
@@ -117,11 +142,14 @@ ocio-rs/
 
 OCIO 版本升级流程：更新子模块 → 运行代码生成器 → 修复编译错误 → 发版。
 
+`main` 是默认分支和发布线；日常开发 PR 投向 `develop`，再由 `develop`
+晋级到 `main`。具体检查和分支规则见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
+
 在生产依赖某个 API 区域之前，请先查看 [STATUS.md](../STATUS.md) 了解当前验证
 范围与发布注意事项。
 
 ## 许可
 
-[BSD-3-Clause](LICENSE)。
+[BSD-3-Clause](../LICENSE)。
 
 OpenColorIO 是 Academy Software Foundation 的商标。本项目与 ASWF 无关。

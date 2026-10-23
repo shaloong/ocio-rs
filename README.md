@@ -7,8 +7,9 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This project supports OpenColorIO 2.4.1+ (OCIO 2.5.1 API is opt-in via the `v2_5`
-cargo feature; see Compatibility below). The core OCIO Rust wrapper surface
+Version 0.3 supports OpenColorIO `>= 2.4.1, < 2.6` (API introduced in OCIO
+2.5.1 is opt-in via the `v2_5` Cargo feature; see Compatibility below).
+The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
 across the exposed API surface, and broad safe-wrapper coverage. The remaining
 work is mostly release hardening and longer-tail behavioral validation rather
@@ -34,8 +35,15 @@ several high-use runtime paths, including:
 
 ```toml
 [dependencies]
-ocio-rs = "0.2"
+ocio-rs = { version = "0.3", features = ["system"] }
 ```
+
+This configuration uses an installed OpenColorIO. Distribution packages and
+plugins such as GStreamer should normally use this backend. For shared-library
+linking, set `OCIO_RS_LINK=dynamic` in the build environment and install the
+OpenColorIO development package plus `pkg-config`. For a source build instead,
+use `features = ["bundled"]`. Add `"v2_5"` only when your code needs 2.5 APIs.
+See the [0.3 migration notes](docs/MIGRATION.md#030) when upgrading from 0.2.
 
 ## Build
 
@@ -53,8 +61,9 @@ cargo test
 **Real OCIO mode**:
 
 ```bash
-# Build OCIO from the bundled submodule and link statically
+# Build the vendored OCIO source and link statically
 git clone --recursive https://github.com/shaloong/ocio-rs
+cd ocio-rs
 cargo build --features bundled
 
 # Build bundled OCIO as shared libraries
@@ -108,10 +117,11 @@ find the OCIO runtime library at execution time, for example via
 `LD_LIBRARY_PATH`, `DYLD_LIBRARY_PATH`, `PATH`, or your package manager's normal
 runtime setup.
 
-The published `ocio-sys` crate now vendors the upstream OpenColorIO source tree
+The `ocio-sys` package vendors the upstream OpenColorIO source tree
 plus the transitive dependency sources used by the current bundled build
 configuration. The packaged `ocio-sys` crate is validated with
-`cargo build --features bundled --offline` during release hardening.
+`cargo build --features bundled --offline` during release hardening, after
+Cargo's Rust dependency cache has been populated.
 
 ## Examples
 
@@ -121,6 +131,9 @@ cargo run --example basic
 
 # Load a real sample config and run CPU processing
 cargo run --example real_config --features bundled
+
+# Verify real processing without external config files
+OCIO_RS_LINK=dynamic cargo run --example native_smoke --features system
 ```
 
 ## Architecture
@@ -136,7 +149,7 @@ ocio-rs/
 
 ## Compatibility
 
-The baseline API works with any OpenColorIO >= 2.4.1. API added in newer OCIO
+The baseline API works with OpenColorIO `>= 2.4.1, < 2.6`. API added in newer OCIO
 versions is opt-in through additive `vX_Y` cargo features; enabling one raises
 the version requirement checked against the OpenColorIO resolved at build
 time, failing with a clear error on mismatch.
@@ -150,12 +163,17 @@ Vendored OCIO per release:
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |
 | 0.1.1   | v2.5.2 |
 | 0.1.0   | v2.5.1 |
 
 OCIO upgrade workflow: update submodule -> run code generator -> fix compile errors -> release.
+
+`main` is the default branch and release line. Development pull requests target
+`develop`; releases are promoted from `develop` to `main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for checks and branch conventions.
 
 See [STATUS.md](STATUS.md) for the current validation matrix and the remaining
 release caveats for specific runtime paths.
