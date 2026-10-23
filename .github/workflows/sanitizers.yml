@@ -16,6 +16,9 @@ jobs:
       CFLAGS: -fsanitize=address -fno-omit-frame-pointer
       CXXFLAGS: -fsanitize=address -fno-omit-frame-pointer
       RUSTFLAGS: -Zsanitizer=address -C debuginfo=1
+      # Separate target instrumentation from host build scripts/proc macros.
+      # Nested Cargo probes in build_configuration.rs inherit this as well.
+      CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
         with:

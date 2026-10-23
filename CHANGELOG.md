@@ -41,6 +41,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - `Interpolation::Default` and `Best` now send OCIO's valid `254` and `255` values
 - Windows bundled builds no longer require a pkg-config executable
+- Keep AddressSanitizer instrumentation on the explicit Linux target instead
+  of instrumenting host proc-macro crates
 - Vendored minizip-ng consistently uses bundled classic zlib even on zlib-ng hosts
 - Report real-OCIO tests as ignored in stub mode instead of counting early returns
   as successful native tests

@@ -76,7 +76,8 @@ tree, not `OCIO_SOURCE_DIR` or an installed-library override.
 system tests on pushes/PRs. Arch/zlib-ng runs on PRs and weekly/manual events.
 Weekly/manual `CI` adds bundled tests on three platforms and exact native minima.
 `Release Audit` is a manual Ubuntu packaging/native audit; `Sanitizers` is a
-manual Linux nightly AddressSanitizer run for the stub bridge. Dispatch these
+manual Linux nightly AddressSanitizer run for the stub bridge, using an explicit
+Linux target so host proc macros are not instrumented. Dispatch these
 workflows on the candidate ref, record their completed runs in the promotion
 PR, and ensure they tested the candidate being merged.
 
