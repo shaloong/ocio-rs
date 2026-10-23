@@ -364,15 +364,13 @@ fn config_name_lists_enumerate_native_objects() {
 
     config.add_color_space(&identity_color_space("UnitFirst"));
     config.add_color_space(&identity_color_space("UnitInactive"));
+    assert_eq!(config.try_color_spaces().unwrap(), "UnitFirst,UnitInactive");
     config.set_inactive_color_spaces("UnitInactive").unwrap();
     config.add_look(&scaling_look("UnitLookA", "UnitFirst"));
     config.add_look(&scaling_look("UnitLookB", "UnitFirst"));
     for _ in 0..8 {
-        assert_eq!(config.try_color_spaces().unwrap(), "UnitFirst,UnitInactive");
-        assert_eq!(
-            config.color_spaces().as_deref(),
-            Some("UnitFirst,UnitInactive")
-        );
+        assert_eq!(config.try_color_spaces().unwrap(), "UnitFirst");
+        assert_eq!(config.color_spaces().as_deref(), Some("UnitFirst"));
         assert_eq!(config.try_looks().unwrap(), "UnitLookA,UnitLookB");
         assert_eq!(config.looks().as_deref(), Some("UnitLookA,UnitLookB"));
     }

@@ -280,12 +280,12 @@ impl Config {
         self.color_space_name_by_index(index)
     }
 
-    /// Return a comma-separated list of all color-space names in this config.
+    /// Return active color-space names as a comma-separated list in config order.
     pub fn color_spaces(&self) -> Option<String> {
         self.try_color_spaces().ok()
     }
 
-    /// Return all color-space names, preserving failures and releasing the set.
+    /// Return active color-space names, preserving failures and releasing the set.
     pub fn try_color_spaces(&self) -> Result<String> {
         // getColorSpaces returns an owned ColorSpaceSet handle, not a C string.
         // Let the typed wrapper release it on both success and early errors.
@@ -3405,7 +3405,7 @@ impl Config {
 
     // --- ColorSpaceSet ---
 
-    /// Return a `ColorSpaceSet` filtered by an optional search string.
+    /// Return active color spaces filtered by an optional category.
     pub fn color_space_set<S: AsRef<str>>(&self, search: Option<S>) -> Result<ColorSpaceSet> {
         crate::clear_last_error();
         let handle = match search {

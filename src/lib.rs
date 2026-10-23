@@ -44,8 +44,12 @@
 //! | Mode | Feature flag | Notes |
 //! |------|-------------|-------|
 //! | **Stub** (default) | `--no-default-features` | APIs return safe defaults; no real color management |
-//! | **Real OCIO** | `OCIO_RS_ENABLE_REAL=1` | Links against an installed OpenColorIO |
-//! | **Bundled** | `--features bundled` | Builds OCIO from source and links statically |
+//! | **System** | `--features system` | Requires installed OpenColorIO and pkg-config |
+//! | **Bundled** | `--features bundled` | Builds vendored OCIO; static linking by default |
+//!
+//! Set `OCIO_RS_LINK=dynamic` for shared linking. With neither backend feature
+//! nor legacy environment override, the backend is stub and performs no color
+//! processing. `OCIO_RS_ENABLE_REAL=0/1` remains a legacy override.
 //!
 //! ```bash
 //! # Stub mode (CI, API-shape testing)
@@ -55,7 +59,7 @@
 //! cargo build --features bundled
 //!
 //! # Use an installed OCIO
-//! OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+//! OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 //! ```
 //!
 //! # Crate-level helpers

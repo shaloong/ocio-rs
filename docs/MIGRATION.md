@@ -56,7 +56,9 @@ Persist symbolic names or migrate stored numeric values before reusing them.
 ### Build and test integration
 
 `Config::color_spaces()` and `looks()` now return actual comma-separated name
-lists, including an empty string for an empty collection. The old implementation
+lists, including an empty string for an empty collection. Color-space lists
+contain active entries in config order, following OCIO's `getColorSpaces`.
+The old implementation
 misinterpreted OCIO object handles as strings and leaked the color-space set.
 Prefer `try_color_spaces()` / `try_looks()` to preserve query errors.
 

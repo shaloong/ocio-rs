@@ -46,7 +46,8 @@ OCIO 2.4 可以成功插入纹理，但无法报告这些元数据。遇到 `Non
 ### 构建与测试
 
 `Config::color_spaces()` / `looks()` 现在返回真实的逗号分隔名称列表，空集合
-返回空字符串。旧实现误把 OCIO 对象 handle 当作字符串，并泄漏了 color-space set。
+返回空字符串。色彩空间列表按 config 顺序列出 active 项，与 OCIO 的
+`getColorSpaces` 一致。旧实现误把 OCIO 对象 handle 当作字符串，并泄漏了 color-space set。
 需要保留查询错误时，使用 `try_color_spaces()` / `try_looks()`。
 
 系统发现使用 `system-deps`，支持 `opencolorio` / `OpenColorIO` pkg-config 名称。
