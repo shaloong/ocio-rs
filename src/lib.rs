@@ -1,4 +1,4 @@
-//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4+).
+//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4.1 through 2.5.x).
 //!
 //! This crate wraps the OpenColorIO C++ API through a generated FFI layer
 //! ([`ocio_sys`]) and exposes safe Rust types for configuration, color-space
@@ -7,7 +7,7 @@
 //!
 //! # OCIO version support
 //!
-//! The baseline API works with any OpenColorIO >= 2.4. API added in newer
+//! The baseline API works with OpenColorIO >= 2.4.1 and < 2.6. API added in newer
 //! OCIO versions is opt-in through additive `vX_Y` cargo features (e.g.
 //! `v2_5` for hue-curve grading, interchange attributes, and GPU uniform
 //! buffers); enabling one raises the OpenColorIO version requirement checked
@@ -44,8 +44,12 @@
 //! | Mode | Feature flag | Notes |
 //! |------|-------------|-------|
 //! | **Stub** (default) | `--no-default-features` | APIs return safe defaults; no real color management |
-//! | **Real OCIO** | `OCIO_RS_ENABLE_REAL=1` | Links against an installed OpenColorIO |
-//! | **Bundled** | `--features bundled` | Builds OCIO from source and links statically |
+//! | **System** | `--features system` | Requires installed OpenColorIO and pkg-config |
+//! | **Bundled** | `--features bundled` | Builds vendored OCIO; static linking by default |
+//!
+//! Set `OCIO_RS_LINK=dynamic` for shared linking. With neither backend feature
+//! nor legacy environment override, the backend is stub and performs no color
+//! processing. `OCIO_RS_ENABLE_REAL=0/1` remains a legacy override.
 //!
 //! ```bash
 //! # Stub mode (CI, API-shape testing)
@@ -55,7 +59,7 @@
 //! cargo build --features bundled
 //!
 //! # Use an installed OCIO
-//! OCIO_RS_ENABLE_REAL=1 OCIO_INSTALL_DIR=/path/to/ocio cargo build
+//! OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 //! ```
 //!
 //! # Crate-level helpers

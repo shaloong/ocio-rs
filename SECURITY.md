@@ -3,15 +3,21 @@
 ## Supported Versions
 
 `ocio-rs` is still experimental, so security fixes are handled on a best-effort
-basis for the latest development line.
+basis for the current release line and development branch.
 
 | Version | Supported |
 | --- | --- |
-| `main` / current development branch | Yes |
-| `0.2.x` | Planned release line |
+| `main` (release line) / `develop` (integration) | Yes |
+| `0.3.x` | Current release series; best-effort fixes |
+| `0.2.x` | Superseded; upgrade to 0.3 |
 | `0.1.x` | No |
 
 ## Reporting a Vulnerability
+
+The supported native range is OpenColorIO `>= 2.4.1, < 2.6`. Installed builds
+use the distribution's library and security updates; bundled builds contain
+the pinned OpenColorIO and transitive sources, so native fixes may require a
+new `ocio-sys` release. Stub tests cannot validate real native processing.
 
 Please avoid posting full exploit details in a public issue.
 

@@ -348,3 +348,30 @@ fn config_collection_registration_errors_surface_behavior() {
         "unexpected error variant: {add_view_transform_err:?}"
     );
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_name_lists_enumerate_native_objects() {
+    let _guard = config_collection_test_lock();
+    if is_stub() {
+        return;
+    }
+    let config = Config::raw().expect("raw config");
+    config.try_clear_color_spaces().expect("clear colors");
+    config.try_clear_looks().expect("clear looks");
+    assert_eq!(config.try_color_spaces().unwrap(), "");
+    assert_eq!(config.try_looks().unwrap(), "");
+
+    config.add_color_space(&identity_color_space("UnitFirst"));
+    config.add_color_space(&identity_color_space("UnitInactive"));
+    assert_eq!(config.try_color_spaces().unwrap(), "UnitFirst,UnitInactive");
+    config.set_inactive_color_spaces("UnitInactive").unwrap();
+    config.add_look(&scaling_look("UnitLookA", "UnitFirst"));
+    config.add_look(&scaling_look("UnitLookB", "UnitFirst"));
+    for _ in 0..8 {
+        assert_eq!(config.try_color_spaces().unwrap(), "UnitFirst");
+        assert_eq!(config.color_spaces().as_deref(), Some("UnitFirst"));
+        assert_eq!(config.try_looks().unwrap(), "UnitLookA,UnitLookB");
+        assert_eq!(config.looks().as_deref(), Some("UnitLookA,UnitLookB"));
+    }
+}
