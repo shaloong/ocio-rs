@@ -158,9 +158,11 @@ time, failing with a clear error on mismatch.
 | ------- | -------------- | ------------------------------------------------------------ |
 | (none)  | 2.4.1          | everything else                                               |
 | `v2_5`  | 2.5.1          | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
+| `v2_6`  | 2.6.0          | display/view aliases, color interop lookup, HDR compatibility, HMJ fixed function and CLF ID metadata |
 
-The development branch also tests the existing Rust API against OpenColorIO
-2.6.0. That does not expose new 2.6-only APIs or change the vendored source.
+`v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
+`bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
+The vendored 2.5.2 source remains the default for builds without `v2_6`.
 
 Vendored OCIO per release:
 

@@ -28,10 +28,11 @@ system = []
 # system-deps raises the resolved library requirement accordingly (see the
 # feature-versions tables below).
 v2_5 = []
+v2_6 = ["v2_5"]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["v2_5"]
+features = ["v2_6"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.system-deps.opencolorio]
@@ -40,3 +41,6 @@ version = ">= 2.4.1, < 2.7"
 
 [package.metadata.system-deps.opencolorio.v2_5]
 version = ">= 2.5.1, < 2.7"
+
+[package.metadata.system-deps.opencolorio.v2_6]
+version = ">= 2.6.0, < 2.7"

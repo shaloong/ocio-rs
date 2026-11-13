@@ -150,6 +150,9 @@ fn main() {
         println!("cargo:rustc-cfg=ocio_stub");
         println!("cargo:stub=1");
     }
+    if cfg!(feature = "v2_6") {
+        build.define("OCIO_RS_FEATURE_V2_6", None);
+    }
     if cfg!(feature = "v2_5") {
         build.define("OCIO_RS_FEATURE_V2_5", None);
     }

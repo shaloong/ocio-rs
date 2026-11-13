@@ -1060,7 +1060,8 @@ fn main() {
 
     // Parse
     let bridge_funcs = parse_bridge_hpp(&root.join(BRIDGE_HPP));
-    let lib_funcs = parse_lib_rs(&root.join(LIB_RS));
+    let mut lib_funcs = parse_lib_rs(&root.join(LIB_RS));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/v2_6.rs")));
     let rust_methods = parse_rust_wrappers(&root.join(SRC_DIR));
 
     // Compare
@@ -1068,7 +1069,9 @@ fn main() {
     let l2 = run_l2(&bridge_funcs, &rust_methods);
 
     let l3 = if check_l3 {
-        let include_dir = root.join(OCIO_INCLUDE);
+        let include_dir = std::env::var_os("OCIO_SOURCE_DIR")
+            .map(|source| PathBuf::from(source).join("include/OpenColorIO"))
+            .unwrap_or_else(|| root.join(OCIO_INCLUDE));
         let primary_header = include_dir.join("OpenColorIO.h");
         if !primary_header.is_file() {
             eprintln!(

@@ -14,6 +14,7 @@
 #ifndef OCIO_RS_STUB
 #include <OpenColorIO/OpenColorIO.h>
 #include <OpenColorIO/OpenColorTransforms.h>
+#include <OpenColorIO/OpenColorAppHelpers.h>
 namespace ocio = OCIO_NAMESPACE;
 #endif
 
@@ -891,9 +892,9 @@ ocio::TransformRcPtr RangeTransformHandle::get_ocio_transform() {
 }
 
 // --- Real accessor functions ---
-static ocio::ConfigRcPtr get_real_config(void* handle) {
+static const ocio::ConfigRcPtr& get_real_config(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::ConfigHandle*>(handle);
-  return std::static_pointer_cast<ocio_rs_bridge::RealConfig>(h->inner)->config;
+  return static_cast<ocio_rs_bridge::RealConfig*>(h->inner.get())->config;
 }
 
 static ocio::FileRulesRcPtr get_real_file_rules(void* handle) {
@@ -10507,6 +10508,35 @@ void ocio_file_transform_set_interpolation(void* handle, int interp) {
 
 // --- FixedFunctionTransform ---
 
+#ifndef OCIO_RS_STUB
+// Keep the bridge discriminants stable across OCIO minor versions. OCIO 2.6
+// inserted HMJ before the existing HSY styles; the bridge appends it instead.
+static ocio::FixedFunctionStyle fixed_function_style_to_native(int style) {
+#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
+  switch (style) {
+    case 20: return ocio::FIXED_FUNCTION_RGB_TO_HSY_LIN;
+    case 21: return ocio::FIXED_FUNCTION_RGB_TO_HSY_LOG;
+    case 22: return ocio::FIXED_FUNCTION_RGB_TO_HSY_VID;
+    case 23: return ocio::FIXED_FUNCTION_ACES_RGB_TO_HMJ_20;
+  }
+#endif
+  return static_cast<ocio::FixedFunctionStyle>(style);
+}
+
+static int fixed_function_style_from_native(ocio::FixedFunctionStyle style) {
+#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
+  switch (style) {
+    case ocio::FIXED_FUNCTION_RGB_TO_HSY_LIN: return 20;
+    case ocio::FIXED_FUNCTION_RGB_TO_HSY_LOG: return 21;
+    case ocio::FIXED_FUNCTION_RGB_TO_HSY_VID: return 22;
+    case ocio::FIXED_FUNCTION_ACES_RGB_TO_HMJ_20: return 23;
+    default: break;
+  }
+#endif
+  return static_cast<int>(style);
+}
+#endif
+
 void* ocio_fixed_function_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_fixed_function_transform().release();
@@ -10527,7 +10557,7 @@ void* ocio_fixed_function_transform_create_with_params(int style, const double* 
   return ocio_rs_bridge::make_stub_fixed_function_transform().release();
 #else
   try {
-    auto result = ocio::FixedFunctionTransform::Create(static_cast<ocio::FixedFunctionStyle>(style), params, num);
+    auto result = ocio::FixedFunctionTransform::Create(fixed_function_style_to_native(style), params, num);
     if (!result) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealFixedFunctionTransform>(ocio_rs_bridge::RealFixedFunctionTransform{result});
@@ -10635,7 +10665,7 @@ int ocio_fixed_function_transform_get_style(void* handle) {
   return 0;
 #else
   try {
-    return ocio_rs_bridge::get_real_fixed_function_transform(handle)->getStyle();
+    return fixed_function_style_from_native(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getStyle());
   } catch (...) { return 0; }
 #endif
 }
@@ -10646,7 +10676,7 @@ void ocio_fixed_function_transform_set_style(void* handle, int style) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_fixed_function_transform(handle)->setStyle(static_cast<ocio::FixedFunctionStyle>(style));
+    ocio_rs_bridge::get_real_fixed_function_transform(handle)->setStyle(fixed_function_style_to_native(style));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -14214,5 +14244,204 @@ const char* ocio_error_get_last(void) {
 void ocio_error_clear_last(void) {
   ocio_rs_bridge::clear_last_error();
 }
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02060000 && OCIO_RS_NATIVE_API_HEX >= 0x02060000
+const char* ocio_config_canonical_display_name(void* handle, const char* display) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getCanonicalDisplayName(display);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_canonical_view_name(void* handle, const char* display, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getCanonicalViewName(display, view);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_resolved_display_view_color_space_name(void* handle, const char* display, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getResolvedDisplayViewColorSpaceName(display, view);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_display_description(void* handle, const char* display) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getDisplayDescription(display);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_display_view_alias(void* handle, const char* display, const char* view, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view; (void)index;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getDisplayViewAlias(display, view, index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_generate_local_id_for_color_space(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    ocio_rs_bridge::g_serialized_text = ocio_rs_bridge::get_real_config(handle)->generateLocalIDForColorSpace(name);
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_locate_builtin_color_space(void* handle, const char* name, void* builtin) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)builtin;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    return ocio::Config::LocateBuiltinColorSpace(ocio_rs_bridge::get_real_config(handle), name, ocio_rs_bridge::get_real_config(builtin));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+int ocio_config_num_display_view_aliases(void* handle, const char* display, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return 0;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getNumDisplayViewAliases(display, view);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+bool ocio_config_has_display_view_alias(void* handle, const char* display, const char* view, const char* alias) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view; (void)alias;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return false;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->hasDisplayViewAlias(display, view, alias);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_config_use_display_aliases(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return false;
+#else
+  try {
+    return ocio_rs_bridge::get_real_config(handle)->getUseDisplayAliases();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_config_set_use_display_aliases(void* handle, bool enabled) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)enabled;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return ;
+#else
+  try {
+    ocio_rs_bridge::get_real_config(handle)->setUseDisplayAliases(enabled);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
+#endif
+}
+
+bool ocio_config_check_hdr_display_compatibility(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return false;
+#else
+  try {
+    return ocio::ConfigCompatibilityHelpers::CheckCompatibility(ocio_rs_bridge::get_real_config(handle), ocio::CONFIG_HDR_DISPLAY_SUPPORT_26);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void* ocio_config_find_color_space_for_id(void* handle, const char* id) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)id;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_config(handle)->findColorSpaceForID(id);
+    if (!result) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result->createEditableCopy()});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_add_shared_view_with_aliases(void* handle, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)view; (void)view_transform; (void)color_space; (void)looks; (void)rule; (void)description; (void)aliases; (void)count;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+#else
+  try {
+    std::vector<std::string> native_aliases;
+    native_aliases.reserve(count);
+    for (size_t i = 0; i < count; ++i) native_aliases.emplace_back(aliases[i]);
+    ocio_rs_bridge::get_real_config(handle)->addSharedView(view, view_transform, color_space, looks, rule, description, native_aliases);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_config_add_display_view_with_aliases(void* handle, const char* display, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view; (void)view_transform; (void)color_space; (void)looks; (void)rule; (void)description; (void)aliases; (void)count;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+#else
+  try {
+    std::vector<std::string> native_aliases;
+    native_aliases.reserve(count);
+    for (size_t i = 0; i < count; ++i) native_aliases.emplace_back(aliases[i]);
+    ocio_rs_bridge::get_real_config(handle)->addDisplayView(display, view, view_transform, color_space, looks, rule, description, native_aliases);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+const char* ocio_metadata_id_element(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  return ocio::METADATA_ID_ELEMENT;
+#endif
+}
+#endif
 
 }  // extern "C"

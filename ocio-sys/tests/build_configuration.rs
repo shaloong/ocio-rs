@@ -651,3 +651,27 @@ fn system_v2_5_enforces_supported_version_range() {
         );
     }
 }
+
+#[test]
+fn system_v2_6_rejects_incompatible_metadata_or_headers() {
+    // The fixture always supplies genuine 2.5.2 headers. Even if pkg-config
+    // advertises 2.6.0, the compiler must reject the mismatched installation.
+    for version in ["2.5.2", "2.6.0", "2.7.0"] {
+        let fixture = ProbeFixture::with_features(&["system", "v2_6"]);
+        let output = fixture.cargo_check(|command| {
+            command.env("FAKE_PKG_CONFIG_VERSION", version);
+        });
+        let text = output_text(&output);
+        assert!(
+            !output.status.success(),
+            "unexpected v2_6 result for OpenColorIO {version}:\n{}",
+            text
+        );
+        if version == "2.6.0" {
+            assert!(
+                text.contains("feature v2_6 requires OpenColorIO 2.6.0 or newer"),
+                "{text}"
+            );
+        }
+    }
+}

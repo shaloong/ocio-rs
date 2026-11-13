@@ -1316,4 +1316,21 @@ void ocio_dynamic_property_grading_tone_set_value(void* handle, const double* va
 void* ocio_transform_get_format_metadata(void* transform);
 bool ocio_color_space_is_transform_defined(void* handle, int direction);
 
+const char* ocio_config_canonical_display_name(void* handle, const char* display);
+const char* ocio_config_canonical_view_name(void* handle, const char* display, const char* view);
+const char* ocio_config_resolved_display_view_color_space_name(void* handle, const char* display, const char* view);
+const char* ocio_config_display_description(void* handle, const char* display);
+const char* ocio_config_display_view_alias(void* handle, const char* display, const char* view, int index);
+const char* ocio_config_generate_local_id_for_color_space(void* handle, const char* name);
+const char* ocio_config_locate_builtin_color_space(void* handle, const char* name, void* builtin);
+int ocio_config_num_display_view_aliases(void* handle, const char* display, const char* view);
+bool ocio_config_has_display_view_alias(void* handle, const char* display, const char* view, const char* alias);
+bool ocio_config_use_display_aliases(void* handle);
+void ocio_config_set_use_display_aliases(void* handle, bool enabled);
+bool ocio_config_check_hdr_display_compatibility(void* handle);
+void* ocio_config_find_color_space_for_id(void* handle, const char* id);
+void ocio_config_add_shared_view_with_aliases(void* handle, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count);
+void ocio_config_add_display_view_with_aliases(void* handle, const char* display, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count);
+const char* ocio_metadata_id_element(void);
+
 }  // extern "C"

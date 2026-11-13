@@ -6,6 +6,11 @@
     clippy::unused_unit
 )]
 
+#[cfg(feature = "v2_6")]
+mod v2_6;
+#[cfg(feature = "v2_6")]
+pub use v2_6::*;
+
 use std::ffi::c_void;
 
 #[repr(C)]

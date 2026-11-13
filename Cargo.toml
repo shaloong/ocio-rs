@@ -23,10 +23,11 @@ system = ["ocio-sys/system"]
 # Additive OpenColorIO API version features. The baseline (no feature)
 # targets OCIO 2.4.1.
 v2_5 = ["ocio-sys/v2_5"]
+v2_6 = ["v2_5", "ocio-sys/v2_6"]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["v2_5"]
+features = ["v2_6"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]

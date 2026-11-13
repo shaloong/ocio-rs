@@ -180,6 +180,8 @@ pub enum FixedFunctionStyle {
     RgbToHsyLog = 21,
     #[cfg(feature = "v2_5")]
     RgbToHsyVid = 22,
+    #[cfg(feature = "v2_6")]
+    AcesRgbToHmj20 = 23,
 }
 
 /// Domain in which exposure/contrast parameters are applied.

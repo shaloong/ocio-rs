@@ -117,6 +117,10 @@ pub use processor::{
 };
 pub use processor_metadata::ProcessorMetadata;
 pub use types::*;
+#[cfg(feature = "v2_6")]
+mod v2_6;
+#[cfg(feature = "v2_6")]
+pub use v2_6::{metadata_id_element, ViewWithAliases};
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 

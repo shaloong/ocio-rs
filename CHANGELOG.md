@@ -10,8 +10,12 @@ Versioning as closely as practical for a still-maturing binding crate.
 ### Added
 
 - Support OpenColorIO 2.6 with the existing baseline and `v2_5` Rust APIs.
-  The default bundled source remains 2.5.2; the native compatibility matrix
-  also builds and tests the exact 2.6.0 tag.
+  Opt in to the new API with `v2_6`. The default bundled source remains 2.5.2;
+  use an installed 2.6 library or point `OCIO_SOURCE_DIR` at 2.6.0.
+
+### Fixed
+
+- Preserve the HSY fixed-function style mapping when built with OpenColorIO 2.6.
 
 ## [0.3.0] - 2026-10-23
 
