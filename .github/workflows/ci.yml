@@ -106,7 +106,9 @@ jobs:
   minimum-ocio:
     name: Minimum OpenColorIO (${{ matrix.ocio }})
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    # Keep the toolchain baseline stable for the legacy zlib/yaml-cpp sources
+    # fetched by these exact upstream tags. Other jobs exercise current runners.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
