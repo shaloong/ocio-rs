@@ -7,7 +7,7 @@
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-0.3 版本支持 OpenColorIO `>= 2.4.1, < 2.6`；OCIO 2.5.1 新增的接口通过
+开发分支支持 OpenColorIO `>= 2.4.1, < 2.7`；OCIO 2.5.1 新增的接口通过
 `v2_5` feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
 核心 C++ API 桥接面已经基本到位，但发布加固与长尾行为验证仍在继续。
 
@@ -72,8 +72,8 @@ OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features syste
 `OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
 OCIO 模式。
 
-预装模式接受 OpenColorIO `>= 2.4.1, < 2.6`；启用 `v2_5` 时要求
-`>= 2.5.1, < 2.6`。系统依次通过 pkg-config 探测
+预装模式接受 OpenColorIO `>= 2.4.1, < 2.7`；启用 `v2_5` 时要求
+`>= 2.5.1, < 2.7`。系统依次通过 pkg-config 探测
 `opencolorio` / `OpenColorIO`。`OCIO_INSTALL_DIR` 会把安装前缀下的
 `lib/pkgconfig`、`lib64/pkgconfig` 和 `share/pkgconfig` 加入搜索路径；对于没有
 `.pc` 文件的旧安装，传统的 `include`、`lib`、`lib64` 布局仍然可用。也可以直接
@@ -124,13 +124,16 @@ ocio-rs/
 
 ## 兼容性
 
-支持范围为 `>= 2.4.1, < 2.6`；`v2_5` 将最低版本提高到 2.5.1。OCIO 2.6
+支持范围为 `>= 2.4.1, < 2.7`；`v2_5` 将最低版本提高到 2.5.1。OCIO 2.7
 及以后的版本需要单独验证，目前不在支持范围内。接口 feature 不决定后端选择。
 
 | feature | OCIO 接口级别 |
 | ------- | ------------- |
 | （无）  | 2.4.1         |
 | `v2_5`  | 2.5.1         |
+
+开发分支额外验证 OpenColorIO 2.6.0 与现有 Rust API 的兼容性，不开放
+2.6 专属 API，也不替换默认的 vendored 源码。
 
 | ocio-rs | OCIO   |
 | ------- | ------ |

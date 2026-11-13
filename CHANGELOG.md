@@ -7,6 +7,12 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+### Added
+
+- Support OpenColorIO 2.6 with the existing baseline and `v2_5` Rust APIs.
+  The default bundled source remains 2.5.2; the native compatibility matrix
+  also builds and tests the exact 2.6.0 tag.
+
 ## [0.3.0] - 2026-10-23
 
 ### Breaking

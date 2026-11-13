@@ -70,8 +70,8 @@ consumed by the bundled build path, so use it together with
 OpenColorIO source tree.
 
 Installed-library resolution is owned by `system-deps`. The supported native
-range is `>= 2.4.1, < 2.6`, which the `v2_5` feature raises to
-`>= 2.5.1, < 2.6`
+range is `>= 2.4.1, < 2.7`, which the `v2_5` feature raises to
+`>= 2.5.1, < 2.7`
 through the feature-versions table; pkg-config is queried using the lower-case
 metadata key first and the upstream `OpenColorIO` package name as a fallback.
 `OCIO_INSTALL_DIR` augments `PKG_CONFIG_PATH` with the conventional metadata
@@ -156,9 +156,9 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 absent, and `OCIO_SOURCE_DIR` is an explicit source override. Keep the vendored
 source, submodule, bridge, and packaged dependencies synchronized when upgrading.
 The supported baseline is older:
-OpenColorIO `>= 2.4.1, < 2.6` resolved through system-deps/pkg-config works
+OpenColorIO `>= 2.4.1, < 2.7` resolved through system-deps/pkg-config works
 without an API-version feature, but still requires a real backend such as
-`system`. OCIO 2.6 and newer are not yet supported.
+`system`. OCIO 2.7 and newer are not yet supported.
 
 Upgrade workflow: update submodule → run generator → fix compile errors → release.
 

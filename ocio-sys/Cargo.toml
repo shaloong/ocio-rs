@@ -36,7 +36,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.system-deps.opencolorio]
 fallback-names = ["OpenColorIO"]
-version = ">= 2.4.1, < 2.6"
+version = ">= 2.4.1, < 2.7"
 
 [package.metadata.system-deps.opencolorio.v2_5]
-version = ">= 2.5.1, < 2.6"
+version = ">= 2.5.1, < 2.7"

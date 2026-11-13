@@ -7,7 +7,7 @@
 //!
 //! # OCIO version support
 //!
-//! The baseline API works with OpenColorIO >= 2.4.1 and < 2.6. API added in newer
+//! The baseline API works with OpenColorIO >= 2.4.1 and < 2.7. API added in newer
 //! OCIO versions is opt-in through additive `vX_Y` cargo features (e.g.
 //! `v2_5` for hue-curve grading, interchange attributes, and GPU uniform
 //! buffers); enabling one raises the OpenColorIO version requirement checked

@@ -2,7 +2,7 @@
 
 Thanks for your interest in `ocio-rs`.
 
-This project provides Rust bindings for OpenColorIO `>= 2.4.1, < 2.6`.
+This project provides Rust bindings for OpenColorIO `>= 2.4.1, < 2.7`.
 The baseline API targets 2.4.1; `v2_5` enables API introduced in 2.5.1.
 That means API additions are only part of the work: bridge correctness, runtime
 behavior, tests, release packaging, and documentation all matter.
@@ -26,8 +26,8 @@ behavior, tests, release packaging, and documentation all matter.
   - Installed OCIO under a custom prefix: `OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system`
   - Bundled OCIO: `cargo build --features bundled`
 
-The installed-library path supports OpenColorIO `>= 2.4.1, < 2.6`, raised to
-`>= 2.5.1, < 2.6` by `v2_5`. Set `OCIO_RS_LINK=dynamic` for shared linking.
+The installed-library path supports OpenColorIO `>= 2.4.1, < 2.7`, raised to
+`>= 2.5.1, < 2.7` by `v2_5`. Set `OCIO_RS_LINK=dynamic` for shared linking.
 Without a backend feature or legacy environment override the backend is stub;
 it performs no color processing. `bundled` takes precedence over `system` when
 Cargo unifies both. Real backend failures never silently fall back to stub.

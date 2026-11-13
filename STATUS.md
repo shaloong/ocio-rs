@@ -2,7 +2,7 @@
 
 ## At a glance
 
-**The 0.3 line supports OpenColorIO `>= 2.4.1, < 2.6`.** API introduced in
+**The development branch supports OpenColorIO `>= 2.4.1, < 2.7`.** API introduced in
 2.5.1 requires `v2_5`; no backend feature or legacy override means stub mode.
 The safe-wrapper
 surface, bridge parity, and bundled validation cover the major runtime

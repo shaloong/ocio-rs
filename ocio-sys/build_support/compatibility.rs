@@ -2,10 +2,11 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-pub const BASELINE_REQUIREMENT: &str = ">= 2.4.1, < 2.6";
-pub const V2_5_REQUIREMENT: &str = ">= 2.5.1, < 2.6";
+pub const BASELINE_REQUIREMENT: &str = ">= 2.4.1, < 2.7";
+pub const V2_5_REQUIREMENT: &str = ">= 2.5.1, < 2.7";
 const BASELINE_API_HEX: u32 = 0x02040100;
 const V2_5_API_HEX: u32 = 0x02050100;
+const UNSUPPORTED_API_HEX: u32 = 0x02070000;
 
 pub fn prepare() -> PathBuf {
     assert_cargo_metadata_matches();
@@ -27,6 +28,9 @@ pub fn prepare() -> PathBuf {
          #define OCIO_RS_NATIVE_API_HEX OCIO_VERSION_HEX\n\
          #if OCIO_VERSION_HEX < 0x{BASELINE_API_HEX:08X}\n\
          #error \"ocio-rs requires OpenColorIO 2.4.1 or newer\"\n\
+         #endif\n\
+         #if OCIO_VERSION_HEX >= 0x{UNSUPPORTED_API_HEX:08X}\n\
+         #error \"ocio-rs requires OpenColorIO older than 2.7\"\n\
          #endif\n\
          #if defined(OCIO_RS_FEATURE_V2_5) && OCIO_VERSION_HEX < 0x{V2_5_API_HEX:08X}\n\
          #error \"ocio-rs feature v2_5 requires OpenColorIO 2.5.1 or newer\"\n\

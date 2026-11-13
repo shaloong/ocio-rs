@@ -1,7 +1,7 @@
 # Releasing ocio-rs
 
-Both workspace crates use the same version. The 0.3 line supports OpenColorIO
-`>= 2.4.1, < 2.6`, with `v2_5` raising the minimum to 2.5.1. Release from
+Both workspace crates use the same version. The development branch supports OpenColorIO
+`>= 2.4.1, < 2.7`, with `v2_5` raising the minimum to 2.5.1. Release from
 `main`, the default branch, after promoting the tested `develop` candidate.
 
 ## Prepare a candidate
@@ -66,6 +66,8 @@ tree, not `OCIO_SOURCE_DIR` or an installed-library override.
 - Installed OpenColorIO 2.4.x with `system`, shared linking, and real CPU tests;
   `system,v2_5` must reject this installation.
 - Exact 2.4.1 baseline and exact 2.5.1 with `v2_5` (source-build CI).
+- Exact 2.6.0 with both existing API levels (source-build CI), in addition to
+  the vendored 2.5.2 bundled jobs.
 - Bundled baseline and `bundled,v2_5`, including the optimization-flag regression.
 - Linux, macOS, and Windows bundled `v2_5` tests.
 - Arch Linux with system zlib-ng: bundled minizip-ng must still use bundled zlib.

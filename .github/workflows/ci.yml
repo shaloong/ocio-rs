@@ -162,6 +162,30 @@ jobs:
         # paths, so run it serially for deterministic CI behavior.
         run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
 
+  ocio-2-6:
+    name: OpenColorIO 2.6.0 compatibility
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
+      OCIO_RS_TEST_VERSION: 2.6.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install native dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
+      - name: Select OpenColorIO 2.6.0
+        run: |
+          git -C third_party/OpenColorIO fetch --depth=1 origin tag v2.6.0
+          git -C third_party/OpenColorIO checkout --detach v2.6.0
+      - name: Test both existing interface levels
+        run: |
+          cargo test --workspace --no-default-features --features bundled -- --test-threads=1
+          cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+
   bundled-zlib-ng:
     name: Bundled with system zlib-ng (Arch Linux)
     if: github.event_name != 'push'

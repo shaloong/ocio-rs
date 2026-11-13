@@ -36,6 +36,9 @@ fn global_version_and_logging_helper_behavior() {
 
     let runtime_version = version().expect("runtime version");
     assert!(!runtime_version.trim().is_empty());
+    if let Ok(expected) = std::env::var("OCIO_RS_TEST_VERSION") {
+        assert_eq!(runtime_version, expected, "unexpected native library");
+    }
     // The runtime must provide at least the API level the crate targets.
     #[cfg(feature = "v2_5")]
     assert!(version_hex() >= 0x0205_0000);
