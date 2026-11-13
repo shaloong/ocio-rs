@@ -37,3 +37,13 @@ The parity checker measures its recognized API surface, not every overload,
 global, or runtime behavior. The exact-tag CI also runs behavior tests and
 all three API feature levels. DirectX and Vulkan test frameworks are upstream
 test infrastructure, not additional application-facing binding APIs.
+
+## Remaining full-library parity work
+
+This is not a full-library parity claim. In particular, the existing checker
+does not account for all application helpers in `OpenColorAppHelpers.h`.
+Audit and bind the pre-existing color-space menu, config editing/merging,
+legacy viewing, and mixing helper APIs separately. Track overloads and
+namespace functions by signature rather than inferring their coverage from
+method-name matches. Hardware GPU execution and comparison against a
+direct-C++ performance baseline remain separate validation gates.
