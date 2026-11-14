@@ -195,6 +195,10 @@ bool ocio_config_io_proxy_set_lut_data(
   const unsigned char* data,
   size_t len,
   const char* fastHash);
+bool ocio_config_io_proxy_set_lut_data_bytes(void* handle, const char* filepath,
+    const unsigned char* data, size_t len, const unsigned char* hash, size_t hash_len);
+bool ocio_config_io_proxy_visit_fast_lut_file_hash(void* handle, const char* filepath,
+    void* destination, ocio_proxy_write_callback write);
 size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath);
 bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath);
 bool ocio_config_io_proxy_copy_lut_data(

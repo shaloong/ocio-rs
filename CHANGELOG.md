@@ -38,6 +38,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Breaking changes
 
+- `ConfigIOProvider::fast_lut_file_hash` returns bytes rather than UTF-8 text,
+  matching OCIO's length-bearing native hash values.
 - `ConfigIOProvider` now returns `Cow` values, allowing borrowed data without
   a Rust-side clone; providers generating values dynamically may return owned data.
 - `ShaderExtractionHooks::assemble` now returns `Option<String>`: `None`

@@ -13,6 +13,8 @@ default vendored version or the Rust ABI values of existing enums.
 thread-safe storage, avoiding an intermediate Rust allocation. OCIO's C++
 interface requires owned return values, so transfer still copies to native
 storage; this is not a zero-copy native API.
+LUT hashes can contain arbitrary bytes, including NUL. The byte-oriented proxy
+APIs preserve them; the text convenience getter replaces invalid UTF-8.
 
 | Upstream addition | Rust coverage |
 | --- | --- |

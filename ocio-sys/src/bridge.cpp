@@ -769,9 +769,9 @@ public:
     std::lock_guard<std::mutex> lock(mutex);
     configData = std::move(next);
   }
-  void setLutData(const char* filepath, std::vector<uint8_t> bytes, const char* hash) {
+  void setLutData(const char* filepath, std::vector<uint8_t> bytes, std::string hash) {
     auto path = normalizePath(filepath, '/');
-    auto entry = std::make_shared<const LutEntry>(LutEntry{std::move(bytes), hash ? hash : ""});
+    auto entry = std::make_shared<const LutEntry>(LutEntry{std::move(bytes), std::move(hash)});
     {
       std::lock_guard<std::mutex> lock(mutex);
       lutData[std::move(path)].swap(entry);
@@ -2131,12 +2131,19 @@ bool ocio_config_io_proxy_set_lut_data(
   const unsigned char* data,
   size_t len,
   const char* fastHash) {
+  return ocio_config_io_proxy_set_lut_data_bytes(handle, filepath, data, len,
+      reinterpret_cast<const unsigned char*>(fastHash), fastHash ? std::strlen(fastHash) : 0);
+}
+
+bool ocio_config_io_proxy_set_lut_data_bytes(void* handle, const char* filepath,
+  const unsigned char* data, size_t len, const unsigned char* hash, size_t hash_len) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)filepath; (void)data; (void)len; (void)fastHash;
+  (void)handle; (void)filepath; (void)data; (void)len; (void)hash; (void)hash_len;
   return false;
 #else
   try {
     if (!filepath) return false;
+    if ((!data && len) || (!hash && hash_len)) throw std::invalid_argument("null LUT data or hash");
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) throw std::invalid_argument("cannot set LUT data on a custom provider");
@@ -2144,7 +2151,27 @@ bool ocio_config_io_proxy_set_lut_data(
     if (data && len > 0) {
       bytes.assign(data, data + len);
     }
-    rustProxy->setLutData(filepath, std::move(bytes), fastHash);
+    std::string hash_bytes;
+    if (hash_len) hash_bytes.assign(reinterpret_cast<const char*>(hash), hash_len);
+    rustProxy->setLutData(filepath, std::move(bytes), std::move(hash_bytes));
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_config_io_proxy_visit_fast_lut_file_hash(void* handle, const char* filepath,
+  void* destination, ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)filepath; (void)destination; (void)write;
+  ocio_rs_bridge::capture_error_message("config IO requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!filepath || !write) throw std::invalid_argument("invalid LUT hash visitor");
+    const auto hash = ocio_rs_bridge::get_real_config_io_proxy_handle(handle)->proxy->getFastLutFileHash(filepath);
+    if (hash.empty()) return false;
+    if (!write(destination, reinterpret_cast<const unsigned char*>(hash.data()), hash.size()))
+      throw ocio::Exception("LUT hash visitor failed");
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif

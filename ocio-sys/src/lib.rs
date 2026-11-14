@@ -428,6 +428,20 @@ unsafe extern "C" {
         len: usize,
         fastHash: *const i8,
     ) -> bool;
+    pub fn ocio_config_io_proxy_set_lut_data_bytes(
+        handle: *mut c_void,
+        filepath: *const i8,
+        data: *const u8,
+        len: usize,
+        hash: *const u8,
+        hash_len: usize,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_visit_fast_lut_file_hash(
+        handle: *mut c_void,
+        filepath: *const i8,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
     pub fn ocio_config_io_proxy_get_lut_data_size(
         handle: *mut c_void,
         filepath: *const i8,

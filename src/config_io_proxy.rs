@@ -24,8 +24,8 @@ use ocio_sys;
 ///     fn lut_data<'a>(&'a self, _: &CStr) -> Result<Cow<'a, [u8]>> {
 ///         Ok(Cow::Borrowed(&self.lut))
 ///     }
-///     fn fast_lut_file_hash<'a>(&'a self, _: &CStr) -> Result<Cow<'a, str>> {
-///         Ok(Cow::Borrowed("asset-v1"))
+///     fn fast_lut_file_hash<'a>(&'a self, _: &CStr) -> Result<Cow<'a, [u8]>> {
+///         Ok(Cow::Borrowed(b"asset-v1"))
 ///     }
 /// }
 /// ```
@@ -34,8 +34,19 @@ pub trait ConfigIOProvider: Send + Sync + 'static {
     fn config_data(&self) -> Result<Cow<'_, str>>;
     /// Return the bytes of a referenced LUT, or an empty slice if unavailable.
     fn lut_data<'a>(&'a self, path: &CStr) -> Result<Cow<'a, [u8]>>;
-    /// Return a fast cache identifier, or an empty string if unavailable.
-    fn fast_lut_file_hash<'a>(&'a self, path: &CStr) -> Result<Cow<'a, str>>;
+    /// Return a fast cache identifier as bytes, or an empty slice if unavailable.
+    fn fast_lut_file_hash<'a>(&'a self, path: &CStr) -> Result<Cow<'a, [u8]>>;
+}
+
+unsafe extern "C" fn append_bytes(destination: *mut c_void, data: *const u8, len: usize) -> bool {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let result = unsafe { &mut *destination.cast::<Vec<u8>>() };
+        if len != 0 {
+            let data = unsafe { std::slice::from_raw_parts(data, len) };
+            result.extend_from_slice(data);
+        }
+    }))
+    .is_ok()
 }
 
 /// Provider for OCIO config text and LUT file payloads.
@@ -80,7 +91,7 @@ impl ConfigIOProxy {
                             if kind == 1 {
                                 Ok(emit(&provider.lut_data(path)?))
                             } else {
-                                Ok(emit(provider.fast_lut_file_hash(path)?.as_bytes()))
+                                Ok(emit(&provider.fast_lut_file_hash(path)?))
                             }
                         }
                         _ => Ok(false),
@@ -160,16 +171,26 @@ impl ConfigIOProxy {
         data: &[u8],
         fast_hash: impl AsRef<str>,
     ) -> Result<bool> {
+        self.set_lut_data_with_hash_bytes(filepath, data, fast_hash.as_ref().as_bytes())
+    }
+
+    /// Register a LUT using an arbitrary byte hash, including embedded NULs.
+    pub fn set_lut_data_with_hash_bytes(
+        &self,
+        filepath: impl AsRef<str>,
+        data: &[u8],
+        fast_hash: &[u8],
+    ) -> Result<bool> {
         let filepath = cstring(filepath)?;
-        let fast_hash = cstring(fast_hash)?;
         crate::clear_last_error();
         let accepted = unsafe {
-            ocio_sys::ocio_config_io_proxy_set_lut_data(
+            ocio_sys::ocio_config_io_proxy_set_lut_data_bytes(
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
                 data.as_ptr(),
                 data.len(),
                 fast_hash.as_ptr(),
+                fast_hash.len(),
             )
         };
         if accepted {
@@ -190,16 +211,6 @@ impl ConfigIOProxy {
     /// Return the registered LUT payload for `filepath`, distinguishing
     /// "not found" (`Ok(None)`) from "internal error" (`Err`).
     pub fn try_lut_data(&self, filepath: impl AsRef<str>) -> Result<Option<Vec<u8>>> {
-        unsafe extern "C" fn write(destination: *mut c_void, data: *const u8, len: usize) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let result = unsafe { &mut *destination.cast::<Vec<u8>>() };
-                if len != 0 {
-                    let data = unsafe { std::slice::from_raw_parts(data, len) };
-                    result.extend_from_slice(data);
-                }
-            }))
-            .is_ok()
-        }
         let filepath = cstring(filepath)?;
         let mut bytes = Vec::new();
         crate::clear_last_error();
@@ -208,7 +219,7 @@ impl ConfigIOProxy {
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
                 (&mut bytes as *mut Vec<u8>).cast(),
-                write,
+                append_bytes,
             )
         };
         crate::ocio_call_status()?;
@@ -245,18 +256,33 @@ impl ConfigIOProxy {
         self.try_fast_lut_file_hash(filepath).ok().flatten()
     }
 
-    /// Return an upstream LUT fast hash while preserving bridge failures.
+    /// Return a text hash, replacing invalid UTF-8. For lossless bytes use
+    /// [`Self::try_fast_lut_file_hash_bytes`].
     pub fn try_fast_lut_file_hash(&self, filepath: impl AsRef<str>) -> Result<Option<String>> {
+        Ok(self
+            .try_fast_lut_file_hash_bytes(filepath)?
+            .map(|value| String::from_utf8_lossy(&value).into_owned()))
+    }
+
+    /// Return the complete native hash bytes, including any embedded NULs.
+    /// An empty native hash indicates that the LUT is unavailable.
+    pub fn try_fast_lut_file_hash_bytes(
+        &self,
+        filepath: impl AsRef<str>,
+    ) -> Result<Option<Vec<u8>>> {
         let filepath = cstring(filepath)?;
+        let mut bytes = Vec::new();
         crate::clear_last_error();
-        let hash = unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_io_proxy_get_fast_lut_file_hash(
+        let found = unsafe {
+            ocio_sys::ocio_config_io_proxy_visit_fast_lut_file_hash(
                 self.handle.as_ptr(),
                 filepath.as_ptr(),
-            ))
+                (&mut bytes as *mut Vec<u8>).cast(),
+                append_bytes,
+            )
         };
         crate::ocio_call_status()?;
-        Ok(hash)
+        Ok(found.then_some(bytes))
     }
 
     #[doc(hidden)]

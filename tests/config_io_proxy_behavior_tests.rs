@@ -34,11 +34,11 @@ impl ConfigIOProvider for OnDemandProvider {
             Ok(Cow::Borrowed(&[]))
         }
     }
-    fn fast_lut_file_hash<'a>(&'a self, path: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, str>> {
+    fn fast_lut_file_hash<'a>(&'a self, path: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
         Ok(Cow::Borrowed(if path.to_bytes().ends_with(b"lut1.clf") {
-            "on-demand-lut-v1"
+            &b"\0on-demand-lut-v1\xff"[..]
         } else {
-            ""
+            &b""[..]
         }))
     }
 }
@@ -55,6 +55,13 @@ fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
     };
     let proxy = ConfigIOProxy::from_provider(provider).unwrap();
     assert!(proxy.try_config_data().unwrap().is_some());
+    assert_eq!(
+        proxy
+            .try_fast_lut_file_hash_bytes("E:/virtual/context/shot1/lut1.clf")
+            .unwrap()
+            .as_deref(),
+        Some(&b"\0on-demand-lut-v1\xff"[..])
+    );
     assert_eq!(
         proxy
             .try_lut_data("E:/virtual/context/shot1/lut1.clf")
@@ -208,8 +215,8 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
         fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
             Ok(Cow::Borrowed(&[]))
         }
-        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, str>> {
-            Ok(Cow::Borrowed(""))
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(b""))
         }
     }
     let _guard = config_io_proxy_test_lock();
@@ -241,8 +248,8 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
                 "LUT backend unavailable".into(),
             ))
         }
-        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, str>> {
-            Ok(Cow::Borrowed("known"))
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(b"known"))
         }
     }
     let proxy = ConfigIOProxy::from_provider(LutFailure).unwrap();
@@ -256,6 +263,31 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
         .unwrap_err()
         .to_string()
         .contains("LUT backend unavailable"));
+    struct HashFailure;
+    impl ConfigIOProvider for HashFailure {
+        fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
+            Ok(Cow::Borrowed(""))
+        }
+        fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(b"data"))
+        }
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Err(ocio_rs::OcioError::InvalidInput(
+                "hash backend unavailable".into(),
+            ))
+        }
+    }
+    let proxy = ConfigIOProxy::from_provider(HashFailure).unwrap();
+    assert!(proxy
+        .try_fast_lut_file_hash_bytes("test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("hash backend unavailable"));
+    assert!(proxy
+        .try_copy_lut_data("test.clf", &mut [0; 8])
+        .unwrap_err()
+        .to_string()
+        .contains("hash backend unavailable"));
 }
 
 #[test]
@@ -269,8 +301,8 @@ fn custom_provider_accepts_owned_dynamic_results() {
         fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
             Ok(Cow::Owned(vec![1, 0, 255]))
         }
-        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, str>> {
-            Ok(Cow::Owned(format!("hash-{}", 42)))
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Owned(format!("hash-{}", 42).into_bytes()))
         }
     }
     let _guard = config_io_proxy_test_lock();
@@ -284,6 +316,50 @@ fn custom_provider_accepts_owned_dynamic_results() {
         Some("hash-42")
     );
     assert_eq!(proxy.try_lut_data("x").unwrap(), Some(vec![1, 0, 255]));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn lut_hash_preserves_binary_bytes_for_memory_and_custom_providers() {
+    struct Binary;
+    impl ConfigIOProvider for Binary {
+        fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
+            Ok(Cow::Borrowed(""))
+        }
+        fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(b"lut"))
+        }
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(b"\0\x80\xffx"))
+        }
+    }
+    let _guard = config_io_proxy_test_lock();
+    let memory = ConfigIOProxy::create().unwrap();
+    memory
+        .set_lut_data_with_hash_bytes("asset.clf", b"lut", b"\0\x80\xffx")
+        .unwrap();
+    let provider = ConfigIOProxy::from_provider(Binary).unwrap();
+    for proxy in [&memory, &provider] {
+        assert_eq!(
+            proxy
+                .try_fast_lut_file_hash_bytes("asset.clf")
+                .unwrap()
+                .as_deref(),
+            Some(&b"\0\x80\xffx"[..])
+        );
+        assert_eq!(
+            proxy.try_lut_data("asset.clf").unwrap().as_deref(),
+            Some(&b"lut"[..])
+        );
+        assert_eq!(
+            proxy.try_fast_lut_file_hash("asset.clf").unwrap().unwrap(),
+            "\0\u{fffd}\u{fffd}x"
+        );
+    }
+    assert_eq!(
+        memory.try_fast_lut_file_hash_bytes("missing").unwrap(),
+        None
+    );
 }
 
 #[test]
