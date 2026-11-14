@@ -1312,6 +1312,11 @@ unsafe extern "C" {
         out: *mut OcioGpuUniformInfo,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_uniform_value_count(handle: *mut c_void, index: u32) -> usize;
+    pub fn ocio_gpu_shader_desc_get_uniform_double_value(
+        handle: *mut c_void,
+        index: u32,
+        value: *mut f64,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(
         handle: *mut c_void,
         index: u32,

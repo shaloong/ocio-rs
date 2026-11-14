@@ -1499,6 +1499,12 @@ fn rust_uniform_double_getter_tracks_values_and_owns_closure() {
     value.store(2.5f64.to_bits(), Ordering::Relaxed);
     assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
     assert_eq!(out, [2.5]);
+    let precise = 1.0f64 + f64::EPSILON;
+    value.store(precise.to_bits(), Ordering::Relaxed);
+    assert_eq!(desc.try_uniform_f64_value(0).unwrap(), Some(precise));
+    assert!(desc.add_uniform_bool("flag", true).unwrap());
+    assert_eq!(desc.try_uniform_f64_value(1).unwrap(), None);
+    assert!(desc.try_uniform_f64_value(99).is_err());
     drop(desc);
     assert_eq!(Arc::strong_count(&value), 1);
 }
@@ -1512,6 +1518,7 @@ fn rust_uniform_double_getter_contains_panic() {
         .add_uniform_f64_getter("panics", || panic!("getter panic"))
         .unwrap());
     assert!(desc.try_copy_uniform_f32_into(0, &mut [0.0]).is_err());
+    assert!(desc.try_uniform_f64_value(0).is_err());
 }
 
 #[test]

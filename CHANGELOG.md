@@ -18,6 +18,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
 - Read current GPU uniform values into caller-provided buffers without Rust
   allocations, including live dynamic-property updates.
+- Read native double uniform values without reducing precision to GPU `f32`.
 - Register live, thread-safe Rust scalar, float3, and array uniform getters
   with native shader descriptors.
 - Borrow GPU LUT texture values directly from OCIO for upload without copying.

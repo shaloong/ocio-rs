@@ -3720,6 +3720,23 @@ impl GpuShaderDesc {
         }
     }
 
+    /// Reads the current native double uniform value without narrowing to `f32`.
+    /// Returns `Ok(None)` for a uniform of another type; invalid indices and
+    /// failures from the native or Rust getter are returned as errors.
+    pub fn try_uniform_f64_value(&self, index: u32) -> Result<Option<f64>> {
+        let mut value = 0.0;
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_double_value(
+                self.handle.as_ptr(),
+                index,
+                &mut value,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found.then_some(value))
+    }
+
     /// Read the current floating-point uniform payload into caller-owned storage.
     ///
     /// Returns `Ok(false)` if the uniform is not representable as floats or
