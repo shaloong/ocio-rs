@@ -64,6 +64,25 @@ fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
     );
     assert_eq!(calls.load(std::sync::atomic::Ordering::Relaxed), 1);
     assert_eq!(proxy.try_lut_data("missing.clf").unwrap(), None);
+    assert!(!proxy.try_copy_lut_data("missing.clf", &mut []).unwrap());
+    let mut small = [42; 1];
+    assert!(!proxy
+        .try_copy_lut_data("E:/virtual/context/shot1/lut1.clf", &mut small)
+        .unwrap());
+    assert_eq!(small, [42]);
+    let mut copied = vec![
+        0;
+        fs::metadata(test_data_path("configs/context_test1/shot1/lut1.clf"))
+            .unwrap()
+            .len() as usize
+    ];
+    assert!(proxy
+        .try_copy_lut_data("E:/virtual/context/shot1/lut1.clf", &mut copied)
+        .unwrap());
+    assert_eq!(
+        copied,
+        fs::read(test_data_path("configs/context_test1/shot1/lut1.clf")).unwrap()
+    );
     assert!(proxy.set_config_data("not supported").is_err());
     assert!(proxy.set_lut_data("file", &[1], "hash").is_err());
     let config = Config::from_config_io_proxy(&proxy).unwrap();
@@ -78,6 +97,34 @@ fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
     cpu.try_apply_rgba(&mut pixel).unwrap();
     assert_close(pixel[0] as f64, 10.0, 1e-6);
     assert!(calls.load(std::sync::atomic::Ordering::Relaxed) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn memory_proxy_normalizes_mixed_separators_and_replaces_payload_and_hash() {
+    let _guard = config_io_proxy_test_lock();
+    let proxy = ConfigIOProxy::create().unwrap();
+    assert!(proxy
+        .set_lut_data(r"dir\sub/file.clf", &[1, 2, 3], "first")
+        .unwrap());
+    assert!(proxy
+        .set_lut_data(r"dir/sub\file.clf", &[4, 5], "second")
+        .unwrap());
+    for path in [
+        r"dir\sub/file.clf",
+        r"dir/sub\file.clf",
+        "dir/sub/file.clf",
+        r"dir\sub\file.clf",
+    ] {
+        assert_eq!(proxy.try_lut_data(path).unwrap(), Some(vec![4, 5]));
+        assert_eq!(
+            proxy.try_fast_lut_file_hash(path).unwrap().as_deref(),
+            Some("second")
+        );
+        let mut data = [0; 2];
+        assert!(proxy.try_copy_lut_data(path, &mut data).unwrap());
+        assert_eq!(data, [4, 5]);
+    }
 }
 
 #[test]
@@ -134,6 +181,11 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
     let proxy = ConfigIOProxy::from_provider(LutFailure).unwrap();
     assert!(proxy
         .try_lut_data("test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("LUT backend unavailable"));
+    assert!(proxy
+        .try_copy_lut_data("test.clf", &mut [0; 8])
         .unwrap_err()
         .to_string()
         .contains("LUT backend unavailable"));

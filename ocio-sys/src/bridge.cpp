@@ -735,8 +735,8 @@ class RustConfigIOProxy : public ocio::ConfigIOProxy
 {
 public:
   std::string configData;
-  std::unordered_map<std::string, std::vector<uint8_t>> lutData;
-  std::unordered_map<std::string, std::string> fastHashes;
+  struct LutEntry { std::vector<uint8_t> bytes; std::string hash; };
+  std::unordered_map<std::string, LutEntry> lutData;
 
   static std::string normalizePath(const char* filepath, char separator)
   {
@@ -748,26 +748,21 @@ public:
     return path;
   }
 
-  const std::vector<uint8_t>* findLutData(const char* filepath) const
+  const LutEntry* findLut(const char* filepath) const
   {
     if (!filepath) return nullptr;
     if (auto it = lutData.find(filepath); it != lutData.end()) return &it->second;
-    const auto slash = normalizePath(filepath, '/');
-    if (auto it = lutData.find(slash); it != lutData.end()) return &it->second;
-    const auto backslash = normalizePath(filepath, '\\');
-    if (auto it = lutData.find(backslash); it != lutData.end()) return &it->second;
+    if (std::strchr(filepath, '\\')) {
+      const auto slash = normalizePath(filepath, '/');
+      if (auto it = lutData.find(slash); it != lutData.end()) return &it->second;
+    }
     return nullptr;
   }
 
-  std::string findFastHash(const char* filepath) const
+  const std::vector<uint8_t>* findLutData(const char* filepath) const
   {
-    if (!filepath) return {};
-    if (auto it = fastHashes.find(filepath); it != fastHashes.end()) return it->second;
-    const auto slash = normalizePath(filepath, '/');
-    if (auto it = fastHashes.find(slash); it != fastHashes.end()) return it->second;
-    const auto backslash = normalizePath(filepath, '\\');
-    if (auto it = fastHashes.find(backslash); it != fastHashes.end()) return it->second;
-    return {};
+    const auto* entry = findLut(filepath);
+    return entry ? &entry->bytes : nullptr;
   }
 
   std::vector<uint8_t> getLutData(const char* filepath) const override
@@ -783,7 +778,8 @@ public:
 
   std::string getFastLutFileHash(const char* filepath) const override
   {
-    return findFastHash(filepath);
+    const auto* entry = findLut(filepath);
+    return entry ? entry->hash : std::string{};
   }
 };
 
@@ -2133,16 +2129,9 @@ bool ocio_config_io_proxy_set_lut_data(
     if (data && len > 0) {
       bytes.assign(data, data + len);
     }
-    rustProxy->lutData[filepath] = std::move(bytes);
-    rustProxy->fastHashes[filepath] = fastHash ? fastHash : "";
-    rustProxy->lutData[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/')] =
-      rustProxy->lutData[filepath];
-    rustProxy->lutData[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '\\')] =
-      rustProxy->lutData[filepath];
-    rustProxy->fastHashes[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/')] =
-      rustProxy->fastHashes[filepath];
-    rustProxy->fastHashes[ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '\\')] =
-      rustProxy->fastHashes[filepath];
+    auto path = ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/');
+    ocio_rs_bridge::RustConfigIOProxy::LutEntry entry{std::move(bytes), fastHash ? fastHash : ""};
+    rustProxy->lutData.insert_or_assign(std::move(path), std::move(entry));
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
@@ -2193,6 +2182,7 @@ bool ocio_config_io_proxy_copy_lut_data(
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) {
+      if (real->proxy->getFastLutFileHash(filepath).empty()) return false;
       const auto bytes = real->proxy->getLutData(filepath);
       if (len < bytes.size()) return false;
       if (!bytes.empty()) std::memcpy(data, bytes.data(), bytes.size());

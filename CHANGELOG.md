@@ -136,6 +136,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Report missing custom-provider LUTs consistently when copying into a caller
+  buffer, and store one canonical in-memory payload per normalized path.
 - Default shader hooks now preserve native shader assembly, including Vulkan
   uniform blocks, instead of concatenating incomplete shader sections.
 - Drop replaced logging and hash callback captures outside internal locks, so

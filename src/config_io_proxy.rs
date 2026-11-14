@@ -124,7 +124,11 @@ impl ConfigIOProxy {
 
     /// Register the byte payload for a LUT file path and its fast hash.
     ///
-    /// Returns whether the payload was accepted by the upstream OCIO proxy.
+    /// Returns whether the in-memory provider accepted the payload. Custom
+    /// providers implement their own storage and reject this operation.
+    /// Slash and backslash separators are treated as equivalent by this
+    /// in-memory provider; registering an equivalent path replaces its payload
+    /// and hash together. Custom providers receive OCIO's resolved path as-is.
     pub fn set_lut_data(
         &self,
         filepath: impl AsRef<str>,
