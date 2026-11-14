@@ -2234,6 +2234,13 @@ unsafe extern "C" {
     ) -> ();
 
     #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_set_complete(
+        prop: *mut c_void,
+        curves: *const *const c_void,
+        counts: *const usize,
+    );
+
+    #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_set_slope(
         prop: *mut c_void,
         curveType: i32,

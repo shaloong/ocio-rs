@@ -419,6 +419,7 @@ impl GradingTone {
 
 /// One control point in an OCIO grading curve, including its outgoing slope.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[repr(C)]
 pub struct GradingCurvePoint {
     pub x: f32,
     pub y: f32,

@@ -108,6 +108,24 @@ fn dynamic_hue_snapshot_includes_every_curve() {
     ] {
         assert!((curve[0].slope - 0.37).abs() < 1e-6);
     }
+    let mut replacement = value.clone();
+    replacement.sat_sat[0].slope = 0.7;
+    replacement.lum_lum[0].slope = 0.8;
+    property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .unwrap();
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap(),
+        replacement
+    );
+    replacement.hue_fx.clear();
+    assert!(property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .is_err());
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap().sat_sat[0].slope,
+        0.7
+    );
 }
 
 #[test]

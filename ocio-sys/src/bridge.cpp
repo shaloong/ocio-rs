@@ -14145,6 +14145,33 @@ void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* handle
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
+
+void ocio_dynamic_property_grading_hue_curve_set_complete(void* handle, const ocio_grading_curve_point* const* curves, const size_t* counts) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curves; (void)counts;
+  ocio_rs_bridge::capture_error_message("Dynamic hue curves require native OpenColorIO");
+#else
+  try {
+    if (!curves || !counts) throw std::invalid_argument("null hue curve array");
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(
+        ocio_rs_bridge::get_real_dynamic_property(handle));
+    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    for (int c = 0; c < 8; ++c) {
+      if (counts[c] && !curves[c]) throw std::invalid_argument("null hue control points");
+      auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
+      curve->setNumControlPoints(counts[c]);
+      for (size_t i = 0; i < counts[c]; ++i) {
+        auto& point = curve->getControlPoint(i);
+        point.m_x = curves[c][i].x;
+        point.m_y = curves[c][i].y;
+        curve->setSlope(i, curves[c][i].slope);
+      }
+    }
+    value->validate();
+    typed->setValue(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000

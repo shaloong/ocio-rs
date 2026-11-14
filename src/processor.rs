@@ -3092,6 +3092,41 @@ impl DynamicProperty {
         })
     }
 
+    /// Validate and replace all eight curves in one native update.
+    ///
+    /// If curve validation fails, the original property is left unchanged. The curve data is
+    /// borrowed across the FFI boundary; no Rust-side point copy is made.
+    #[cfg(feature = "v2_5")]
+    pub fn set_complete_grading_hue_curve_value(
+        &self,
+        value: &crate::grading::CompleteGradingHueCurveValue,
+    ) -> Result<()> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::set_complete_grading_hue_curve_value",
+        )?;
+        let curves = [
+            &value.base.hue_hue,
+            &value.base.hue_sat,
+            &value.base.hue_lum,
+            &value.base.lum_sat,
+            &value.sat_sat,
+            &value.lum_lum,
+            &value.sat_lum,
+            &value.hue_fx,
+        ];
+        let pointers = curves.map(|points| points.as_ptr().cast::<std::ffi::c_void>());
+        let counts = curves.map(|points| points.len());
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_set_complete(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                counts.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_num_control_points(

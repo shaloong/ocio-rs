@@ -637,6 +637,10 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
 // L2: Only the truly irregular mappings that can't be derived by get_/set_ stripping.
 fn l2_overrides() -> HashMap<&'static str, &'static str> {
     [
+        (
+            "grading_hue_curve_set_complete",
+            "set_complete_grading_hue_curve_value",
+        ),
         // Constructor/static factory variants
         ("create_raw", "raw"),
         ("create_from_file", "from_file"),

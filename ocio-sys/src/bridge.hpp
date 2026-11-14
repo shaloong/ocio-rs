@@ -1305,6 +1305,8 @@ bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* handle, in
 int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* handle, int curve);
 void ocio_dynamic_property_grading_hue_curve_get_control_point(void* handle, int curve, int index, float* x, float* y);
 void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* handle, int curve, int num);
+typedef struct ocio_grading_curve_point { float x; float y; float slope; } ocio_grading_curve_point;
+void ocio_dynamic_property_grading_hue_curve_set_complete(void* handle, const ocio_grading_curve_point* const* curves, const size_t* counts);
 void ocio_dynamic_property_grading_hue_curve_set_control_point(void* handle, int curve, int index, float x, float y);
 float ocio_dynamic_property_grading_hue_curve_get_slope(void* handle, int curve, int index);
 void ocio_dynamic_property_grading_hue_curve_set_slope(void* handle, int curve, int index, float slope);
