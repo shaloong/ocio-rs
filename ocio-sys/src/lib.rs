@@ -1613,6 +1613,45 @@ unsafe extern "C" {
         code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
         context: *mut c_void,
     ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_uniform_control(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+        ) -> *const i8,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        stream_textures: bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
     pub fn ocio_gpu_processor_extract_with_streamed_texture_hooks(
         handle: *mut c_void,
         template_desc: *mut c_void,

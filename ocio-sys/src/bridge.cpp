@@ -8671,13 +8671,15 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 static bool ocio_rs_texture_count(size_t, size_t, size_t, size_t, size_t&);
 // Keep OCIO's resource ownership and live getter behavior while allowing Rust
 // to customize the native virtual createShaderText stage synchronously.
-class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
+class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
+                                   public std::enable_shared_from_this<OcioRsAssemblingDesc> {
   ocio::GpuShaderDescRcPtr resources = ocio::GpuShaderDesc::CreateShaderDesc();
   ocio_shader_assemble_callback callback;
   ocio_shader_texture_callback texture_callback;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
   ocio_shader_code_callback code_callback;
+  ocio_shader_uniform_registration_callback registration_callback;
   void* context;
   bool stream_textures;
   const char* filterCode(int section, const char* code) {
@@ -8706,6 +8708,22 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
         throw ocio::Exception("Rust uniform callback failed");
     }
     return added;
+  }
+  bool registerUniform(const char* name, int type, bool has_max, unsigned max_size,
+                       ocio::GpuShaderDesc::UniformData data, const std::function<bool()>& add) {
+    auto getter = std::make_unique<ocio_rs_bridge::GpuUniformCache>();
+    // Some native getters capture a raw pointer into this creator's dynamic
+    // properties. The retained creator is therefore part of the getter owner.
+    getter->owner = shared_from_this();
+    getter->uniforms.push_back(std::move(data));
+    int action = 0;
+    // The callback owns the pointer on every path, including errors/panics.
+    if (!registration_callback(context, name, type, has_max, max_size, getter.release(), &action))
+      throw ocio::Exception("Rust uniform registration callback failed");
+    if (action == 0) return notifyUniform(add(), name, type, has_max, max_size);
+    if (action == 1) return true;
+    if (action == 2) return false;
+    throw ocio::Exception("Invalid uniform registration action");
   }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   std::vector<unsigned> texture_bindings;
@@ -8752,9 +8770,10 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
 public:
   OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, ocio_shader_texture_callback tex,
                        ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
-                       ocio_shader_code_callback code, void* ctx, bool stream)
-      : callback(cb), texture_callback(tex), uniform_callback(uniform), lifecycle_callback(lifecycle), code_callback(code), context(ctx), stream_textures(stream) {}
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; context = nullptr; stream_textures = false; }
+                       ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+                       void* ctx, bool stream)
+      : callback(cb), texture_callback(tex), uniform_callback(uniform), lifecycle_callback(lifecycle), code_callback(code), registration_callback(registration), context(ctx), stream_textures(stream) {}
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
   void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { notifyLifecycle(2); ocio::GpuShaderCreator::end(); }
   void finalize() override { ocio::GpuShaderCreator::finalize(); notifyLifecycle(1); }
@@ -8775,14 +8794,34 @@ public:
   unsigned getTextureMaxWidth() const noexcept override { return resources->getTextureMaxWidth(); }
   void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
   bool getAllowTexture1D() const override { return resources->getAllowTexture1D(); }
-  bool addUniform(const char* n, const DoubleGetter& g) override { return notifyUniform(resources->addUniform(n, g), n, 0, false, 0); }
-  bool addUniform(const char* n, const BoolGetter& g) override { return notifyUniform(resources->addUniform(n, g), n, 1, false, 0); }
-  bool addUniform(const char* n, const Float3Getter& g) override { return notifyUniform(resources->addUniform(n, g), n, 2, false, 0); }
+  bool addUniform(const char* n, const DoubleGetter& g) override {
+    if (!registration_callback) return notifyUniform(resources->addUniform(n, g), n, 0, false, 0);
+    UniformData data; data.m_type = ocio::UNIFORM_DOUBLE; data.m_getDouble = g;
+    return registerUniform(n, 0, false, 0, std::move(data), [&] { return resources->addUniform(n, g); });
+  }
+  bool addUniform(const char* n, const BoolGetter& g) override {
+    if (!registration_callback) return notifyUniform(resources->addUniform(n, g), n, 1, false, 0);
+    UniformData data; data.m_type = ocio::UNIFORM_BOOL; data.m_getBool = g;
+    return registerUniform(n, 1, false, 0, std::move(data), [&] { return resources->addUniform(n, g); });
+  }
+  bool addUniform(const char* n, const Float3Getter& g) override {
+    if (!registration_callback) return notifyUniform(resources->addUniform(n, g), n, 2, false, 0);
+    UniformData data; data.m_type = ocio::UNIFORM_FLOAT3; data.m_getFloat3 = g;
+    return registerUniform(n, 2, false, 0, std::move(data), [&] { return resources->addUniform(n, g); });
+  }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g, unsigned m) override {
+    if (registration_callback) {
+      UniformData data; data.m_type = ocio::UNIFORM_VECTOR_FLOAT; data.m_vectorFloat.m_getSize = s; data.m_vectorFloat.m_getVector = g;
+      return registerUniform(n, 3, true, m, std::move(data), [&] { return resources->addUniform(n, s, g, m); });
+    }
     return notifyUniform(resources->addUniform(n, s, g, m), n, 3, true, m);
   }
   bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g, unsigned m) override {
+    if (registration_callback) {
+      UniformData data; data.m_type = ocio::UNIFORM_VECTOR_INT; data.m_vectorInt.m_getSize = s; data.m_vectorInt.m_getVector = g;
+      return registerUniform(n, 4, true, m, std::move(data), [&] { return resources->addUniform(n, s, g, m); });
+    }
     return notifyUniform(resources->addUniform(n, s, g, m), n, 4, true, m);
   }
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
@@ -8817,9 +8856,17 @@ public:
   }
 #else
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g) override {
+    if (registration_callback) {
+      UniformData data; data.m_type = ocio::UNIFORM_VECTOR_FLOAT; data.m_vectorFloat.m_getSize = s; data.m_vectorFloat.m_getVector = g;
+      return registerUniform(n, 3, false, 0, std::move(data), [&] { return resources->addUniform(n, s, g); });
+    }
     return notifyUniform(resources->addUniform(n, s, g), n, 3, false, 0);
   }
   bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g) override {
+    if (registration_callback) {
+      UniformData data; data.m_type = ocio::UNIFORM_VECTOR_INT; data.m_vectorInt.m_getSize = s; data.m_vectorInt.m_getVector = g;
+      return registerUniform(n, 4, false, 0, std::move(data), [&] { return resources->addUniform(n, s, g); });
+    }
     return notifyUniform(resources->addUniform(n, s, g), n, 4, false, 0);
   }
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
@@ -8883,16 +8930,23 @@ public:
 static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
-    ocio_shader_code_callback code, void* context, bool stream_textures) {
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    void* context, bool stream_textures) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)context; (void)stream_textures;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)registration; (void)context; (void)stream_textures;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
   try {
     if (!handle || !template_desc || !callback || (stream_textures && !texture)) throw std::invalid_argument("invalid shader assembler arguments");
     auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
-    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, code, context, stream_textures);
+    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, code, registration, context, stream_textures);
+    // Retained getters may keep desc alive after either success or failure;
+    // never leave the synchronous Rust callback context attached to it.
+    struct CallbackReset {
+      OcioRsAssemblingDesc* desc;
+      ~CallbackReset() { desc->clear_callback(); }
+    } reset{desc.get()};
     desc->setLanguage(source->getLanguage());
     desc->setFunctionName(source->getFunctionName());
     desc->setPixelName(source->getPixelName());
@@ -8917,13 +8971,20 @@ void* ocio_gpu_processor_extract_with_hooks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, void* context) {
-  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, context, false);
+  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, nullptr, context, false);
 }
 void* ocio_gpu_processor_extract_with_streamed_texture_hooks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, void* context) {
-  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, context, true);
+  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, nullptr, context, true);
+}
+void* ocio_gpu_processor_extract_with_uniform_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration, bool stream_textures, void* context) {
+  if (!registration) { ocio_rs_bridge::capture_error_message("uniform registration callback required"); return nullptr; }
+  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, registration, context, stream_textures);
 }
 void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,

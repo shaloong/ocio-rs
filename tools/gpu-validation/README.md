@@ -18,6 +18,8 @@ halve RGB in the generated footer; GPU output is compared with the equivalent
 CPU result, verifying that the rewrite actually affects execution.
 The tetrahedral and additional 1D/2D cases stream texture data through the
 Rust texture sink rather than retaining it in the returned descriptor.
+An additional exposure case stores a native getter outside the descriptor and
+checks the GPU against CPU output before and after changing its property.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support

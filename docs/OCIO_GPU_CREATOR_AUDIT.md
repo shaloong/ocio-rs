@@ -16,8 +16,8 @@ the bridge selects the native ABI separately.
 | `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id` | Custom cache-ID implementation is not exposed. |
 | `begin(uid)`, `finalize()`, `end()` | Descriptor methods; synchronous `ShaderExtractionHooks::lifecycle` notifications | Hooks observe lifecycle but do not replace native methods. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Descriptor getters/setters and extraction template | Cannot implement these virtual methods independently in Rust. |
-| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual live Rust getters and native-backed double-property uniforms; `ShaderExtractionHooks::uniform`; post-extraction `GpuUniformCache` | Hook is a registration notification: Rust cannot supply native registration results or directly own the OCIO getter during registration. |
-| `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and uniform notifications; maximum size is reported on native 2.5+ | Same registration-control gap; native 2.4 has no `maxSize` argument. |
+| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
+| `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
 | `addDynamicProperty`, count, index/type lookup and presence | Descriptor `add_dynamic_property` and dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | A fully custom creator's dynamic-property store is not exposed as Rust creator hooks. |
 | `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; optional streaming sink | 2.4 returns `void`, 2.5+ returns a binding. Rust may choose streamed storage and 2.5+ binding but cannot replace all creator methods. |
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
@@ -28,15 +28,15 @@ the bridge selects the native ABI separately.
 
 ## Design constraints for closing the creator gap
 
-- A Rust creator must be able to decide each native registration result and own
-  or delegate resource storage, including all scalar and array getter overloads.
+- `ShaderUniformControl` can decide registration results and own or delegate
+  uniform storage for all scalar and array getter overloads. A complete Rust
+  creator must still independently control the remaining native virtual methods.
 - Several OCIO getters capture raw pointers to creator-owned dynamic properties.
-  A retained getter therefore needs explicit creator/property ownership, cannot
-  outlive it, and must not become safely transferable across threads while the
-  property can be mutated without synchronization.
-- Callbacks must not unwind through C++; early failure and cleanup must disable
-  borrowed callback contexts before any retained native object can outlive the
-  call. Reentrancy and OCIO's processor lock need explicit contracts.
+  Retained getters hold the native creator alive and are thread-confined; native
+  code must not access those properties concurrently without synchronization.
+- Registration callback errors and panics are contained, and callback contexts
+  are disabled on success and failure, even if a getter retains the native
+  creator. Do not reenter extraction on the same processor from a callback.
 - The 2.4 and 2.5+ virtual method ABIs differ. Test both actual native versions,
   not only a feature flag against one build, and compare generated shader and
   resources with OCIO's native descriptor. Cover failure, duplicate resources,

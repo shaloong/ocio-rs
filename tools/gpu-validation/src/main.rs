@@ -5,7 +5,8 @@ use ocio_rs::transform::{
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderExtractionHooks, TransformDirection,
+    ShaderExtractionHooks, ShaderSections, ShaderUniformAction, ShaderUniformControl,
+    ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -49,10 +50,13 @@ fn validate_case(
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
     let mut streamed_lut = None;
+    let mut external_uniform = None;
     if use_hooks {
         struct MarkBody {
             seen: bool,
             modified_footer: bool,
+            external_uniform: Option<ShaderUniformGetter>,
+            capture_uniform: bool,
         }
         impl ShaderExtractionHooks for MarkBody {
             fn code(
@@ -74,12 +78,50 @@ fn validate_case(
                     Ok(None)
                 }
             }
+            fn assemble(&mut self, parts: ShaderSections<'_>) -> ocio_rs::Result<String> {
+                let parameters = if self.capture_uniform {
+                    format!(
+                        "layout(set=0,binding=0) uniform Parameters {{\n{}\n}};\n",
+                        parts.parameters
+                    )
+                } else {
+                    parts.parameters.to_owned()
+                };
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    parameters,
+                    parts.textures,
+                    parts.helpers,
+                    parts.header,
+                    parts.body,
+                    parts.footer
+                ))
+            }
+        }
+        impl ShaderUniformControl for MarkBody {
+            fn register_uniform(
+                &mut self,
+                uniform: ShaderUniformRegistration,
+            ) -> ocio_rs::Result<ShaderUniformAction> {
+                if uniform.uniform_type != GpuUniformType::Double || self.external_uniform.is_some()
+                {
+                    return Err(ocio_rs::OcioError::InvalidInput(
+                        "unexpected external uniform".into(),
+                    ));
+                }
+                self.external_uniform = Some(uniform.getter);
+                Ok(ShaderUniformAction::ExternalAdded)
+            }
         }
         let mut hooks = MarkBody {
             seen: false,
             modified_footer: false,
+            external_uniform: None,
+            capture_uniform: expect_uniform,
         };
-        desc = if expected_texture == TextureKind::None {
+        desc = if expect_uniform {
+            gpu.try_extract_with_uniform_control(&desc, &mut hooks)?
+        } else if expected_texture == TextureKind::None {
             gpu.try_extract_with_hooks(&desc, &mut hooks)?
         } else {
             gpu.try_extract_with_streamed_textures(&desc, &mut hooks, |texture| {
@@ -109,6 +151,7 @@ fn validate_case(
                 Ok(None)
             })?
         };
+        external_uniform = hooks.external_uniform.take();
         if !hooks.seen
             || !hooks.modified_footer
             || !desc
@@ -142,10 +185,21 @@ fn validate_case(
     {
         return Err(format!("{name}: unexpected or unsupported texture resources").into());
     }
-    if (desc.num_uniforms() != 0) != expect_uniform {
+    if (desc.num_uniforms() != 0 || external_uniform.is_some()) != expect_uniform {
         return Err(format!("{name}: unexpected uniform count {}", desc.num_uniforms()).into());
     }
-    let mut uniform_bytes = vec![0u8; desc.try_uniform_buffer_size()?];
+    let mut uniform_bytes = vec![
+        0u8;
+        if external_uniform.is_some() {
+            16
+        } else {
+            desc.try_uniform_buffer_size()?
+        }
+    ];
+    if let Some(getter) = &mut external_uniform {
+        let value = getter.double()?.ok_or("missing external uniform value")? as f32;
+        uniform_bytes[..4].copy_from_slice(&value.to_ne_bytes());
+    }
     for index in 0..desc.num_uniforms() {
         let uniform = desc.try_uniform(index)?.ok_or("missing uniform")?;
         if uniform.uniform_type != GpuUniformType::Double {
@@ -422,6 +476,10 @@ fn validate_case(
                     .ok_or("missing uniform value")? as f32;
                 uniform_bytes[offset..offset + 4].copy_from_slice(&value.to_ne_bytes());
             }
+            if let Some(getter) = &mut external_uniform {
+                let value = getter.double()?.ok_or("missing external uniform value")? as f32;
+                uniform_bytes[..4].copy_from_slice(&value.to_ne_bytes());
+            }
             queue.write_buffer(
                 uniform_buffer.as_ref().ok_or("missing uniform buffer")?,
                 0,
@@ -553,6 +611,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1e-5,
         None,
         false,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "dynamic exposure with external uniform getter",
+        &processor,
+        Some(1.1),
+        TextureKind::None,
+        1e-5,
+        None,
+        true,
     )?;
     let lut = Lut3DTransform::create_with_grid_size(2)?;
     for r in 0..2 {

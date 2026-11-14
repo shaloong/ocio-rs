@@ -664,6 +664,10 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("extract_with_assembler", "try_extract_with_assembler"),
         ("extract_with_hooks", "try_extract_with_hooks"),
         (
+            "extract_with_uniform_control",
+            "try_extract_with_uniform_control",
+        ),
+        (
             "extract_with_streamed_texture_hooks",
             "try_extract_with_streamed_textures",
         ),

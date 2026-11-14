@@ -416,6 +416,351 @@ fn custom_uniform_callback_reports_vector_capacity_when_available() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_control_retains_live_getter_and_cleans_up_after_failure() {
+    use ocio_rs::{
+        OcioError, ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl,
+        ShaderUniformGetter, ShaderUniformRegistration,
+    };
+    struct Hooks {
+        getter: Option<ShaderUniformGetter>,
+        fail: bool,
+        panic: bool,
+        store: bool,
+    }
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            assert_eq!(uniform.uniform_type, GpuUniformType::Double);
+            self.getter = Some(uniform.getter);
+            assert!(!self.panic, "intentional registration panic");
+            if self.fail {
+                return Err(OcioError::InvalidInput("registration rejected".into()));
+            }
+            Ok(if self.store {
+                ShaderUniformAction::StoreInDescriptor
+            } else {
+                ShaderUniformAction::ExternalAdded
+            })
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut hooks = Hooks {
+        getter: None,
+        fail: false,
+        panic: false,
+        store: false,
+    };
+    let desc = gpu
+        .try_extract_with_uniform_control(&template, &mut hooks)
+        .unwrap();
+    assert_eq!(desc.num_uniforms(), 0);
+    let property = desc
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    assert_eq!(hooks.getter.as_mut().unwrap().double().unwrap(), Some(0.5));
+    property.set_double_value(1.75).unwrap();
+    assert_eq!(hooks.getter.as_mut().unwrap().double().unwrap(), Some(1.75));
+    drop(property);
+    drop(desc);
+    assert_eq!(hooks.getter.as_mut().unwrap().double().unwrap(), Some(1.75));
+    let mut stored = Hooks {
+        getter: None,
+        fail: false,
+        panic: false,
+        store: true,
+    };
+    let desc = gpu
+        .try_extract_with_uniform_control(&template, &mut stored)
+        .unwrap();
+    assert_eq!(desc.num_uniforms(), 1);
+    assert_eq!(
+        desc.try_uniform_f64_value(0).unwrap(),
+        stored.getter.as_mut().unwrap().double().unwrap()
+    );
+    for panic in [false, true] {
+        let mut failed = Hooks {
+            getter: None,
+            fail: !panic,
+            panic,
+            store: false,
+        };
+        assert!(gpu
+            .try_extract_with_uniform_control(&template, &mut failed)
+            .is_err());
+        assert_eq!(failed.getter.as_mut().unwrap().double().unwrap(), Some(0.5));
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_control_handles_native_array_getters() {
+    use ocio_rs::{
+        GpuUniformCopy, ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl,
+        ShaderUniformGetter, ShaderUniformRegistration,
+    };
+    struct Hooks {
+        values: Vec<(GpuUniformType, Option<u32>, ShaderUniformGetter)>,
+    }
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.values
+                .push((uniform.uniform_type, uniform.max_size, uniform.getter));
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform =
+        ocio_rs::transform::GradingRGBCurveTransform::create(ocio_rs::GradingStyle::Log).unwrap();
+    transform.try_make_dynamic().unwrap();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut hooks = Hooks { values: Vec::new() };
+    let desc = gpu
+        .try_extract_with_uniform_control(&template, &mut hooks)
+        .unwrap();
+    assert_eq!(desc.num_uniforms(), 0);
+    assert!(hooks
+        .values
+        .iter()
+        .any(|(kind, _, _)| *kind == GpuUniformType::VectorFloat));
+    assert!(hooks
+        .values
+        .iter()
+        .any(|(kind, _, _)| *kind == GpuUniformType::VectorInt));
+    drop(desc);
+    drop(gpu);
+    drop(config);
+    for (kind, max_size, getter) in &mut hooks.values {
+        match kind {
+            GpuUniformType::VectorFloat => {
+                let needed = getter.copy_f32_into(&mut []).unwrap();
+                let required = match needed {
+                    GpuUniformCopy::Written(0) => 0,
+                    GpuUniformCopy::BufferTooSmall { required } => required,
+                    other => panic!("unexpected {other:?}"),
+                };
+                let mut data = vec![0.0; required];
+                assert_eq!(
+                    getter.copy_f32_into(&mut data).unwrap(),
+                    GpuUniformCopy::Written(required)
+                );
+                if let Some(max) = max_size {
+                    assert!(required <= *max as usize);
+                }
+            }
+            GpuUniformType::VectorInt => {
+                let needed = getter.copy_i32_into(&mut []).unwrap();
+                let required = match needed {
+                    GpuUniformCopy::Written(0) => 0,
+                    GpuUniformCopy::BufferTooSmall { required } => required,
+                    other => panic!("unexpected {other:?}"),
+                };
+                let mut data = vec![0; required];
+                assert_eq!(
+                    getter.copy_i32_into(&mut data).unwrap(),
+                    GpuUniformCopy::Written(required)
+                );
+                if let Some(max) = max_size {
+                    assert!(required <= *max as usize);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_control_honors_duplicate_result_and_scalar_types() {
+    use ocio_rs::{
+        GpuUniformCopy, ShaderExtractionHooks, ShaderSections, ShaderUniformAction,
+        ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    };
+    struct Hooks {
+        names: Vec<String>,
+        getters: Vec<(GpuUniformType, ShaderUniformGetter)>,
+        declarations: String,
+        duplicate: bool,
+    }
+    impl ShaderExtractionHooks for Hooks {
+        fn assemble(&mut self, sections: ShaderSections<'_>) -> ocio_rs::Result<String> {
+            self.declarations = sections.parameters.to_owned();
+            Ok(format!(
+                "{}{}{}{}{}{}",
+                sections.parameters,
+                sections.textures,
+                sections.helpers,
+                sections.header,
+                sections.body,
+                sections.footer
+            ))
+        }
+    }
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.names.push(uniform.name);
+            self.getters.push((uniform.uniform_type, uniform.getter));
+            Ok(if self.duplicate {
+                ShaderUniformAction::ExternalDuplicate
+            } else {
+                ShaderUniformAction::ExternalAdded
+            })
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform =
+        ocio_rs::transform::GradingPrimaryTransform::create(ocio_rs::GradingStyle::Log).unwrap();
+    transform.try_make_dynamic().unwrap();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut added = Hooks {
+        names: Vec::new(),
+        getters: Vec::new(),
+        declarations: String::new(),
+        duplicate: false,
+    };
+    gpu.try_extract_with_uniform_control(&template, &mut added)
+        .unwrap();
+    assert!(added
+        .names
+        .iter()
+        .all(|name| added.declarations.contains(name)));
+    assert!(added
+        .getters
+        .iter()
+        .any(|(kind, _)| *kind == GpuUniformType::Bool));
+    assert!(added
+        .getters
+        .iter()
+        .any(|(kind, _)| *kind == GpuUniformType::Float3));
+    for (kind, getter) in &mut added.getters {
+        let mut values = [0.0; 3];
+        match kind {
+            GpuUniformType::Bool => {
+                assert_eq!(
+                    getter.copy_f32_into(&mut values).unwrap(),
+                    GpuUniformCopy::Written(1)
+                );
+                assert_eq!(getter.boolean().unwrap(), Some(values[0] != 0.0));
+                assert_eq!(getter.float3().unwrap(), None);
+            }
+            GpuUniformType::Double => {
+                assert_eq!(
+                    getter.copy_f32_into(&mut values).unwrap(),
+                    GpuUniformCopy::Written(1)
+                );
+                assert_eq!(getter.boolean().unwrap(), None);
+            }
+            GpuUniformType::Float3 => {
+                assert_eq!(
+                    getter.copy_f32_into(&mut values).unwrap(),
+                    GpuUniformCopy::Written(3)
+                );
+                assert_eq!(getter.float3().unwrap(), Some(values));
+            }
+            _ => panic!("unexpected primary uniform"),
+        }
+    }
+    let mut duplicate = Hooks {
+        names: Vec::new(),
+        getters: Vec::new(),
+        declarations: String::new(),
+        duplicate: true,
+    };
+    gpu.try_extract_with_uniform_control(&template, &mut duplicate)
+        .unwrap();
+    assert!(!duplicate.names.is_empty());
+    assert!(duplicate
+        .names
+        .iter()
+        .all(|name| !duplicate.declarations.contains(name)));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_control_can_stream_textures_in_same_extraction() {
+    use ocio_rs::{
+        ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+        ShaderUniformRegistration,
+    };
+    struct Hooks {
+        getter: Option<ShaderUniformGetter>,
+    }
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.getter = Some(uniform.getter);
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.make_exposure_dynamic();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&lut).unwrap();
+    let gpu = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut hooks = Hooks { getter: None };
+    let mut textures = 0;
+    let desc = gpu
+        .try_extract_with_uniform_control_and_streamed_textures(&template, &mut hooks, |texture| {
+            assert!(!texture.values.is_empty());
+            textures += 1;
+            Ok(None)
+        })
+        .unwrap();
+    assert!(textures > 0);
+    assert_eq!(desc.num_textures() + desc.num_3d_textures(), 0);
+    assert_eq!(desc.num_uniforms(), 0);
+    assert!(hooks.getter.as_mut().unwrap().double().unwrap().is_some());
+}
+
+#[test]
 #[cfg(ocio_stub)]
 fn shader_text_borrow_is_absent_in_stub_mode() {
     let mut desc = GpuShaderDesc::create().expect("stub descriptor");

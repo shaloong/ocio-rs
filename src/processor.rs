@@ -2102,6 +2102,120 @@ pub struct ShaderUniform<'a> {
     pub buffer_offset: Option<usize>,
 }
 
+/// An owned live native uniform getter received during custom registration.
+///
+/// The getter keeps its native creator and dynamic properties alive even if
+/// extraction fails. It is thread-confined and performs no bridge allocation
+/// while sampling; native getter implementations may themselves allocate.
+///
+/// ```compile_fail
+/// # use ocio_rs::ShaderUniformGetter;
+/// fn require_send<T: Send>() {}
+/// require_send::<ShaderUniformGetter>();
+/// ```
+pub struct ShaderUniformGetter {
+    cache: GpuUniformCache<'static>,
+    uniform_type: GpuUniformType,
+}
+
+impl ShaderUniformGetter {
+    /// Native value type of this getter.
+    pub fn uniform_type(&self) -> GpuUniformType {
+        self.uniform_type
+    }
+
+    /// Read a double without narrowing; `None` indicates another type.
+    pub fn double(&mut self) -> Result<Option<f64>> {
+        self.cache.double(0)
+    }
+    /// Read a boolean, or `None` for a different uniform type.
+    pub fn boolean(&mut self) -> Result<Option<bool>> {
+        if self.uniform_type != GpuUniformType::Bool {
+            return Ok(None);
+        }
+        let mut value = [0.0];
+        match self.copy_f32_into(&mut value)? {
+            GpuUniformCopy::Written(1) => Ok(Some(value[0] != 0.0)),
+            _ => Err(OcioError::Ocio(
+                "native boolean getter is unavailable".into(),
+            )),
+        }
+    }
+    /// Read a float3, or `None` for a different uniform type.
+    pub fn float3(&mut self) -> Result<Option<[f32; 3]>> {
+        if self.uniform_type != GpuUniformType::Float3 {
+            return Ok(None);
+        }
+        let mut value = [0.0; 3];
+        match self.copy_f32_into(&mut value)? {
+            GpuUniformCopy::Written(3) => Ok(Some(value)),
+            _ => Err(OcioError::Ocio(
+                "native float3 getter is unavailable".into(),
+            )),
+        }
+    }
+    /// Copy scalar, float3, or float-array values into caller-owned storage.
+    pub fn copy_f32_into(&mut self, values: &mut [f32]) -> Result<GpuUniformCopy> {
+        self.cache.copy_f32_into(0, values)
+    }
+    /// Copy integer-array values into caller-owned storage.
+    pub fn copy_i32_into(&mut self, values: &mut [i32]) -> Result<GpuUniformCopy> {
+        self.cache.copy_i32_into(0, values)
+    }
+}
+
+/// A native uniform registration request and its independently owned getter.
+pub struct ShaderUniformRegistration {
+    /// Name supplied by OCIO.
+    pub name: String,
+    /// Native value type.
+    pub uniform_type: GpuUniformType,
+    /// Declared vector capacity on native 2.5+, otherwise unavailable.
+    pub max_size: Option<u32>,
+    /// Live getter. Move it out to retain it after the callback.
+    pub getter: ShaderUniformGetter,
+}
+
+/// How a custom creator handles a native uniform registration request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderUniformAction {
+    /// Let OCIO's descriptor store the getter and determine the return value.
+    StoreInDescriptor,
+    /// The caller stored a new uniform; report `true` to OCIO.
+    ExternalAdded,
+    /// The caller already had the uniform; report `false` to OCIO.
+    ExternalDuplicate,
+}
+
+/// Custom control over native uniform registration during shader extraction.
+///
+/// ```no_run
+/// # use ocio_rs::{GPUProcessor, GpuShaderDesc, Result, ShaderExtractionHooks,
+/// #     ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+/// #     ShaderUniformRegistration};
+/// struct Uniforms(Vec<(String, ShaderUniformGetter)>);
+/// impl ShaderExtractionHooks for Uniforms {}
+/// impl ShaderUniformControl for Uniforms {
+///     fn register_uniform(&mut self, uniform: ShaderUniformRegistration) -> Result<ShaderUniformAction> {
+///         self.0.push((uniform.name, uniform.getter));
+///         Ok(ShaderUniformAction::ExternalAdded)
+///     }
+/// }
+/// # fn example(gpu: &GPUProcessor, template: &GpuShaderDesc) -> Result<()> {
+/// let mut uniforms = Uniforms(Vec::new());
+/// let desc = gpu.try_extract_with_uniform_control(template, &mut uniforms)?;
+/// // Allocate and populate external GPU storage from the retained getters.
+/// # let _ = desc;
+/// # Ok(()) }
+/// ```
+pub trait ShaderUniformControl: ShaderExtractionHooks {
+    /// Decide where to store this uniform and which result to return to OCIO.
+    fn register_uniform(
+        &mut self,
+        uniform: ShaderUniformRegistration,
+    ) -> Result<ShaderUniformAction>;
+}
+
 /// Lifecycle stages of a native shader-creator extraction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShaderLifecycle<'a> {
@@ -2217,6 +2331,8 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
+            false,
             assemble,
             |_| Ok(None),
             false,
@@ -2262,6 +2378,8 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
             texture,
@@ -2309,6 +2427,8 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
             texture,
@@ -2360,6 +2480,8 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
+            false,
             assemble,
             texture,
             true,
@@ -2385,6 +2507,8 @@ impl GPUProcessor {
         let hooks = std::cell::RefCell::new(hooks);
         self.try_extract_with_callbacks(
             template,
+            false,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| hooks.borrow_mut().assemble(parts),
             |texture| hooks.borrow_mut().texture(texture),
@@ -2434,6 +2558,75 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             true,
+            &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
+            false,
+            |parts| hooks.borrow_mut().assemble(parts),
+            texture,
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    /// Extract using hooks that control native uniform registration.
+    ///
+    /// External uniforms are not included in the descriptor's uniform list or
+    /// buffer offsets. The caller must retain their getters and manage storage,
+    /// layout and cleanup. Callback errors and panics abort extraction; owned
+    /// getters already transferred to the caller remain usable. Do not reenter
+    /// extraction on the same GPU processor from a callback.
+    pub fn try_extract_with_uniform_control<H: ShaderUniformControl>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+    ) -> Result<GpuShaderDesc> {
+        let hooks = std::cell::RefCell::new(hooks);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            &mut registration,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |texture| hooks.borrow_mut().texture(texture),
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    /// Control uniform registration and stream textures in the same extraction.
+    ///
+    /// External uniforms and streamed textures are not enumerated by the
+    /// returned descriptor. The sink must copy or upload each texture before
+    /// returning, and retained uniform getters keep their native owner alive.
+    /// As with [`Self::try_extract_with_streamed_textures`], the hooks object's
+    /// texture method is not called. Callers own cleanup on failure.
+    pub fn try_extract_with_uniform_control_and_streamed_textures<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderUniformControl,
+        T: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        self.try_extract_with_callbacks(
+            template,
+            true,
+            &mut registration,
+            true,
             |parts| hooks.borrow_mut().assemble(parts),
             texture,
             true,
@@ -2451,6 +2644,8 @@ impl GPUProcessor {
         &self,
         template: &GpuShaderDesc,
         stream_textures: bool,
+        registration: &mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
+        has_registration: bool,
         mut assemble: F,
         mut texture: G,
         notify_texture: bool,
@@ -2471,6 +2666,8 @@ impl GPUProcessor {
             uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
             lifecycle: &'a mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
             code: &'a mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
+            registration:
+                &'a mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
             output: Option<std::ffi::CString>,
             code_output: Option<std::ffi::CString>,
             error: Option<OcioError>,
@@ -2765,12 +2962,83 @@ impl GPUProcessor {
                 }
             }
         }
+        unsafe extern "C" fn registration_callback<F, G>(
+            context: *mut c_void,
+            name: *const i8,
+            uniform_type: i32,
+            has_max_size: bool,
+            max_size: u32,
+            getter: *mut c_void,
+            action: *mut i32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let Some(handle) = NonNull::new(getter) else {
+                state
+                    .error
+                    .get_or_insert_with(|| OcioError::InvalidInput("null uniform getter".into()));
+                return false;
+            };
+            // SAFETY: Ownership of this native cache is transferred by the
+            // bridge, which retained the native creator and its properties.
+            let getter = ShaderUniformGetter {
+                cache: GpuUniformCache {
+                    handle,
+                    _desc: std::marker::PhantomData,
+                },
+                uniform_type: GpuUniformType::from_raw(uniform_type),
+            };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<ShaderUniformAction> {
+                    if name.is_null() || action.is_null() || !(0..=4).contains(&uniform_type) {
+                        return Err(OcioError::InvalidInput(
+                            "invalid uniform registration".into(),
+                        ));
+                    }
+                    let name = unsafe { std::ffi::CStr::from_ptr(name) }
+                        .to_str()
+                        .map_err(|_| OcioError::InvalidInput("uniform name is not UTF-8".into()))?;
+                    (state.registration)(ShaderUniformRegistration {
+                        name: name.to_owned(),
+                        uniform_type: GpuUniformType::from_raw(uniform_type),
+                        max_size: has_max_size.then_some(max_size),
+                        getter,
+                    })
+                },
+            ));
+            match result {
+                Ok(Ok(choice)) => {
+                    unsafe {
+                        *action = match choice {
+                            ShaderUniformAction::StoreInDescriptor => 0,
+                            ShaderUniformAction::ExternalAdded => 1,
+                            ShaderUniformAction::ExternalDuplicate => 2,
+                        }
+                    };
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("uniform registration callback panicked".into())
+                    });
+                    false
+                }
+            }
+        }
         let mut state = State {
             function: &mut assemble,
             texture: &mut texture,
             uniform,
             lifecycle,
             code,
+            registration,
             output: None,
             code_output: None,
             error: None,
@@ -2784,16 +3052,31 @@ impl GPUProcessor {
             } else {
                 ocio_sys::ocio_gpu_processor_extract_with_hooks
             };
-            extract(
-                self.handle.as_ptr(),
-                template.handle.as_ptr(),
-                callback::<F, G>,
-                notify_texture.then_some(texture_callback::<F, G>),
-                notify_uniform.then_some(uniform_callback::<F, G>),
-                notify_lifecycle.then_some(lifecycle_callback::<F, G>),
-                notify_code.then_some(code_callback::<F, G>),
-                context,
-            )
+            if has_registration {
+                ocio_sys::ocio_gpu_processor_extract_with_uniform_control(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    notify_texture.then_some(texture_callback::<F, G>),
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    Some(registration_callback::<F, G>),
+                    stream_textures,
+                    context,
+                )
+            } else {
+                extract(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    notify_texture.then_some(texture_callback::<F, G>),
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    context,
+                )
+            }
         };
         let result = crate::handle_result(ptr);
         if let Some(error) = state.error {

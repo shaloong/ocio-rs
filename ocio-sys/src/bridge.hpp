@@ -718,6 +718,10 @@ typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, in
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
 typedef bool (*ocio_shader_code_callback)(void* context, int section, const char* code, const char** replacement);
+// Ownership of getter transfers to the callback. It must be destroyed with
+// ocio_gpu_uniform_cache_destroy, even if the callback reports failure.
+typedef bool (*ocio_shader_uniform_registration_callback)(void* context, const char* name,
+    int type, bool has_max_size, uint32_t max_size, void* getter, int* action);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
 void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
@@ -736,6 +740,11 @@ void* ocio_gpu_processor_extract_with_streamed_texture_hooks(void* handle, void*
     ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, void* context);
+void* ocio_gpu_processor_extract_with_uniform_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    bool stream_textures, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);
