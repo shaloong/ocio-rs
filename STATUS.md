@@ -62,7 +62,7 @@ behavioral audit remains necessary before claiming full-library coverage.
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Strong but still expanding — fallible safe APIs preserve C++ exceptions for mutators and audited getters; legacy low-level compatibility endpoints may retain default-return semantics |
 | docs.rs documentation | Built in stub mode with `v2_5` and feature annotations; missing-doc enforcement is not a release gate |
-| Send/Sync | Processor and shader descriptor handles are thread-confined because independently owned dynamic properties are not synchronized by OCIO |
+| Send/Sync | Dynamic processor and shader handles are thread-confined; validated non-dynamic CPU processors may be shared across threads |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
 | CI real-OCIO validation | Automatic Fedora system backend, PR OpenColorIO 2.6 and Arch/zlib-ng bundled backends, weekly/manual bundled matrix and exact minima; manual release audit |
 

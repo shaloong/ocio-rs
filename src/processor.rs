@@ -568,6 +568,56 @@ pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
 
+/// A CPU processor proven to contain no dynamic properties.
+///
+/// This wrapper can be shared across threads to process independent image
+/// buffers. Its one-time validation does not add a lock or check to pixel
+/// processing. OCIO native interop must not mutate or replace its underlying
+/// processor concurrently.
+///
+/// ```no_run
+/// # use ocio_rs::{CPUProcessor, Result};
+/// # fn example(cpu: CPUProcessor) -> Result<()> {
+/// let cpu = std::sync::Arc::new(cpu.try_into_static()?);
+/// std::thread::scope(|scope| {
+///     let cpu = cpu.clone();
+///     scope.spawn(move || {
+///         let mut rgba = [0.1, 0.2, 0.3, 1.0];
+///         cpu.try_apply_rgba(&mut rgba).unwrap();
+///     });
+/// });
+/// # Ok(())
+/// # }
+/// ```
+#[repr(transparent)]
+pub struct StaticCPUProcessor(CPUProcessor);
+
+// SAFETY: Construction rejects dynamic processors. Native CPU processors are
+// immutable after creation and OCIO supports concurrent processing on them.
+// The only independently mutable CPU state OCIO exposes is dynamic properties,
+// which cannot be obtained from a non-dynamic processor. The shared pointer
+// remains alive until the last Rust owner is dropped. Unsafe external native
+// aliases remain the responsibility of the caller creating them.
+unsafe impl Send for StaticCPUProcessor {}
+// SAFETY: As above, concurrent operations use immutable processor state and the
+// safe processing APIs require exclusive access to each output buffer.
+unsafe impl Sync for StaticCPUProcessor {}
+
+impl StaticCPUProcessor {
+    /// Returns the thread-confined CPU handle when the wrapper is owned.
+    pub fn into_inner(self) -> CPUProcessor {
+        self.0
+    }
+}
+
+impl std::ops::Deref for StaticCPUProcessor {
+    type Target = CPUProcessor;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Positive F32 element strides for a planar image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanarF32Layout {
@@ -866,6 +916,20 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
 }
 
 impl CPUProcessor {
+    /// Converts a non-dynamic processor into a thread-shareable processor.
+    ///
+    /// Returns an error for a dynamic processor or when the native query fails.
+    /// This consumes the original handle even on error; query
+    /// [`Self::try_is_dynamic`] first if it must be retained in that case.
+    pub fn try_into_static(self) -> Result<StaticCPUProcessor> {
+        if self.try_is_dynamic()? {
+            return Err(OcioError::InvalidInput(
+                "a dynamic CPU processor cannot be shared without synchronization".into(),
+            ));
+        }
+        Ok(StaticCPUProcessor(self))
+    }
+
     /// Process an exclusively borrowed packed image in place without pixel copies.
     pub fn try_apply_packed_image(&self, data: &mut [u8], layout: PackedImageLayout) -> Result<()> {
         let mut desc = packed_image_descriptor(layout, data)?;

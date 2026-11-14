@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share non-dynamic CPU processors across threads through the once-validated
+  `StaticCPUProcessor`, with no additional per-pixel synchronization.
 - Expose native OCIO enum/string conversions and direction and bit-depth
   utilities, including cross-version GPU and fixed-function enum mapping.
 - Share immutable processor format-metadata trees with borrowed strings and

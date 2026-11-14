@@ -45,6 +45,49 @@ fn extract_shader_text(
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn static_cpu_processor_is_shareable_and_dynamic_processors_are_rejected() {
+    fn require_send_sync<T: Send + Sync>() {}
+    require_send_sync::<ocio_rs::StaticCPUProcessor>();
+    let _guard = processor_behavior_test_lock();
+    let cpu = scaled_matrix_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let shared = std::sync::Arc::new(cpu.try_into_static().unwrap());
+    let workers: Vec<_> = (0..8)
+        .map(|_| {
+            let processor = shared.clone();
+            std::thread::spawn(move || {
+                let mut pixels = [[0.5, 0.25, 0.75, 1.0]; 256];
+                for pixel in &mut pixels {
+                    processor.try_apply_rgba(pixel).unwrap();
+                }
+                pixels
+            })
+        })
+        .collect();
+    for worker in workers {
+        for pixel in worker.join().unwrap() {
+            assert!((pixel[0] - 0.55).abs() < 1e-5);
+            assert!((pixel[1] - 0.225).abs() < 1e-5);
+            assert!((pixel[2] - 0.9).abs() < 1e-5);
+            assert_eq!(pixel[3], 1.0);
+        }
+    }
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.make_exposure_dynamic();
+    let dynamic = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    assert!(dynamic.try_is_dynamic().unwrap());
+    assert!(dynamic.try_into_static().is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_group_transform_and_metadata_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {

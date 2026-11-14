@@ -139,7 +139,7 @@ pub use processor::{
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformCache, GpuUniformCopy,
     GpuUniformType, GpuUniformValue, PackedConversionLayout, PackedImageLayout, PlanarByteLayout,
     PlanarBytes, PlanarBytesMut, PlanarF32Layout, Processor, SignedPlanarByteLayout,
-    SignedPlanarBytes, SignedPlanarBytesMut, TextureInfo,
+    SignedPlanarBytes, SignedPlanarBytesMut, StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
     ShaderCodeSection, ShaderExtractionHooks, ShaderLifecycle, ShaderSections, ShaderTexture,
