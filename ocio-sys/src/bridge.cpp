@@ -7172,6 +7172,31 @@ void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green,
 #endif
 }
 
+void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float* green, float* blue,
+    float* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)red; (void)green; (void)blue; (void)alpha;
+  (void)width; (void)height; (void)x_stride; (void)y_stride;
+  ocio_rs_bridge::clear_last_error();
+#else
+  try {
+    constexpr auto limit = std::numeric_limits<ptrdiff_t>::max() / sizeof(float);
+    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
+        height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
+        x_stride > limit || y_stride > limit || !red || !green || !blue)
+      throw std::invalid_argument("invalid planar image dimensions, strides or pointers");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    if (cpu->getInputBitDepth() != ocio::BIT_DEPTH_F32 || cpu->getOutputBitDepth() != ocio::BIT_DEPTH_F32)
+      throw std::invalid_argument("planar float channels require an F32 input and output processor");
+    ocio::PlanarImageDesc image(red, green, blue, alpha, static_cast<long>(width),
+        static_cast<long>(height), ocio::BIT_DEPTH_F32,
+        static_cast<ptrdiff_t>(x_stride) * sizeof(float),
+        static_cast<ptrdiff_t>(y_stride) * sizeof(float));
+    cpu->apply(image);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)numPixels; (void)stride;

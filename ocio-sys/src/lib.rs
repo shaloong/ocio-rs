@@ -64,6 +64,17 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_cpu_processor_apply_planar_strided_f32(
+        handle: *mut c_void,
+        red: *mut f32,
+        green: *mut f32,
+        blue: *mut f32,
+        alpha: *mut f32,
+        width: i64,
+        height: i64,
+        x_stride: i64,
+        y_stride: i64,
+    );
     pub fn ocio_cpu_processor_apply_planar_f32(
         handle: *mut c_void,
         red: *mut f32,

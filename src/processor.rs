@@ -499,11 +499,85 @@ pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
 
+/// Positive F32 element strides for a planar image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanarF32Layout {
+    /// Number of pixels in each row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Distance between adjacent pixels in F32 elements.
+    pub x_stride: usize,
+    /// Distance between adjacent rows in F32 elements.
+    pub y_stride: usize,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Process strided planar F32 channels in place without copying pixels.
+    ///
+    /// Strides are measured in F32 elements and must be positive. Each row
+    /// must start after the preceding row's final pixel, preventing overlapping
+    /// writes. Alpha may be omitted.
+    pub fn try_apply_planar_strided_f32(
+        &self,
+        red: &mut [f32],
+        green: &mut [f32],
+        blue: &mut [f32],
+        alpha: Option<&mut [f32]>,
+        layout: PlanarF32Layout,
+    ) -> Result<()> {
+        let PlanarF32Layout {
+            width,
+            height,
+            x_stride,
+            y_stride,
+        } = layout;
+        let invalid = || OcioError::InvalidInput("invalid or overflowing planar layout".into());
+        if width == 0 || height == 0 || x_stride == 0 || y_stride == 0 {
+            return Err(invalid());
+        }
+        let row_span = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|v| v.checked_add(1))
+            .ok_or_else(invalid)?;
+        if height > 1 && y_stride < row_span {
+            return Err(invalid());
+        }
+        let required = (height - 1)
+            .checked_mul(y_stride)
+            .and_then(|v| v.checked_add(row_span))
+            .ok_or_else(invalid)?;
+        if [red.len(), green.len(), blue.len()]
+            .iter()
+            .any(|&n| n < required)
+            || alpha.as_ref().is_some_and(|plane| plane.len() < required)
+        {
+            return Err(invalid());
+        }
+        let values = [width, height, x_stride, y_stride].map(i64::try_from);
+        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] = values else {
+            return Err(invalid());
+        };
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_strided_f32(
+                self.handle.as_ptr(),
+                red.as_mut_ptr(),
+                green.as_mut_ptr(),
+                blue.as_mut_ptr(),
+                alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Process contiguous row-major planar float channels in place.
     ///
     /// Each channel must contain exactly `width * height` samples. Alpha is

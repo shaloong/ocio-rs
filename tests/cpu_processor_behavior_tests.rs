@@ -240,3 +240,59 @@ fn planar_float_channels_are_processed_in_place() {
         .unwrap();
     assert_eq!(red, [1.0, 2.0, 4.0, 0.4]);
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn planar_strides_preserve_padding_and_reject_overflow() {
+    use ocio_rs::{transform::MatrixTransform, Config, PlanarF32Layout, TransformDirection};
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let layout = PlanarF32Layout {
+        width: 2,
+        height: 2,
+        x_stride: 2,
+        y_stride: 5,
+    };
+    let mut r = [1., 99., 2., 99., 99., 3., 99., 4.];
+    let mut g = [1., 99., 2., 99., 99., 3., 99., 4.];
+    let mut b = [1., 99., 2., 99., 99., 3., 99., 4.];
+    cpu.try_apply_planar_strided_f32(&mut r, &mut g, &mut b, None, layout)
+        .unwrap();
+    assert_eq!(r, [2., 99., 4., 99., 99., 6., 99., 8.]);
+    assert_eq!(g, [1., 99., 2., 99., 99., 3., 99., 4.]);
+    assert_eq!(b, [0.5, 99., 1., 99., 99., 1.5, 99., 2.]);
+    assert!(cpu
+        .try_apply_planar_strided_f32(
+            &mut r,
+            &mut g,
+            &mut b,
+            None,
+            PlanarF32Layout {
+                y_stride: 2,
+                ..layout
+            }
+        )
+        .is_err());
+    assert!(cpu
+        .try_apply_planar_strided_f32(
+            &mut r,
+            &mut g,
+            &mut b,
+            None,
+            PlanarF32Layout {
+                width: usize::MAX,
+                ..layout
+            }
+        )
+        .is_err());
+    assert!(cpu
+        .try_apply_planar_strided_f32(&mut r[..7], &mut g, &mut b, None, layout)
+        .is_err());
+}
