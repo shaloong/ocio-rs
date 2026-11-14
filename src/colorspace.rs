@@ -22,7 +22,41 @@ pub struct ConstColorSpace {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Borrowed editable or read-only color space for OCIO operations.
+#[derive(Clone, Copy)]
+pub enum ColorSpaceRef<'a> {
+    Editable(&'a ColorSpace),
+    ReadOnly(&'a ConstColorSpace),
+}
+impl<'a> From<&'a ColorSpace> for ColorSpaceRef<'a> {
+    fn from(value: &'a ColorSpace) -> Self {
+        Self::Editable(value)
+    }
+}
+impl<'a> From<&'a ConstColorSpace> for ColorSpaceRef<'a> {
+    fn from(value: &'a ConstColorSpace) -> Self {
+        Self::ReadOnly(value)
+    }
+}
+impl ColorSpaceRef<'_> {
+    pub(crate) fn raw(self) -> (*mut c_void, bool) {
+        match self {
+            Self::Editable(value) => (value.handle.as_ptr(), false),
+            Self::ReadOnly(value) => (value.handle.as_ptr(), true),
+        }
+    }
+}
+
 impl ConstColorSpace {
+    /// Copy the native transform in `direction` into an independent editable transform.
+    pub fn copy_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_color_space_copy_transform(self.handle.as_ptr(), direction as i32)
+        };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
     fn text(&self, field: i32, index: usize) -> Result<Option<&std::ffi::CStr>> {
         crate::clear_last_error();
         let ptr =

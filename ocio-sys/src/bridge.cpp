@@ -5702,6 +5702,43 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 
 // --- ColorSpaceSet ---
 
+void* ocio_config_get_processor_from_color_space_refs(void* config, void* context,
+    void* source, bool source_const, void* destination, bool destination_const) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)source; (void)source_const; (void)destination; (void)destination_const;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!config || !source || !destination) throw std::invalid_argument("null color-space processor argument");
+    ocio::ConstColorSpaceRcPtr src = source_const ? *static_cast<ocio::ConstColorSpaceRcPtr*>(source)
+                                                   : ocio_rs_bridge::get_real_color_space(source);
+    ocio::ConstColorSpaceRcPtr dst = destination_const ? *static_cast<ocio::ConstColorSpaceRcPtr*>(destination)
+                                                        : ocio_rs_bridge::get_real_color_space(destination);
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    auto processor = context ? cfg->getProcessor(ocio_rs_bridge::get_real_context(context), src, dst)
+                             : cfg->getProcessor(src, dst);
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_color_space_copy_transform(void* handle, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)direction; return nullptr;
+#else
+  try {
+    auto transform = (*static_cast<ocio::ConstColorSpaceRcPtr*>(handle))->getTransform(static_cast<ocio::ColorSpaceDirection>(direction));
+    if (!transform) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::TransformHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{transform->createEditableCopy()});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_config_get_const_color_space(void* config, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)name; return nullptr;

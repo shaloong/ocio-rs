@@ -666,6 +666,10 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("operation", "union"),
         ("equal", "try_equals"),
         ("get_const_color_space", "try_const_color_space"),
+        (
+            "get_processor_from_color_space_refs",
+            "processor_from_color_space_refs",
+        ),
         ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
         (
             "grading_rgb_curve_object_set",

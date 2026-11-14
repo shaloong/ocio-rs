@@ -28,6 +28,8 @@ const char* ocio_error_get_last(void);
 int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
 void* ocio_config_get_const_color_space(void* config, const char* name);
+void* ocio_config_get_processor_from_color_space_refs(void* config, void* context,
+    void* source, bool source_const, void* destination, bool destination_const);
 void* ocio_color_space_set_get_const_color_space(void* set, const char* name);
 void ocio_const_color_space_destroy(void* handle);
 const char* ocio_const_color_space_get_name(void* handle);
@@ -40,6 +42,7 @@ const char* ocio_const_color_space_interchange_attribute(void* handle, const cha
 #endif
 void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t count);
 void* ocio_const_color_space_create_editable_copy(void* handle);
+void* ocio_const_color_space_copy_transform(void* handle, int direction);
 
 typedef struct OcioPackedBuffer {
   void* data;

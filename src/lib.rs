@@ -119,7 +119,7 @@ pub use baker::Baker;
 pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
-pub use colorspace::{ColorSpace, ConstColorSpace};
+pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
 pub use config::Config;
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
 pub use context::Context;

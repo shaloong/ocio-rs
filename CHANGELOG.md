@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Construct processors directly from editable or shared read-only color-space
+  objects, with optional explicit context, and copy transforms for editing.
 - Expose native color-space set union, intersection, difference and name-based
   equality, retaining read-only operation results without an extra copy.
 - Look up shared read-only color spaces from configurations and sets without

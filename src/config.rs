@@ -1276,6 +1276,47 @@ impl Config {
         Self::processor_handle_result(handle)
     }
 
+    /// Create a processor using editable or read-only color-space objects.
+    pub fn processor_from_color_space_refs<'a, 'b>(
+        &self,
+        src: impl Into<crate::ColorSpaceRef<'a>>,
+        dst: impl Into<crate::ColorSpaceRef<'b>>,
+    ) -> Result<Processor> {
+        self.processor_from_color_space_refs_inner(None, src.into(), dst.into())
+    }
+
+    /// Create a processor using object references and an explicit OCIO context.
+    pub fn processor_from_color_space_refs_with_context<'a, 'b>(
+        &self,
+        context: &Context,
+        src: impl Into<crate::ColorSpaceRef<'a>>,
+        dst: impl Into<crate::ColorSpaceRef<'b>>,
+    ) -> Result<Processor> {
+        self.processor_from_color_space_refs_inner(Some(context), src.into(), dst.into())
+    }
+
+    fn processor_from_color_space_refs_inner(
+        &self,
+        context: Option<&Context>,
+        src: crate::ColorSpaceRef<'_>,
+        dst: crate::ColorSpaceRef<'_>,
+    ) -> Result<Processor> {
+        let (src, src_const) = src.raw();
+        let (dst, dst_const) = dst.raw();
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_color_space_refs(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                src,
+                src_const,
+                dst,
+                dst_const,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
