@@ -4,7 +4,8 @@ This independent, unpublished tool compares Rust-generated OCIO 2.6 Vulkan
 GLSL running on a physical GPU with the OCIO CPU processor. It checks four
 RGBA pixels for a matrix transform and for two dynamically updated exposure
 values on the same compiled pipeline, including native uniform-buffer offsets.
-It also uploads and linearly samples a non-identity 2×2×2 3D LUT. It rejects
+It also uploads and linearly samples a non-identity 2×2×2 3D LUT and a 1D
+LUT represented both as a native 1D texture and as a 2D texture. It rejects
 software and virtual adapters. This is a targeted integration test, not
 comprehensive GPU, texture, language, driver, or color-pipeline coverage.
 
@@ -28,10 +29,10 @@ cargo run --locked --manifest-path tools/gpu-validation/Cargo.toml
 
 The emitted GLSL is parsed and validated by wgpu/Naga before execution through
 Vulkan; a Naga rejection is not by itself proof that an OCIO shader is invalid
-for other GLSL compilers. For the 3D LUT case only, the tool adapts OCIO's
+for other GLSL compilers. For LUT cases, the tool adapts OCIO's
 combined sampler to separate texture/sampler bindings required by wgpu, adds
 explicit LOD 0 for the compute stage, and expands RGB texels to RGBA. It does
 not change OCIO's coordinates or color calculation. The program exits nonzero
 on missing hardware, shader or GPU errors, unexpected resource layouts, or
-CPU/GPU differences above 1e-5 for analytic cases or 5e-3 for the filtered LUT.
+CPU/GPU differences above 1e-5 for analytic cases or 5e-3 for filtered LUTs.
 It reports the measured maximum error for each case.

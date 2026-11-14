@@ -76,7 +76,8 @@ namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a
 direct-C++ performance baseline remain separate validation gates.
 The optional `tools/gpu-validation` repository tool compares a matrix, dynamic
-exposure, and a linearly sampled 3D LUT on a Vulkan GPU against OCIO CPU output;
+exposure, a linearly sampled 3D LUT, and 1D LUTs backed by 1D and 2D textures
+on a Vulkan GPU against OCIO CPU output;
 it does not yet cover the full range of textures or transform surface.
 Custom shader assembly, texture callbacks and uniform registration notifications
 are supported, but they do not

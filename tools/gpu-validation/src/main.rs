@@ -1,9 +1,31 @@
-use ocio_rs::transform::{ExposureContrastTransform, Lut3DTransform, MatrixTransform};
+use ocio_rs::transform::{
+    ExposureContrastTransform, Lut1DTransform, Lut3DTransform, MatrixTransform,
+};
 use ocio_rs::{
-    Config, DynamicPropertyType, GpuLanguage, GpuShaderDesc, GpuUniformType, Processor,
-    TransformDirection,
+    Config, DynamicPropertyType, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
+    GpuTextureDimensions, GpuUniformType, Interpolation, Processor, TransformDirection,
 };
 use wgpu::util::DeviceExt;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TextureKind {
+    None,
+    OneD,
+    TwoD,
+    ThreeD,
+}
+
+struct LutTexture {
+    sampler: String,
+    binding: u32,
+    width: u32,
+    height: u32,
+    depth: u32,
+    kind: TextureKind,
+    channel: GpuTextureChannel,
+    interpolation: Interpolation,
+    values: Vec<f32>,
+}
 
 fn validate_case(
     device: &wgpu::Device,
@@ -11,7 +33,7 @@ fn validate_case(
     name: &str,
     processor: &Processor,
     exposure: Option<f64>,
-    expect_3d_lut: bool,
+    expected_texture: TextureKind,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let expect_uniform = exposure.is_some();
     let cpu = processor.default_cpu_processor()?;
@@ -19,6 +41,7 @@ fn validate_case(
     let mut desc = GpuShaderDesc::create()?;
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
+    desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
     gpu.try_extract_shader_info(&mut desc)?;
     if let Some(value) = exposure {
         cpu.dynamic_property(DynamicPropertyType::Exposure)?
@@ -27,18 +50,15 @@ fn validate_case(
             .ok_or("missing GPU exposure property")?
             .set_double_value(value)?;
     }
-    if desc.num_textures() != 0
-        || desc.num_3d_textures() > 1
-        || (expect_uniform && desc.num_3d_textures() != 0)
+    let expected_counts = match expected_texture {
+        TextureKind::None => (0, 0),
+        TextureKind::OneD | TextureKind::TwoD => (1, 0),
+        TextureKind::ThreeD => (0, 1),
+    };
+    if (desc.num_textures(), desc.num_3d_textures()) != expected_counts
+        || (expect_uniform && expected_texture != TextureKind::None)
     {
-        return Err(format!("{name}: unsupported resource combination").into());
-    }
-    if (desc.num_3d_textures() == 1) != expect_3d_lut {
-        return Err(format!(
-            "{name}: unexpected 3D texture count {}",
-            desc.num_3d_textures()
-        )
-        .into());
+        return Err(format!("{name}: unexpected or unsupported texture resources").into());
     }
     if (desc.num_uniforms() != 0) != expect_uniform {
         return Err(format!("{name}: unexpected uniform count {}", desc.num_uniforms()).into());
@@ -62,44 +82,99 @@ fn validate_case(
             .copy_from_slice(&value.to_ne_bytes());
     }
     let mut shader = desc.try_shader_text()?.ok_or("missing GPU shader")?;
-    let lut = if desc.num_3d_textures() == 1 {
-        Some(desc.try_texture_3d(0)?.ok_or("missing 3D texture")?)
-    } else {
-        None
+    let lut = match expected_texture {
+        TextureKind::None => None,
+        TextureKind::OneD | TextureKind::TwoD => {
+            let t = desc.try_texture_2d(0)?.ok_or("missing 1D LUT texture")?;
+            let actual = match t.dimensions {
+                GpuTextureDimensions::Texture1D => TextureKind::OneD,
+                GpuTextureDimensions::Texture2D => TextureKind::TwoD,
+            };
+            if actual != expected_texture {
+                return Err("unexpected LUT texture dimension".into());
+            }
+            Some(LutTexture {
+                sampler: t.sampler_name,
+                binding: t.binding_index.ok_or("missing LUT binding")?,
+                width: t.width,
+                height: t.height,
+                depth: 1,
+                kind: actual,
+                channel: t.channel,
+                interpolation: t.interpolation,
+                values: t.values,
+            })
+        }
+        TextureKind::ThreeD => {
+            let t = desc.try_texture_3d(0)?.ok_or("missing 3D texture")?;
+            Some(LutTexture {
+                sampler: t.sampler_name,
+                binding: t.binding_index.ok_or("missing LUT binding")?,
+                width: t.edge_len,
+                height: t.edge_len,
+                depth: t.edge_len,
+                kind: TextureKind::ThreeD,
+                channel: GpuTextureChannel::Rgb,
+                interpolation: t.interpolation,
+                values: t.values,
+            })
+        }
     };
     if let Some(lut) = &lut {
-        let binding = lut.binding_index.ok_or("missing 3D texture binding")?;
-        let declaration = format!("uniform sampler3D {};", lut.sampler_name);
+        let dimension = match lut.kind {
+            TextureKind::OneD => "1D",
+            TextureKind::TwoD => "2D",
+            TextureKind::ThreeD => "3D",
+            TextureKind::None => unreachable!(),
+        };
+        let declaration = format!("uniform sampler{dimension} {};", lut.sampler);
         if !shader.contains(&declaration) {
             return Err("missing expected OCIO sampler declaration".into());
         }
-        let split = format!("uniform texture3D ocio_validation_texture;\nlayout(set=0,binding={}) uniform sampler ocio_validation_sampler;", binding + 1);
+        let split = format!("uniform texture{dimension} ocio_validation_texture;\nlayout(set=0,binding={}) uniform sampler ocio_validation_sampler;", lut.binding.checked_add(1).ok_or("binding overflow")?);
         shader = shader.replace(&declaration, &split);
-        let call = format!("texture({},", lut.sampler_name);
-        if shader.matches(&call).count() != 1 {
+        let call = format!("texture({},", lut.sampler);
+        let count = shader.matches(&call).count();
+        if count
+            != if lut.kind == TextureKind::ThreeD {
+                1
+            } else {
+                3
+            }
+        {
             return Err("unexpected number of OCIO LUT sampling calls".into());
         }
         shader = shader.replace(
             &call,
-            "textureLod(sampler3D(ocio_validation_texture, ocio_validation_sampler),",
+            &format!(
+                "textureLod(sampler{dimension}(ocio_validation_texture, ocio_validation_sampler),"
+            ),
         );
-        let start = shader.find("textureLod(").ok_or("missing texture call")?;
-        let mut depth = 0usize;
-        let mut closing = None;
-        for (offset, ch) in shader[start..].char_indices() {
-            match ch {
-                '(' => depth += 1,
-                ')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        closing = Some(start + offset);
-                        break;
+        let mut search_from = 0;
+        for _ in 0..count {
+            let start = search_from
+                + shader[search_from..]
+                    .find("textureLod(")
+                    .ok_or("missing texture call")?;
+            let mut depth = 0usize;
+            let mut closing = None;
+            for (offset, ch) in shader[start..].char_indices() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            closing = Some(start + offset);
+                            break;
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
+            let close = closing.ok_or("unbalanced texture call")?;
+            shader.insert_str(close, ", 0.0");
+            search_from = close + 6;
         }
-        shader.insert_str(closing.ok_or("unbalanced texture call")?, ", 0.0");
     }
     let pixel_group = usize::from(expect_uniform || lut.is_some());
     let source = format!("#version 450\n{shader}\nlayout(local_size_x=1) in;\nlayout(set={pixel_group},binding=0,std430) buffer Pixels {{ vec4 value[]; }} pixels;\nvoid main() {{ uint i = gl_GlobalInvocationID.x; pixels.value[i] = ocio_transform(pixels.value[i]); }}\n");
@@ -167,28 +242,40 @@ fn validate_case(
     let mut lut_resources = None;
     if let Some(lut) = &lut {
         if lut.interpolation != ocio_rs::Interpolation::Linear {
-            return Err("test requires a linear 3D LUT".into());
+            return Err("test requires a linear LUT".into());
         }
         let extent = wgpu::Extent3d {
-            width: lut.edge_len,
-            height: lut.edge_len,
-            depth_or_array_layers: lut.edge_len,
+            width: lut.width,
+            height: lut.height,
+            depth_or_array_layers: lut.depth,
         };
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("OCIO 3D LUT"),
             size: extent,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D3,
+            dimension: match lut.kind {
+                TextureKind::OneD => wgpu::TextureDimension::D1,
+                TextureKind::TwoD => wgpu::TextureDimension::D2,
+                TextureKind::ThreeD => wgpu::TextureDimension::D3,
+                TextureKind::None => unreachable!(),
+            },
             format: wgpu::TextureFormat::Rgba32Float,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
-        let rgba: Vec<f32> = lut
-            .values
-            .chunks_exact(3)
-            .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 1.0])
-            .collect();
+        let rgba: Vec<f32> = match lut.channel {
+            GpuTextureChannel::Rgb => lut
+                .values
+                .chunks_exact(3)
+                .flat_map(|rgb| [rgb[0], rgb[1], rgb[2], 1.0])
+                .collect(),
+            GpuTextureChannel::Red => lut
+                .values
+                .iter()
+                .flat_map(|&r| [r, 0.0, 0.0, 1.0])
+                .collect(),
+        };
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
@@ -199,8 +286,8 @@ fn validate_case(
             bytemuck::cast_slice(&rgba),
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
-                bytes_per_row: Some(lut.edge_len * 16),
-                rows_per_image: Some(lut.edge_len),
+                bytes_per_row: Some(lut.width * 16),
+                rows_per_image: Some(lut.height),
             },
             extent,
         );
@@ -210,7 +297,7 @@ fn validate_case(
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let binding = lut.binding_index.unwrap();
+        let binding = lut.binding;
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("OCIO 3D LUT bindings"),
             layout: &pipeline.get_bind_group_layout(0),
@@ -278,7 +365,7 @@ fn validate_case(
         receiver.recv()??;
         let mapped = slice.get_mapped_range()?;
         let actual: &[f32] = bytemuck::cast_slice(&mapped);
-        // Hardware 3D filtering has finite interpolation precision. Use a
+        // Hardware LUT filtering has finite interpolation precision. Use a
         // separate bound (OCIO's upstream GPU suite also allows up to 1e-2
         // for some LUTs); analytic transforms retain the tighter 1e-5 bound.
         let tolerance = if lut.is_some() { 5e-3 } else { 1e-5 };
@@ -337,7 +424,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matrix = MatrixTransform::scale(&[1.7, 0.6, 1.2, 1.0])?;
     matrix.set_offset(&[0.1, -0.2, 0.05, 0.0])?;
     let processor = config.processor_from_transform(&matrix, TransformDirection::Forward)?;
-    validate_case(&device, &queue, "matrix", &processor, None, false)?;
+    validate_case(
+        &device,
+        &queue,
+        "matrix",
+        &processor,
+        None,
+        TextureKind::None,
+    )?;
     let exposure = ExposureContrastTransform::create()?;
     exposure.set_exposure(1.1);
     exposure.make_exposure_dynamic();
@@ -348,7 +442,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "dynamic exposure +1.1",
         &processor,
         Some(1.1),
-        false,
+        TextureKind::None,
     )?;
     let lut = Lut3DTransform::create_with_grid_size(2)?;
     for r in 0..2 {
@@ -359,6 +453,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
-    validate_case(&device, &queue, "3D LUT", &processor, None, true)?;
+    validate_case(
+        &device,
+        &queue,
+        "3D LUT",
+        &processor,
+        None,
+        TextureKind::ThreeD,
+    )?;
+    let lut = Lut1DTransform::create()?;
+    lut.set_length(3)?;
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])?;
+    let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
+    validate_case(
+        &device,
+        &queue,
+        "1D LUT in 2D texture",
+        &processor,
+        None,
+        TextureKind::TwoD,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "1D LUT in 1D texture",
+        &processor,
+        None,
+        TextureKind::OneD,
+    )?;
     Ok(())
 }

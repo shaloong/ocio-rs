@@ -7,7 +7,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
-- Add an isolated Vulkan hardware validation tool comparing GPU matrix, dynamic exposure, and 3D LUT output against OCIO CPU results.
+- Add an isolated Vulkan hardware validation tool comparing GPU matrix, dynamic exposure, and 1D/3D LUT output against OCIO CPU results.
 
 - Report uniform registrations, descriptor indices, and version-appropriate buffer layout to custom GPU shader resource callbacks during extraction.
 
