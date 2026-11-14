@@ -1643,6 +1643,7 @@ void ocio_set_compute_hash_callback(OcioComputeHashCallback callback) {
       if (!output && output_len != 0) {
         throw ocio::Exception("Rust compute hash callback returned a null output buffer");
       }
+      if (output_len == 0) return std::string();
       return std::string(reinterpret_cast<const char*>(output), output_len);
     });
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }

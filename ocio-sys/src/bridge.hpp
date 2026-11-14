@@ -122,6 +122,8 @@ void ocio_log_message(int level, const char* message);
 typedef void (*OcioLogCallback)(const char* message);
 void ocio_set_logging_callback(OcioLogCallback callback);
 void ocio_reset_logging_callback(void);
+// Output must remain valid until the bridge copies it immediately after the
+// callback returns. A null output is accepted only when output_len is zero.
 typedef bool (*OcioComputeHashCallback)(const uint8_t* input, size_t input_len, const uint8_t** output, size_t* output_len);
 void ocio_set_compute_hash_callback(OcioComputeHashCallback callback);
 void ocio_reset_compute_hash_callback(void);

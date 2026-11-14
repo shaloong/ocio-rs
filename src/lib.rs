@@ -220,7 +220,7 @@ unsafe extern "C" fn rust_logging_callback(message: *const i8) {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone();
     if let Some(callback) = callback {
-        let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
+        let message = unsafe { CStr::from_ptr(message).to_string_lossy() };
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
     }
 }
@@ -241,7 +241,11 @@ unsafe extern "C" fn rust_compute_hash_callback(
     let Some(callback) = callback else {
         return false;
     };
-    let input = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let input = if input_len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(input, input_len) }
+    };
     let Ok(value) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(input)))
     else {
         return false;
@@ -461,7 +465,7 @@ pub fn reset_logging_callback() -> Result<()> {
 ///
 /// The callback receives and returns raw bytes so OCIO `std::string` values,
 /// including embedded NUL bytes, round-trip without loss. Its output is copied
-/// by OCIO before the callback returns. Panics are caught and never unwind
+/// by the bridge immediately after the callback returns. Panics are caught and never unwind
 /// across the FFI boundary.
 pub fn set_compute_hash_callback(
     callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
@@ -703,6 +707,33 @@ pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn hash_callback_accepts_null_empty_input() {
+        let _guard = super::compute_hash_callback_update_lock().lock().unwrap();
+        let previous =
+            super::compute_hash_callback_slot()
+                .lock()
+                .unwrap()
+                .replace(std::sync::Arc::new(|input| {
+                    assert!(input.is_empty());
+                    b"hash".to_vec()
+                }));
+        let mut output = std::ptr::null();
+        let mut output_len = 0;
+        assert!(!unsafe {
+            super::rust_compute_hash_callback(std::ptr::null(), 1, &mut output, &mut output_len)
+        });
+        let succeeded = unsafe {
+            super::rust_compute_hash_callback(std::ptr::null(), 0, &mut output, &mut output_len)
+        };
+        assert!(succeeded);
+        assert_eq!(
+            unsafe { std::slice::from_raw_parts(output, output_len) },
+            b"hash"
+        );
+        *super::compute_hash_callback_slot().lock().unwrap() = previous;
+    }
+
     #[test]
     #[allow(deprecated)]
     fn unsupported_trace_logging_is_rejected_before_native_call() {
