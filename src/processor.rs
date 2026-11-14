@@ -1782,7 +1782,7 @@ impl GPUProcessor {
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
     {
-        self.try_extract_with_texture_callback(template, assemble, |_| Ok(None))
+        self.try_extract_with_callbacks(template, assemble, |_| Ok(None), false)
     }
 
     /// Extract a shader with synchronous Rust assembly and texture callbacks.
@@ -1809,8 +1809,22 @@ impl GPUProcessor {
     pub fn try_extract_with_texture_callback<F, G>(
         &self,
         template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        self.try_extract_with_callbacks(template, assemble, texture, true)
+    }
+
+    fn try_extract_with_callbacks<F, G>(
+        &self,
+        template: &GpuShaderDesc,
         mut assemble: F,
         mut texture: G,
+        notify_texture: bool,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -1969,13 +1983,23 @@ impl GPUProcessor {
         };
         crate::clear_last_error();
         let ptr = unsafe {
-            ocio_sys::ocio_gpu_processor_extract_with_texture_callback(
-                self.handle.as_ptr(),
-                template.handle.as_ptr(),
-                callback::<F, G>,
-                texture_callback::<F, G>,
-                (&mut state as *mut State<'_, F, G>).cast(),
-            )
+            let context = (&mut state as *mut State<'_, F, G>).cast();
+            if notify_texture {
+                ocio_sys::ocio_gpu_processor_extract_with_texture_callback(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    texture_callback::<F, G>,
+                    context,
+                )
+            } else {
+                ocio_sys::ocio_gpu_processor_extract_with_assembler(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    context,
+                )
+            }
         };
         let result = crate::handle_result(ptr);
         if let Some(error) = state.error {
