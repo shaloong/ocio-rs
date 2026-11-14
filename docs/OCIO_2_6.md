@@ -46,7 +46,9 @@ space; alias authoring materializes the vector required by the C++ API.
 Reuse the built-in config passed to matching to retain its native cache.
 
 The parity checker measures its recognized API surface, not every overload,
-global, or runtime behavior. The exact-tag CI also runs behavior tests and
+global, or runtime behavior. Its name matching can conflate getters and setters,
+and a matching bridge name alone does not prove the implementation is correct.
+The exact-tag CI also runs behavior tests and
 all three API feature levels. DirectX and Vulkan test frameworks are upstream
 test infrastructure, not additional application-facing binding APIs.
 
