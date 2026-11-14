@@ -24,6 +24,7 @@ behavioral audit remains necessary before claiming full-library coverage.
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
 | Installed OpenColorIO 2.4.x | **Automatic** Fedora 43 job on pushes/PRs |
+| OpenColorIO 2.6.0, all interface levels and installed library | **PRs**, weekly and manual Linux source builds |
 | Bundled with host zlib-ng | **PRs**, weekly and manual runs (Arch Linux) |
 | Exact native minima 2.4.1 and 2.5.1 | **Weekly** and manual Linux source builds |
 | Bundled real-OCIO tests | **Weekly**, plus manual `workflow_dispatch` (Linux, macOS, Windows) |
@@ -62,7 +63,7 @@ behavioral audit remains necessary before claiming full-library coverage.
 | docs.rs documentation | Built in stub mode with `v2_5` and feature annotations; missing-doc enforcement is not a release gate |
 | Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
-| CI real-OCIO validation | Automatic Fedora system backend, PR Arch/zlib-ng bundled backend, weekly/manual bundled matrix and exact minima; manual release audit |
+| CI real-OCIO validation | Automatic Fedora system backend, PR OpenColorIO 2.6 and Arch/zlib-ng bundled backends, weekly/manual bundled matrix and exact minima; manual release audit |
 
 The 0.3 line makes installed-library integration and the 2.4 baseline available
 to registry consumers while retaining opt-in 2.5 API. Optimization flags and

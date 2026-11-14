@@ -84,6 +84,11 @@ exposure, linear and tetrahedral 3D LUTs, and 1D LUTs backed by 1D and 2D textur
 on a Vulkan GPU against OCIO CPU output; it also compares RGB↔HMJ forward and
 inverse results for a small set of upstream-derived inputs.
 It does not yet cover the full range of textures or transform surface.
+For repeated GPU uniform updates, `GpuShaderDesc::uniform_cache` captures the
+native getters once. Its caller-owned output buffers avoid bridge allocations
+on each read; getter implementations may still allocate. The cache exclusively
+borrows the descriptor and reports the required size for an undersized buffer.
+Dynamic property values remain live, rather than being snapshotted at capture.
 Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
 registration notifications, and creator lifecycle notifications are supported,
 but they do not
