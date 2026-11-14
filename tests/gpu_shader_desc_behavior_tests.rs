@@ -1619,6 +1619,43 @@ fn gpu_shader_desc_dynamic_property_behavior() {
     );
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn combined_declarations_work_on_all_supported_native_versions() {
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    desc.set_language(GpuLanguage::Glsl4_0).unwrap();
+    desc.add_to_declare_shader_code("uniform float gain;\n")
+        .unwrap();
+    desc.add_to_declare_shader_code("uniform sampler3D lut;\n")
+        .unwrap();
+    desc.add_to_function_header_shader_code("vec4 transform(vec4 pixel) {\n")
+        .unwrap();
+    desc.add_to_function_shader_code("  return pixel;\n")
+        .unwrap();
+    desc.add_to_function_footer_shader_code("}\n").unwrap();
+    desc.finalize().unwrap();
+    let text = desc.shader_text().unwrap();
+    assert!(text.contains("uniform float gain;\nuniform sampler3D lut;"));
+    assert!(text.contains("return pixel;"));
+    #[cfg(feature = "v2_5")]
+    {
+        let vulkan = GpuShaderDesc::create().unwrap();
+        vulkan.set_language(GpuLanguage::GlslVk4_6).unwrap();
+        assert!(vulkan
+            .add_to_declare_shader_code("uniform sampler3D lut;\n")
+            .is_err());
+        vulkan
+            .add_to_texture_declare_shader_code("uniform sampler3D lut;\n")
+            .unwrap();
+        vulkan.finalize().unwrap();
+        assert!(vulkan
+            .shader_text()
+            .unwrap()
+            .contains("uniform sampler3D lut;"));
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]

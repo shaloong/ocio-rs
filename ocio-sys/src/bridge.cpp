@@ -10301,6 +10301,23 @@ uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle) {
 #endif
 }
 
+void ocio_gpu_shader_desc_add_to_declare_shader_code(void* handle, const char* shaderCode) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)shaderCode;
+#else
+  try {
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    if (desc->getLanguage() == ocio::GPU_LANGUAGE_GLSL_VK_4_6)
+      throw std::invalid_argument("combined declarations are not supported for Vulkan; use separate parameter and texture sections");
+    desc->addToParameterDeclareShaderCode(shaderCode);
+#else
+    desc->addToDeclareShaderCode(shaderCode);
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
 void ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(void* handle, const char* shaderCode) {
 #ifdef OCIO_RS_STUB

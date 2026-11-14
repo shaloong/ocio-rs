@@ -3738,6 +3738,25 @@ impl GpuShaderDesc {
         Ok(index)
     }
 
+    /// Append to OCIO 2.4's combined declaration section.
+    ///
+    /// On native OCIO 2.5 and later this uses the parameter declaration
+    /// section for compatibility with non-Vulkan languages. Do not mix this
+    /// method with the separate parameter/texture append methods, since the
+    /// two native sections are assembled separately. Vulkan requires those
+    /// separate methods and is rejected here.
+    pub fn add_to_declare_shader_code(&self, shader_code: impl AsRef<str>) -> Result<()> {
+        let shader_code = cstring(shader_code)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_to_declare_shader_code(
+                self.handle.as_ptr(),
+                shader_code.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Appends text to the shader's parameter-declaration section.
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]

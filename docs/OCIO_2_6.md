@@ -2,6 +2,8 @@
 
 See [the full-coverage plan](OCIO_2_6_PLAN.md) for remaining work, validation
 tiers, and the criteria for claiming completeness.
+The [GPU creator signature-family audit](OCIO_GPU_CREATOR_AUDIT.md) records
+the current mappings and the gaps in custom creator ownership and callbacks.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the

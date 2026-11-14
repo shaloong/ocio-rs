@@ -853,6 +853,7 @@ const char* ocio_gpu_shader_desc_get_cache_id(void* handle);
 void ocio_gpu_shader_desc_begin(void* handle, const char* uid);
 void ocio_gpu_shader_desc_end(void* handle);
 uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle);
+void ocio_gpu_shader_desc_add_to_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_texture_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_helper_shader_code(void* handle, const char* shaderCode);

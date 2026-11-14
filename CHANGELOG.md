@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose the OCIO 2.4 combined shader-declaration API, with a non-Vulkan
+  compatibility mapping for newer native versions.
 - Convert between packed and planar image layouts without copying pixels,
   including signed strides, bit-depth changes, and independently optional alpha.
 - Share non-dynamic CPU processors across threads through the once-validated

@@ -2974,6 +2974,10 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_begin(shader_desc: *mut c_void, uid: *const i8) -> ();
     pub fn ocio_gpu_shader_desc_end(shader_desc: *mut c_void) -> ();
     pub fn ocio_gpu_shader_desc_get_next_resource_index(shader_desc: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_desc_add_to_declare_shader_code(
+        handle: *mut c_void,
+        shader_code: *const i8,
+    );
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
         shader_desc: *mut c_void,
