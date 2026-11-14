@@ -16820,4 +16820,56 @@ void* ocio_grading_hue_curve_object_create_from_curves(void* const* curves) {
 }
 #endif
 
+void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Dynamic grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
+    auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
+    return new CurveObjectrgb(typed->getValue()->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_dynamic_property_grading_rgb_curve_object_set(void* h, void* value) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)value;
+  ocio_rs_bridge::capture_error_message("Dynamic grading curves require native OpenColorIO");
+  return;
+#else
+  try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
+    auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
+    typed->setValue(*static_cast<CurveObjectrgb*>(value)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void* ocio_dynamic_property_grading_hue_curve_object_get(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Dynamic grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
+    return new CurveObjecthue(typed->getValue()->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void ocio_dynamic_property_grading_hue_curve_object_set(void* h, void* value) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)value;
+  ocio_rs_bridge::capture_error_message("Dynamic grading curves require native OpenColorIO");
+  return;
+#else
+  try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
+    typed->setValue(*static_cast<CurveObjecthue*>(value)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+#endif
+
 }  // extern "C"

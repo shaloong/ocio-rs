@@ -646,6 +646,16 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
 // L2: Only the truly irregular mappings that can't be derived by get_/set_ stripping.
 fn l2_overrides() -> HashMap<&'static str, &'static str> {
     [
+        ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
+        (
+            "grading_rgb_curve_object_set",
+            "set_grading_rgb_curve_object",
+        ),
+        ("grading_hue_curve_object_get", "grading_hue_curve_object"),
+        (
+            "grading_hue_curve_object_set",
+            "set_grading_hue_curve_object",
+        ),
         (
             "grading_hue_curve_set_complete",
             "set_complete_grading_hue_curve_value",

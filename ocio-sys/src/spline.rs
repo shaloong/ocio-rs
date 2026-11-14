@@ -80,4 +80,10 @@ unsafe extern "C" {
     pub fn ocio_grading_hue_curve_object_create_from_curves(
         curves: *const *mut c_void,
     ) -> *mut c_void;
+    pub fn ocio_dynamic_property_grading_rgb_curve_object_get(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_dynamic_property_grading_rgb_curve_object_set(h: *mut c_void, value: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_object_get(h: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_object_set(h: *mut c_void, value: *mut c_void);
 }

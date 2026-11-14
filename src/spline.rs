@@ -223,7 +223,7 @@ impl Drop for GradingBSplineCurve {
 }
 /// An independently owned native RGB grading curve set.
 pub struct GradingRGBCurve {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 impl GradingRGBCurve {
     /// Create the native default curves for a grading style.
@@ -315,7 +315,7 @@ impl Drop for GradingRGBCurve {
 #[cfg(feature = "v2_5")]
 /// An independently owned native HUE grading curve set.
 pub struct GradingHueCurve {
-    handle: NonNull<c_void>,
+    pub(crate) handle: NonNull<c_void>,
 }
 #[cfg(feature = "v2_5")]
 impl GradingHueCurve {

@@ -14,6 +14,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Expose native RGB and hue grading curve sets, their editable constituent
   curves, transform value exchange, and hue curve-only drawing mode.
 - Construct grading splines and curve sets from borrowed native curve data.
+- Exchange complete native grading curve objects with dynamic properties,
+  including hue curve-only drawing state.
 - Add complete eight-curve hue grading snapshots while preserving the legacy
   four-curve snapshot API.
 - Expose complete dynamic hue-property snapshots, including all eight curves.

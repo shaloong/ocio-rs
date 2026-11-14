@@ -2745,6 +2745,70 @@ pub struct DynamicProperty {
 }
 
 impl DynamicProperty {
+    /// Return an independent native RGB curve value, including its non-point state.
+    pub fn grading_rgb_curve_object(&self) -> Result<crate::GradingRGBCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingRgbCurve,
+            "DynamicProperty::grading_rgb_curve_object",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_object_get(self.handle.as_ptr())
+        };
+        Ok(crate::GradingRGBCurve {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// Replace the native RGB curve value in one update.
+    pub fn set_grading_rgb_curve_object(&self, value: &crate::GradingRGBCurve) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingRgbCurve,
+            "DynamicProperty::set_grading_rgb_curve_object",
+        )?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_object_set(
+                self.handle.as_ptr(),
+                value.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    #[cfg(feature = "v2_5")]
+    /// Return an independent native HUE curve value, including its non-point state.
+    pub fn grading_hue_curve_object(&self) -> Result<crate::GradingHueCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingHueCurve,
+            "DynamicProperty::grading_hue_curve_object",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_object_get(self.handle.as_ptr())
+        };
+        Ok(crate::GradingHueCurve {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    #[cfg(feature = "v2_5")]
+    /// Replace the native HUE curve value in one update.
+    pub fn set_grading_hue_curve_object(&self, value: &crate::GradingHueCurve) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingHueCurve,
+            "DynamicProperty::set_grading_hue_curve_object",
+        )?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_object_set(
+                self.handle.as_ptr(),
+                value.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     fn require_property_type(
         &self,
         expected: DynamicPropertyType,
