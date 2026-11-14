@@ -1911,14 +1911,14 @@ impl GpuTextureChannel {
 #[repr(i32)]
 /// Dimensionality metadata for extracted 1D/2D GPU texture payloads.
 pub enum GpuTextureDimensions {
-    Texture1D = 0,
-    Texture2D = 1,
+    Texture1D = 1,
+    Texture2D = 2,
 }
 
 impl GpuTextureDimensions {
     fn from_raw(value: i32) -> Self {
         match value {
-            1 => Self::Texture2D,
+            2 => Self::Texture2D,
             _ => Self::Texture1D,
         }
     }
@@ -4020,6 +4020,20 @@ impl Drop for DynamicProperty {
 mod tests {
     use super::*;
     use crate::Config;
+
+    #[test]
+    fn gpu_texture_dimension_discriminants_match_native_headers() {
+        assert_eq!(GpuTextureDimensions::Texture1D as i32, 1);
+        assert_eq!(GpuTextureDimensions::Texture2D as i32, 2);
+        assert_eq!(
+            GpuTextureDimensions::from_raw(1),
+            GpuTextureDimensions::Texture1D
+        );
+        assert_eq!(
+            GpuTextureDimensions::from_raw(2),
+            GpuTextureDimensions::Texture2D
+        );
+    }
 
     #[test]
     fn gpu_texture_dimensions_reject_overflow_without_panicking() {

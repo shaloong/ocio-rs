@@ -76,6 +76,74 @@ fn native_texture_bridge_rejects_overflow_before_reading_values() {
     }
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn gpu_texture_dimensions_match_native_resources() {
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    desc.add_texture_2d(
+        "one",
+        "oneSampler",
+        2,
+        1,
+        GpuTextureChannel::Red,
+        GpuTextureDimensions::Texture1D,
+        Interpolation::Linear,
+        &[0.0, 1.0],
+    )
+    .unwrap();
+    desc.add_texture_2d(
+        "two",
+        "twoSampler",
+        2,
+        2,
+        GpuTextureChannel::Red,
+        GpuTextureDimensions::Texture2D,
+        Interpolation::Linear,
+        &[0.0, 0.3, 0.6, 1.0],
+    )
+    .unwrap();
+    assert_eq!(
+        desc.try_texture_2d(0).unwrap().unwrap().dimensions,
+        GpuTextureDimensions::Texture1D
+    );
+    assert_eq!(
+        desc.try_texture_2d(1).unwrap().unwrap().dimensions,
+        GpuTextureDimensions::Texture2D
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn extracted_lut_texture_reports_native_dimension() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    transform.set_length(3).unwrap();
+    transform
+        .set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    for (allow, dimension) in [
+        (true, GpuTextureDimensions::Texture1D),
+        (false, GpuTextureDimensions::Texture2D),
+    ] {
+        let mut desc = GpuShaderDesc::create().unwrap();
+        desc.set_language(GpuLanguage::Glsl4_0).unwrap();
+        desc.set_allow_texture_1d(allow).unwrap();
+        gpu.try_extract_shader_info(&mut desc).unwrap();
+        let textures = desc.textures_2d();
+        assert!(!textures.is_empty());
+        assert!(textures
+            .iter()
+            .all(|texture| texture.dimensions == dimension));
+    }
+}
+
 fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
     let config = create_test_config()?;
     let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).ok()?;
