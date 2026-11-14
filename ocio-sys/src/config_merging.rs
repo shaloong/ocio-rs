@@ -124,4 +124,24 @@ unsafe extern "C" {
         base: *mut c_void,
         input: *mut c_void,
     ) -> *mut c_void;
+    pub fn ocio_config_merger_create() -> *mut c_void;
+    pub fn ocio_config_merger_from_file(path: *const c_char) -> *mut c_void;
+    pub fn ocio_config_merger_create_editable_copy(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_merger_destroy(h: *mut c_void);
+    pub fn ocio_config_merger_set_search_path(h: *mut c_void, v: *const c_char);
+    pub fn ocio_config_merger_add_search_path(h: *mut c_void, v: *const c_char);
+    pub fn ocio_config_merger_num_search_paths(h: *mut c_void) -> i32;
+    pub fn ocio_config_merger_search_path(h: *mut c_void, index: i32) -> *const c_char;
+    pub fn ocio_config_merger_set_working_dir(h: *mut c_void, v: *const c_char);
+    pub fn ocio_config_merger_working_dir(h: *mut c_void) -> *const c_char;
+    pub fn ocio_config_merger_num_params(h: *mut c_void) -> i32;
+    pub fn ocio_config_merger_params(h: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_config_merger_add_params(h: *mut c_void, params: *mut c_void);
+    pub fn ocio_config_merger_merge_configs(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_merger_num_merged_configs(h: *mut c_void) -> i32;
+    pub fn ocio_config_merger_merged_config(h: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_config_merger_serialize(h: *mut c_void) -> *const c_char;
+    pub fn ocio_config_merger_set_version(h: *mut c_void, major: u32, minor: u32);
+    pub fn ocio_config_merger_major_version(h: *mut c_void) -> u32;
+    pub fn ocio_config_merger_minor_version(h: *mut c_void) -> u32;
 }

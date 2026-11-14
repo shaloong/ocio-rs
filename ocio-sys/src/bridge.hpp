@@ -1480,4 +1480,25 @@ const char* ocio_config_merging_parameters_get_environment_var_value(void* handl
 void* ocio_config_merging_parameters_merge_configs(void* handle, void* base, void* input);
 void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base, void* input);
 
+void* ocio_config_merger_create(void);
+void* ocio_config_merger_from_file(const char* path);
+void* ocio_config_merger_create_editable_copy(void* h);
+void ocio_config_merger_destroy(void* h);
+void ocio_config_merger_set_search_path(void* h, const char* v);
+void ocio_config_merger_add_search_path(void* h, const char* v);
+int ocio_config_merger_num_search_paths(void* h);
+const char* ocio_config_merger_search_path(void* h, int index);
+void ocio_config_merger_set_working_dir(void* h, const char* v);
+const char* ocio_config_merger_working_dir(void* h);
+int ocio_config_merger_num_params(void* h);
+void* ocio_config_merger_params(void* h, int index);
+void ocio_config_merger_add_params(void* h, void* params);
+void* ocio_config_merger_merge_configs(void* h);
+int ocio_config_merger_num_merged_configs(void* h);
+void* ocio_config_merger_merged_config(void* h, int index);
+const char* ocio_config_merger_serialize(void* h);
+void ocio_config_merger_set_version(void* h, unsigned int major, unsigned int minor);
+unsigned int ocio_config_merger_major_version(void* h);
+unsigned int ocio_config_merger_minor_version(void* h);
+
 }  // extern "C"

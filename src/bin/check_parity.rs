@@ -79,6 +79,7 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "mixing_slider" => Some("MixingSlider"),
         "legacy_viewing_pipeline" => Some("LegacyViewingPipeline"),
         "config_merging_parameters" => Some("ConfigMergingParameters"),
+        "config_merger" => Some("ConfigMerger"),
         "look" => Some("Look"),
         "named_transform" => Some("NamedTransform"),
         "view_transform" => Some("ViewTransform"),
@@ -146,6 +147,7 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "mixing_slider",
         "legacy_viewing_pipeline",
         "config_merging_parameters",
+        "config_merger",
         "allocation_transform",
         "look_transform",
         "lut1d_transform",
@@ -465,6 +467,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         "MixingSlider",
         "LegacyViewingPipeline",
         "ConfigMergingParameters",
+        "ConfigMerger",
         "Config",
         "FileRules",
         "ColorSpace",
@@ -829,6 +832,7 @@ fn run_l3(
         ("MixingSlider", "MixingSlider"),
         ("LegacyViewingPipeline", "LegacyViewingPipeline"),
         ("ConfigMergingParameters", "ConfigMergingParameters"),
+        ("ConfigMerger", "ConfigMerger"),
         ("Look", "Look"),
         ("NamedTransform", "NamedTransform"),
         ("ViewTransform", "ViewTransform"),
@@ -873,6 +877,7 @@ fn run_l3(
     .collect();
 
     let method_name_overrides: HashMap<&str, &str> = [
+        ("getNumConfigMergingParameters", "num_params"),
         ("setColorspaces", "set_color_spaces"),
         ("getColorspaces", "get_color_spaces"),
         ("CreateRaw", "raw"),

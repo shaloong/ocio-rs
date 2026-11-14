@@ -52,7 +52,8 @@ the native dynamic exposure, contrast, and gamma stages.
 The display-view and color-space namespace helpers now cover file-backed
 authoring, removal, and both native display processor overloads. The
 `v2_5` API exposes merge parameters and in-memory config/color-space merges.
-The file-driven `ConfigMerger` controller and OCIOM workflow still need bindings.
+The `ConfigMerger` controller supports OCIOM serialization and file-driven merges;
+its returned configurations and parameters are independent editable copies.
 Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a

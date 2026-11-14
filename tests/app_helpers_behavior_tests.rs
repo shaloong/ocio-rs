@@ -3,6 +3,44 @@ use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_controller_round_trip_and_execute() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters};
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/ociom");
+    let dir = std::ffi::CString::new(fixture.to_str().unwrap()).unwrap();
+    let mut params = ConfigMergingParameters::create().unwrap();
+    params.set_base_config_name(c"base.ocio").unwrap();
+    params.set_input_config_name(c"input.ocio").unwrap();
+    params.set_adjust_input_reference_space(false).unwrap();
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.set_working_dir(&dir).unwrap();
+    merger.set_search_path(c".").unwrap();
+    merger.add_params(&params).unwrap();
+    assert_eq!(merger.num_params().unwrap(), 1);
+    assert!(merger.params(1).unwrap().is_none());
+    assert_eq!(
+        merger
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .base_config_name()
+            .unwrap(),
+        c"base.ocio"
+    );
+    let serialized = merger.serialize().unwrap();
+    assert!(serialized.contains("base.ocio"));
+    assert!(merger.merged_config(-1).unwrap().is_none());
+    let output = merger.merge_configs().unwrap();
+    assert_eq!(output.num_merged_configs().unwrap(), 1);
+    let merged = output.merged_config(-1).unwrap().unwrap();
+    assert!(merged.color_space("extra").is_some());
+    assert!(output.merged_config(2).unwrap().is_none());
+    drop(output);
+    assert!(merged.color_space("extra").is_some());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     use ocio_rs::{ConfigMergingParameters, MergeStrategy};
     let base = Config::raw().unwrap().create_editable_copy().unwrap();

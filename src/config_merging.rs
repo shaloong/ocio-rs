@@ -652,3 +652,175 @@ impl Drop for ConfigMergingParameters {
         unsafe { ocio_sys::ocio_config_merging_parameters_destroy(self.handle.as_ptr()) }
     }
 }
+
+/// An owned OCIOM merge controller. Returned params and configs are editable copies.
+pub struct ConfigMerger {
+    handle: NonNull<c_void>,
+}
+impl ConfigMerger {
+    /// create using native OCIO.
+    pub fn create() -> Result<Self> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_create() };
+        crate::ocio_call_status()?;
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// from file using native OCIO.
+    pub fn from_file(path: &CStr) -> Result<Self> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_from_file(path.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// create editable copy using native OCIO.
+    pub fn create_editable_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_config_merger_create_editable_copy(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// set search path using native OCIO.
+    pub fn set_search_path(&mut self, v: &CStr) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_merger_set_search_path(self.handle.as_ptr(), v.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// add search path using native OCIO.
+    pub fn add_search_path(&mut self, v: &CStr) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_merger_add_search_path(self.handle.as_ptr(), v.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// num search paths using native OCIO.
+    pub fn num_search_paths(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_num_search_paths(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// search path using native OCIO.
+    pub fn search_path(&self, index: i32) -> Result<&CStr> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_config_merger_search_path(self.handle.as_ptr(), index) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { text(value) })
+    }
+
+    /// set working dir using native OCIO.
+    pub fn set_working_dir(&mut self, v: &CStr) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_merger_set_working_dir(self.handle.as_ptr(), v.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// working dir using native OCIO.
+    pub fn working_dir(&self) -> Result<&CStr> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_working_dir(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { text(value) })
+    }
+
+    /// num params using native OCIO.
+    pub fn num_params(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_num_params(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// params using native OCIO.
+    pub fn params(&self, index: i32) -> Result<Option<ConfigMergingParameters>> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_params(self.handle.as_ptr(), index) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(value).map(|handle| ConfigMergingParameters { handle }))
+    }
+
+    /// add params using native OCIO.
+    pub fn add_params(&mut self, params: &ConfigMergingParameters) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_merger_add_params(self.handle.as_ptr(), params.handle.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// merge configs using native OCIO.
+    pub fn merge_configs(&self) -> Result<Self> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_merge_configs(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// num merged configs using native OCIO.
+    pub fn num_merged_configs(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_config_merger_num_merged_configs(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// merged config using native OCIO.
+    pub fn merged_config(&self, index: i32) -> Result<Option<Config>> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_config_merger_merged_config(self.handle.as_ptr(), index) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(value).map(|handle| Config { handle }))
+    }
+
+    /// serialize using native OCIO.
+    pub fn serialize(&self) -> Result<String> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_serialize(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { text(value) }.to_string_lossy().into_owned())
+    }
+
+    /// set version using native OCIO.
+    pub fn set_version(&mut self, major: u32, minor: u32) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_config_merger_set_version(self.handle.as_ptr(), major, minor) };
+        crate::ocio_call_status()
+    }
+
+    /// major version using native OCIO.
+    pub fn major_version(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_major_version(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// minor version using native OCIO.
+    pub fn minor_version(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_config_merger_minor_version(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+}
+impl Drop for ConfigMerger {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_config_merger_destroy(self.handle.as_ptr()) }
+    }
+}

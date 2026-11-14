@@ -92,7 +92,7 @@ mod config;
 #[cfg(feature = "v2_5")]
 mod config_merging;
 #[cfg(feature = "v2_5")]
-pub use config_merging::{ConfigMergingParameters, MergeStrategy};
+pub use config_merging::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
 mod config_io_proxy;
 mod context;
 mod file_rules;
