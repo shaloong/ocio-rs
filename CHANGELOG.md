@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Expose OCIO's standard roles, environment-variable names, metadata keys and config path identifiers as allocation-free Rust constants.
+
 ### Added
 
 - Expose native OCIO enum/string conversions and direction and bit-depth

@@ -104,6 +104,7 @@ pub use config_merging::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
 mod config_io_proxy;
 mod const_config_item;
 mod const_rules;
+pub mod constants;
 mod context;
 mod enum_text;
 mod file_rules;
