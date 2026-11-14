@@ -23,6 +23,11 @@ pub trait ConfigIOProvider: Send + Sync + 'static {
 ///
 /// This is primarily useful when embedding configs or serving OCIO assets from
 /// archives, databases, virtual file systems, or application-managed caches.
+/// The in-memory implementation synchronizes access through shared native
+/// aliases. An individual read observes a complete payload snapshot, but
+/// separate hash and payload reads are not a transaction. Changing data does
+/// not itself invalidate OCIO's caches; coordinate updates with processing
+/// and cache management when consistent content across calls is required.
 pub struct ConfigIOProxy {
     pub(crate) handle: NonNull<c_void>,
 }

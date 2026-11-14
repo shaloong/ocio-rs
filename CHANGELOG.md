@@ -136,6 +136,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Synchronize shared in-memory config I/O proxy access and retain immutable LUT
+  snapshots across concurrent reads and replacements.
 - Report missing custom-provider LUTs consistently when copying into a caller
   buffer, and store one canonical in-memory payload per normalized path.
 - Default shader hooks now preserve native shader assembly, including Vulkan

@@ -129,6 +129,73 @@ fn memory_proxy_normalizes_mixed_separators_and_replaces_payload_and_hash() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn shared_memory_proxy_concurrent_read_and_replace_uses_stable_snapshots() {
+    use std::sync::{Arc, Barrier};
+
+    struct Restore(Config);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            ocio_rs::try_set_current_config(&self.0).unwrap();
+        }
+    }
+    let _guard = config_io_proxy_test_lock();
+    let _restore = Restore(ocio_rs::try_current_config().unwrap().unwrap());
+    let proxy = ConfigIOProxy::create().unwrap();
+    proxy.set_config_data("first").unwrap();
+    proxy.set_lut_data("shared.clf", &[1; 4096], "one").unwrap();
+    let config = Config::raw().unwrap();
+    config.set_config_io_proxy_object(&proxy).unwrap();
+    ocio_rs::try_set_current_config(&config).unwrap();
+
+    let start = Arc::new(Barrier::new(3));
+    let threads: Vec<_> = (0..2)
+        .map(|_| {
+            let start = Arc::clone(&start);
+            std::thread::spawn(move || {
+                let config = ocio_rs::try_current_config().unwrap().unwrap();
+                let proxy = config.try_config_io_proxy_object().unwrap().unwrap();
+                start.wait();
+                start.wait();
+                let initial = proxy.try_lut_data("shared.clf").unwrap();
+                start.wait();
+                assert_eq!(initial.unwrap(), vec![2; 4096]);
+                for _ in 0..1000 {
+                    let data = proxy.try_lut_data("shared.clf").unwrap().unwrap();
+                    assert_eq!(data.len(), 4096);
+                    assert!(data.iter().all(|&byte| byte == data[0]));
+                    assert!([1, 2].contains(&data[0]));
+                    let mut buffer = [0; 4096];
+                    assert!(proxy.try_copy_lut_data("shared.clf", &mut buffer).unwrap());
+                    assert!(buffer.iter().all(|&byte| byte == buffer[0]));
+                    assert!([1, 2].contains(&buffer[0]));
+                    let config_data = proxy.try_config_data().unwrap().unwrap();
+                    assert!(config_data == "first" || config_data == "second");
+                }
+            })
+        })
+        .collect();
+    start.wait();
+    proxy.set_lut_data("shared.clf", &[2; 4096], "two").unwrap();
+    start.wait();
+    start.wait();
+    for index in 0..1000 {
+        let (value, hash, data) = if index % 2 == 0 {
+            (1, "one", "first")
+        } else {
+            (2, "two", "second")
+        };
+        proxy
+            .set_lut_data("shared.clf", &[value; 4096], hash)
+            .unwrap();
+        proxy.set_config_data(data).unwrap();
+    }
+    for thread in threads {
+        thread.join().unwrap();
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_provider_errors_and_panics_do_not_cross_ffi() {
     struct Failing(bool);
     impl ConfigIOProvider for Failing {

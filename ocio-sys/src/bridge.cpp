@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <fstream>
@@ -734,9 +735,12 @@ struct RealMixingSlider {
 class RustConfigIOProxy : public ocio::ConfigIOProxy
 {
 public:
-  std::string configData;
   struct LutEntry { std::vector<uint8_t> bytes; std::string hash; };
-  std::unordered_map<std::string, LutEntry> lutData;
+private:
+  mutable std::mutex mutex;
+  std::string configData;
+  std::unordered_map<std::string, std::shared_ptr<const LutEntry>> lutData;
+public:
 
   static std::string normalizePath(const char* filepath, char separator)
   {
@@ -748,37 +752,47 @@ public:
     return path;
   }
 
-  const LutEntry* findLut(const char* filepath) const
+  std::shared_ptr<const LutEntry> findLut(const char* filepath) const
   {
     if (!filepath) return nullptr;
-    if (auto it = lutData.find(filepath); it != lutData.end()) return &it->second;
+    std::lock_guard<std::mutex> lock(mutex);
+    if (auto it = lutData.find(filepath); it != lutData.end()) return it->second;
     if (std::strchr(filepath, '\\')) {
       const auto slash = normalizePath(filepath, '/');
-      if (auto it = lutData.find(slash); it != lutData.end()) return &it->second;
+      if (auto it = lutData.find(slash); it != lutData.end()) return it->second;
     }
     return nullptr;
   }
 
-  const std::vector<uint8_t>* findLutData(const char* filepath) const
-  {
-    const auto* entry = findLut(filepath);
-    return entry ? &entry->bytes : nullptr;
+  void setConfigData(const char* data) {
+    std::string next = data ? data : "";
+    std::lock_guard<std::mutex> lock(mutex);
+    configData = std::move(next);
+  }
+  void setLutData(const char* filepath, std::vector<uint8_t> bytes, const char* hash) {
+    auto path = normalizePath(filepath, '/');
+    auto entry = std::make_shared<const LutEntry>(LutEntry{std::move(bytes), hash ? hash : ""});
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      lutData[std::move(path)].swap(entry);
+    }
   }
 
   std::vector<uint8_t> getLutData(const char* filepath) const override
   {
-    const auto* data = findLutData(filepath);
-    return data ? *data : std::vector<uint8_t>{};
+    const auto entry = findLut(filepath);
+    return entry ? entry->bytes : std::vector<uint8_t>{};
   }
 
   std::string getConfigData() const override
   {
+    std::lock_guard<std::mutex> lock(mutex);
     return configData;
   }
 
   std::string getFastLutFileHash(const char* filepath) const override
   {
-    const auto* entry = findLut(filepath);
+    const auto entry = findLut(filepath);
     return entry ? entry->hash : std::string{};
   }
 };
@@ -2070,9 +2084,9 @@ bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* d
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto memory = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (memory) {
-      const auto* bytes = memory->findLutData(path);
-      if (!bytes) return false;
-      if (!write(destination, bytes->data(), bytes->size())) throw ocio::Exception("LUT visitor failed");
+      const auto entry = memory->findLut(path);
+      if (!entry) return false;
+      if (!write(destination, entry->bytes.data(), entry->bytes.size())) throw ocio::Exception("LUT visitor failed");
       return true;
     }
     if (real->proxy->getFastLutFileHash(path).empty()) return false;
@@ -2092,7 +2106,7 @@ void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) throw std::invalid_argument("cannot set config data on a custom provider");
-    rustProxy->configData = data ? data : "";
+    rustProxy->setConfigData(data);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -2129,9 +2143,7 @@ bool ocio_config_io_proxy_set_lut_data(
     if (data && len > 0) {
       bytes.assign(data, data + len);
     }
-    auto path = ocio_rs_bridge::RustConfigIOProxy::normalizePath(filepath, '/');
-    ocio_rs_bridge::RustConfigIOProxy::LutEntry entry{std::move(bytes), fastHash ? fastHash : ""};
-    rustProxy->lutData.insert_or_assign(std::move(path), std::move(entry));
+    rustProxy->setLutData(filepath, std::move(bytes), fastHash);
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
@@ -2147,8 +2159,8 @@ size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) return real->proxy->getLutData(filepath).size();
-    const auto* data = rustProxy->findLutData(filepath);
-    return data ? data->size() : 0;
+    const auto entry = rustProxy->findLut(filepath);
+    return entry ? entry->bytes.size() : 0;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -2162,7 +2174,7 @@ bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath) {
     if (!filepath) return false;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    return rustProxy ? rustProxy->findLutData(filepath) != nullptr
+    return rustProxy ? rustProxy->findLut(filepath) != nullptr
                      : !real->proxy->getFastLutFileHash(filepath).empty();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
@@ -2188,10 +2200,10 @@ bool ocio_config_io_proxy_copy_lut_data(
       if (!bytes.empty()) std::memcpy(data, bytes.data(), bytes.size());
       return true;
     }
-    const auto* bytes = rustProxy->findLutData(filepath);
-    if (!bytes || len < bytes->size()) return false;
-    if (!bytes->empty()) {
-      std::memcpy(data, bytes->data(), bytes->size());
+    const auto entry = rustProxy->findLut(filepath);
+    if (!entry || len < entry->bytes.size()) return false;
+    if (!entry->bytes.empty()) {
+      std::memcpy(data, entry->bytes.data(), entry->bytes.size());
     }
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
