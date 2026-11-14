@@ -7513,6 +7513,8 @@ void* ocio_processor_get_const_format_metadata(void* handle, bool per_transform,
 #else
   try {
     ocio::ConstProcessorRcPtr owner = ocio_rs_bridge::get_real_processor(handle);
+    if (per_transform && (index < 0 || index >= owner->getNumTransforms()))
+      throw std::out_of_range("processor transform metadata index out of range");
     auto* metadata = per_transform ? &owner->getTransformFormatMetadata(index) : &owner->getFormatMetadata();
     return new ConstProcessorFormatMetadata{std::move(owner), metadata};
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
@@ -7705,6 +7707,8 @@ void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
 #else
   try {
     auto processor = ocio_rs_bridge::get_real_processor(handle);
+    if (index < 0 || index >= processor->getNumTransforms())
+      throw std::out_of_range("processor transform metadata index out of range");
     return ocio_rs_copy_format_metadata(processor->getTransformFormatMetadata(index));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif

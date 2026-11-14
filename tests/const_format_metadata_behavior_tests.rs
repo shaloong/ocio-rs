@@ -56,6 +56,9 @@ fn processor_format_metadata_is_shared_readonly_or_editable_copy() {
     assert!(processor
         .try_const_transform_format_metadata(i32::MAX)
         .is_err());
+    assert!(processor.try_const_transform_format_metadata(-1).is_err());
+    assert!(processor.try_transform_format_metadata(i32::MAX).is_err());
+    assert!(processor.try_transform_format_metadata(-1).is_err());
     drop(processor);
     drop(shared);
     assert_eq!(
