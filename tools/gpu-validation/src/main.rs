@@ -48,6 +48,7 @@ fn validate_case(
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
+    let mut streamed_lut = None;
     if use_hooks {
         struct MarkBody {
             seen: bool,
@@ -78,7 +79,36 @@ fn validate_case(
             seen: false,
             modified_footer: false,
         };
-        desc = gpu.try_extract_with_hooks(&desc, &mut hooks)?;
+        desc = if expected_texture == TextureKind::None {
+            gpu.try_extract_with_hooks(&desc, &mut hooks)?
+        } else {
+            gpu.try_extract_with_streamed_textures(&desc, &mut hooks, |texture| {
+                if streamed_lut.is_some() {
+                    return Err(ocio_rs::OcioError::InvalidInput(
+                        "multiple streamed LUTs".into(),
+                    ));
+                }
+                let kind = match texture.dimensions {
+                    Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
+                    Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
+                    None => TextureKind::ThreeD,
+                };
+                streamed_lut = Some(LutTexture {
+                    sampler: texture.sampler_name.to_owned(),
+                    binding: texture.suggested_binding.ok_or_else(|| {
+                        ocio_rs::OcioError::InvalidInput("missing texture binding".into())
+                    })?,
+                    width: texture.width,
+                    height: texture.height,
+                    depth: texture.depth,
+                    kind,
+                    channel: texture.channel,
+                    interpolation: texture.interpolation,
+                    values: texture.values.to_vec(),
+                });
+                Ok(None)
+            })?
+        };
         if !hooks.seen
             || !hooks.modified_footer
             || !desc
@@ -102,7 +132,12 @@ fn validate_case(
         TextureKind::OneD | TextureKind::TwoD => (1, 0),
         TextureKind::ThreeD => (0, 1),
     };
-    if (desc.num_textures(), desc.num_3d_textures()) != expected_counts
+    let descriptor_counts = if streamed_lut.is_some() {
+        (0, 0)
+    } else {
+        expected_counts
+    };
+    if (desc.num_textures(), desc.num_3d_textures()) != descriptor_counts
         || (expect_uniform && expected_texture != TextureKind::None)
     {
         return Err(format!("{name}: unexpected or unsupported texture resources").into());
@@ -129,42 +164,49 @@ fn validate_case(
             .copy_from_slice(&value.to_ne_bytes());
     }
     let mut shader = desc.try_shader_text()?.ok_or("missing GPU shader")?;
-    let lut = match expected_texture {
-        TextureKind::None => None,
-        TextureKind::OneD | TextureKind::TwoD => {
-            let t = desc.try_texture_2d(0)?.ok_or("missing 1D LUT texture")?;
-            let actual = match t.dimensions {
-                GpuTextureDimensions::Texture1D => TextureKind::OneD,
-                GpuTextureDimensions::Texture2D => TextureKind::TwoD,
-            };
-            if actual != expected_texture {
-                return Err("unexpected LUT texture dimension".into());
-            }
-            Some(LutTexture {
-                sampler: t.sampler_name,
-                binding: t.binding_index.ok_or("missing LUT binding")?,
-                width: t.width,
-                height: t.height,
-                depth: 1,
-                kind: actual,
-                channel: t.channel,
-                interpolation: t.interpolation,
-                values: t.values,
-            })
+    let lut = if let Some(lut) = streamed_lut {
+        if lut.kind != expected_texture {
+            return Err("unexpected streamed LUT dimension".into());
         }
-        TextureKind::ThreeD => {
-            let t = desc.try_texture_3d(0)?.ok_or("missing 3D texture")?;
-            Some(LutTexture {
-                sampler: t.sampler_name,
-                binding: t.binding_index.ok_or("missing LUT binding")?,
-                width: t.edge_len,
-                height: t.edge_len,
-                depth: t.edge_len,
-                kind: TextureKind::ThreeD,
-                channel: GpuTextureChannel::Rgb,
-                interpolation: t.interpolation,
-                values: t.values,
-            })
+        Some(lut)
+    } else {
+        match expected_texture {
+            TextureKind::None => None,
+            TextureKind::OneD | TextureKind::TwoD => {
+                let t = desc.try_texture_2d(0)?.ok_or("missing 1D LUT texture")?;
+                let actual = match t.dimensions {
+                    GpuTextureDimensions::Texture1D => TextureKind::OneD,
+                    GpuTextureDimensions::Texture2D => TextureKind::TwoD,
+                };
+                if actual != expected_texture {
+                    return Err("unexpected LUT texture dimension".into());
+                }
+                Some(LutTexture {
+                    sampler: t.sampler_name,
+                    binding: t.binding_index.ok_or("missing LUT binding")?,
+                    width: t.width,
+                    height: t.height,
+                    depth: 1,
+                    kind: actual,
+                    channel: t.channel,
+                    interpolation: t.interpolation,
+                    values: t.values,
+                })
+            }
+            TextureKind::ThreeD => {
+                let t = desc.try_texture_3d(0)?.ok_or("missing 3D texture")?;
+                Some(LutTexture {
+                    sampler: t.sampler_name,
+                    binding: t.binding_index.ok_or("missing LUT binding")?,
+                    width: t.edge_len,
+                    height: t.edge_len,
+                    depth: t.edge_len,
+                    kind: TextureKind::ThreeD,
+                    channel: GpuTextureChannel::Rgb,
+                    interpolation: t.interpolation,
+                    values: t.values,
+                })
+            }
         }
     };
     if let Some(lut) = &lut {
@@ -606,6 +648,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         5e-3,
         None,
         false,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "streamed 1D LUT in 2D texture",
+        &processor,
+        None,
+        TextureKind::TwoD,
+        5e-3,
+        None,
+        true,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "streamed 1D LUT in 1D texture",
+        &processor,
+        None,
+        TextureKind::OneD,
+        5e-3,
+        None,
+        true,
     )?;
     let hmj = FixedFunctionTransform::create_with_params(
         FixedFunctionStyle::AcesRgbToHmj20,

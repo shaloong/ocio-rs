@@ -730,6 +730,10 @@ void* ocio_gpu_processor_extract_with_hooks(void* handle, void* template_desc,
     ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, void* context);
+void* ocio_gpu_processor_extract_with_streamed_texture_hooks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

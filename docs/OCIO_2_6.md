@@ -91,6 +91,10 @@ borrows the descriptor and reports the required size for an undersized buffer.
 Dynamic property values remain live, rather than being snapshotted at capture.
 Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
 registration notifications, and creator lifecycle notifications are supported,
-but they do not
+and `GPUProcessor::try_extract_with_streamed_textures` permits uploading native
+LUT data during extraction without retaining a descriptor-owned copy. Its sink
+must own or upload the data before returning; the resulting descriptor does
+not enumerate the streamed textures. The Vulkan GPU validation tool exercises
+streamed 1D, 2D, and 3D resources. These hooks do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers
 cannot yet implement every virtual method or control all resource storage.

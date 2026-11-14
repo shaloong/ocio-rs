@@ -16,6 +16,8 @@ using representative upstream-derived high-light and negative-channel inputs.
 The matrix and tetrahedral cases also run through Rust shader code hooks that
 halve RGB in the generated footer; GPU output is compared with the equivalent
 CPU result, verifying that the rewrite actually affects execution.
+The tetrahedral and additional 1D/2D cases stream texture data through the
+Rust texture sink rather than retaining it in the returned descriptor.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support

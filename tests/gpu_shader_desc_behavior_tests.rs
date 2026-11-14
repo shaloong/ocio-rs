@@ -656,6 +656,140 @@ fn rust_shader_texture_callback_receives_3d_lut() {
     assert_eq!(observed[0].1, desc.texture_3d_values(0));
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn streamed_shader_textures_match_retained_resources_without_descriptor_copies() {
+    use ocio_rs::ShaderExtractionHooks;
+    struct Hooks;
+    impl ShaderExtractionHooks for Hooks {}
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut1d = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut1d.set_length(3).unwrap();
+    lut1d
+        .set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let lut3d = ocio_rs::transform::Lut3DTransform::create().unwrap();
+    lut3d.set_grid_size(2).unwrap();
+    for r in 0..2 {
+        for g in 0..2 {
+            for b in 0..2 {
+                lut3d
+                    .set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])
+                    .unwrap();
+            }
+        }
+    }
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&lut1d).unwrap();
+    group.append_transform(&lut3d).unwrap();
+    let gpu = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::Glsl4_0).unwrap();
+    let retained = gpu.try_extract_with_hooks(&template, &mut Hooks).unwrap();
+    let mut seen = Vec::new();
+    let streamed = gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |tex| {
+            seen.push((
+                tex.texture_name.to_owned(),
+                tex.dimensions,
+                tex.values.to_vec(),
+            ));
+            Ok(None)
+        })
+        .unwrap();
+    assert_eq!(streamed.num_textures(), 0);
+    assert_eq!(streamed.num_3d_textures(), 0);
+    assert_eq!(streamed.shader_text(), retained.shader_text());
+    assert_eq!(
+        seen.len(),
+        (retained.num_textures() + retained.num_3d_textures()) as usize
+    );
+    for (name, dimensions, values) in seen {
+        if dimensions.is_some() {
+            let index = (0..retained.num_textures())
+                .find(|&i| retained.texture_2d(i).unwrap().texture_name == name)
+                .unwrap();
+            assert_eq!(values, retained.texture_values(index));
+        } else {
+            let index = (0..retained.num_3d_textures())
+                .find(|&i| retained.texture_3d(i).unwrap().texture_name == name)
+                .unwrap();
+            assert_eq!(values, retained.texture_3d_values(index));
+        }
+    }
+    assert!(gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |_| Err(
+            ocio_rs::OcioError::InvalidInput("rejected".into())
+        ))
+        .is_err());
+    assert!(gpu
+        .try_extract_with_streamed_textures(
+            &template,
+            &mut Hooks,
+            |_| -> ocio_rs::Result<Option<u32>> { panic!("sink panic") }
+        )
+        .is_err());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn streamed_texture_bindings_are_global_and_control_shader_code() {
+    use ocio_rs::ShaderExtractionHooks;
+    struct Hooks;
+    impl ShaderExtractionHooks for Hooks {}
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut1d = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut1d.set_length(3).unwrap();
+    lut1d
+        .set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let lut3d = ocio_rs::transform::Lut3DTransform::create().unwrap();
+    lut3d.set_grid_size(2).unwrap();
+    for r in 0..2 {
+        for g in 0..2 {
+            for b in 0..2 {
+                lut3d
+                    .set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])
+                    .unwrap();
+            }
+        }
+    }
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&lut1d).unwrap();
+    group.append_transform(&lut3d).unwrap();
+    let gpu = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    template.try_set_descriptor_set_index(2, 7).unwrap();
+    let mut proposed = Vec::new();
+    let desc = gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |tex| {
+            proposed.push(tex.suggested_binding.unwrap());
+            Ok(Some(41 + proposed.len() as u32))
+        })
+        .unwrap();
+    assert_eq!(proposed, [7, 8]);
+    assert!(desc.shader_text().unwrap().contains("binding = 42"));
+    assert!(desc.shader_text().unwrap().contains("binding = 43"));
+    assert!(gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |_| Ok(Some(42)))
+        .is_err());
+    assert!(gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |_| Ok(Some(0)))
+        .is_err());
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]

@@ -2054,6 +2054,7 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
             assemble,
             |_| Ok(None),
             false,
@@ -2099,6 +2100,7 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
             assemble,
             texture,
             true,
@@ -2145,6 +2147,7 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
             assemble,
             texture,
             true,
@@ -2194,6 +2197,7 @@ impl GPUProcessor {
     {
         self.try_extract_with_callbacks(
             template,
+            false,
             assemble,
             texture,
             true,
@@ -2219,8 +2223,57 @@ impl GPUProcessor {
         let hooks = std::cell::RefCell::new(hooks);
         self.try_extract_with_callbacks(
             template,
+            false,
             |parts| hooks.borrow_mut().assemble(parts),
             |texture| hooks.borrow_mut().texture(texture),
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    /// Extract using hooks while streaming texture data directly to the caller.
+    ///
+    /// The required texture sink must upload or copy the borrowed data before it
+    /// returns; the returned descriptor does not retain or report these
+    /// textures. Uniforms and shader text remain available on the descriptor.
+    /// On failure, cleanup of any resources created by hooks is the caller's
+    /// responsibility. The hooks object's `texture` method is not called;
+    /// binding overrides come from the supplied sink.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, ShaderExtractionHooks};
+    /// # struct Hooks;
+    /// # impl ShaderExtractionHooks for Hooks {}
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_streamed_textures(desc, &mut Hooks, |texture| {
+    ///     saved = Some(texture.values);
+    ///     Ok(None)
+    /// });
+    /// println!("{saved:?}");
+    /// # }
+    /// ```
+    pub fn try_extract_with_streamed_textures<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderExtractionHooks,
+        T: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        self.try_extract_with_callbacks(
+            template,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            texture,
             true,
             &mut |uniform| hooks.borrow_mut().uniform(uniform),
             true,
@@ -2235,6 +2288,7 @@ impl GPUProcessor {
     fn try_extract_with_callbacks<F, G>(
         &self,
         template: &GpuShaderDesc,
+        stream_textures: bool,
         mut assemble: F,
         mut texture: G,
         notify_texture: bool,
@@ -2562,7 +2616,13 @@ impl GPUProcessor {
         crate::clear_last_error();
         let ptr = unsafe {
             let context = (&mut state as *mut State<'_, F, G>).cast();
-            ocio_sys::ocio_gpu_processor_extract_with_hooks(
+            let extract = if stream_textures {
+                ocio_sys::ocio_gpu_processor_extract_with_streamed_texture_hooks
+                    as unsafe extern "C" fn(_, _, _, _, _, _, _, _) -> _
+            } else {
+                ocio_sys::ocio_gpu_processor_extract_with_hooks
+            };
+            extract(
                 self.handle.as_ptr(),
                 template.handle.as_ptr(),
                 callback::<F, G>,
