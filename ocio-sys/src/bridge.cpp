@@ -7961,8 +7961,10 @@ bool ocio_gpu_shader_desc_add_uniform_vector_float(
   return false;
 #else
   try {
-    if ((!values && len > 0) || maxSize < len) return false;
-    auto owned = std::make_shared<std::vector<float>>(values, values + len);
+    if ((!values && len > 0) || maxSize < len || len > static_cast<size_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid float uniform array length");
+    auto owned = std::make_shared<std::vector<float>>();
+    if (len) owned->assign(values, values + len);
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
       name,
@@ -7991,8 +7993,10 @@ bool ocio_gpu_shader_desc_add_uniform_vector_int(
   return false;
 #else
   try {
-    if ((!values && len > 0) || maxSize < len) return false;
-    auto owned = std::make_shared<std::vector<int>>(values, values + len);
+    if ((!values && len > 0) || maxSize < len || len > static_cast<size_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid integer uniform array length");
+    auto owned = std::make_shared<std::vector<int>>();
+    if (len) owned->assign(values, values + len);
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(
       name,

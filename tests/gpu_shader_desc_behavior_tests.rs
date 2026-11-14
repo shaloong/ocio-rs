@@ -1324,6 +1324,33 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn uniform_array_sys_rejects_unrepresentable_lengths_and_accepts_empty() {
+    let _guard = gpu_shader_desc_test_lock();
+    let name = CString::new("empty").unwrap();
+    let invalid = CString::new("invalid").unwrap();
+    unsafe {
+        let desc = ocio_sys::ocio_gpu_shader_desc_create();
+        assert!(!desc.is_null());
+        assert!(ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_float(
+            desc,
+            name.as_ptr(),
+            std::ptr::null(),
+            0,
+            0
+        ));
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_int(
+            desc,
+            invalid.as_ptr(),
+            &0i32,
+            i32::MAX as usize + 1,
+            u32::MAX
+        ));
+        ocio_sys::ocio_gpu_shader_desc_destroy(desc);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_uniform_double_getter_tracks_values_and_owns_closure() {
     use std::sync::{
         atomic::{AtomicU64, Ordering},

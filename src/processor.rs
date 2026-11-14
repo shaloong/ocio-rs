@@ -3317,11 +3317,11 @@ impl GpuShaderDesc {
         values: &[f32],
         max_size: u32,
     ) -> Result<bool> {
-        if max_size < values.len() as u32 {
+        if values.len() > i32::MAX as usize || values.len() > max_size as usize {
             return Err(OcioError::ValidationFailed(format!(
-                "gpu uniform max_size {} is smaller than value count {}",
-                max_size,
-                values.len()
+                "gpu uniform value count {} exceeds max_size {} or the native integer limit",
+                values.len(),
+                max_size
             )));
         }
         let name = cstring(name)?;
@@ -3345,11 +3345,11 @@ impl GpuShaderDesc {
         values: &[i32],
         max_size: u32,
     ) -> Result<bool> {
-        if max_size < values.len() as u32 {
+        if values.len() > i32::MAX as usize || values.len() > max_size as usize {
             return Err(OcioError::ValidationFailed(format!(
-                "gpu uniform max_size {} is smaller than value count {}",
-                max_size,
-                values.len()
+                "gpu uniform value count {} exceeds max_size {} or the native integer limit",
+                values.len(),
+                max_size
             )));
         }
         let name = cstring(name)?;
