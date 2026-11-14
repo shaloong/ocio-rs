@@ -1916,8 +1916,12 @@ pub struct ShaderUniform<'a> {
     pub name: &'a str,
     /// Native uniform value type.
     pub uniform_type: GpuUniformType,
+    /// Index for querying this uniform on the returned descriptor.
+    pub index: u32,
     /// Declared vector capacity on OCIO 2.5+; unavailable on 2.4 and for scalars.
     pub max_size: Option<u32>,
+    /// Byte offset in OCIO's uniform buffer layout on OCIO 2.5+.
+    pub buffer_offset: Option<usize>,
 }
 
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
@@ -2002,9 +2006,10 @@ impl GPUProcessor {
     /// Extract with synchronous shader assembly, texture, and uniform callbacks.
     ///
     /// Uniform events are sent only for newly registered uniforms, before shader
-    /// assembly. Their dynamic getters remain owned by the returned descriptor;
-    /// query the descriptor afterwards for current values. Names are borrowed
-    /// only for the callback. OCIO 2.4 does not expose vector maximum sizes.
+    /// assembly. Use the reported index to query current dynamic values from the
+    /// returned descriptor; OCIO retains the getters. Names are borrowed only
+    /// for the callback. OCIO 2.4 does not expose vector maximum sizes or
+    /// uniform-buffer offsets.
     /// Callback errors and panics abort extraction; already performed external
     /// resource allocations remain the caller's responsibility. Do not reenter
     /// extraction on this GPU processor from any callback.
@@ -2057,8 +2062,11 @@ impl GPUProcessor {
             context: *mut c_void,
             name: *const i8,
             uniform_type: i32,
+            index: u32,
             has_max_size: bool,
             max_size: u32,
+            has_buffer_offset: bool,
+            buffer_offset: usize,
         ) -> bool
         where
             F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -2076,7 +2084,9 @@ impl GPUProcessor {
                     (state.uniform)(ShaderUniform {
                         name,
                         uniform_type: GpuUniformType::from_raw(uniform_type),
+                        index,
                         max_size: has_max_size.then_some(max_size),
+                        buffer_offset: has_buffer_offset.then_some(buffer_offset),
                     })
                 }));
             match result {

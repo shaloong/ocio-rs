@@ -1548,7 +1548,9 @@ unsafe extern "C" {
                 *mut u32,
             ) -> bool,
         >,
-        uniform: Option<unsafe extern "C" fn(*mut c_void, *const i8, i32, bool, u32) -> bool>,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
         context: *mut c_void,
     ) -> *mut c_void;
 

@@ -8615,8 +8615,19 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
   ocio_shader_uniform_callback uniform_callback;
   void* context;
   bool notifyUniform(bool added, const char* name, int type, bool has_max, unsigned max_size) {
-    if (added && uniform_callback && !uniform_callback(context, name, type, has_max, max_size))
-      throw ocio::Exception("Rust uniform callback failed");
+    if (added && uniform_callback) {
+      const auto index = resources->getNumUniforms() - 1;
+      bool has_offset = false;
+      size_t offset = 0;
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+      ocio::GpuShaderDesc::UniformData data;
+      resources->getUniform(index, data);
+      has_offset = true;
+      offset = data.m_bufferOffset;
+#endif
+      if (!uniform_callback(context, name, type, index, has_max, max_size, has_offset, offset))
+        throw ocio::Exception("Rust uniform callback failed");
+    }
     return added;
   }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000

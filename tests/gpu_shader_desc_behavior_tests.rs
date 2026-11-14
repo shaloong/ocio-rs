@@ -52,21 +52,41 @@ fn custom_uniform_callbacks_report_registration_and_propagate_errors() {
             assemble,
             |_| Ok(None),
             |u| {
-                uniforms.push((u.name.to_owned(), u.uniform_type, u.max_size));
+                uniforms.push((
+                    u.name.to_owned(),
+                    u.uniform_type,
+                    u.index,
+                    u.max_size,
+                    u.buffer_offset,
+                ));
                 Ok(())
             },
         )
         .unwrap();
     assert!(!uniforms.is_empty());
     assert_eq!(uniforms.len(), desc.num_uniforms() as usize);
-    for (index, (name, kind, max_size)) in uniforms.iter().enumerate() {
+    for (index, (name, kind, event_index, max_size, offset)) in uniforms.iter().enumerate() {
         let native = desc.uniform(index as u32).unwrap();
+        assert_eq!(*event_index, index as u32);
         assert_eq!(name, &native.name);
         assert_eq!(*kind, native.uniform_type);
+        assert_eq!(*offset, native.buffer_offset);
         if *kind == GpuUniformType::Double {
             assert_eq!(*max_size, None);
         }
     }
+    let index = uniforms
+        .iter()
+        .find(|u| u.1 == GpuUniformType::Double)
+        .unwrap()
+        .2;
+    let before = desc.try_uniform_f64_value(index).unwrap().unwrap();
+    let property = desc
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    property.set_double_value(before + 1.0).unwrap();
+    assert_ne!(desc.try_uniform_f64_value(index).unwrap().unwrap(), before);
     let failed = gpu.try_extract_with_resource_callbacks(
         &template,
         assemble,
@@ -117,19 +137,17 @@ fn custom_uniform_callback_reports_vector_capacity_when_available() {
                     u.uniform_type,
                     GpuUniformType::VectorFloat | GpuUniformType::VectorInt
                 ) {
-                    vectors.push((u.name.to_owned(), u.max_size));
+                    vectors.push((u.name.to_owned(), u.index, u.max_size, u.buffer_offset));
                 }
                 Ok(())
             },
         )
         .unwrap();
     assert!(!vectors.is_empty());
-    for (name, max_size) in vectors {
-        let native = desc
-            .uniforms()
-            .into_iter()
-            .find(|u| u.name == name)
-            .unwrap();
+    for (name, index, max_size, offset) in vectors {
+        let native = desc.uniform(index).unwrap();
+        assert_eq!(native.name, name);
+        assert_eq!(native.buffer_offset, offset);
         if ocio_rs::version_hex() >= 0x0205_0000 {
             assert!(max_size.is_some_and(|size| size as usize >= native.value_count));
         } else {

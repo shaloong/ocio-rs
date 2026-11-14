@@ -7,7 +7,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
-- Report uniform registrations to custom GPU shader resource callbacks during extraction.
+- Report uniform registrations, descriptor indices, and version-appropriate buffer layout to custom GPU shader resource callbacks during extraction.
 
 - Borrow generated GPU shader text directly from OCIO without allocating.
 

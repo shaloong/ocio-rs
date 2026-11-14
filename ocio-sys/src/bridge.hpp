@@ -711,7 +711,7 @@ typedef struct ocio_shader_texture_event {
 typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_texture_event* event,
     bool* override_binding, uint32_t* binding);
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
-    bool has_max_size, uint32_t max_size);
+    uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
 void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
