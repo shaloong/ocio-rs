@@ -75,6 +75,7 @@ Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a
 direct-C++ performance baseline remain separate validation gates.
-Custom shader assembly and texture callbacks are supported, but they do not
+Custom shader assembly, texture callbacks and uniform registration notifications
+are supported, but they do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers
 cannot yet implement every virtual method or control all resource storage.

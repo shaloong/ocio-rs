@@ -27,6 +27,118 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_callbacks_report_registration_and_propagate_errors() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = ExposureContrastTransform::create().unwrap();
+    transform.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let assemble = |p: ocio_rs::ShaderSections<'_>| {
+        Ok(format!(
+            "{}{}{}{}{}{}",
+            p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+        ))
+    };
+    let mut uniforms = Vec::new();
+    let desc = gpu
+        .try_extract_with_resource_callbacks(
+            &template,
+            assemble,
+            |_| Ok(None),
+            |u| {
+                uniforms.push((u.name.to_owned(), u.uniform_type, u.max_size));
+                Ok(())
+            },
+        )
+        .unwrap();
+    assert!(!uniforms.is_empty());
+    assert_eq!(uniforms.len(), desc.num_uniforms() as usize);
+    for (index, (name, kind, max_size)) in uniforms.iter().enumerate() {
+        let native = desc.uniform(index as u32).unwrap();
+        assert_eq!(name, &native.name);
+        assert_eq!(*kind, native.uniform_type);
+        if *kind == GpuUniformType::Double {
+            assert_eq!(*max_size, None);
+        }
+    }
+    let failed = gpu.try_extract_with_resource_callbacks(
+        &template,
+        assemble,
+        |_| Ok(None),
+        |_| Err(ocio_rs::OcioError::InvalidInput("uniform rejected".into())),
+    );
+    assert!(
+        matches!(failed, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "uniform rejected")
+    );
+    let panicked = gpu.try_extract_with_resource_callbacks(
+        &template,
+        assemble,
+        |_| Ok(None),
+        |_| panic!("uniform callback panic"),
+    );
+    assert!(
+        matches!(panicked, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message.contains("panicked"))
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_uniform_callback_reports_vector_capacity_when_available() {
+    use ocio_rs::transform::GradingRGBCurveTransform;
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = GradingRGBCurveTransform::create(ocio_rs::GradingStyle::Log).unwrap();
+    transform.try_make_dynamic().unwrap();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut vectors = Vec::new();
+    let desc = gpu
+        .try_extract_with_resource_callbacks(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |_| Ok(None),
+            |u| {
+                if matches!(
+                    u.uniform_type,
+                    GpuUniformType::VectorFloat | GpuUniformType::VectorInt
+                ) {
+                    vectors.push((u.name.to_owned(), u.max_size));
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+    assert!(!vectors.is_empty());
+    for (name, max_size) in vectors {
+        let native = desc
+            .uniforms()
+            .into_iter()
+            .find(|u| u.name == name)
+            .unwrap();
+        if ocio_rs::version_hex() >= 0x0205_0000 {
+            assert!(max_size.is_some_and(|size| size as usize >= native.value_count));
+        } else {
+            assert_eq!(max_size, None);
+        }
+    }
+}
+
+#[test]
 #[cfg(ocio_stub)]
 fn shader_text_borrow_is_absent_in_stub_mode() {
     let mut desc = GpuShaderDesc::create().expect("stub descriptor");

@@ -1910,6 +1910,16 @@ pub struct ShaderTexture<'a> {
     pub suggested_binding: Option<u32>,
 }
 
+/// A uniform registered by OCIO during custom shader extraction.
+pub struct ShaderUniform<'a> {
+    /// Name used by the generated shader.
+    pub name: &'a str,
+    /// Native uniform value type.
+    pub uniform_type: GpuUniformType,
+    /// Declared vector capacity on OCIO 2.5+; unavailable on 2.4 and for scalars.
+    pub max_size: Option<u32>,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GPUProcessor {}
@@ -1945,7 +1955,14 @@ impl GPUProcessor {
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
     {
-        self.try_extract_with_callbacks(template, assemble, |_| Ok(None), false)
+        self.try_extract_with_callbacks(
+            template,
+            assemble,
+            |_| Ok(None),
+            false,
+            &mut |_| Ok(()),
+            false,
+        )
     }
 
     /// Extract a shader with synchronous Rust assembly and texture callbacks.
@@ -1979,7 +1996,41 @@ impl GPUProcessor {
         F: FnMut(ShaderSections<'_>) -> Result<String>,
         G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
     {
-        self.try_extract_with_callbacks(template, assemble, texture, true)
+        self.try_extract_with_callbacks(template, assemble, texture, true, &mut |_| Ok(()), false)
+    }
+
+    /// Extract with synchronous shader assembly, texture, and uniform callbacks.
+    ///
+    /// Uniform events are sent only for newly registered uniforms, before shader
+    /// assembly. Their dynamic getters remain owned by the returned descriptor;
+    /// query the descriptor afterwards for current values. Names are borrowed
+    /// only for the callback. OCIO 2.4 does not expose vector maximum sizes.
+    /// Callback errors and panics abort extraction; already performed external
+    /// resource allocations remain the caller's responsibility. Do not reenter
+    /// extraction on this GPU processor from any callback.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc};
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_resource_callbacks(desc, |_| Ok(String::new()),
+    ///     |_| Ok(None), |uniform| { saved = Some(uniform.name); Ok(()) });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_resource_callbacks<F, G, H>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+        mut uniform: H,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        H: FnMut(ShaderUniform<'_>) -> Result<()>,
+    {
+        self.try_extract_with_callbacks(template, assemble, texture, true, &mut uniform, true)
     }
 
     fn try_extract_with_callbacks<F, G>(
@@ -1988,6 +2039,8 @@ impl GPUProcessor {
         mut assemble: F,
         mut texture: G,
         notify_texture: bool,
+        uniform: &mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
+        notify_uniform: bool,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -1996,8 +2049,49 @@ impl GPUProcessor {
         struct State<'a, F, G> {
             function: &'a mut F,
             texture: &'a mut G,
+            uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
             output: Option<std::ffi::CString>,
             error: Option<OcioError>,
+        }
+        unsafe extern "C" fn uniform_callback<F, G>(
+            context: *mut c_void,
+            name: *const i8,
+            uniform_type: i32,
+            has_max_size: bool,
+            max_size: u32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                    if name.is_null() || !(0..=4).contains(&uniform_type) {
+                        return Err(OcioError::InvalidInput("invalid uniform event".into()));
+                    }
+                    let name = unsafe { std::ffi::CStr::from_ptr(name) }
+                        .to_str()
+                        .map_err(|_| OcioError::InvalidInput("uniform name is not UTF-8".into()))?;
+                    (state.uniform)(ShaderUniform {
+                        name,
+                        uniform_type: GpuUniformType::from_raw(uniform_type),
+                        max_size: has_max_size.then_some(max_size),
+                    })
+                }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput(
+                        "shader uniform callback panicked".into(),
+                    ));
+                    false
+                }
+            }
         }
         unsafe extern "C" fn callback<F, G>(
             context: *mut c_void,
@@ -2141,28 +2235,21 @@ impl GPUProcessor {
         let mut state = State {
             function: &mut assemble,
             texture: &mut texture,
+            uniform,
             output: None,
             error: None,
         };
         crate::clear_last_error();
         let ptr = unsafe {
             let context = (&mut state as *mut State<'_, F, G>).cast();
-            if notify_texture {
-                ocio_sys::ocio_gpu_processor_extract_with_texture_callback(
-                    self.handle.as_ptr(),
-                    template.handle.as_ptr(),
-                    callback::<F, G>,
-                    texture_callback::<F, G>,
-                    context,
-                )
-            } else {
-                ocio_sys::ocio_gpu_processor_extract_with_assembler(
-                    self.handle.as_ptr(),
-                    template.handle.as_ptr(),
-                    callback::<F, G>,
-                    context,
-                )
-            }
+            ocio_sys::ocio_gpu_processor_extract_with_resource_callbacks(
+                self.handle.as_ptr(),
+                template.handle.as_ptr(),
+                callback::<F, G>,
+                notify_texture.then_some(texture_callback::<F, G>),
+                notify_uniform.then_some(uniform_callback::<F, G>),
+                context,
+            )
         };
         let result = crate::handle_result(ptr);
         if let Some(error) = state.error {

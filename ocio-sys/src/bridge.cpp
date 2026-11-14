@@ -8612,7 +8612,13 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
   ocio::GpuShaderDescRcPtr resources = ocio::GpuShaderDesc::CreateShaderDesc();
   ocio_shader_assemble_callback callback;
   ocio_shader_texture_callback texture_callback;
+  ocio_shader_uniform_callback uniform_callback;
   void* context;
+  bool notifyUniform(bool added, const char* name, int type, bool has_max, unsigned max_size) {
+    if (added && uniform_callback && !uniform_callback(context, name, type, has_max, max_size))
+      throw ocio::Exception("Rust uniform callback failed");
+    return added;
+  }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   std::vector<unsigned> texture_bindings;
   std::vector<unsigned> texture3d_bindings;
@@ -8655,9 +8661,10 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
   }
 #endif
 public:
-  OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, ocio_shader_texture_callback tex, void* ctx)
-      : callback(cb), texture_callback(tex), context(ctx) {}
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; context = nullptr; }
+  OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, ocio_shader_texture_callback tex,
+                       ocio_shader_uniform_callback uniform, void* ctx)
+      : callback(cb), texture_callback(tex), uniform_callback(uniform), context(ctx) {}
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; context = nullptr; }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
@@ -8665,15 +8672,15 @@ public:
   unsigned getTextureMaxWidth() const noexcept override { return resources->getTextureMaxWidth(); }
   void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
   bool getAllowTexture1D() const override { return resources->getAllowTexture1D(); }
-  bool addUniform(const char* n, const DoubleGetter& g) override { return resources->addUniform(n, g); }
-  bool addUniform(const char* n, const BoolGetter& g) override { return resources->addUniform(n, g); }
-  bool addUniform(const char* n, const Float3Getter& g) override { return resources->addUniform(n, g); }
+  bool addUniform(const char* n, const DoubleGetter& g) override { return notifyUniform(resources->addUniform(n, g), n, 0, false, 0); }
+  bool addUniform(const char* n, const BoolGetter& g) override { return notifyUniform(resources->addUniform(n, g), n, 1, false, 0); }
+  bool addUniform(const char* n, const Float3Getter& g) override { return notifyUniform(resources->addUniform(n, g), n, 2, false, 0); }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g, unsigned m) override {
-    return resources->addUniform(n, s, g, m);
+    return notifyUniform(resources->addUniform(n, s, g, m), n, 3, true, m);
   }
   bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g, unsigned m) override {
-    return resources->addUniform(n, s, g, m);
+    return notifyUniform(resources->addUniform(n, s, g, m), n, 4, true, m);
   }
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
@@ -8693,10 +8700,10 @@ public:
   }
 #else
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g) override {
-    return resources->addUniform(n, s, g);
+    return notifyUniform(resources->addUniform(n, s, g), n, 3, false, 0);
   }
   bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g) override {
-    return resources->addUniform(n, s, g);
+    return notifyUniform(resources->addUniform(n, s, g), n, 4, false, 0);
   }
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                   TextureDimensions d, ocio::Interpolation i, const float* v) override {
@@ -8748,17 +8755,18 @@ public:
 };
 #endif
 
-void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
-    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture, void* context) {
+void* ocio_gpu_processor_extract_with_resource_callbacks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, void* context) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)context;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)context;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
   try {
     if (!handle || !template_desc || !callback) throw std::invalid_argument("invalid shader assembler arguments");
     auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
-    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, context);
+    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, context);
     desc->setLanguage(source->getLanguage());
     desc->setFunctionName(source->getFunctionName());
     desc->setPixelName(source->getPixelName());
@@ -8778,6 +8786,10 @@ void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* templ
     return out.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
+}
+void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture, void* context) {
+  return ocio_gpu_processor_extract_with_resource_callbacks(handle, template_desc, callback, texture, nullptr, context);
 }
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context) {

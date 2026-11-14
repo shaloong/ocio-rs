@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Report uniform registrations to custom GPU shader resource callbacks during extraction.
+
 - Borrow generated GPU shader text directly from OCIO without allocating.
 
 - Allow replacing a group transform's child in place using the native mutable child slot.

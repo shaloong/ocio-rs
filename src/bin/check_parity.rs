@@ -662,6 +662,10 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("borrow_texture_values", "texture_values_ref"),
         ("extract_with_assembler", "try_extract_with_assembler"),
         (
+            "extract_with_resource_callbacks",
+            "try_extract_with_resource_callbacks",
+        ),
+        (
             "extract_with_texture_callback",
             "try_extract_with_texture_callback",
         ),
