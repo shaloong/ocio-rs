@@ -37,7 +37,7 @@ fn validate_case(
     exposure: Option<f64>,
     expected_texture: TextureKind,
     tolerance: f32,
-    input_override: Option<[[f32; 4]; 4]>,
+    input_override: Option<&[[f32; 4]]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let expect_uniform = exposure.is_some();
     let cpu = processor.default_cpu_processor()?;
@@ -139,13 +139,13 @@ fn validate_case(
         shader = shader.replace(&declaration, &split);
         let call = format!("texture({},", lut.sampler);
         let count = shader.matches(&call).count();
-        if count
-            != if lut.kind == TextureKind::ThreeD {
-                1
-            } else {
-                3
-            }
-        {
+        let valid_count = match (lut.kind, lut.interpolation) {
+            (TextureKind::ThreeD, Interpolation::Linear) => count == 1,
+            (TextureKind::ThreeD, Interpolation::Nearest) => count >= 4,
+            (TextureKind::OneD | TextureKind::TwoD, Interpolation::Linear) => count == 3,
+            _ => false,
+        };
+        if !valid_count {
             return Err("unexpected number of OCIO LUT sampling calls".into());
         }
         shader = shader.replace(
@@ -182,12 +182,13 @@ fn validate_case(
     }
     let pixel_group = usize::from(expect_uniform || lut.is_some());
     let source = format!("#version 450\n{shader}\nlayout(local_size_x=1) in;\nlayout(set={pixel_group},binding=0,std430) buffer Pixels {{ vec4 value[]; }} pixels;\nvoid main() {{ uint i = gl_GlobalInvocationID.x; pixels.value[i] = ocio_transform(pixels.value[i]); }}\n");
-    let input: [[f32; 4]; 4] = input_override.unwrap_or([
+    let default_input: [[f32; 4]; 4] = [
         [0.13, 0.47, 0.81, 0.75],
         [0.0, 0.0, 0.0, 1.0],
         [1.0, 0.5, 0.25, 0.0],
         [0.8, 0.4, 0.1, 0.5],
-    ]);
+    ];
+    let input = input_override.unwrap_or(&default_input);
     let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some(name),
         source: wgpu::ShaderSource::Glsl {
@@ -204,7 +205,7 @@ fn validate_case(
         compilation_options: Default::default(),
         cache: None,
     });
-    let bytes = bytemuck::cast_slice(&input);
+    let bytes = bytemuck::cast_slice(input);
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("pixels"),
         contents: bytes,
@@ -245,9 +246,11 @@ fn validate_case(
     });
     let mut lut_resources = None;
     if let Some(lut) = &lut {
-        if lut.interpolation != ocio_rs::Interpolation::Linear {
-            return Err("test requires a linear LUT".into());
-        }
+        let filter = match lut.interpolation {
+            Interpolation::Linear => wgpu::FilterMode::Linear,
+            Interpolation::Nearest => wgpu::FilterMode::Nearest,
+            _ => return Err("unsupported native LUT sampler interpolation".into()),
+        };
         let extent = wgpu::Extent3d {
             width: lut.width,
             height: lut.height,
@@ -297,8 +300,8 @@ fn validate_case(
         );
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: filter,
+            min_filter: filter,
             ..Default::default()
         });
         let binding = lut.binding;
@@ -341,7 +344,7 @@ fn validate_case(
             );
             queue.write_buffer(&buffer, 0, bytes);
         }
-        let mut expected = input;
+        let mut expected = input.to_vec();
         for pixel in &mut expected {
             cpu.apply_rgba(pixel);
         }
@@ -452,11 +455,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for r in 0..2 {
         for g in 0..2 {
             for b in 0..2 {
-                lut.set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])?;
+                let (r, g, b) = (r as f32, g as f32, b as f32);
+                lut.set_value(
+                    r as u64,
+                    g as u64,
+                    b as u64,
+                    [
+                        r * 0.8 + g * b * 0.1,
+                        g * 0.7 + r * b * 0.1,
+                        b * 0.6 + r * g * 0.1,
+                    ],
+                )?;
             }
         }
     }
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
+    let linear_cpu = processor.default_cpu_processor()?;
     validate_case(
         &device,
         &queue,
@@ -466,6 +480,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::ThreeD,
         5e-3,
         None,
+    )?;
+    lut.try_set_interpolation(Interpolation::Tetrahedral)?;
+    let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
+    let tetra_pixels = [
+        [0.8, 0.5, 0.2, 1.0],
+        [0.8, 0.2, 0.5, 0.5],
+        [0.5, 0.2, 0.8, 0.0],
+        [0.2, 0.5, 0.8, 1.0],
+        [0.2, 0.8, 0.5, 0.75],
+        [0.5, 0.8, 0.2, 1.0],
+        [0.0, 0.0, 0.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0],
+    ];
+    let mut linear_value = tetra_pixels[0];
+    let mut tetra_value = tetra_pixels[0];
+    linear_cpu.try_apply_rgba(&mut linear_value)?;
+    processor
+        .default_cpu_processor()?
+        .try_apply_rgba(&mut tetra_value)?;
+    if linear_value
+        .iter()
+        .zip(tetra_value)
+        .all(|(&a, b)| (a - b).abs() < 1e-3)
+    {
+        return Err(
+            "3D LUT fixture does not distinguish trilinear from tetrahedral interpolation".into(),
+        );
+    }
+    validate_case(
+        &device,
+        &queue,
+        "3D LUT tetrahedral",
+        &processor,
+        None,
+        TextureKind::ThreeD,
+        1e-6,
+        Some(&tetra_pixels),
     )?;
     let lut = Lut1DTransform::create()?;
     lut.set_length(3)?;
@@ -526,7 +577,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
             TextureKind::None,
             tolerance,
-            Some(pixels),
+            Some(&pixels),
         )?;
     }
     Ok(())

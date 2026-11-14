@@ -4,7 +4,10 @@ This independent, unpublished tool compares Rust-generated OCIO 2.6 Vulkan
 GLSL running on a physical GPU with the OCIO CPU processor. It checks four
 RGBA pixels for a matrix transform and for two dynamically updated exposure
 values on the same compiled pipeline, including native uniform-buffer offsets.
-It also uploads and linearly samples a non-identity 2×2×2 3D LUT and a 1D
+It also uploads and samples a channel-coupled, non-identity 2×2×2 3D LUT
+with both linear and tetrahedral interpolation; the tetrahedral inputs exercise
+all six channel orderings and verify that the fixture differs from linear.
+It tests a 1D
 LUT represented both as a native 1D texture and as a 2D texture. It rejects
 software and virtual adapters. This is a targeted integration test, not
 comprehensive GPU, texture, language, driver, or color-pipeline coverage.
@@ -37,5 +40,5 @@ explicit LOD 0 for the compute stage, and expands RGB texels to RGBA. It does
 not change OCIO's coordinates or color calculation. The program exits nonzero
 on missing hardware, shader or GPU errors, unexpected resource layouts, or
 CPU/GPU differences above 1e-5 for most analytic cases, 2e-5 for inverse
-HMJ, or 5e-3 for filtered LUTs.
+HMJ, 1e-6 for tetrahedral LUTs, or 5e-3 for hardware-filtered LUTs.
 It reports the measured maximum error for each case.
