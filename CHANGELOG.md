@@ -7,6 +7,15 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+### Breaking safety changes
+
+- Processor, CPU/GPU processor, and GPU shader descriptor handles are no longer
+  `Send`: OCIO dynamic properties can remain live independently and are not
+  synchronized. Create independent pipelines on the threads using them.
+- Global const-config processor queries isolate dynamic pipelines to avoid
+  sharing mutable dynamic properties between independent callers. Static
+  pipelines continue to use the native processor cache.
+
 - Add unified GPU shader hooks for rewriting OCIO code fragments alongside resource and lifecycle callbacks.
 
 - Expose synchronous begin, finalized, and end notifications for custom GPU shader extraction.

@@ -156,6 +156,16 @@ fn validate_packed_buffer_alignment(
 /// [`dynamic_property`](Self::dynamic_property) and are scoped to the
 /// processor or its derived CPU/GPU execution handles.
 ///
+/// Processor and its execution handles are not `Send` or `Sync`: OCIO dynamic
+/// property handles can outlive their parent and are not internally synchronized.
+/// Create separate processing pipelines on the threads that use them.
+///
+/// ```compile_fail
+/// # use ocio_rs::Processor;
+/// fn require_send<T: Send>() {}
+/// require_send::<Processor>();
+/// ```
+///
 /// [`default_cpu_processor`]: Self::default_cpu_processor
 /// [`default_gpu_processor`]: Self::default_gpu_processor
 /// [`optimized_cpu_processor`]: Self::optimized_cpu_processor
@@ -164,10 +174,6 @@ fn validate_packed_buffer_alignment(
 pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
 }
-
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for Processor {}
 
 impl Processor {
     /// Share the immutable top-level native format metadata without copying.
@@ -548,6 +554,15 @@ impl Drop for Processor {
 /// smaller strides are rejected before calling OCIO. Multi-byte packed data
 /// must be aligned to its storage width.
 ///
+/// This handle is thread-confined; see [`Processor`] for the dynamic-property
+/// synchronization rationale.
+///
+/// ```compile_fail
+/// # use ocio_rs::CPUProcessor;
+/// fn require_send<T: Send>() {}
+/// require_send::<CPUProcessor>();
+/// ```
+///
 /// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
@@ -849,10 +864,6 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     };
     Ok([w, h, x, y])
 }
-
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
     /// Process an exclusively borrowed packed image in place without pixel copies.
@@ -1875,6 +1886,14 @@ impl Drop for CPUProcessor {
 /// # }
 /// ```
 ///
+/// This handle is thread-confined; see [`Processor`].
+///
+/// ```compile_fail
+/// # use ocio_rs::GPUProcessor;
+/// fn require_send<T: Send>() {}
+/// require_send::<GPUProcessor>();
+/// ```
+///
 /// [`extract_shader_info`]: Self::extract_shader_info
 /// [`GpuShaderDesc`]: crate::GpuShaderDesc
 pub struct GPUProcessor {
@@ -2016,10 +2035,6 @@ pub trait ShaderExtractionHooks {
         ))
     }
 }
-
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for GPUProcessor {}
 
 impl GPUProcessor {
     /// Extract a fresh descriptor while assembling its shader text in Rust.
@@ -2808,6 +2823,14 @@ impl Drop for GPUProcessor {
 /// [`create_shader_text`](Self::create_shader_text) let you build the final
 /// shader string from OCIO-provided fragments.
 ///
+/// This handle is thread-confined; its dynamic property handles may outlive it.
+///
+/// ```compile_fail
+/// # use ocio_rs::GpuShaderDesc;
+/// fn require_send<T: Send>() {}
+/// require_send::<GpuShaderDesc>();
+/// ```
+///
 /// [`GpuLanguage`]: crate::GpuLanguage
 /// [`GPUProcessor::extract_shader_info`]: crate::GPUProcessor::extract_shader_info
 pub struct GpuShaderDesc {
@@ -2898,10 +2921,6 @@ impl Drop for GpuUniformCache<'_> {
         unsafe { ocio_sys::ocio_gpu_uniform_cache_destroy(self.handle.as_ptr()) }
     }
 }
-
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for GpuShaderDesc {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]

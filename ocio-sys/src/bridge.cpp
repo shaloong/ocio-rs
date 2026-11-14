@@ -1845,7 +1845,15 @@ void* ocio_const_config_get_processor(void* handle, const char* source, const ch
   (void)handle; (void)source; (void)destination; return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto p = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->getProcessor(source, destination);
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto p = config->getProcessor(source, destination);
+    // The global immutable config may be queried independently on different
+    // threads. OCIO may return a cached processor with shared, unsynchronized
+    // dynamic properties. Isolate only dynamic pipelines; ordinary lookups
+    // retain native config and processor caching without a copy.
+    if (p && p->isDynamic()) {
+      p = config->createEditableCopy()->getProcessor(source, destination);
+    }
     if (!p) return nullptr;
     auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});

@@ -1,5 +1,15 @@
 # Migration Notes
 
+## Unreleased: processor thread confinement
+
+`Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` no longer
+implement `Send`. A dynamic-property handle may outlive the processor or shader
+descriptor it came from, and OCIO does not synchronize all property access.
+Build each pipeline on its owning worker thread rather than moving an existing
+handle between threads. Independent queries through the shared current config
+isolate dynamic pipelines; static lookups still use OCIO's native cache. This
+does not synchronize callers using raw C++ interop.
+
 ## 0.3.0
 
 `0.3.0` is a breaking release relative to `0.2.1`. Both `ocio-rs` and

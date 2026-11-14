@@ -99,6 +99,10 @@ impl ConstConfig {
         Ok(NonNull::new(handle).map(|handle| crate::ConstContext { handle }))
     }
     /// Create a processor from native C-string color-space names.
+    ///
+    /// Static pipelines use OCIO's native cache. Dynamic pipelines are built
+    /// from an independent configuration copy, so separate threads querying a
+    /// global config cannot concurrently mutate shared dynamic properties.
     pub fn processor(&self, src: &std::ffi::CStr, dst: &std::ffi::CStr) -> Result<Processor> {
         crate::clear_last_error();
         let handle = unsafe {

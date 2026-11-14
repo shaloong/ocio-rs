@@ -75,5 +75,56 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
             .as_deref(),
         Some("second-global")
     );
+
+    // A shared global config may be queried independently by other threads.
+    // Dynamic processors from those queries must not share mutable OCIO state.
+    let dynamic_config = Config::raw().unwrap();
+    let reference = ocio_rs::ColorSpace::create().unwrap();
+    reference.set_name("reference").unwrap();
+    dynamic_config.try_add_color_space(&reference).unwrap();
+    let input = ocio_rs::ColorSpace::create().unwrap();
+    input.set_name("dynamic-input").unwrap();
+    let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.make_exposure_dynamic();
+    input
+        .try_set_transform(&exposure, ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap();
+    dynamic_config.try_add_color_space(&input).unwrap();
+    try_set_current_config(&dynamic_config).unwrap();
+    let snapshot = try_const_current_config().unwrap().unwrap();
+    let left = snapshot.processor(c"dynamic-input", c"reference").unwrap();
+    let right = snapshot.processor(c"dynamic-input", c"reference").unwrap();
+    assert!(left.is_dynamic() && right.is_dynamic());
+    let left_property = left
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap();
+    let right_property = right
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap();
+    left_property.set_double_value(1.5).unwrap();
+    assert_eq!(left_property.double_value().unwrap(), 1.5);
+    assert_eq!(right_property.double_value().unwrap(), 0.0);
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let workers: Vec<_> = [1.0, 2.0]
+        .into_iter()
+        .map(|value| {
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                let config = try_const_current_config().unwrap().unwrap();
+                let processor = config.processor(c"dynamic-input", c"reference").unwrap();
+                let property = processor
+                    .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+                    .unwrap();
+                property.set_double_value(value).unwrap();
+                barrier.wait();
+                property.double_value().unwrap()
+            })
+        })
+        .collect();
+    let values: Vec<_> = workers
+        .into_iter()
+        .map(|worker| worker.join().unwrap())
+        .collect();
+    assert_eq!(values, [1.0, 2.0]);
     try_set_current_config(&previous).unwrap();
 }
