@@ -37,6 +37,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Match OCIO's default processor-cache flags and reject the unsupported trace
+  logging level instead of silently passing it to native code.
 - Reject overflowing GPU texture dimensions before calculating buffer sizes or
   passing pixel data to the native library.
 - Map GPU texture dimension discriminants to OpenColorIO's native 1D and 2D values.

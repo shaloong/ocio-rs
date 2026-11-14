@@ -343,8 +343,7 @@ pub fn logging_level() -> crate::LoggingLevel {
         1 => crate::LoggingLevel::Warning,
         2 => crate::LoggingLevel::Info,
         3 => crate::LoggingLevel::Debug,
-        4 => crate::LoggingLevel::Trace,
-        _ => crate::LoggingLevel::None,
+        _ => crate::LoggingLevel::Unknown,
     }
 }
 
@@ -362,6 +361,11 @@ pub fn set_logging_level(level: crate::LoggingLevel) {
 
 /// Try to set the OCIO global logging level.
 pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
+    if level as i32 == 4 {
+        return Err(OcioError::InvalidInput(
+            "OpenColorIO does not support trace logging".into(),
+        ));
+    }
     clear_last_error();
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
     ocio_call_status()
@@ -372,6 +376,11 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
 /// OCIO's logging mechanism is thread-safe. This only invokes the current
 /// OCIO logger; use `try_set_logging_level` to control filtering.
 pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> Result<()> {
+    if level as i32 == 4 {
+        return Err(OcioError::InvalidInput(
+            "OpenColorIO does not support trace logging".into(),
+        ));
+    }
     let message = cstring(message)?;
     clear_last_error();
     unsafe { ocio_sys::ocio_log_message(level as i32, message.as_ptr()) };
@@ -666,6 +675,19 @@ pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[allow(deprecated)]
+    fn unsupported_trace_logging_is_rejected_before_native_call() {
+        assert!(matches!(
+            super::try_set_logging_level(super::LoggingLevel::Trace),
+            Err(super::OcioError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            super::try_log_message(super::LoggingLevel::Trace, "message"),
+            Err(super::OcioError::InvalidInput(_))
+        ));
+    }
+
     use super::*;
 
     #[test]
