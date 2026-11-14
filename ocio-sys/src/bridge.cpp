@@ -14153,8 +14153,8 @@ void ocio_dynamic_property_grading_hue_curve_set_complete(void* handle, const oc
 #else
   try {
     if (!curves || !counts) throw std::invalid_argument("null hue curve array");
-    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(
-        ocio_rs_bridge::get_real_dynamic_property(handle));
+    auto property = ocio_rs_bridge::get_real_dynamic_property(handle);
+    auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(property);
     auto value = ocio::GradingHueCurve::Create(typed->getValue());
     for (int c = 0; c < 8; ++c) {
       if (counts[c] && !curves[c]) throw std::invalid_argument("null hue control points");
@@ -16364,6 +16364,32 @@ void* ocio_grading_bspline_curve_create(size_t count) {
 #endif
 }
 
+void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode) {
+#ifdef OCIO_RS_STUB
+  (void)xy; (void)count; (void)kind; (void)mode;
+  ocio_rs_bridge::capture_error_message("B-spline requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (count && !xy) throw std::invalid_argument("null control points");
+    ocio::GradingBSplineCurveRcPtr value;
+    if (mode == 0) value = ocio::GradingBSplineCurve::Create(count);
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    else if (mode == 1) value = ocio::GradingBSplineCurve::Create(count, static_cast<ocio::BSplineType>(kind));
+    else if (mode == 2) value = ocio::GradingBSplineCurve::Create(count, static_cast<ocio::HueCurveType>(kind));
+#endif
+    else throw std::invalid_argument("unsupported spline constructor mode");
+    for (size_t i = 0; i < count; ++i) {
+      auto& point = value->getControlPoint(i);
+      point.m_x = xy[i][0];
+      point.m_y = xy[i][1];
+    }
+    value->validate();
+    return new Spline(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
 void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind) {
 #if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
@@ -16752,4 +16778,46 @@ int ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(int kind)
 #endif
 }
 #endif
+void* ocio_grading_rgb_curve_object_create_from_curves(void* const* curves) {
+#ifdef OCIO_RS_STUB
+  (void)curves;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!curves) throw std::invalid_argument("null curve array");
+    if (!curves[0]) throw std::invalid_argument("null constituent curve");
+    if (!curves[1]) throw std::invalid_argument("null constituent curve");
+    if (!curves[2]) throw std::invalid_argument("null constituent curve");
+    if (!curves[3]) throw std::invalid_argument("null constituent curve");
+    auto value = ocio::GradingRGBCurve::Create(*static_cast<Spline*>(curves[0]), *static_cast<Spline*>(curves[1]), *static_cast<Spline*>(curves[2]), *static_cast<Spline*>(curves[3]));
+    return new CurveObjectrgb(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void* ocio_grading_hue_curve_object_create_from_curves(void* const* curves) {
+#ifdef OCIO_RS_STUB
+  (void)curves;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!curves) throw std::invalid_argument("null curve array");
+    if (!curves[0]) throw std::invalid_argument("null constituent curve");
+    if (!curves[1]) throw std::invalid_argument("null constituent curve");
+    if (!curves[2]) throw std::invalid_argument("null constituent curve");
+    if (!curves[3]) throw std::invalid_argument("null constituent curve");
+    if (!curves[4]) throw std::invalid_argument("null constituent curve");
+    if (!curves[5]) throw std::invalid_argument("null constituent curve");
+    if (!curves[6]) throw std::invalid_argument("null constituent curve");
+    if (!curves[7]) throw std::invalid_argument("null constituent curve");
+    auto value = ocio::GradingHueCurve::Create(*static_cast<Spline*>(curves[0]), *static_cast<Spline*>(curves[1]), *static_cast<Spline*>(curves[2]), *static_cast<Spline*>(curves[3]), *static_cast<Spline*>(curves[4]), *static_cast<Spline*>(curves[5]), *static_cast<Spline*>(curves[6]), *static_cast<Spline*>(curves[7]));
+    return new CurveObjecthue(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
 }  // extern "C"

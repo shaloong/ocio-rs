@@ -13,6 +13,7 @@ Versioning as closely as practical for a still-maturing binding crate.
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent
   curves, transform value exchange, and hue curve-only drawing mode.
+- Construct grading splines and curve sets from borrowed native curve data.
 - Add complete eight-curve hue grading snapshots while preserving the legacy
   four-curve snapshot API.
 - Expose complete dynamic hue-property snapshots, including all eight curves.
@@ -27,6 +28,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   use an installed 2.6 library or point `OCIO_SOURCE_DIR` at 2.6.0.
 
 ### Fixed
+
+- Compile dynamic hue curve updates with OpenColorIO 2.5's reference signature.
 
 - Preserve the HSY fixed-function style mapping when built with OpenColorIO 2.6.
 

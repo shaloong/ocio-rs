@@ -2,6 +2,12 @@ use std::ffi::c_void;
 
 unsafe extern "C" {
     pub fn ocio_grading_bspline_curve_create(count: usize) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_create_from_points(
+        xy: *const [f32; 2],
+        count: usize,
+        kind: i32,
+        mode: i32,
+    ) -> *mut c_void;
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_bspline_curve_create_with_spline_type(
         count: usize,
@@ -67,4 +73,11 @@ unsafe extern "C" {
     pub fn ocio_grading_hue_curve_object_set_transform(h: *mut c_void, transform: *mut c_void);
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(kind: i32) -> i32;
+    pub fn ocio_grading_rgb_curve_object_create_from_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_create_from_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
 }

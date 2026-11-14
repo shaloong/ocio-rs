@@ -1511,6 +1511,7 @@ const char* ocio_system_monitors_get_monitor_name(void* h, size_t index);
 const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index);
 
 void* ocio_grading_bspline_curve_create(size_t count);
+void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode);
 void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind);
 void* ocio_grading_bspline_curve_create_with_hue_type(size_t count, int kind);
 void ocio_grading_bspline_curve_destroy(void* h);
@@ -1550,4 +1551,7 @@ void* ocio_grading_hue_curve_object_from_transform(void* transform);
 void ocio_grading_hue_curve_object_set_transform(void* h, void* transform);
 
 int ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(int kind);
+void* ocio_grading_rgb_curve_object_create_from_curves(void* const* curves);
+void* ocio_grading_hue_curve_object_create_from_curves(void* const* curves);
+
 }  // extern "C"

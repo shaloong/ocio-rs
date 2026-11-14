@@ -25,6 +25,43 @@ pub struct GradingBSplineCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingBSplineCurve {
+    fn create_points_impl(points: &[[f32; 2]], kind: i32, mode: i32) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_grading_bspline_curve_create_from_points(
+                points.as_ptr(),
+                points.len(),
+                kind,
+                mode,
+            )
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Construct and validate a native spline from coordinates with native default slopes.
+    pub fn create_from_points(points: &[[f32; 2]]) -> Result<Self> {
+        Self::create_points_impl(points, 0, 0)
+    }
+
+    /// Construct from coordinates with a specific spline type.
+    #[cfg(feature = "v2_5")]
+    pub fn create_from_points_with_spline_type(
+        points: &[[f32; 2]],
+        kind: BSplineType,
+    ) -> Result<Self> {
+        Self::create_points_impl(points, kind as i32, 1)
+    }
+
+    /// Construct from coordinates with the native type for a hue curve.
+    #[cfg(feature = "v2_5")]
+    pub fn create_from_points_with_hue_type(
+        points: &[[f32; 2]],
+        kind: crate::HueCurveType,
+    ) -> Result<Self> {
+        Self::create_points_impl(points, kind as i32, 2)
+    }
     /// Create a native spline with the specified number of points.
     pub fn create(count: usize) -> Result<Self> {
         crate::clear_last_error();
@@ -404,5 +441,33 @@ impl GradingHueCurve {
 impl Drop for GradingHueCurve {
     fn drop(&mut self) {
         unsafe { ocio_sys::ocio_grading_hue_curve_object_destroy(self.handle.as_ptr()) }
+    }
+}
+impl GradingRGBCurve {
+    /// Construct a native curve set from 4 splines in OCIO enum order.
+    pub fn create_from_curves(curves: [&GradingBSplineCurve; 4]) -> Result<Self> {
+        let pointers = curves.map(|curve| curve.handle.as_ptr());
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_grading_rgb_curve_object_create_from_curves(pointers.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+}
+
+#[cfg(feature = "v2_5")]
+impl GradingHueCurve {
+    /// Construct a native curve set from 8 splines in OCIO enum order.
+    pub fn create_from_curves(curves: [&GradingBSplineCurve; 8]) -> Result<Self> {
+        let pointers = curves.map(|curve| curve.handle.as_ptr());
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_grading_hue_curve_object_create_from_curves(pointers.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
     }
 }

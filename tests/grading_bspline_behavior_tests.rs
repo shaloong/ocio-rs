@@ -49,6 +49,11 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert!(copy.equals(&value).unwrap());
     drop(value);
     assert_eq!(red.slope(0).unwrap(), 0.37);
+    let mut spline = GradingBSplineCurve::create_from_points(&[[0.0, 0.0], [1.0, 1.0]]).unwrap();
+    let set = GradingRGBCurve::create_from_curves([&spline, &spline, &spline, &spline]).unwrap();
+    spline.set_slope(0, 0.2).unwrap();
+    assert!(set.is_identity().unwrap());
+    assert!(GradingBSplineCurve::create_from_points(&[[1.0, 1.0], [0.0, 0.0]]).is_err());
 }
 
 #[cfg(feature = "v2_5")]
@@ -67,4 +72,30 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     let copy = GradingHueCurve::from_transform(&transform).unwrap();
     assert!(copy.draw_curve_only().unwrap());
     assert!(copy.equals(&value).unwrap());
+    let curves: Vec<_> = [
+        HueCurveType::HueHue,
+        HueCurveType::HueSat,
+        HueCurveType::HueLum,
+        HueCurveType::LumSat,
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ]
+    .into_iter()
+    .map(|kind| value.curve(kind).unwrap())
+    .collect();
+    let mut assembled = GradingHueCurve::create_from_curves([
+        &curves[0], &curves[1], &curves[2], &curves[3], &curves[4], &curves[5], &curves[6],
+        &curves[7],
+    ])
+    .unwrap();
+    assert_eq!(
+        assembled
+            .curve(HueCurveType::HueFx)
+            .unwrap()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
 }
