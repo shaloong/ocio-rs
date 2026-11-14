@@ -1,8 +1,9 @@
 use ocio_rs::transform::{
-    ExposureContrastTransform, Lut1DTransform, Lut3DTransform, MatrixTransform,
+    ExposureContrastTransform, FixedFunctionTransform, Lut1DTransform, Lut3DTransform,
+    MatrixTransform,
 };
 use ocio_rs::{
-    Config, DynamicPropertyType, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
+    Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, TransformDirection,
 };
 use wgpu::util::DeviceExt;
@@ -27,6 +28,7 @@ struct LutTexture {
     values: Vec<f32>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn validate_case(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -34,6 +36,8 @@ fn validate_case(
     processor: &Processor,
     exposure: Option<f64>,
     expected_texture: TextureKind,
+    tolerance: f32,
+    input_override: Option<[[f32; 4]; 4]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let expect_uniform = exposure.is_some();
     let cpu = processor.default_cpu_processor()?;
@@ -178,12 +182,12 @@ fn validate_case(
     }
     let pixel_group = usize::from(expect_uniform || lut.is_some());
     let source = format!("#version 450\n{shader}\nlayout(local_size_x=1) in;\nlayout(set={pixel_group},binding=0,std430) buffer Pixels {{ vec4 value[]; }} pixels;\nvoid main() {{ uint i = gl_GlobalInvocationID.x; pixels.value[i] = ocio_transform(pixels.value[i]); }}\n");
-    let input: [[f32; 4]; 4] = [
+    let input: [[f32; 4]; 4] = input_override.unwrap_or([
         [0.13, 0.47, 0.81, 0.75],
         [0.0, 0.0, 0.0, 1.0],
         [1.0, 0.5, 0.25, 0.0],
         [0.8, 0.4, 0.1, 0.5],
-    ];
+    ]);
     let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some(name),
         source: wgpu::ShaderSource::Glsl {
@@ -365,10 +369,6 @@ fn validate_case(
         receiver.recv()??;
         let mapped = slice.get_mapped_range()?;
         let actual: &[f32] = bytemuck::cast_slice(&mapped);
-        // Hardware LUT filtering has finite interpolation precision. Use a
-        // separate bound (OCIO's upstream GPU suite also allows up to 1e-2
-        // for some LUTs); analytic transforms retain the tighter 1e-5 bound.
-        let tolerance = if lut.is_some() { 5e-3 } else { 1e-5 };
         let mut max_error = 0.0_f32;
         for (channel, (&gpu_value, &cpu_value)) in
             actual.iter().zip(expected.iter().flatten()).enumerate()
@@ -431,6 +431,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         None,
         TextureKind::None,
+        1e-5,
+        None,
     )?;
     let exposure = ExposureContrastTransform::create()?;
     exposure.set_exposure(1.1);
@@ -443,6 +445,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         Some(1.1),
         TextureKind::None,
+        1e-5,
+        None,
     )?;
     let lut = Lut3DTransform::create_with_grid_size(2)?;
     for r in 0..2 {
@@ -460,6 +464,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         None,
         TextureKind::ThreeD,
+        5e-3,
+        None,
     )?;
     let lut = Lut1DTransform::create()?;
     lut.set_length(3)?;
@@ -472,6 +478,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         None,
         TextureKind::TwoD,
+        5e-3,
+        None,
     )?;
     validate_case(
         &device,
@@ -480,6 +488,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         None,
         TextureKind::OneD,
+        5e-3,
+        None,
     )?;
+    let hmj = FixedFunctionTransform::create_with_params(
+        FixedFunctionStyle::AcesRgbToHmj20,
+        &[0.7347, 0.2653, 0.0, 1.0, 0.0001, -0.0770, 0.32168, 0.33767],
+    )?;
+    let rgb = [
+        [2.781809, 0.17917825, -0.02210353, 1.0],
+        [3.3445237, 3.6178627, -0.006002689, 1.0],
+        [0.11, 0.02, 0.04, 0.5],
+        [0.43, 0.82, 0.71, 0.0],
+    ];
+    // Corresponding ACES test values in the documented [h/360, M/200, J/100] order.
+    let hmj_input = [
+        [25.02511 / 360.0, 206.8273 / 200.0, 107.48064 / 100.0, 1.0],
+        [106.18345 / 360.0, 133.33089 / 200.0, 173.19408 / 100.0, 1.0],
+        [4.173158 / 360.0, 42.523605 / 200.0, 26.112514 / 100.0, 0.5],
+        [182.92575 / 360.0, 39.75481 / 200.0, 81.91256 / 100.0, 0.0],
+    ];
+    for (name, direction, tolerance, pixels) in [
+        ("ACES RGB to HMJ", TransformDirection::Forward, 1e-5, rgb),
+        (
+            "ACES HMJ to RGB",
+            TransformDirection::Inverse,
+            2e-5,
+            hmj_input,
+        ),
+    ] {
+        let processor = config.processor_from_transform(&hmj, direction)?;
+        validate_case(
+            &device,
+            &queue,
+            name,
+            &processor,
+            None,
+            TextureKind::None,
+            tolerance,
+            Some(pixels),
+        )?;
+    }
     Ok(())
 }

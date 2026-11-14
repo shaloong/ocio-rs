@@ -8,6 +8,8 @@ It also uploads and linearly samples a non-identity 2×2×2 3D LUT and a 1D
 LUT represented both as a native 1D texture and as a 2D texture. It rejects
 software and virtual adapters. This is a targeted integration test, not
 comprehensive GPU, texture, language, driver, or color-pipeline coverage.
+It also exercises OCIO 2.6's ACES RGB↔HMJ fixed function in both directions,
+using representative upstream-derived high-light and negative-channel inputs.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
@@ -34,5 +36,6 @@ combined sampler to separate texture/sampler bindings required by wgpu, adds
 explicit LOD 0 for the compute stage, and expands RGB texels to RGBA. It does
 not change OCIO's coordinates or color calculation. The program exits nonzero
 on missing hardware, shader or GPU errors, unexpected resource layouts, or
-CPU/GPU differences above 1e-5 for analytic cases or 5e-3 for filtered LUTs.
+CPU/GPU differences above 1e-5 for most analytic cases, 2e-5 for inverse
+HMJ, or 5e-3 for filtered LUTs.
 It reports the measured maximum error for each case.
