@@ -666,6 +666,15 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("operation", "union"),
         ("equal", "try_equals"),
         ("get_const_color_space", "try_const_color_space"),
+        ("get_const_current_context", "try_const_current_context"),
+        (
+            "get_processor_with_const_context",
+            "processor_with_const_context",
+        ),
+        (
+            "get_processor_const_transform_with_const_context",
+            "processor_from_const_transform_with_const_context",
+        ),
         (
             "get_processor_from_const_transform",
             "processor_from_const_transform",

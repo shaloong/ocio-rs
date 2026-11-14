@@ -122,7 +122,7 @@ pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
 pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
 pub use config::Config;
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
-pub use context::Context;
+pub use context::{ConstContext, Context};
 pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;
 pub use look::Look;

@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share a configuration's read-only context without cloning it; use it directly
+  for named color-space or shared-transform processors.
 - Share immutable child transforms and use them directly to create processors,
   with explicit copying when editing is required.
 - Construct processors directly from editable or shared read-only color-space
@@ -70,6 +72,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Return an independent editable context from `Config::current_context` instead
+  of exposing the configuration's native const context as writable. Existing
+  code that mutated the returned context to change the config must be updated.
 - Editable transform getters on color spaces, looks, named transforms and view
   transforms now return independent copies instead of writable aliases to OCIO
   const objects. Reassign a modified copy to update its parent; this changes

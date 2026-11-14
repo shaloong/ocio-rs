@@ -260,6 +260,70 @@ fn config_current_context_exposes_environment_defaults_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn current_context_preserves_constness_and_supports_processors() {
+    use ocio_rs::transform::MatrixTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, TransformDirection};
+    let config = Config::raw().unwrap();
+    config.set_working_dir("original-dir").unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    let snapshot = shared.working_dir().unwrap().unwrap();
+    let editable = config.try_current_context().unwrap().unwrap();
+    editable.set_working_dir("changed-copy").unwrap();
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some(snapshot.as_str())
+    );
+    assert_eq!(
+        shared.resolve_string_var(c"plain").unwrap().as_deref(),
+        Some("plain")
+    );
+    assert!(matches!(
+        shared.resolve_file_location(c"ocio-rs-definitely-missing.clf"),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    assert!(shared.cache_id().unwrap().is_some());
+    let copy = shared.create_editable_copy().unwrap();
+    copy.set_working_dir("another-copy").unwrap();
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some(snapshot.as_str())
+    );
+    config
+        .processor_with_const_context(c"raw", c"raw", &shared)
+        .unwrap();
+    let transform = MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
+    let color = ColorSpace::create().unwrap();
+    color
+        .try_set_transform(&transform, ColorSpaceDirection::ToReference)
+        .unwrap();
+    let shared_transform = color
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let cpu = config
+        .processor_from_const_transform_with_const_context(
+            &shared_transform,
+            TransformDirection::Forward,
+            &shared,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut pixel = [0.25, 0.25, 0.25, 1.0];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert!((pixel[0] - 0.5).abs() < 1e-6);
+    config.set_working_dir("updated-config-dir").unwrap();
+    assert_eq!(snapshot, "original-dir");
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some("updated-config-dir")
+    );
+    drop(config);
+    assert!(shared.working_dir().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_current_context_survives_parent_drop_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {

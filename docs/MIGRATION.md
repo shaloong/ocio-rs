@@ -135,6 +135,10 @@ now return editable copies. Use the corresponding `try_const_transform` (or
 `try_const_inverse_transform` on a look) for shared read-only access and direct
 processor creation. Reassign editable copies to their parent to apply changes.
 
+`Config::current_context` now returns an independent editable copy. Use
+`try_const_current_context` for a shared read-only context; context text queries
+return owned strings because the configuration can change the underlying state.
+
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
 `Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.

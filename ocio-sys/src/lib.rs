@@ -107,6 +107,26 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_config_get_const_current_context(config: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_destroy(handle: *mut c_void);
+    pub fn ocio_const_context_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_get_text(
+        handle: *mut c_void,
+        field: i32,
+        argument: *const i8,
+    ) -> *const i8;
+    pub fn ocio_config_get_processor_with_const_context(
+        config: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        destination: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_processor_const_transform_with_const_context(
+        config: *mut c_void,
+        context: *mut c_void,
+        transform: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
     pub fn ocio_get_const_child_transform(
         parent: *mut c_void,
         parent_kind: i32,

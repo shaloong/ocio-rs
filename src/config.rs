@@ -1376,6 +1376,43 @@ impl Config {
         self.processor_display(src, display, view, direction)
     }
 
+    /// Create a processor from names using a shared read-only context.
+    pub fn processor_with_const_context(
+        &self,
+        src: &std::ffi::CStr,
+        dst: &std::ffi::CStr,
+        context: &crate::ConstContext,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_with_const_context(
+                self.handle.as_ptr(),
+                context.handle.as_ptr(),
+                src.as_ptr(),
+                dst.as_ptr(),
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+    /// Create a processor directly from shared read-only context and transform objects.
+    pub fn processor_from_const_transform_with_const_context(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: TransformDirection,
+        context: &crate::ConstContext,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_const_transform_with_const_context(
+                self.handle.as_ptr(),
+                context.handle.as_ptr(),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
     /// Create a processor from a shared read-only transform and optional context.
     pub fn processor_from_const_transform(
         &self,
@@ -3416,8 +3453,7 @@ impl Config {
 
     /// Try to get the current context associated with this config.
     ///
-    /// The returned context owns an independent OCIO shared reference and may
-    /// outlive this `Config` wrapper.
+    /// Returns an independent editable copy; edits do not change the config.
     pub fn try_current_context(&self) -> Result<Option<Context>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -3425,6 +3461,15 @@ impl Config {
         };
         crate::ocio_call_status()?;
         Ok(NonNull::new(handle).map(|handle| Context { handle }))
+    }
+
+    /// Share the config's current native context without an editable copy.
+    pub fn try_const_current_context(&self) -> Result<Option<crate::ConstContext>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_config_get_const_current_context(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstContext { handle }))
     }
 
     // --- Clear all ---

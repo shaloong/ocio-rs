@@ -2444,8 +2444,8 @@ void* ocio_config_get_current_context(void* handle) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getCurrentContext();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ContextHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::Context>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealContext>(ocio_rs_bridge::RealContext{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealContext>(ocio_rs_bridge::RealContext{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -5701,6 +5701,83 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 
 
 // --- ColorSpaceSet ---
+
+void* ocio_config_get_const_current_context(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return nullptr;
+#else
+  try {
+    auto context = ocio_rs_bridge::get_real_config(config)->getCurrentContext();
+    return context ? new ocio::ConstContextRcPtr(std::move(context)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_context_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  delete static_cast<ocio::ConstContextRcPtr*>(handle);
+#endif
+}
+void* ocio_const_context_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native context required"); return nullptr;
+#else
+  try {
+    auto value = (*static_cast<ocio::ConstContextRcPtr*>(handle))->createEditableCopy();
+    auto out = std::make_unique<ocio_rs_bridge::ContextHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealContext>(ocio_rs_bridge::RealContext{value});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+const char* ocio_const_context_get_text(void* handle, int field, const char* argument) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)argument; return nullptr;
+#else
+  try {
+    auto& value = *static_cast<ocio::ConstContextRcPtr*>(handle);
+    switch (field) {
+      case 0: return value->getWorkingDir();
+      case 1: return value->getSearchPath();
+      case 2: return value->getStringVar(argument);
+      case 3: return value->getCacheID();
+      case 4: return value->resolveStringVar(argument);
+      case 5: return value->resolveFileLocation(argument);
+      default: throw std::invalid_argument("invalid context text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)source; (void)destination;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto processor = ocio_rs_bridge::get_real_config(config)->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), source, destination);
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_config_get_processor_const_transform_with_const_context(void* config, void* context, void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)transform; (void)direction;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto processor = ocio_rs_bridge::get_real_config(config)->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context),
+      *static_cast<ocio::ConstTransformRcPtr*>(transform), static_cast<ocio::TransformDirection>(direction));
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 
 void* ocio_get_const_child_transform(void* parent, int parent_kind, int direction) {
 #ifdef OCIO_RS_STUB

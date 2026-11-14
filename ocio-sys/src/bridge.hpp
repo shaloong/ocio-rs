@@ -28,6 +28,12 @@ const char* ocio_error_get_last(void);
 int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
 void* ocio_config_get_const_color_space(void* config, const char* name);
+void* ocio_config_get_const_current_context(void* config);
+void ocio_const_context_destroy(void* handle);
+void* ocio_const_context_create_editable_copy(void* handle);
+const char* ocio_const_context_get_text(void* handle, int field, const char* argument);
+void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination);
+void* ocio_config_get_processor_const_transform_with_const_context(void* config, void* context, void* transform, int direction);
 void* ocio_config_get_processor_from_color_space_refs(void* config, void* context,
     void* source, bool source_const, void* destination, bool destination_const);
 void* ocio_color_space_set_get_const_color_space(void* set, const char* name);
