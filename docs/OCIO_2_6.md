@@ -75,6 +75,9 @@ Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a
 direct-C++ performance baseline remain separate validation gates.
+The optional `tools/gpu-validation` repository tool compares a matrix and
+dynamic exposure on a Vulkan GPU against OCIO CPU output;
+it does not yet cover texture resources or the full transform surface.
 Custom shader assembly, texture callbacks and uniform registration notifications
 are supported, but they do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers

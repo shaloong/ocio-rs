@@ -1,4 +1,5 @@
 /target
+/tools/gpu-validation/target
 third_party/*
 !third_party/OpenColorIO
 .vscode/
