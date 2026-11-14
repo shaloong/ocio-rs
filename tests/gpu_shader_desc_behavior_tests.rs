@@ -1857,6 +1857,50 @@ fn cached_native_dynamic_uniform_tracks_property() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cached_array_uniform_tracks_size_and_recovers_from_invalid_getter() {
+    use ocio_rs::GpuUniformCopy;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let length = Arc::new(AtomicUsize::new(0));
+    let getter_length = Arc::clone(&length);
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.add_uniform_f32_array_getter("live_array", 3, move |out| {
+        out.copy_from_slice(&[1.0, 2.0, 3.0]);
+        getter_length.load(Ordering::SeqCst)
+    })
+    .unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    let mut output = [9.0; 3];
+    assert_eq!(
+        cache.copy_f32_into(0, &mut []).unwrap(),
+        GpuUniformCopy::Written(0)
+    );
+    length.store(3, Ordering::SeqCst);
+    assert_eq!(
+        cache.copy_f32_into(0, &mut output[..2]).unwrap(),
+        GpuUniformCopy::BufferTooSmall { required: 3 }
+    );
+    assert_eq!(output, [9.0; 3]);
+    assert_eq!(
+        cache.copy_f32_into(0, &mut output).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(output, [1.0, 2.0, 3.0]);
+    length.store(4, Ordering::SeqCst);
+    assert!(cache.copy_f32_into(0, &mut output).is_err());
+    assert_eq!(output, [1.0, 2.0, 3.0]);
+    length.store(1, Ordering::SeqCst);
+    assert_eq!(
+        cache.copy_f32_into(0, &mut output).unwrap(),
+        GpuUniformCopy::Written(1)
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_uniform_array_getters_refresh_and_validate_snapshots() {
     use std::sync::{
         atomic::{AtomicUsize, Ordering},
