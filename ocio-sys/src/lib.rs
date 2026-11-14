@@ -1331,6 +1331,13 @@ unsafe extern "C" {
         name: *const i8,
         value: f64,
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_double_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f64) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_add_uniform_bool(
         handle: *mut c_void,
         name: *const i8,

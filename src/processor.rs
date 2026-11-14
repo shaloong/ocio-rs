@@ -3168,6 +3168,46 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live double uniform backed by a thread-safe Rust getter.
+    ///
+    /// OCIO owns the getter until it no longer needs the uniform. It may invoke
+    /// the getter multiple times and from native code; do not reenter the same
+    /// descriptor from the getter. A panic is contained and reported as an
+    /// OCIO error when the uniform is sampled. Returns `false` for a duplicate
+    /// uniform name, in which case the supplied getter is dropped immediately.
+    pub fn add_uniform_f64_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> f64 + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> f64>(context: *mut c_void, out: *mut f64) -> bool {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                unsafe { *out = getter() };
+            })) {
+                Ok(()) => true,
+                Err(_) => false,
+            }
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_double_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds a boolean uniform and returns `false` when the name already exists.
     pub fn add_uniform_bool(&self, name: impl AsRef<str>, value: bool) -> Result<bool> {
         let name = cstring(name)?;

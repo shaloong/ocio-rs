@@ -632,6 +632,9 @@ bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, 
 bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
 size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);
 bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value);
+// Takes ownership of context on every return path; release must not unwind.
+bool ocio_gpu_shader_desc_add_uniform_double_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, double*), void (*release)(void*));
 bool ocio_gpu_shader_desc_add_uniform_bool(void* handle, const char* name, bool value);
 bool ocio_gpu_shader_desc_add_uniform_float3(void* handle, const char* name, float x, float y, float z);
 bool ocio_gpu_shader_desc_add_uniform_vector_float(

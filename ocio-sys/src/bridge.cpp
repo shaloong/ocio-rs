@@ -7837,6 +7837,28 @@ size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle) {
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
 
+bool ocio_gpu_shader_desc_add_uniform_double_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, double*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO");
+  return false;
+#else
+  try {
+    // shared_ptr invokes the deleter even if allocating its control block fails.
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !getter || !release) throw std::invalid_argument("invalid uniform getter");
+    ocio::GpuShaderCreator::DoubleGetter native = [owner, getter]() {
+      double value = 0.0;
+      if (!getter(owner.get(), &value)) throw ocio::Exception("Rust uniform getter failed");
+      return value;
+    };
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name, native);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name; (void)value;

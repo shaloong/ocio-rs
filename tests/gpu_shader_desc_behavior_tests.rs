@@ -1324,6 +1324,67 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_uniform_double_getter_tracks_values_and_owns_closure() {
+    use std::sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    };
+
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    let value = Arc::new(AtomicU64::new(1.25f64.to_bits()));
+    let captured = value.clone();
+    assert!(desc
+        .add_uniform_f64_getter("dynamic", move || {
+            f64::from_bits(captured.load(Ordering::Relaxed))
+        })
+        .unwrap());
+    assert_eq!(Arc::strong_count(&value), 2);
+    let duplicate = value.clone();
+    assert!(!desc
+        .add_uniform_f64_getter("dynamic", move || {
+            f64::from_bits(duplicate.load(Ordering::Relaxed))
+        })
+        .unwrap());
+    assert_eq!(Arc::strong_count(&value), 2);
+    let mut out = [0.0];
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out, [1.25]);
+    value.store(2.5f64.to_bits(), Ordering::Relaxed);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out, [2.5]);
+    drop(desc);
+    assert_eq!(Arc::strong_count(&value), 1);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_uniform_double_getter_contains_panic() {
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    assert!(desc
+        .add_uniform_f64_getter("panics", || panic!("getter panic"))
+        .unwrap());
+    assert!(desc.try_copy_uniform_f32_into(0, &mut [0.0]).is_err());
+}
+
+#[cfg(ocio_stub)]
+#[test]
+fn rust_uniform_double_getter_stub_releases_closure() {
+    let value = std::sync::Arc::new(());
+    let captured = value.clone();
+    let desc = GpuShaderDesc::create().unwrap();
+    assert!(desc
+        .add_uniform_f64_getter("dynamic", move || {
+            let _ = &captured;
+            1.0
+        })
+        .is_err());
+    assert_eq!(std::sync::Arc::strong_count(&value), 1);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
