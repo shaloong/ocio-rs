@@ -32,7 +32,11 @@ BGR, RGBA, BGRA and ABGR orderings, channel spacing, and signed pixel and row
 strides; its documented pointer-step padding requirements must be met.
 
 The HMJ benchmark compares batch and per-pixel calls using the same native
-processor:
+processor. The separate `tools/cpu-benchmark` tool compares the safe Rust
+wrapper with a C ABI trampoline that calls OCIO C++ directly; its README
+documents the setup and limits of that comparison.
+
+Run the HMJ benchmark with:
 
 ```sh
 cargo bench --features bundled,v2_6 --bench pipeline -- ocio_2_6_hmj

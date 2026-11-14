@@ -1,0 +1,14 @@
+[package]
+name = "ocio-cpu-benchmark"
+version = "0.0.0"
+edition = "2021"
+publish = false
+build = "build.rs"
+
+[workspace]
+
+[dependencies]
+ocio-rs = { path = "../..", features = ["bundled", "v2_6"] }
+
+[build-dependencies]
+cc = "1"

@@ -10,7 +10,7 @@ documentation = "https://docs.rs/ocio-rs"
 keywords = ["opencolorio", "color", "ocio", "vfx", "imaging"]
 categories = ["multimedia", "api-bindings"]
 readme = "README.md"
-exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*", "tools/gpu-validation/**"]
+exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*", "tools/gpu-validation/**", "tools/cpu-benchmark/**"]
 
 [dependencies]
 ocio-sys = { version = "0.3.0", path = "ocio-sys" }
