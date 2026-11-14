@@ -1,5 +1,6 @@
 #include "bridge.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <cstdint>
