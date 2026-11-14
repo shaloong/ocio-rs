@@ -1487,6 +1487,9 @@ template<typename T> struct OcioRsUniformArrayGetter {
       : owner(std::move(ctx)), getter(fn), values(capacity) {}
   int refresh() {
     size_t next = 0;
+    // A failing callback may have partially overwritten values. Do not expose
+    // that buffer as the previous successful snapshot through data().
+    initialized = false;
     if (!getter(owner.get(), values.data(), values.size(), &next) || next > values.size())
       throw ocio::Exception("Rust uniform array getter failed or exceeded max size");
     length = next;

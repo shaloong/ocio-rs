@@ -1416,6 +1416,33 @@ fn structured_uniform_uses_actual_dynamic_array_snapshot_length() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_uniform_array_getter_recovers_after_partial_write_and_panic() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    let calls = AtomicUsize::new(0);
+    assert!(desc
+        .add_uniform_f32_array_getter("recover", 2, move |out| {
+            let call = calls.fetch_add(1, Ordering::Relaxed);
+            if call == 1 {
+                out[0] = 999.0;
+                panic!("interrupted update");
+            }
+            out.copy_from_slice(&[1.0, 2.0]);
+            2
+        })
+        .unwrap());
+    let mut out = [0.0; 2];
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out, [1.0, 2.0]);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).is_err());
+    assert_eq!(out, [1.0, 2.0]);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out, [1.0, 2.0]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn uniform_array_sys_rejects_unrepresentable_lengths_and_accepts_empty() {
     let _guard = gpu_shader_desc_test_lock();
     let name = CString::new("empty").unwrap();
