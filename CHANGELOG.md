@@ -38,6 +38,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Breaking changes
 
+- `ConfigIOProvider` now returns `Cow` values, allowing borrowed data without
+  a Rust-side clone; providers generating values dynamically may return owned data.
 - `ShaderExtractionHooks::assemble` now returns `Option<String>`: `None`
   delegates to OCIO's native assembler, including Vulkan uniform blocks.
 

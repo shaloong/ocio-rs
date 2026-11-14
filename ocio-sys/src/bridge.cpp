@@ -800,18 +800,21 @@ public:
 class CallbackConfigIOProxy final : public ocio::ConfigIOProxy {
   std::shared_ptr<void> context;
   ocio_proxy_read_callback read;
-  struct Output { std::vector<uint8_t> bytes; bool failed = false; };
-  static bool write(void* destination, const unsigned char* data, size_t len) noexcept {
-    auto& out = *static_cast<Output*>(destination);
+  template<class Buffer> struct Output { Buffer bytes; bool failed = false; };
+  template<class Buffer> static bool write(void* destination, const unsigned char* data, size_t len) noexcept {
+    auto& out = *static_cast<Output<Buffer>*>(destination);
     try {
       if (!data && len) return false;
-      if (len) out.bytes.insert(out.bytes.end(), data, data + len);
+      if (len) {
+        const auto* begin = reinterpret_cast<const typename Buffer::value_type*>(data);
+        out.bytes.insert(out.bytes.end(), begin, begin + len);
+      }
       return true;
     } catch (...) { out.failed = true; return false; }
   }
-  std::vector<uint8_t> invoke(int kind, const char* path) const {
-    Output out;
-    if (!read(context.get(), kind, path, &out, write) || out.failed) {
+  template<class Buffer> Buffer invoke(int kind, const char* path) const {
+    Output<Buffer> out;
+    if (!read(context.get(), kind, path, &out, write<Buffer>) || out.failed) {
       std::string message = "Rust config IO provider failed";
       if (!out.failed && !out.bytes.empty()) {
         message += ": ";
@@ -824,14 +827,12 @@ class CallbackConfigIOProxy final : public ocio::ConfigIOProxy {
 public:
   CallbackConfigIOProxy(std::shared_ptr<void> ctx, ocio_proxy_read_callback cb)
       : context(std::move(ctx)), read(cb) {}
-  std::vector<uint8_t> getLutData(const char* path) const override { return invoke(1, path); }
+  std::vector<uint8_t> getLutData(const char* path) const override { return invoke<std::vector<uint8_t>>(1, path); }
   std::string getConfigData() const override {
-    auto data = invoke(0, nullptr);
-    return std::string(data.begin(), data.end());
+    return invoke<std::string>(0, nullptr);
   }
   std::string getFastLutFileHash(const char* path) const override {
-    auto data = invoke(2, path);
-    return std::string(data.begin(), data.end());
+    return invoke<std::string>(2, path);
   }
 };
 #endif

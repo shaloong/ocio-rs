@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
@@ -10,13 +11,31 @@ use ocio_sys;
 /// hash. Keep hashes stable for unchanged content and change them when content
 /// changes so OCIO's caches remain correct. Methods may be called from native
 /// threads; implementations must be thread-safe and must not reenter OCIO.
+/// Providers may borrow data from `self` to avoid a Rust-side allocation. OCIO
+/// requires an owned native return value, so the bridge still copies the bytes
+/// into native storage.
+///
+/// ```
+/// use std::{borrow::Cow, ffi::CStr};
+/// use ocio_rs::{ConfigIOProvider, Result};
+/// struct Assets { config: String, lut: Vec<u8> }
+/// impl ConfigIOProvider for Assets {
+///     fn config_data(&self) -> Result<Cow<'_, str>> { Ok(Cow::Borrowed(&self.config)) }
+///     fn lut_data<'a>(&'a self, _: &CStr) -> Result<Cow<'a, [u8]>> {
+///         Ok(Cow::Borrowed(&self.lut))
+///     }
+///     fn fast_lut_file_hash<'a>(&'a self, _: &CStr) -> Result<Cow<'a, str>> {
+///         Ok(Cow::Borrowed("asset-v1"))
+///     }
+/// }
+/// ```
 pub trait ConfigIOProvider: Send + Sync + 'static {
     /// Return the configuration YAML.
-    fn config_data(&self) -> Result<String>;
-    /// Return the bytes of a referenced LUT, or an empty vector if unavailable.
-    fn lut_data(&self, path: &CStr) -> Result<Vec<u8>>;
+    fn config_data(&self) -> Result<Cow<'_, str>>;
+    /// Return the bytes of a referenced LUT, or an empty slice if unavailable.
+    fn lut_data<'a>(&'a self, path: &CStr) -> Result<Cow<'a, [u8]>>;
     /// Return a fast cache identifier, or an empty string if unavailable.
-    fn fast_lut_file_hash(&self, path: &CStr) -> Result<String>;
+    fn fast_lut_file_hash<'a>(&'a self, path: &CStr) -> Result<Cow<'a, str>>;
 }
 
 /// Provider for OCIO config text and LUT file payloads.
@@ -49,22 +68,23 @@ impl ConfigIOProxy {
             let result =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<bool> {
                     let provider = unsafe { &*context.cast::<P>() };
-                    let bytes = match kind {
-                        0 => provider.config_data()?.into_bytes(),
+                    let emit =
+                        |bytes: &[u8]| unsafe { write(destination, bytes.as_ptr(), bytes.len()) };
+                    match kind {
+                        0 => Ok(emit(provider.config_data()?.as_bytes())),
                         1 | 2 => {
                             if path.is_null() {
                                 return Ok(false);
                             }
                             let path = unsafe { CStr::from_ptr(path) };
                             if kind == 1 {
-                                provider.lut_data(path)?
+                                Ok(emit(&provider.lut_data(path)?))
                             } else {
-                                provider.fast_lut_file_hash(path)?.into_bytes()
+                                Ok(emit(provider.fast_lut_file_hash(path)?.as_bytes()))
                             }
                         }
-                        _ => return Ok(false),
-                    };
-                    Ok(unsafe { write(destination, bytes.as_ptr(), bytes.len()) })
+                        _ => Ok(false),
+                    }
                 }));
             match result {
                 Ok(Ok(ok)) => ok,

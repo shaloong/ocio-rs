@@ -9,6 +9,11 @@ The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the
 default vendored version or the Rust ABI values of existing enums.
 
+`ConfigIOProvider` may borrow configuration, LUT, and hash data from its own
+thread-safe storage, avoiding an intermediate Rust allocation. OCIO's C++
+interface requires owned return values, so transfer still copies to native
+storage; this is not a zero-copy native API.
+
 | Upstream addition | Rust coverage |
 | --- | --- |
 | Display and view alias authoring, inspection and resolution | `Config` alias methods and `ViewWithAliases` |
