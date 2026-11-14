@@ -126,6 +126,246 @@ fn rust_shader_assembler_preserves_lut_across_native_versions() {
     assert!(!desc.texture_values_ref(0).unwrap().is_empty());
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_texture_callback_borrows_native_lut_and_propagates_errors() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::Glsl4_0).unwrap();
+    let mut observed = Vec::new();
+    let desc = gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |texture| {
+                observed.push((texture.texture_name.to_owned(), texture.values.to_vec()));
+                Ok(None)
+            },
+        )
+        .unwrap();
+    assert_eq!(observed.len(), desc.num_textures() as usize);
+    assert!(!observed.is_empty());
+    assert_eq!(observed[0].0, desc.texture_2d(0).unwrap().texture_name);
+    assert_eq!(observed[0].1, desc.texture_values(0));
+    assert!(gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |_| Ok(String::new()),
+            |_| Err(ocio_rs::OcioError::InvalidInput("texture rejected".into()))
+        )
+        .is_err());
+    assert!(gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |_| Ok(String::new()),
+            |_| -> ocio_rs::Result<Option<u32>> { panic!("texture callback panic") }
+        )
+        .is_err());
+    if ocio_rs::version_hex() < 0x02050000 {
+        assert!(gpu
+            .try_extract_with_texture_callback(
+                &template,
+                |_| Ok(String::new()),
+                |texture| {
+                    assert!(texture.suggested_binding.is_none());
+                    Ok(Some(42))
+                }
+            )
+            .is_err());
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_texture_callback_receives_3d_lut() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut3DTransform::create().unwrap();
+    lut.set_grid_size(2).unwrap();
+    for r in 0..2 {
+        for g in 0..2 {
+            for b in 0..2 {
+                lut.set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])
+                    .unwrap();
+            }
+        }
+    }
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut observed = Vec::new();
+    let desc = gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |texture| {
+                if texture.dimensions.is_none() {
+                    observed.push((texture.depth, texture.values.to_vec()));
+                }
+                Ok(None)
+            },
+        )
+        .unwrap();
+    assert_eq!(observed.len(), desc.num_3d_textures() as usize);
+    assert!(!observed.is_empty());
+    assert_eq!(observed[0].0, desc.texture_3d(0).unwrap().edge_len);
+    assert_eq!(observed[0].1, desc.texture_3d_values(0));
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_texture_callback_controls_vulkan_binding() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    template.try_set_descriptor_set_index(2, 7).unwrap();
+    let desc = gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |texture| {
+                assert_eq!(texture.suggested_binding, Some(7));
+                Ok(Some(42))
+            },
+        )
+        .unwrap();
+    assert_eq!(desc.texture_shader_binding_index(0), Some(42));
+    assert!(desc.shader_text().unwrap().contains("binding = 42"));
+    assert!(gpu
+        .try_extract_with_texture_callback(&template, |_| Ok(String::new()), |_| Ok(Some(0)))
+        .is_err());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_texture_callback_checks_bindings_across_texture_types() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut1d = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut1d.set_length(3).unwrap();
+    lut1d
+        .set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let lut3d = ocio_rs::transform::Lut3DTransform::create().unwrap();
+    lut3d.set_grid_size(2).unwrap();
+    for r in 0..2 {
+        for g in 0..2 {
+            for b in 0..2 {
+                lut3d
+                    .set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])
+                    .unwrap();
+            }
+        }
+    }
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&lut1d).unwrap();
+    group.append_transform(&lut3d).unwrap();
+    let gpu = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    let mut next = 41;
+    let desc = gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |_| {
+                next += 1;
+                Ok(Some(next))
+            },
+        )
+        .unwrap();
+    assert_eq!(desc.num_textures(), 1);
+    assert_eq!(desc.num_3d_textures(), 1);
+    let a = desc.texture_shader_binding_index(0).unwrap();
+    let b = desc.texture_3d_shader_binding_index(0).unwrap();
+    assert_ne!(a, b);
+    assert!([42, 43].contains(&a) && [42, 43].contains(&b));
+    desc.try_set_descriptor_set_index(3, 40).unwrap();
+    assert!(desc
+        .add_texture_2d(
+            "duplicate_texture",
+            "duplicate_sampler",
+            1,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .is_err());
+    assert_eq!(desc.num_textures(), 1);
+    desc.try_set_descriptor_set_index(3, 70).unwrap();
+    let added = desc
+        .add_texture_2d(
+            "later_texture",
+            "later_sampler",
+            1,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .unwrap()
+        .unwrap();
+    assert!(added >= 70);
+    assert_eq!(desc.texture_shader_binding_index(0), Some(a));
+    assert_eq!(desc.texture_3d_shader_binding_index(0), Some(b));
+    assert_eq!(desc.texture_shader_binding_index(1), Some(added));
+    assert!(gpu
+        .try_extract_with_texture_callback(&template, |_| Ok(String::new()), |_| Ok(Some(42)))
+        .is_err());
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]

@@ -1722,6 +1722,31 @@ pub struct ShaderSections<'a> {
     pub footer: &'a str,
 }
 
+/// A texture supplied by OCIO during shader extraction. Data is borrowed only
+/// for the duration of the callback and may be uploaded without a Rust copy.
+pub struct ShaderTexture<'a> {
+    /// Name of the generated texture resource.
+    pub texture_name: &'a str,
+    /// Name of its sampler in the generated shader.
+    pub sampler_name: &'a str,
+    /// Width in texels.
+    pub width: u32,
+    /// Height in texels.
+    pub height: u32,
+    /// One for a 1D/2D texture, otherwise the 3D LUT edge length.
+    pub depth: u32,
+    /// Channel layout of the native texels.
+    pub channel: GpuTextureChannel,
+    /// `None` represents a 3D texture.
+    pub dimensions: Option<GpuTextureDimensions>,
+    /// Interpolation requested by OCIO.
+    pub interpolation: Interpolation,
+    /// Borrowed texel data, valid only while the callback is running.
+    pub values: &'a [f32],
+    /// Native proposed binding on OCIO 2.5+, absent on OCIO 2.4.
+    pub suggested_binding: Option<u32>,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GPUProcessor {}
@@ -1752,17 +1777,52 @@ impl GPUProcessor {
     pub fn try_extract_with_assembler<F>(
         &self,
         template: &GpuShaderDesc,
-        mut assemble: F,
+        assemble: F,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
     {
-        struct State<'a, F> {
+        self.try_extract_with_texture_callback(template, assemble, |_| Ok(None))
+    }
+
+    /// Extract a shader with synchronous Rust assembly and texture callbacks.
+    ///
+    /// The texture callback receives a temporary borrow of each native LUT and
+    /// may return `Some(binding)` to override OCIO's proposed binding on 2.5+.
+    /// Return `None` to keep the native binding; OCIO 2.4 requires `None`.
+    /// Binding zero and duplicate bindings are rejected. Callback errors and
+    /// panics abort extraction, but external uploads already performed by the
+    /// callback remain the caller's responsibility. Do not reenter extraction
+    /// on this GPU processor from either callback.
+    ///
+    /// Borrowed texture values cannot escape the callback:
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc};
+    /// # fn example(gpu: &GPUProcessor, template: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_texture_callback(template,
+    ///     |_| Ok(String::new()), |texture| { saved = Some(texture.values); Ok(None) });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_texture_callback<F, G>(
+        &self,
+        template: &GpuShaderDesc,
+        mut assemble: F,
+        mut texture: G,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        struct State<'a, F, G> {
             function: &'a mut F,
+            texture: &'a mut G,
             output: Option<std::ffi::CString>,
             error: Option<OcioError>,
         }
-        unsafe extern "C" fn callback<F>(
+        unsafe extern "C" fn callback<F, G>(
             context: *mut c_void,
             p: *const i8,
             t: *const i8,
@@ -1773,8 +1833,9 @@ impl GPUProcessor {
         ) -> *const i8
         where
             F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
-            let state = unsafe { &mut *context.cast::<State<'_, F>>() };
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<std::ffi::CString> {
                     let read = |ptr: *const i8| -> Result<&str> {
@@ -1815,18 +1876,105 @@ impl GPUProcessor {
                 }
             }
         }
+        unsafe extern "C" fn texture_callback<F, G>(
+            context: *mut c_void,
+            event: *const ocio_sys::OcioShaderTextureEvent,
+            replace: *mut bool,
+            binding: *mut u32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<Option<u32>> {
+                    let event = unsafe { event.as_ref() }
+                        .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
+                    let read = |ptr: *const i8| -> Result<&str> {
+                        if ptr.is_null() {
+                            return Err(OcioError::InvalidInput("null texture name".into()));
+                        }
+                        unsafe { std::ffi::CStr::from_ptr(ptr) }
+                            .to_str()
+                            .map_err(|_| {
+                                OcioError::InvalidInput("texture name is not UTF-8".into())
+                            })
+                    };
+                    if event.values.is_null()
+                        || event.value_count > isize::MAX as usize / std::mem::size_of::<f32>()
+                    {
+                        return Err(OcioError::InvalidInput("invalid texture data".into()));
+                    }
+                    let dimensions = match event.dimensions {
+                        1 => Some(GpuTextureDimensions::Texture1D),
+                        2 => Some(GpuTextureDimensions::Texture2D),
+                        3 => None,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "unknown texture dimensions".into(),
+                            ))
+                        }
+                    };
+                    let channel = match event.channel {
+                        0 => GpuTextureChannel::Red,
+                        1 => GpuTextureChannel::Rgb,
+                        _ => return Err(OcioError::InvalidInput("unknown texture channel".into())),
+                    };
+                    // SAFETY: OCIO owns the valid native float array during this
+                    // synchronous callback; its checked length fits a Rust slice.
+                    let values =
+                        unsafe { std::slice::from_raw_parts(event.values, event.value_count) };
+                    (state.texture)(ShaderTexture {
+                        texture_name: read(event.texture_name)?,
+                        sampler_name: read(event.sampler_name)?,
+                        width: event.width,
+                        height: event.height,
+                        depth: event.depth,
+                        channel,
+                        dimensions,
+                        interpolation: interpolation_from_raw(event.interpolation),
+                        values,
+                        suggested_binding: event.has_binding.then_some(event.binding),
+                    })
+                },
+            ));
+            match result {
+                Ok(Ok(value)) => {
+                    if let Some(value) = value {
+                        unsafe {
+                            *replace = true;
+                            *binding = value;
+                        }
+                    }
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput(
+                        "shader texture callback panicked".into(),
+                    ));
+                    false
+                }
+            }
+        }
         let mut state = State {
             function: &mut assemble,
+            texture: &mut texture,
             output: None,
             error: None,
         };
         crate::clear_last_error();
         let ptr = unsafe {
-            ocio_sys::ocio_gpu_processor_extract_with_assembler(
+            ocio_sys::ocio_gpu_processor_extract_with_texture_callback(
                 self.handle.as_ptr(),
                 template.handle.as_ptr(),
-                callback::<F>,
-                (&mut state as *mut State<'_, F>).cast(),
+                callback::<F, G>,
+                texture_callback::<F, G>,
+                (&mut state as *mut State<'_, F, G>).cast(),
             )
         };
         let result = crate::handle_result(ptr);

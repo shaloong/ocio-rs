@@ -127,13 +127,13 @@ pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;
 pub use look::Look;
 pub use named_transform::NamedTransform;
-pub use processor::ShaderSections;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
     PackedConversionLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut, PlanarF32Layout,
     Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut, TextureInfo,
 };
+pub use processor::{ShaderSections, ShaderTexture};
 pub use processor_metadata::ProcessorMetadata;
 pub use types::*;
 #[cfg(feature = "v2_6")]

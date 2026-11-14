@@ -602,8 +602,22 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
 void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);
 typedef const char* (*ocio_shader_assemble_callback)(void* context, const char* parameters,
     const char* textures, const char* helpers, const char* header, const char* body, const char* footer);
+typedef struct ocio_shader_texture_event {
+    const char* texture_name;
+    const char* sampler_name;
+    uint32_t width, height, depth;
+    int channel, dimensions, interpolation;
+    const float* values;
+    size_t value_count;
+    bool has_binding;
+    uint32_t binding;
+} ocio_shader_texture_event;
+typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_texture_event* event,
+    bool* override_binding, uint32_t* binding);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
+void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

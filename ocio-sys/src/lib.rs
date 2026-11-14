@@ -26,6 +26,22 @@ pub struct OcioPlanarBuffer {
     pub y_stride: i64,
     pub bit_depth: i32,
 }
+
+#[repr(C)]
+pub struct OcioShaderTextureEvent {
+    pub texture_name: *const i8,
+    pub sampler_name: *const i8,
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32,
+    pub channel: i32,
+    pub dimensions: i32,
+    pub interpolation: i32,
+    pub values: *const f32,
+    pub value_count: usize,
+    pub has_binding: bool,
+    pub binding: u32,
+}
 mod spline;
 pub use spline::*;
 mod app_helpers;
@@ -1261,6 +1277,26 @@ unsafe extern "C" {
             *const i8,
             *const i8,
         ) -> *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_texture_callback(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+        ) -> *const i8,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
         context: *mut c_void,
     ) -> *mut c_void;
 

@@ -7482,15 +7482,59 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 }
 
 #ifndef OCIO_RS_STUB
+static bool ocio_rs_texture_count(size_t, size_t, size_t, size_t, size_t&);
 // Keep OCIO's resource ownership and live getter behavior while allowing Rust
 // to customize the native virtual createShaderText stage synchronously.
 class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
   ocio::GpuShaderDescRcPtr resources = ocio::GpuShaderDesc::CreateShaderDesc();
   ocio_shader_assemble_callback callback;
+  ocio_shader_texture_callback texture_callback;
   void* context;
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+  std::vector<unsigned> texture_bindings;
+  std::vector<unsigned> texture3d_bindings;
+  std::vector<unsigned> used_bindings;
+#endif
+  unsigned notifyTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
+                         TextureType channel, int dimensions, ocio::Interpolation interpolation,
+                         const float* values, bool has_binding, unsigned proposed) {
+    if (!texture_callback) return proposed;
+    size_t count = 0;
+    const size_t channels = channel == TEXTURE_RED_CHANNEL ? 1 : 3;
+    if (!values || !ocio_rs_texture_count(w, h, d, channels, count) || count == 0)
+      throw ocio::Exception("Invalid texture data in shader callback");
+    ocio_shader_texture_event event{n, s, w, h, d, static_cast<int>(channel), dimensions,
+        static_cast<int>(interpolation), values, count, has_binding, proposed};
+    bool replace = false;
+    uint32_t binding = proposed;
+    if (!texture_callback(context, &event, &replace, &binding))
+      throw ocio::Exception("Rust texture callback failed");
+    if (replace && !has_binding) throw ocio::Exception("Texture binding override requires OpenColorIO 2.5");
+    if (replace && binding == 0) throw ocio::Exception("Texture binding zero is reserved");
+    return replace ? binding : proposed;
+  }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+  unsigned recordBinding(unsigned binding) {
+    if (std::find(used_bindings.begin(), used_bindings.end(), binding) != used_bindings.end())
+      throw ocio::Exception("Duplicate custom texture binding");
+    used_bindings.push_back(binding);
+    return binding;
+  }
+  void checkNextDefaultBinding() const {
+    // The generic OCIO descriptor assigns bindings in insertion order across
+    // both texture kinds, starting at its configured texture binding offset.
+    if (!texture_callback) {
+      const auto next = resources->getTextureBindingStart() + resources->getNumTextures()
+                      + resources->getNum3DTextures();
+      if (std::find(used_bindings.begin(), used_bindings.end(), next) != used_bindings.end())
+        throw ocio::Exception("Duplicate custom texture binding");
+    }
+  }
+#endif
 public:
-  OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, void* ctx) : callback(cb), context(ctx) {}
-  void clear_callback() noexcept { callback = nullptr; context = nullptr; }
+  OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, ocio_shader_texture_callback tex, void* ctx)
+      : callback(cb), texture_callback(tex), context(ctx) {}
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; context = nullptr; }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
@@ -7510,10 +7554,20 @@ public:
   }
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
-    return resources->addTexture(n, s, w, h, c, d, i, v);
+    checkNextDefaultBinding();
+    const auto proposed = resources->addTexture(n, s, w, h, c, d, i, v);
+    const auto binding = recordBinding(notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, proposed));
+    texture_bindings.push_back(binding);
+    return binding;
   }
   unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
-                        const float* v) override { return resources->add3DTexture(n, s, e, i, v); }
+                        const float* v) override {
+    checkNextDefaultBinding();
+    const auto proposed = resources->add3DTexture(n, s, e, i, v);
+    const auto binding = recordBinding(notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, proposed));
+    texture3d_bindings.push_back(binding);
+    return binding;
+  }
 #else
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g) override {
     return resources->addUniform(n, s, g);
@@ -7524,9 +7578,13 @@ public:
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                   TextureDimensions d, ocio::Interpolation i, const float* v) override {
     resources->addTexture(n, s, w, h, c, d, i, v);
+    notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0);
   }
   void add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
-                    const float* v) override { resources->add3DTexture(n, s, e, i, v); }
+                    const float* v) override {
+    resources->add3DTexture(n, s, e, i, v);
+    notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0);
+  }
 #endif
   unsigned getNumUniforms() const noexcept override { return resources->getNumUniforms(); }
   const char* getUniform(unsigned i, UniformData& data) const override { return resources->getUniform(i, data); }
@@ -7540,14 +7598,14 @@ public:
   }
   void getTextureValues(unsigned i, const float*& v) const override { resources->getTextureValues(i, v); }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-  unsigned getTextureShaderBindingIndex(unsigned i) const override { return resources->getTextureShaderBindingIndex(i); }
+  unsigned getTextureShaderBindingIndex(unsigned i) const override { return texture_bindings.at(i); }
 #endif
   unsigned getNum3DTextures() const noexcept override { return resources->getNum3DTextures(); }
   void get3DTexture(unsigned i, const char*& n, const char*& s, unsigned& e,
                     ocio::Interpolation& interp) const override { resources->get3DTexture(i, n, s, e, interp); }
   void get3DTextureValues(unsigned i, const float*& v) const override { resources->get3DTextureValues(i, v); }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-  unsigned get3DTextureShaderBindingIndex(unsigned i) const override { return resources->get3DTextureShaderBindingIndex(i); }
+  unsigned get3DTextureShaderBindingIndex(unsigned i) const override { return texture3d_bindings.at(i); }
   void createShaderText(const char* p, const char* t, const char* helpers,
                         const char* header, const char* body, const char* footer) override {
     if (!callback) { ocio::GpuShaderCreator::createShaderText(p, t, helpers, header, body, footer); return; }
@@ -7567,17 +7625,17 @@ public:
 };
 #endif
 
-void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
-    ocio_shader_assemble_callback callback, void* context) {
+void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture, void* context) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)context;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)context;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
   try {
     if (!handle || !template_desc || !callback) throw std::invalid_argument("invalid shader assembler arguments");
     auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
-    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, context);
+    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, context);
     desc->setLanguage(source->getLanguage());
     desc->setFunctionName(source->getFunctionName());
     desc->setPixelName(source->getPixelName());
@@ -7597,6 +7655,10 @@ void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_des
     return out.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
+}
+void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, void* context) {
+  return ocio_gpu_processor_extract_with_texture_callback(handle, template_desc, callback, nullptr, context);
 }
 // --- GpuShaderDesc ---
 
@@ -8574,7 +8636,14 @@ void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index,
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index; (void)textureBindingStart;
 #else
-  try { ocio_rs_bridge::get_real_gpu_shader_desc(handle)->setDescriptorSetIndex(index, textureBindingStart); }
+  try {
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    desc->setDescriptorSetIndex(index, textureBindingStart);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    if (auto custom = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(desc))
+      custom->setResourceBindings(index, textureBindingStart);
+#endif
+  }
   catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
