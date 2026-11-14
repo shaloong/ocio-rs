@@ -19,8 +19,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Read current GPU uniform values into caller-provided buffers without Rust
   allocations, including live dynamic-property updates.
 - Borrow GPU LUT texture values directly from OCIO for upload without copying.
-- Customize 2.5+ GPU shader assembly in a synchronous Rust callback while
-  preserving OCIO-owned textures and dynamic uniforms.
+- Customize GPU shader assembly in a synchronous Rust callback while
+  preserving OCIO-owned textures and dynamic uniforms on OCIO 2.4 and newer.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent

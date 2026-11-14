@@ -26,7 +26,6 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-#[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_shader_assembler_receives_sections_and_retains_dynamic_uniforms() {
@@ -90,6 +89,41 @@ fn rust_shader_assembler_receives_sections_and_retains_dynamic_uniforms() {
     assert!(gpu
         .try_extract_with_assembler(&template, |_| Ok("bad\0shader".into()))
         .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_assembler_preserves_lut_across_native_versions() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::Glsl4_0).unwrap();
+    let mut saw_declaration = false;
+    let mut desc = gpu
+        .try_extract_with_assembler(&template, |p| {
+            saw_declaration = if ocio_rs::version_hex() < 0x02050000 {
+                p.textures.is_empty() && p.parameters.contains("sampler")
+            } else {
+                p.textures.contains("sampler")
+            };
+            Ok(format!(
+                "{}{}{}{}{}{}",
+                p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+            ))
+        })
+        .unwrap();
+    assert!(saw_declaration);
+    assert!(desc.num_textures() > 0);
+    assert!(!desc.texture_values_ref(0).unwrap().is_empty());
 }
 
 #[cfg(feature = "v2_5")]

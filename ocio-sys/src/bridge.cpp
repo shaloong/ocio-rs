@@ -7481,7 +7481,6 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 #endif
 }
 
-#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
 #ifndef OCIO_RS_STUB
 // Keep OCIO's resource ownership and live getter behavior while allowing Rust
 // to customize the native virtual createShaderText stage synchronously.
@@ -7492,7 +7491,9 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
 public:
   OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, void* ctx) : callback(cb), context(ctx) {}
   void clear_callback() noexcept { callback = nullptr; context = nullptr; }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
+#endif
   void setTextureMaxWidth(unsigned v) override { resources->setTextureMaxWidth(v); }
   unsigned getTextureMaxWidth() const noexcept override { return resources->getTextureMaxWidth(); }
   void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
@@ -7500,6 +7501,7 @@ public:
   bool addUniform(const char* n, const DoubleGetter& g) override { return resources->addUniform(n, g); }
   bool addUniform(const char* n, const BoolGetter& g) override { return resources->addUniform(n, g); }
   bool addUniform(const char* n, const Float3Getter& g) override { return resources->addUniform(n, g); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g, unsigned m) override {
     return resources->addUniform(n, s, g, m);
   }
@@ -7512,20 +7514,39 @@ public:
   }
   unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                         const float* v) override { return resources->add3DTexture(n, s, e, i, v); }
+#else
+  bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g) override {
+    return resources->addUniform(n, s, g);
+  }
+  bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g) override {
+    return resources->addUniform(n, s, g);
+  }
+  void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
+                  TextureDimensions d, ocio::Interpolation i, const float* v) override {
+    resources->addTexture(n, s, w, h, c, d, i, v);
+  }
+  void add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
+                    const float* v) override { resources->add3DTexture(n, s, e, i, v); }
+#endif
   unsigned getNumUniforms() const noexcept override { return resources->getNumUniforms(); }
   const char* getUniform(unsigned i, UniformData& data) const override { return resources->getUniform(i, data); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   size_t getUniformBufferSize() const noexcept override { return resources->getUniformBufferSize(); }
+#endif
   unsigned getNumTextures() const noexcept override { return resources->getNumTextures(); }
   void getTexture(unsigned i, const char*& n, const char*& s, unsigned& w, unsigned& h,
                   TextureType& c, TextureDimensions& d, ocio::Interpolation& interp) const override {
     resources->getTexture(i, n, s, w, h, c, d, interp);
   }
   void getTextureValues(unsigned i, const float*& v) const override { resources->getTextureValues(i, v); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   unsigned getTextureShaderBindingIndex(unsigned i) const override { return resources->getTextureShaderBindingIndex(i); }
+#endif
   unsigned getNum3DTextures() const noexcept override { return resources->getNum3DTextures(); }
   void get3DTexture(unsigned i, const char*& n, const char*& s, unsigned& e,
                     ocio::Interpolation& interp) const override { resources->get3DTexture(i, n, s, e, interp); }
   void get3DTextureValues(unsigned i, const float*& v) const override { resources->get3DTextureValues(i, v); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   unsigned get3DTextureShaderBindingIndex(unsigned i) const override { return resources->get3DTextureShaderBindingIndex(i); }
   void createShaderText(const char* p, const char* t, const char* helpers,
                         const char* header, const char* body, const char* footer) override {
@@ -7534,6 +7555,15 @@ public:
     if (!text) throw ocio::Exception("Rust shader assembler failed");
     ocio::GpuShaderCreator::createShaderText("", "", "", "", text, "");
   }
+#else
+  void createShaderText(const char* declarations, const char* helpers,
+                        const char* header, const char* body, const char* footer) override {
+    if (!callback) { ocio::GpuShaderCreator::createShaderText(declarations, helpers, header, body, footer); return; }
+    const char* text = callback(context, declarations, "", helpers, header, body, footer);
+    if (!text) throw ocio::Exception("Rust shader assembler failed");
+    ocio::GpuShaderCreator::createShaderText("", "", "", text, "");
+  }
+#endif
 };
 #endif
 
@@ -7553,8 +7583,10 @@ void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_des
     desc->setPixelName(source->getPixelName());
     desc->setResourcePrefix(source->getResourcePrefix());
     desc->setUniqueID(source->getUniqueID());
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     desc->setDescriptorSetIndex(source->getDescriptorSetIndex(), source->getTextureBindingStart());
     desc->setResourceBindings(source->getDescriptorSetIndex(), source->getTextureBindingStart());
+#endif
     desc->setTextureMaxWidth(source->getTextureMaxWidth());
     desc->setAllowTexture1D(source->getAllowTexture1D());
     ocio::GpuShaderCreatorRcPtr creator = desc;
@@ -7566,9 +7598,6 @@ void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_des
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
-#endif
-
-
 // --- GpuShaderDesc ---
 
 void* ocio_gpu_shader_desc_create_shader_desc(void) {

@@ -1707,11 +1707,10 @@ pub struct GPUProcessor {
 }
 
 /// Shader sections supplied by OCIO to a custom assembler during extraction.
-#[cfg(feature = "v2_5")]
 pub struct ShaderSections<'a> {
-    /// Uniform parameter declarations, without a Vulkan uniform-block wrapper.
+    /// Parameter declarations (or all declarations on OCIO 2.4), without a Vulkan uniform-block wrapper.
     pub parameters: &'a str,
-    /// Texture and sampler declarations.
+    /// Texture and sampler declarations; empty on OCIO 2.4 where these are merged into `parameters`.
     pub textures: &'a str,
     /// Helper function definitions.
     pub helpers: &'a str,
@@ -1750,7 +1749,6 @@ impl GPUProcessor {
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg(feature = "v2_5")]
     pub fn try_extract_with_assembler<F>(
         &self,
         template: &GpuShaderDesc,
