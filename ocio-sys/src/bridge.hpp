@@ -375,6 +375,7 @@ void ocio_viewing_rules_remove_rule(void* handle, size_t ruleIndex);
 
 // --- ColorSpace ---
 void* ocio_color_space_create(void);
+void* ocio_color_space_create_with_reference_space(int reference_space);
 void* ocio_color_space_create_editable_copy(void* handle);
 void ocio_color_space_destroy(void* handle);
 

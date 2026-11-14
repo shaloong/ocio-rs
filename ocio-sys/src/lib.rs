@@ -953,6 +953,7 @@ unsafe extern "C" {
 
     // --- ColorSpace ---
     pub fn ocio_color_space_create() -> *mut c_void;
+    pub fn ocio_color_space_create_with_reference_space(reference_space: i32) -> *mut c_void;
     pub fn ocio_color_space_destroy(handle: *mut c_void);
     pub fn ocio_color_space_get_name(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_set_name(handle: *mut c_void, name: *const i8) -> ();

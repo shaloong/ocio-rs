@@ -3,8 +3,8 @@
 use ocio_rs::{
     metadata_id_element,
     transform::{FileTransform, FixedFunctionTransform, GroupTransform, MatrixTransform},
-    ColorSpace, Config, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, TransformDirection,
-    ViewWithAliases,
+    ColorSpace, Config, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, ReferenceSpaceType,
+    TransformDirection, ViewWithAliases,
 };
 
 #[test]
@@ -131,6 +131,76 @@ fn shared_and_display_view_aliases_round_trip() {
     );
     assert_eq!(config.display_description(c"missing").unwrap(), None);
     assert!(!config.check_hdr_display_compatibility().unwrap());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.6")]
+fn display_color_space_alias_resolves_only_when_enabled() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    config.set_version(2, 6).unwrap();
+    let display = ColorSpace::create_with_reference_space(ReferenceSpaceType::Display).unwrap();
+    assert_eq!(display.reference_space_type(), ReferenceSpaceType::Display);
+    display.set_name("Screen").unwrap();
+    display.set_description("Reference monitor").unwrap();
+    display.add_alias("old-screen").unwrap();
+    config.try_add_color_space(&display).unwrap();
+    config
+        .add_display_view_with_aliases(
+            c"Screen",
+            ViewWithAliases {
+                view: c"Standard",
+                view_transform: c"",
+                color_space: c"Screen",
+                looks: c"",
+                rule: c"",
+                description: c"",
+                aliases: &[c"old-view"],
+            },
+        )
+        .unwrap();
+    assert_ne!(
+        config
+            .canonical_display_name(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
+    assert_eq!(
+        config
+            .canonical_view_name(c"Screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Standard")
+    );
+    config.set_use_display_aliases(true).unwrap();
+    assert_eq!(
+        config
+            .display_description(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Reference monitor")
+    );
+    assert_eq!(
+        config
+            .canonical_display_name(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
+    assert_eq!(
+        config
+            .canonical_view_name(c"old-screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Standard")
+    );
+    assert_eq!(
+        config
+            .resolved_display_view_color_space_name(c"old-screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
 }
 
 #[test]

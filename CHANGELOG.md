@@ -9,6 +9,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Create color spaces in either scene or display reference space.
 - Process planar F32 image channels in place through native OpenColorIO.
 - Support checked positive row and pixel strides for planar F32 processing.
 - Support planar native-depth byte channels and explicit CPU processor bit depths.

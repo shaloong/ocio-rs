@@ -294,7 +294,7 @@ struct StubCDLTransform {};
 struct StubFixedFunctionTransform {};
 struct StubLogCameraTransform {};
 struct StubLut3DTransform {};
-struct StubColorSpace {};
+struct StubColorSpace { int reference_space = 0; };
 struct StubGradingRGBCurveTransform {};
 struct StubBuiltinConfigRegistry {
   int getNumBuiltinConfigs() { return 0; }
@@ -540,9 +540,9 @@ static std::unique_ptr<Lut3DTransformHandle> make_stub_lut3d_transform() {
   return handle;
 }
 
-static std::unique_ptr<ColorSpaceHandle> make_stub_color_space() {
+static std::unique_ptr<ColorSpaceHandle> make_stub_color_space(int reference_space = 0) {
   auto handle = std::make_unique<ColorSpaceHandle>();
-  handle->inner = std::make_shared<StubColorSpace>();
+  handle->inner = std::make_shared<StubColorSpace>(StubColorSpace{reference_space});
   return handle;
 }
 
@@ -1391,11 +1391,11 @@ static std::unique_ptr<Lut3DTransformHandle> make_real_lut3d_transform() {
   } catch (...) { capture_current_exception(); return nullptr; }
 }
 
-static std::unique_ptr<ColorSpaceHandle> make_real_color_space() {
+static std::unique_ptr<ColorSpaceHandle> make_real_color_space(ocio::ReferenceSpaceType reference_space = ocio::REFERENCE_SPACE_SCENE) {
   try {
     auto handle = std::make_unique<ColorSpaceHandle>();
     auto obj = std::make_shared<RealColorSpace>();
-    obj->colorSpace = ocio::ColorSpace::Create();
+    obj->colorSpace = ocio::ColorSpace::Create(reference_space);
     handle->inner = obj;
     return handle;
   } catch (...) { capture_current_exception(); return nullptr; }
@@ -5080,10 +5080,23 @@ void* ocio_color_space_create(void) {
 #endif
 }
 
+void* ocio_color_space_create_with_reference_space(int reference_space) {
+  try {
+    if (reference_space != 0 && reference_space != 1)
+      throw std::invalid_argument("invalid color space reference type");
+#ifdef OCIO_RS_STUB
+    return ocio_rs_bridge::make_stub_color_space(reference_space).release();
+#else
+    return ocio_rs_bridge::make_real_color_space(static_cast<ocio::ReferenceSpaceType>(reference_space)).release();
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+}
+
 void* ocio_color_space_create_editable_copy(void* handle) {
 #ifdef OCIO_RS_STUB
-  (void)handle;
-  return ocio_rs_bridge::make_stub_color_space().release();
+  auto* cs = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(handle);
+  return ocio_rs_bridge::make_stub_color_space(
+      std::static_pointer_cast<ocio_rs_bridge::StubColorSpace>(cs->inner)->reference_space).release();
 #else
   try {
     auto result = ocio_rs_bridge::get_real_color_space(handle)->createEditableCopy();
@@ -5124,7 +5137,7 @@ void ocio_color_space_set_name(void* handle, const char* name) {
 
 size_t ocio_color_space_get_num_aliases(void* handle) {
 #ifdef OCIO_RS_STUB
-  (void)handle; 
+  (void)handle;
   return 0;
 #else
   try {
@@ -5373,8 +5386,8 @@ void ocio_color_space_set_bit_depth(void* handle, int bitDepth) {
 
 int ocio_color_space_get_reference_space_type(void* handle) {
 #ifdef OCIO_RS_STUB
-  (void)handle; 
-  return 0;
+  auto* cs = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(handle);
+  return std::static_pointer_cast<ocio_rs_bridge::StubColorSpace>(cs->inner)->reference_space;
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getReferenceSpaceType();

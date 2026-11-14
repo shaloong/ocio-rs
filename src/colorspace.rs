@@ -22,6 +22,15 @@ impl ColorSpace {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create a scene- or display-referred color space.
+    pub fn create_with_reference_space(reference_space: ReferenceSpaceType) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_create_with_reference_space(reference_space as i32)
+        };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
     /// Create an editable copy of this color space.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
@@ -546,6 +555,20 @@ mod tests {
     fn create_color_space() {
         let cs = ColorSpace::create();
         assert!(cs.is_ok());
+    }
+
+    #[test]
+    fn create_display_reference_color_space() {
+        let cs = ColorSpace::create_with_reference_space(ReferenceSpaceType::Display).unwrap();
+        assert_eq!(cs.reference_space_type(), ReferenceSpaceType::Display);
+        assert_eq!(
+            cs.create_editable_copy().unwrap().reference_space_type(),
+            ReferenceSpaceType::Display
+        );
+        assert_eq!(
+            ColorSpace::create().unwrap().reference_space_type(),
+            ReferenceSpaceType::Scene
+        );
     }
 
     #[test]
