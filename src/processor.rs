@@ -5,8 +5,8 @@ use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
 #[cfg(feature = "v2_5")]
 use crate::HueCurveType;
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
-    GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
+    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, ChannelOrdering, DynamicPropertyType,
+    FormatMetadata, GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -156,6 +156,16 @@ fn validate_packed_buffer_alignment(
 /// [`dynamic_property`](Self::dynamic_property) and are scoped to the
 /// processor or its derived CPU/GPU execution handles.
 ///
+/// Processor and its execution handles are not `Send` or `Sync`: OCIO dynamic
+/// property handles can outlive their parent and are not internally synchronized.
+/// Create separate processing pipelines on the threads that use them.
+///
+/// ```compile_fail
+/// # use ocio_rs::Processor;
+/// fn require_send<T: Send>() {}
+/// require_send::<Processor>();
+/// ```
+///
 /// [`default_cpu_processor`]: Self::default_cpu_processor
 /// [`default_gpu_processor`]: Self::default_gpu_processor
 /// [`optimized_cpu_processor`]: Self::optimized_cpu_processor
@@ -165,11 +175,53 @@ pub struct Processor {
     pub(crate) handle: NonNull<c_void>,
 }
 
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for Processor {}
-
 impl Processor {
+    /// Share the immutable top-level native format metadata without copying.
+    pub fn try_const_format_metadata(&self) -> Result<Option<crate::ConstFormatMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_const_format_metadata(self.handle.as_ptr(), false, 0)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstFormatMetadata { handle }))
+    }
+    /// Share immutable format metadata for an individual processor transform.
+    pub fn try_const_transform_format_metadata(
+        &self,
+        index: i32,
+    ) -> Result<Option<crate::ConstFormatMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_const_format_metadata(self.handle.as_ptr(), true, index)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstFormatMetadata { handle }))
+    }
+    /// Build a native CPU processor for explicit input and output bit depths.
+    pub fn optimized_cpu_processor_bit_depth(
+        &self,
+        input: BitDepth,
+        output: BitDepth,
+        flags: u32,
+    ) -> Result<CPUProcessor> {
+        if input == BitDepth::Unknown || output == BitDepth::Unknown {
+            return Err(OcioError::InvalidInput(
+                "CPU processor bit depth cannot be unknown".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_cpu_processor_bit_depth(
+                self.handle.as_ptr(),
+                input as i32,
+                output as i32,
+                flags,
+            )
+        };
+        Ok(CPUProcessor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
     /// Return whether the processor is an identity/no-op pipeline.
     pub fn is_no_op(&self) -> bool {
         self.try_is_no_op().unwrap_or(false)
@@ -378,12 +430,12 @@ impl Processor {
     }
 
     // ── v2.5.1 ──
-    /// Return the top-level format metadata attached to the processor.
+    /// Return an independent editable copy of the processor's top-level metadata.
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
         self.try_format_metadata().ok()
     }
 
-    /// Return the top-level format metadata attached to the processor.
+    /// Copy the processor's top-level metadata, preserving native errors.
     pub fn try_format_metadata(&self) -> Result<FormatMetadata> {
         crate::clear_last_error();
         let h = unsafe {
@@ -392,12 +444,12 @@ impl Processor {
         crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
-    /// Return format metadata for the transform at `index`, when exposed by OCIO.
+    /// Return an editable metadata copy for the transform at `index`.
     pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
         self.try_transform_format_metadata(index).ok()
     }
 
-    /// Return format metadata for the transform at `index`.
+    /// Copy format metadata for the transform at `index`.
     pub fn try_transform_format_metadata(&self, index: i32) -> Result<FormatMetadata> {
         crate::clear_last_error();
         let h = unsafe {
@@ -406,18 +458,26 @@ impl Processor {
         crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
-    /// Return technical processor metadata such as contributing files and looks.
+    /// Return an independent editable copy of processor metadata.
     pub fn processor_metadata(&self) -> Option<ProcessorMetadata> {
         self.try_processor_metadata().ok()
     }
 
-    /// Return technical processor metadata such as contributing files and looks.
+    /// Copy technical processor metadata, preserving native errors.
     pub fn try_processor_metadata(&self) -> Result<ProcessorMetadata> {
         crate::clear_last_error();
         let h = unsafe {
             ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void)
         };
         crate::handle_result(h).map(|handle| ProcessorMetadata { handle })
+    }
+
+    /// Share immutable native processor metadata without copying its entries.
+    pub fn try_const_processor_metadata(&self) -> Result<Option<crate::ConstProcessorMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_processor_get_const_metadata(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstProcessorMetadata { handle }))
     }
 
     /// Return whether the processor exposes a dynamic property of `prop_type`.
@@ -494,16 +554,834 @@ impl Drop for Processor {
 /// smaller strides are rejected before calling OCIO. Multi-byte packed data
 /// must be aligned to its storage width.
 ///
+/// This handle is thread-confined; see [`Processor`] for the dynamic-property
+/// synchronization rationale.
+///
+/// ```compile_fail
+/// # use ocio_rs::CPUProcessor;
+/// fn require_send<T: Send>() {}
+/// require_send::<CPUProcessor>();
+/// ```
+///
 /// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
 }
 
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for CPUProcessor {}
+/// A CPU processor proven to contain no dynamic properties.
+///
+/// This wrapper can be shared across threads to process independent image
+/// buffers. Its one-time validation does not add a lock or check to pixel
+/// processing. OCIO native interop must not mutate or replace its underlying
+/// processor concurrently.
+///
+/// ```no_run
+/// # use ocio_rs::{CPUProcessor, Result};
+/// # fn example(cpu: CPUProcessor) -> Result<()> {
+/// let cpu = std::sync::Arc::new(cpu.try_into_static()?);
+/// std::thread::scope(|scope| {
+///     let cpu = cpu.clone();
+///     scope.spawn(move || {
+///         let mut rgba = [0.1, 0.2, 0.3, 1.0];
+///         cpu.try_apply_rgba(&mut rgba).unwrap();
+///     });
+/// });
+/// # Ok(())
+/// # }
+/// ```
+#[repr(transparent)]
+pub struct StaticCPUProcessor(CPUProcessor);
+
+// SAFETY: Construction rejects dynamic processors. Native CPU processors are
+// immutable after creation and OCIO supports concurrent processing on them.
+// The only independently mutable CPU state OCIO exposes is dynamic properties,
+// which cannot be obtained from a non-dynamic processor. The shared pointer
+// remains alive until the last Rust owner is dropped. Unsafe external native
+// aliases remain the responsibility of the caller creating them.
+unsafe impl Send for StaticCPUProcessor {}
+// SAFETY: As above, concurrent operations use immutable processor state and the
+// safe processing APIs require exclusive access to each output buffer.
+unsafe impl Sync for StaticCPUProcessor {}
+
+impl StaticCPUProcessor {
+    /// Returns the thread-confined CPU handle when the wrapper is owned.
+    pub fn into_inner(self) -> CPUProcessor {
+        self.0
+    }
+}
+
+impl std::ops::Deref for StaticCPUProcessor {
+    type Target = CPUProcessor;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Positive F32 element strides for a planar image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanarF32Layout {
+    /// Number of pixels in each row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Distance between adjacent pixels in F32 elements.
+    pub x_stride: usize,
+    /// Distance between adjacent rows in F32 elements.
+    pub y_stride: usize,
+}
+
+/// Positive byte strides and native channel bit depth for a planar image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanarByteLayout {
+    /// Number of pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte distance between adjacent pixels.
+    pub x_stride: usize,
+    /// Byte distance between adjacent rows; at least `width * x_stride`,
+    /// including when the image has only one row.
+    pub y_stride: usize,
+    /// Native storage and interpretation of each channel.
+    pub bit_depth: BitDepth,
+}
+
+/// Packed source and destination layout for native-depth conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedConversionLayout {
+    /// Number of RGB or RGBA pixels.
+    pub pixels: i64,
+    /// Three for RGB, four for RGBA.
+    pub channels: u8,
+    /// Input sample bit depth.
+    pub input_depth: BitDepth,
+    /// Output sample bit depth.
+    pub output_depth: BitDepth,
+    /// Distance between input pixels in samples.
+    pub input_stride: i64,
+    /// Distance between output pixels in samples.
+    pub output_stride: i64,
+}
+
+/// Packed image layout with signed pixel and row strides, in bytes.
+///
+/// `origin` points to the first stored channel of the first logical pixel.
+/// Channel stride is positive. Slices must include pointer-step padding after
+/// the final pixel, including before the lowest pixel for a negative x stride.
+/// Strides and origin must be aligned to the sample size. The pixel stride's
+/// magnitude must cover all stored channels, and the row stride's magnitude
+/// must be at least `width * abs(x_stride)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedImageLayout {
+    /// Pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte offset to the first stored channel of the first logical pixel.
+    pub origin: usize,
+    /// Positive byte distance between stored channels of a pixel.
+    pub channel_stride: usize,
+    /// Signed byte distance between adjacent pixels.
+    pub x_stride: isize,
+    /// Signed byte distance between adjacent rows.
+    pub y_stride: isize,
+    /// Native channel storage type, matching the processor bit depth.
+    pub bit_depth: BitDepth,
+    /// Ordering of the stored color and alpha channels.
+    pub channel_order: ChannelOrdering,
+}
+
+fn packed_image_descriptor(
+    layout: PackedImageLayout,
+    data: &[u8],
+) -> Result<ocio_sys::OcioPackedBuffer> {
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing packed image layout".into());
+    let size = bit_depth_bytes_per_channel("CPUProcessor packed image", layout.bit_depth)?;
+    let channels = match layout.channel_order {
+        ChannelOrdering::Rgb | ChannelOrdering::Bgr => 3,
+        _ => 4,
+    };
+    let pixel_size = (channels - 1usize)
+        .checked_mul(layout.channel_stride)
+        .and_then(|v| v.checked_add(size))
+        .ok_or_else(invalid)?;
+    let x = layout.x_stride.checked_abs().ok_or_else(invalid)? as usize;
+    let y = layout.y_stride.checked_abs().ok_or_else(invalid)? as usize;
+    if layout.width == 0
+        || layout.height == 0
+        || layout.channel_stride < size
+        || x < pixel_size
+        || y == 0
+        || x > y / layout.width
+        || !layout.channel_stride.is_multiple_of(size)
+        || !x.is_multiple_of(size)
+        || !y.is_multiple_of(size)
+        || !layout.origin.is_multiple_of(size)
+        || !(data.as_ptr() as usize).is_multiple_of(size)
+        || layout.channel_stride > isize::MAX as usize
+    {
+        return Err(invalid());
+    }
+    let dx = (layout.width - 1).checked_mul(x).ok_or_else(invalid)?;
+    let dy = (layout.height - 1).checked_mul(y).ok_or_else(invalid)?;
+    let backward = (if layout.x_stride < 0 { dx } else { 0 })
+        .checked_add(if layout.y_stride < 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let forward = (if layout.x_stride > 0 { dx } else { 0 })
+        .checked_add(if layout.y_stride > 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let low = layout.origin.checked_sub(backward).ok_or_else(invalid)?;
+    let high = layout.origin.checked_add(forward).ok_or_else(invalid)?;
+    if (layout.x_stride < 0 && low < x)
+        || high
+            .checked_add(if layout.x_stride > 0 { x } else { pixel_size })
+            .ok_or_else(invalid)?
+            > data.len()
+    {
+        return Err(invalid());
+    }
+    let width = i64::try_from(layout.width).map_err(|_| invalid())?;
+    let height = i64::try_from(layout.height).map_err(|_| invalid())?;
+    Ok(ocio_sys::OcioPackedBuffer {
+        // The native API treats the source descriptor as read-only during conversion.
+        data: unsafe { data.as_ptr().add(layout.origin) }
+            .cast_mut()
+            .cast(),
+        width,
+        height,
+        channel_stride: layout.channel_stride as i64,
+        x_stride: layout.x_stride as i64,
+        y_stride: layout.y_stride as i64,
+        bit_depth: layout.bit_depth as i32,
+        channel_order: layout.channel_order as i32,
+    })
+}
+
+/// Borrowed source channels for a planar conversion.
+pub struct PlanarBytes<'a> {
+    pub red: &'a [u8],
+    pub green: &'a [u8],
+    pub blue: &'a [u8],
+    pub alpha: Option<&'a [u8]>,
+    pub layout: PlanarByteLayout,
+}
+
+/// Borrowed destination channels for a planar conversion.
+pub struct PlanarBytesMut<'a> {
+    pub red: &'a mut [u8],
+    pub green: &'a mut [u8],
+    pub blue: &'a mut [u8],
+    pub alpha: Option<&'a mut [u8]>,
+    pub layout: PlanarByteLayout,
+}
+
+/// A planar image layout with signed byte strides and an origin in each plane.
+///
+/// The origin is the byte offset of the first pixel to process in every slice.
+/// Strides and origin must be aligned to the sample size. The row stride's
+/// magnitude must be at least `width * abs(x_stride)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SignedPlanarByteLayout {
+    /// Number of pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte offset of the first logical pixel in each plane.
+    pub origin: usize,
+    /// Signed byte distance between horizontally adjacent pixels.
+    pub x_stride: isize,
+    /// Signed byte distance between adjacent rows.
+    pub y_stride: isize,
+    /// Native storage and interpretation of each channel.
+    pub bit_depth: BitDepth,
+}
+
+/// Immutable planar input with signed byte strides.
+pub struct SignedPlanarBytes<'a> {
+    pub red: &'a [u8],
+    pub green: &'a [u8],
+    pub blue: &'a [u8],
+    pub alpha: Option<&'a [u8]>,
+    pub layout: SignedPlanarByteLayout,
+}
+
+/// Exclusively borrowed planar image with signed byte strides.
+pub struct SignedPlanarBytesMut<'a> {
+    pub red: &'a mut [u8],
+    pub green: &'a mut [u8],
+    pub blue: &'a mut [u8],
+    pub alpha: Option<&'a mut [u8]>,
+    pub layout: SignedPlanarByteLayout,
+}
+
+fn validate_signed_planar(layout: SignedPlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
+    let SignedPlanarByteLayout {
+        width,
+        height,
+        origin,
+        x_stride,
+        y_stride,
+        bit_depth,
+    } = layout;
+    let size = bit_depth_bytes_per_channel("CPUProcessor planar image", bit_depth)?;
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing signed planar layout".into());
+    let x = x_stride.checked_abs().ok_or_else(invalid)? as usize;
+    let y = y_stride.checked_abs().ok_or_else(invalid)? as usize;
+    if width == 0
+        || height == 0
+        || x < size
+        || y == 0
+        || x > y / width
+        || !x.is_multiple_of(size)
+        || !y.is_multiple_of(size)
+        || !origin.is_multiple_of(size)
+    {
+        return Err(invalid());
+    }
+    let dx = (width - 1).checked_mul(x).ok_or_else(invalid)?;
+    let dy = (height - 1).checked_mul(y).ok_or_else(invalid)?;
+    let backward = (if x_stride < 0 { dx } else { 0 })
+        .checked_add(if y_stride < 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let forward = (if x_stride > 0 { dx } else { 0 })
+        .checked_add(if y_stride > 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let low = origin.checked_sub(backward).ok_or_else(invalid)?;
+    let high = origin.checked_add(forward).ok_or_else(invalid)?;
+    // OCIO advances each pixel pointer once after processing the last sample.
+    // Keep that pointer within, or one past, the borrowed allocation too.
+    if x_stride < 0 && low < x {
+        return Err(invalid());
+    }
+    let required = high
+        .checked_add(if x_stride > 0 { x.max(size) } else { size })
+        .ok_or_else(invalid)?;
+    if planes
+        .iter()
+        .any(|p| p.len() < required || !(p.as_ptr() as usize).is_multiple_of(size))
+    {
+        return Err(invalid());
+    }
+    let [Ok(w), Ok(h)] = [width, height].map(i64::try_from) else {
+        return Err(invalid());
+    };
+    Ok([w, h, x_stride as i64, y_stride as i64])
+}
+
+fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
+    let PlanarByteLayout {
+        width,
+        height,
+        x_stride,
+        y_stride,
+        bit_depth,
+    } = layout;
+    let size = bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_convert", bit_depth)?;
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
+    if width == 0
+        || height == 0
+        || x_stride < size
+        || y_stride == 0
+        || !x_stride.is_multiple_of(size)
+        || !y_stride.is_multiple_of(size)
+    {
+        return Err(invalid());
+    }
+    let row_span = (width - 1)
+        .checked_mul(x_stride)
+        .and_then(|n| n.checked_add(size))
+        .ok_or_else(invalid)?;
+    if x_stride > y_stride / width {
+        return Err(invalid());
+    }
+    let required = (height - 1)
+        .checked_mul(y_stride)
+        .and_then(|n| n.checked_add(row_span))
+        .ok_or_else(invalid)?;
+    if planes
+        .iter()
+        .any(|p| p.len() < required || !(p.as_ptr() as usize).is_multiple_of(size))
+    {
+        return Err(invalid());
+    }
+    let [Ok(w), Ok(h), Ok(x), Ok(y)] = [width, height, x_stride, y_stride].map(i64::try_from)
+    else {
+        return Err(invalid());
+    };
+    Ok([w, h, x, y])
+}
 
 impl CPUProcessor {
+    /// Converts a non-dynamic processor into a thread-shareable processor.
+    ///
+    /// Returns an error for a dynamic processor or when the native query fails.
+    /// This consumes the original handle even on error; query
+    /// [`Self::try_is_dynamic`] first if it must be retained in that case.
+    pub fn try_into_static(self) -> Result<StaticCPUProcessor> {
+        if self.try_is_dynamic()? {
+            return Err(OcioError::InvalidInput(
+                "a dynamic CPU processor cannot be shared without synchronization".into(),
+            ));
+        }
+        Ok(StaticCPUProcessor(self))
+    }
+
+    /// Process an exclusively borrowed packed image in place without pixel copies.
+    pub fn try_apply_packed_image(&self, data: &mut [u8], layout: PackedImageLayout) -> Result<()> {
+        let mut desc = packed_image_descriptor(layout, data)?;
+        desc.data = unsafe { data.as_mut_ptr().add(layout.origin).cast() };
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_cpu_processor_apply_packed_image(self.handle.as_ptr(), &desc) };
+        crate::ocio_call_status()
+    }
+
+    /// Convert independently laid-out packed images without pixel copies.
+    /// Dimensions must match; bit depths and channel ordering may differ.
+    pub fn try_convert_packed_image(
+        &self,
+        source: &[u8],
+        source_layout: PackedImageLayout,
+        destination: &mut [u8],
+        destination_layout: PackedImageLayout,
+    ) -> Result<()> {
+        if source_layout.width != destination_layout.width
+            || source_layout.height != destination_layout.height
+        {
+            return Err(OcioError::InvalidInput(
+                "packed image dimensions differ".into(),
+            ));
+        }
+        let src = packed_image_descriptor(source_layout, source)?;
+        let mut dst = packed_image_descriptor(destination_layout, destination)?;
+        dst.data = unsafe {
+            destination
+                .as_mut_ptr()
+                .add(destination_layout.origin)
+                .cast()
+        };
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_convert_packed_image(self.handle.as_ptr(), &src, &dst)
+        };
+        crate::ocio_call_status()
+    }
+    /// Process a planar image in place with signed byte strides without copying.
+    ///
+    /// OCIO advances pointers after the last pixel of each row. Therefore the
+    /// slices must also contain that final pointer position (one-past is valid).
+    /// In particular, a negative pixel stride requires preceding padding.
+    pub fn try_apply_planar_signed(&self, mut image: SignedPlanarBytesMut<'_>) -> Result<()> {
+        let [width, height, x_stride, y_stride] =
+            validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+        if let Some(alpha) = image.alpha.as_deref() {
+            validate_signed_planar(image.layout, &[alpha])?;
+        }
+        let origin = image.layout.origin;
+        crate::clear_last_error();
+        // SAFETY: The exclusive slices have validated bounds and alignment,
+        // including the original pointer position and the native strides.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_bytes(
+                self.handle.as_ptr(),
+                image.red.as_mut_ptr().add(origin).cast(),
+                image.green.as_mut_ptr().add(origin).cast(),
+                image.blue.as_mut_ptr().add(origin).cast(),
+                image
+                    .alpha
+                    .as_deref_mut()
+                    .map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().add(origin).cast()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+                image.layout.bit_depth as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Convert separate signed-stride planar images without copying pixel data.
+    ///
+    /// Source and destination must have equal dimensions and matching alpha
+    /// presence. Their layouts and bit depths may otherwise differ. As with
+    /// [`Self::try_apply_planar_signed`], pointer-step padding is required.
+    pub fn try_apply_planar_signed_convert(
+        &self,
+        source: SignedPlanarBytes<'_>,
+        mut destination: SignedPlanarBytesMut<'_>,
+    ) -> Result<()> {
+        if source.layout.width != destination.layout.width
+            || source.layout.height != destination.layout.height
+            || source.alpha.is_some() != destination.alpha.is_some()
+        {
+            return Err(OcioError::InvalidInput(
+                "planar dimensions and alpha presence must match".into(),
+            ));
+        }
+        let [iw, ih, ix, iy] =
+            validate_signed_planar(source.layout, &[source.red, source.green, source.blue])?;
+        let [ow, oh, ox, oy] = validate_signed_planar(
+            destination.layout,
+            &[destination.red, destination.green, destination.blue],
+        )?;
+        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
+            validate_signed_planar(source.layout, &[input])?;
+            validate_signed_planar(destination.layout, &[output])?;
+        }
+        let i = source.layout.origin;
+        let o = destination.layout.origin;
+        let input = ocio_sys::OcioPlanarBuffer {
+            red: source.red.as_ptr().wrapping_add(i).cast_mut().cast(),
+            green: source.green.as_ptr().wrapping_add(i).cast_mut().cast(),
+            blue: source.blue.as_ptr().wrapping_add(i).cast_mut().cast(),
+            alpha: source.alpha.map_or(std::ptr::null_mut(), |p| {
+                p.as_ptr().wrapping_add(i).cast_mut().cast()
+            }),
+            width: iw,
+            height: ih,
+            x_stride: ix,
+            y_stride: iy,
+            bit_depth: source.layout.bit_depth as i32,
+        };
+        let output = ocio_sys::OcioPlanarBuffer {
+            red: destination.red.as_mut_ptr().wrapping_add(o).cast(),
+            green: destination.green.as_mut_ptr().wrapping_add(o).cast(),
+            blue: destination.blue.as_mut_ptr().wrapping_add(o).cast(),
+            alpha: destination
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| {
+                    p.as_mut_ptr().wrapping_add(o).cast()
+                }),
+            width: ow,
+            height: oh,
+            x_stride: ox,
+            y_stride: oy,
+            bit_depth: destination.layout.bit_depth as i32,
+        };
+        crate::clear_last_error();
+        // SAFETY: Bounds and alignment have been checked, the source is only
+        // read, and Rust exclusively borrows all destination planes.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_convert(self.handle.as_ptr(), &input, &output)
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Convert separate planar buffers using the processor's input and output depths.
+    ///
+    /// Layouts may have different strides and bit depths, but must have identical
+    /// dimensions and either both contain alpha or both omit it. Buffers are borrowed
+    /// directly without copying; strides are in bytes and must be positive and aligned.
+    pub fn try_apply_planar_convert(
+        &self,
+        source: PlanarBytes<'_>,
+        mut destination: PlanarBytesMut<'_>,
+    ) -> Result<()> {
+        if source.layout.width != destination.layout.width
+            || source.layout.height != destination.layout.height
+            || source.alpha.is_some() != destination.alpha.is_some()
+        {
+            return Err(OcioError::InvalidInput(
+                "planar dimensions and alpha presence must match".into(),
+            ));
+        }
+        let [iw, ih, ix, iy] =
+            validate_planar_buffer(source.layout, &[source.red, source.green, source.blue])?;
+        let [ow, oh, ox, oy] = validate_planar_buffer(
+            destination.layout,
+            &[destination.red, destination.green, destination.blue],
+        )?;
+        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
+            validate_planar_buffer(source.layout, &[input])?;
+            validate_planar_buffer(destination.layout, &[output])?;
+        }
+        let input = ocio_sys::OcioPlanarBuffer {
+            red: source.red.as_ptr().cast_mut().cast(),
+            green: source.green.as_ptr().cast_mut().cast(),
+            blue: source.blue.as_ptr().cast_mut().cast(),
+            alpha: source
+                .alpha
+                .map_or(std::ptr::null_mut(), |p| p.as_ptr().cast_mut().cast()),
+            width: iw,
+            height: ih,
+            x_stride: ix,
+            y_stride: iy,
+            bit_depth: source.layout.bit_depth as i32,
+        };
+        let output = ocio_sys::OcioPlanarBuffer {
+            red: destination.red.as_mut_ptr().cast(),
+            green: destination.green.as_mut_ptr().cast(),
+            blue: destination.blue.as_mut_ptr().cast(),
+            alpha: destination
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().cast()),
+            width: ow,
+            height: oh,
+            x_stride: ox,
+            y_stride: oy,
+            bit_depth: destination.layout.bit_depth as i32,
+        };
+        crate::clear_last_error();
+        // SAFETY: Both descriptors have validated extents and alignment. The source
+        // is read-only during apply, and the destination planes are exclusively borrowed.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_convert(self.handle.as_ptr(), &input, &output)
+        };
+        crate::ocio_call_status()
+    }
+    /// Convert separate packed buffers with the processor's input/output depths.
+    ///
+    /// RGB and RGBA are supported. Strides are measured in samples. Input and
+    /// output slices are checked independently and must meet native alignment.
+    pub fn try_apply_packed_convert(
+        &self,
+        input: &[u8],
+        output: &mut [u8],
+        layout: PackedConversionLayout,
+    ) -> Result<()> {
+        let PackedConversionLayout {
+            pixels,
+            channels,
+            input_depth,
+            output_depth,
+            input_stride,
+            output_stride,
+        } = layout;
+        if pixels <= 0
+            || !matches!(channels, 3 | 4)
+            || input_stride < i64::from(channels)
+            || output_stride < i64::from(channels)
+        {
+            return Err(OcioError::InvalidInput(
+                "invalid packed conversion layout".into(),
+            ));
+        }
+        let api = "CPUProcessor::try_apply_packed_convert";
+        validate_packed_buffer_len(
+            api,
+            input.len(),
+            input_depth,
+            pixels,
+            input_stride,
+            channels as usize,
+        )?;
+        validate_packed_buffer_len(
+            api,
+            output.len(),
+            output_depth,
+            pixels,
+            output_stride,
+            channels as usize,
+        )?;
+        validate_packed_buffer_alignment(api, input.as_ptr(), input_depth, pixels)?;
+        validate_packed_buffer_alignment(api, output.as_ptr(), output_depth, pixels)?;
+        let in_size = bit_depth_bytes_per_channel(api, input_depth)? as i64;
+        let out_size = bit_depth_bytes_per_channel(api, output_depth)? as i64;
+        let in_bytes = input_stride
+            .checked_mul(in_size)
+            .ok_or_else(|| OcioError::InvalidInput("input stride overflow".into()))?;
+        let out_bytes = output_stride
+            .checked_mul(out_size)
+            .ok_or_else(|| OcioError::InvalidInput("output stride overflow".into()))?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_packed_convert(
+                self.handle.as_ptr(),
+                input.as_ptr().cast(),
+                output.as_mut_ptr().cast(),
+                pixels,
+                channels.into(),
+                input_depth as i32,
+                output_depth as i32,
+                in_bytes,
+                out_bytes,
+            )
+        };
+        crate::ocio_call_status()
+    }
+    /// Process planar byte buffers in place at the processor's native bit depth.
+    ///
+    /// All pointers and strides must be aligned for the selected storage type.
+    /// The binding validates the layout and passes the original buffers to OCIO.
+    pub fn try_apply_planar_bytes(
+        &self,
+        red: &mut [u8],
+        green: &mut [u8],
+        blue: &mut [u8],
+        alpha: Option<&mut [u8]>,
+        layout: PlanarByteLayout,
+    ) -> Result<()> {
+        let PlanarByteLayout {
+            width,
+            height,
+            x_stride,
+            y_stride,
+            bit_depth,
+        } = layout;
+        let size = bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_bytes", bit_depth)?;
+        let invalid =
+            || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
+        if width == 0
+            || height == 0
+            || x_stride < size
+            || !x_stride.is_multiple_of(size)
+            || !y_stride.is_multiple_of(size)
+        {
+            return Err(invalid());
+        }
+        let row_span = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|n| n.checked_add(size))
+            .ok_or_else(invalid)?;
+        if x_stride > y_stride / width {
+            return Err(invalid());
+        }
+        let required = (height - 1)
+            .checked_mul(y_stride)
+            .and_then(|n| n.checked_add(row_span))
+            .ok_or_else(invalid)?;
+        for plane in [&*red, &*green, &*blue].into_iter().chain(alpha.as_deref()) {
+            if plane.len() < required || !(plane.as_ptr() as usize).is_multiple_of(size) {
+                return Err(invalid());
+            }
+        }
+        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] =
+            [width, height, x_stride, y_stride].map(i64::try_from)
+        else {
+            return Err(invalid());
+        };
+        if y_stride == 0 {
+            return Err(invalid());
+        }
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_bytes(
+                self.handle.as_ptr(),
+                red.as_mut_ptr().cast(),
+                green.as_mut_ptr().cast(),
+                blue.as_mut_ptr().cast(),
+                alpha.map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().cast()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+                bit_depth as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+    /// Process strided planar F32 channels in place without copying pixels.
+    ///
+    /// Strides are measured in F32 elements and must be positive. As required
+    /// by OCIO, the row stride must be at least the pixel stride times the
+    /// width, even for a single row. Alpha may be omitted.
+    pub fn try_apply_planar_strided_f32(
+        &self,
+        red: &mut [f32],
+        green: &mut [f32],
+        blue: &mut [f32],
+        alpha: Option<&mut [f32]>,
+        layout: PlanarF32Layout,
+    ) -> Result<()> {
+        let PlanarF32Layout {
+            width,
+            height,
+            x_stride,
+            y_stride,
+        } = layout;
+        let invalid = || OcioError::InvalidInput("invalid or overflowing planar layout".into());
+        if width == 0 || height == 0 || x_stride == 0 || y_stride == 0 {
+            return Err(invalid());
+        }
+        let row_span = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|v| v.checked_add(1))
+            .ok_or_else(invalid)?;
+        if x_stride > y_stride / width {
+            return Err(invalid());
+        }
+        let required = (height - 1)
+            .checked_mul(y_stride)
+            .and_then(|v| v.checked_add(row_span))
+            .ok_or_else(invalid)?;
+        if [red.len(), green.len(), blue.len()]
+            .iter()
+            .any(|&n| n < required)
+            || alpha.as_ref().is_some_and(|plane| plane.len() < required)
+        {
+            return Err(invalid());
+        }
+        let values = [width, height, x_stride, y_stride].map(i64::try_from);
+        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] = values else {
+            return Err(invalid());
+        };
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_strided_f32(
+                self.handle.as_ptr(),
+                red.as_mut_ptr(),
+                green.as_mut_ptr(),
+                blue.as_mut_ptr(),
+                alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+            )
+        };
+        crate::ocio_call_status()
+    }
+    /// Process contiguous row-major planar float channels in place.
+    ///
+    /// Each channel must contain exactly `width * height` samples. Alpha is
+    /// optional. The native descriptor borrows these slices for this call and
+    /// no pixel buffer is allocated or copied by the binding.
+    pub fn try_apply_planar_f32(
+        &self,
+        red: &mut [f32],
+        green: &mut [f32],
+        blue: &mut [f32],
+        alpha: Option<&mut [f32]>,
+        width: usize,
+        height: usize,
+    ) -> Result<()> {
+        let count = width
+            .checked_mul(height)
+            .ok_or_else(|| OcioError::InvalidInput("planar dimensions overflow".into()))?;
+        if count == 0
+            || [red.len(), green.len(), blue.len()]
+                .iter()
+                .any(|&len| len != count)
+            || alpha.as_ref().is_some_and(|plane| plane.len() != count)
+        {
+            return Err(OcioError::InvalidInput(
+                "planar channel lengths must match nonzero dimensions".into(),
+            ));
+        }
+        let width = i64::try_from(width)
+            .map_err(|_| OcioError::InvalidInput("planar width exceeds i64".into()))?;
+        let height = i64::try_from(height)
+            .map_err(|_| OcioError::InvalidInput("planar height exceeds i64".into()))?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_f32(
+                self.handle.as_ptr(),
+                red.as_mut_ptr(),
+                green.as_mut_ptr(),
+                blue.as_mut_ptr(),
+                alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr()),
+                width,
+                height,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor for the active
     /// ABI. The pixel buffers referenced by the descriptor must remain
@@ -598,14 +1476,20 @@ impl CPUProcessor {
 
     /// Apply the processor in place to one RGBA pixel.
     pub fn try_apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
-        crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba(
+        let ok = unsafe {
+            ocio_sys::ocio_cpu_processor_try_apply_rgba(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr() as *mut c_void,
-            );
+            )
+        };
+        if ok {
+            Ok(())
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "OpenColorIO pixel processing failed without an error message".into(),
+            ))
         }
-        crate::ocio_call_status()
     }
 
     /// Apply the processor in place to one RGB pixel.
@@ -650,16 +1534,22 @@ impl CPUProcessor {
             stride,
             4,
         )?;
-        crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba_pixels(
+        let ok = unsafe {
+            ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr(),
                 num_pixels,
                 stride,
-            );
+            )
+        };
+        if ok {
+            Ok(())
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "OpenColorIO pixel processing failed without an error message".into(),
+            ))
         }
-        crate::ocio_call_status()
     }
 
     /// Apply the processor to an RGB float buffer with an explicit scalar stride.
@@ -1060,17 +1950,774 @@ impl Drop for CPUProcessor {
 /// # }
 /// ```
 ///
+/// This handle is thread-confined; see [`Processor`].
+///
+/// ```compile_fail
+/// # use ocio_rs::GPUProcessor;
+/// fn require_send<T: Send>() {}
+/// require_send::<GPUProcessor>();
+/// ```
+///
 /// [`extract_shader_info`]: Self::extract_shader_info
 /// [`GpuShaderDesc`]: crate::GpuShaderDesc
 pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
 
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for GPUProcessor {}
+/// Shader sections supplied by OCIO to a custom assembler during extraction.
+pub struct ShaderSections<'a> {
+    /// Parameter declarations (or all declarations on OCIO 2.4), without a Vulkan uniform-block wrapper.
+    pub parameters: &'a str,
+    /// Texture and sampler declarations; empty on OCIO 2.4 where these are merged into `parameters`.
+    pub textures: &'a str,
+    /// Helper function definitions.
+    pub helpers: &'a str,
+    /// OCIO function signature and opening code.
+    pub header: &'a str,
+    /// OCIO color-processing function body.
+    pub body: &'a str,
+    /// OCIO function closing code.
+    pub footer: &'a str,
+}
+
+/// A texture supplied by OCIO during shader extraction. Data is borrowed only
+/// for the duration of the callback and may be uploaded without a Rust copy.
+pub struct ShaderTexture<'a> {
+    /// Name of the generated texture resource.
+    pub texture_name: &'a str,
+    /// Name of its sampler in the generated shader.
+    pub sampler_name: &'a str,
+    /// Width in texels.
+    pub width: u32,
+    /// Height in texels.
+    pub height: u32,
+    /// One for a 1D/2D texture, otherwise the 3D LUT edge length.
+    pub depth: u32,
+    /// Channel layout of the native texels.
+    pub channel: GpuTextureChannel,
+    /// `None` represents a 3D texture.
+    pub dimensions: Option<GpuTextureDimensions>,
+    /// Interpolation requested by OCIO.
+    pub interpolation: Interpolation,
+    /// Borrowed texel data, valid only while the callback is running.
+    pub values: &'a [f32],
+    /// Native proposed binding on OCIO 2.5+, absent on OCIO 2.4.
+    pub suggested_binding: Option<u32>,
+}
+
+/// A uniform registered by OCIO during custom shader extraction.
+pub struct ShaderUniform<'a> {
+    /// Name used by the generated shader.
+    pub name: &'a str,
+    /// Native uniform value type.
+    pub uniform_type: GpuUniformType,
+    /// Index for querying this uniform on the returned descriptor.
+    pub index: u32,
+    /// Declared vector capacity on OCIO 2.5+; unavailable on 2.4 and for scalars.
+    pub max_size: Option<u32>,
+    /// Byte offset in OCIO's uniform buffer layout on OCIO 2.5+.
+    pub buffer_offset: Option<usize>,
+}
+
+/// Lifecycle stages of a native shader-creator extraction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderLifecycle<'a> {
+    /// OCIO has started collection with this generated resource identifier.
+    Begin { unique_id: &'a str },
+    /// OCIO has finalized and assembled the shader.
+    Finalized,
+    /// OCIO has ended collection, including after an extraction error.
+    End,
+}
+
+/// Native shader code section currently being appended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderCodeSection {
+    /// Combined parameter and texture declarations on OCIO 2.4.
+    Declarations,
+    /// Parameter declarations on OCIO 2.5 and newer.
+    Parameters,
+    /// Texture declarations on OCIO 2.5 and newer.
+    Textures,
+    /// Helper function definitions.
+    Helpers,
+    /// Function opening code.
+    Header,
+    /// Function body code.
+    Body,
+    /// Function closing code.
+    Footer,
+}
+
+/// Synchronous customization hooks for OCIO shader extraction.
+///
+/// Defaults retain OCIO's resource handling and forward individual code
+/// fragments. Default assembly concatenates the supplied sections and may need
+/// a language-specific wrapper (such as a Vulkan uniform block).
+/// Implementations may override selected callbacks; they must not reenter
+/// extraction on the same processor. Callbacks must not retain borrowed inputs.
+///
+/// ```no_run
+/// # use ocio_rs::{GPUProcessor, GpuShaderDesc, Result, ShaderCodeSection, ShaderExtractionHooks};
+/// struct MarkBody;
+/// impl ShaderExtractionHooks for MarkBody {
+///     fn code(&mut self, section: ShaderCodeSection, code: &str) -> Result<Option<String>> {
+///         if section == ShaderCodeSection::Body {
+///             Ok(Some(format!("// application hook\n{code}")))
+///         } else {
+///             Ok(None)
+///         }
+///     }
+/// }
+/// # fn extract(gpu: &GPUProcessor, template: &GpuShaderDesc) -> Result<()> {
+/// let desc = gpu.try_extract_with_hooks(template, &mut MarkBody)?;
+/// # let _ = desc;
+/// # Ok(()) }
+/// ```
+pub trait ShaderExtractionHooks {
+    /// Inspect a lifecycle event.
+    fn lifecycle(&mut self, _event: ShaderLifecycle<'_>) -> Result<()> {
+        Ok(())
+    }
+    /// Inspect a texture and optionally override its binding on OCIO 2.5+.
+    fn texture(&mut self, _texture: ShaderTexture<'_>) -> Result<Option<u32>> {
+        Ok(None)
+    }
+    /// Inspect a registered uniform.
+    fn uniform(&mut self, _uniform: ShaderUniform<'_>) -> Result<()> {
+        Ok(())
+    }
+    /// Return replacement code, or `None` to forward the original without copying.
+    fn code(&mut self, _section: ShaderCodeSection, _code: &str) -> Result<Option<String>> {
+        Ok(None)
+    }
+    /// Assemble the final shader. Vulkan users may need a uniform-buffer wrapper.
+    fn assemble(&mut self, parts: ShaderSections<'_>) -> Result<String> {
+        Ok(format!(
+            "{}{}{}{}{}{}",
+            parts.parameters, parts.textures, parts.helpers, parts.header, parts.body, parts.footer
+        ))
+    }
+}
 
 impl GPUProcessor {
+    /// Extract a fresh descriptor while assembling its shader text in Rust.
+    ///
+    /// The template supplies language, resource names, binding settings and
+    /// texture preferences; existing template resources are not copied. OCIO
+    /// retains ownership of resources and live dynamic properties in the result.
+    /// The callback runs synchronously and must return the complete shader text.
+    /// Callback errors and panics are returned as errors without crossing FFI.
+    /// OCIO holds its GPU processor lock during the callback; do not reenter
+    /// extraction on the same processor. For Vulkan, the callback must include
+    /// any desired uniform-buffer wrapper around `parameters` itself.
+    ///
+    /// ```no_run
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, Result};
+    /// # fn example(gpu: &GPUProcessor, template: &GpuShaderDesc) -> Result<()> {
+    /// let desc = gpu.try_extract_with_assembler(template, |parts| {
+    ///     Ok(format!("// custom\n{}{}{}{}{}{}", parts.parameters, parts.textures,
+    ///         parts.helpers, parts.header, parts.body, parts.footer))
+    /// })?;
+    /// assert!(desc.shader_text().unwrap().starts_with("// custom"));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn try_extract_with_assembler<F>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+    {
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            assemble,
+            |_| Ok(None),
+            false,
+            &mut |_| Ok(()),
+            false,
+            &mut |_| Ok(()),
+            false,
+            &mut |_, _| Ok(None),
+            false,
+        )
+    }
+
+    /// Extract a shader with synchronous Rust assembly and texture callbacks.
+    ///
+    /// The texture callback receives a temporary borrow of each native LUT and
+    /// may return `Some(binding)` to override OCIO's proposed binding on 2.5+.
+    /// Return `None` to keep the native binding; OCIO 2.4 requires `None`.
+    /// Binding zero and duplicate bindings are rejected. Callback errors and
+    /// panics abort extraction, but external uploads already performed by the
+    /// callback remain the caller's responsibility. Do not reenter extraction
+    /// on this GPU processor from either callback.
+    ///
+    /// Borrowed texture values cannot escape the callback:
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc};
+    /// # fn example(gpu: &GPUProcessor, template: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_texture_callback(template,
+    ///     |_| Ok(String::new()), |texture| { saved = Some(texture.values); Ok(None) });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_texture_callback<F, G>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            assemble,
+            texture,
+            true,
+            &mut |_| Ok(()),
+            false,
+            &mut |_| Ok(()),
+            false,
+            &mut |_, _| Ok(None),
+            false,
+        )
+    }
+
+    /// Extract with synchronous shader assembly, texture, and uniform callbacks.
+    ///
+    /// Uniform events are sent only for newly registered uniforms, before shader
+    /// assembly. Use the reported index to query current dynamic values from the
+    /// returned descriptor; OCIO retains the getters. Names are borrowed only
+    /// for the callback. OCIO 2.4 does not expose vector maximum sizes or
+    /// uniform-buffer offsets.
+    /// Callback errors and panics abort extraction; already performed external
+    /// resource allocations remain the caller's responsibility. Do not reenter
+    /// extraction on this GPU processor from any callback.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc};
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_resource_callbacks(desc, |_| Ok(String::new()),
+    ///     |_| Ok(None), |uniform| { saved = Some(uniform.name); Ok(()) });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_resource_callbacks<F, G, H>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+        mut uniform: H,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        H: FnMut(ShaderUniform<'_>) -> Result<()>,
+    {
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            assemble,
+            texture,
+            true,
+            &mut uniform,
+            true,
+            &mut |_| Ok(()),
+            false,
+            &mut |_, _| Ok(None),
+            false,
+        )
+    }
+
+    /// Extract with shader, texture, uniform, and creator-lifecycle callbacks.
+    ///
+    /// Events occur synchronously in OCIO order: `Begin`, zero or more
+    /// resource callbacks, shader assembly, `Finalized`, then `End`. If an
+    /// extraction callback fails after `Begin`, OCIO still calls `End`;
+    /// an error from `Begin` itself does not trigger `End`. The first callback
+    /// error is preserved if cleanup also fails. IDs are borrowed for the
+    /// callback only. Do not reenter extraction on this processor.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, ShaderLifecycle};
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_lifecycle_callbacks(desc, |_| Ok(String::new()),
+    ///     |_| Ok(None), |_| Ok(()), |event| {
+    ///         if let ShaderLifecycle::Begin { unique_id } = event { saved = Some(unique_id); }
+    ///         Ok(())
+    ///     });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_lifecycle_callbacks<F, G, H, L>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+        mut uniform: H,
+        mut lifecycle: L,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        H: FnMut(ShaderUniform<'_>) -> Result<()>,
+        L: FnMut(ShaderLifecycle<'_>) -> Result<()>,
+    {
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            assemble,
+            texture,
+            true,
+            &mut uniform,
+            true,
+            &mut lifecycle,
+            true,
+            &mut |_, _| Ok(None),
+            false,
+        )
+    }
+
+    /// Extract using a single hooks object for code, resources, and lifecycle.
+    ///
+    /// Events are synchronous; callback errors and panics abort extraction and
+    /// any already-created external resources remain the caller's responsibility.
+    /// On OCIO 2.4 declaration events are combined into `Declarations`.
+    pub fn try_extract_with_hooks<H: ShaderExtractionHooks>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+    ) -> Result<GpuShaderDesc> {
+        let hooks = std::cell::RefCell::new(hooks);
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |texture| hooks.borrow_mut().texture(texture),
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    /// Extract using hooks while streaming texture data directly to the caller.
+    ///
+    /// The required texture sink must upload or copy the borrowed data before it
+    /// returns; the returned descriptor does not retain or report these
+    /// textures. Uniforms and shader text remain available on the descriptor.
+    /// On failure, cleanup of any resources created by hooks is the caller's
+    /// responsibility. The hooks object's `texture` method is not called;
+    /// binding overrides come from the supplied sink.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, ShaderExtractionHooks};
+    /// # struct Hooks;
+    /// # impl ShaderExtractionHooks for Hooks {}
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_streamed_textures(desc, &mut Hooks, |texture| {
+    ///     saved = Some(texture.values);
+    ///     Ok(None)
+    /// });
+    /// println!("{saved:?}");
+    /// # }
+    /// ```
+    pub fn try_extract_with_streamed_textures<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderExtractionHooks,
+        T: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        self.try_extract_with_callbacks(
+            template,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            texture,
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_extract_with_callbacks<F, G>(
+        &self,
+        template: &GpuShaderDesc,
+        stream_textures: bool,
+        mut assemble: F,
+        mut texture: G,
+        notify_texture: bool,
+        uniform: &mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
+        notify_uniform: bool,
+        lifecycle: &mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
+        notify_lifecycle: bool,
+        code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
+        notify_code: bool,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        struct State<'a, F, G> {
+            function: &'a mut F,
+            texture: &'a mut G,
+            uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
+            lifecycle: &'a mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
+            code: &'a mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
+            output: Option<std::ffi::CString>,
+            code_output: Option<std::ffi::CString>,
+            error: Option<OcioError>,
+        }
+        unsafe extern "C" fn code_callback<F, G>(
+            context: *mut c_void,
+            section: i32,
+            code: *const i8,
+            replacement: *mut *const i8,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<Option<std::ffi::CString>> {
+                    let section = match section {
+                        0 => ShaderCodeSection::Declarations,
+                        1 => ShaderCodeSection::Parameters,
+                        2 => ShaderCodeSection::Textures,
+                        3 => ShaderCodeSection::Helpers,
+                        4 => ShaderCodeSection::Header,
+                        5 => ShaderCodeSection::Body,
+                        6 => ShaderCodeSection::Footer,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "invalid shader code section".into(),
+                            ))
+                        }
+                    };
+                    if code.is_null() || replacement.is_null() {
+                        return Err(OcioError::InvalidInput("null shader code event".into()));
+                    }
+                    let code = unsafe { std::ffi::CStr::from_ptr(code) }
+                        .to_str()
+                        .map_err(|_| OcioError::InvalidInput("shader code is not UTF-8".into()))?;
+                    (state.code)(section, code)?
+                        .map(std::ffi::CString::new)
+                        .transpose()
+                        .map_err(|_| OcioError::InteriorNul)
+                },
+            ));
+            match result {
+                Ok(Ok(value)) => {
+                    state.code_output = value;
+                    unsafe {
+                        *replacement = state
+                            .code_output
+                            .as_ref()
+                            .map_or(std::ptr::null(), |s| s.as_ptr());
+                    }
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("shader code callback panicked".into())
+                    });
+                    false
+                }
+            }
+        }
+        unsafe extern "C" fn lifecycle_callback<F, G>(
+            context: *mut c_void,
+            event: i32,
+            uid: *const i8,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                    let event = match event {
+                        0 if !uid.is_null() => ShaderLifecycle::Begin {
+                            unique_id: unsafe { std::ffi::CStr::from_ptr(uid) }.to_str().map_err(
+                                |_| {
+                                    OcioError::InvalidInput("shader identifier is not UTF-8".into())
+                                },
+                            )?,
+                        },
+                        1 => ShaderLifecycle::Finalized,
+                        2 => ShaderLifecycle::End,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "invalid shader lifecycle event".into(),
+                            ))
+                        }
+                    };
+                    (state.lifecycle)(event)
+                }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("shader lifecycle callback panicked".into())
+                    });
+                    false
+                }
+            }
+        }
+        unsafe extern "C" fn uniform_callback<F, G>(
+            context: *mut c_void,
+            name: *const i8,
+            uniform_type: i32,
+            index: u32,
+            has_max_size: bool,
+            max_size: u32,
+            has_buffer_offset: bool,
+            buffer_offset: usize,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                    if name.is_null() || !(0..=4).contains(&uniform_type) {
+                        return Err(OcioError::InvalidInput("invalid uniform event".into()));
+                    }
+                    let name = unsafe { std::ffi::CStr::from_ptr(name) }
+                        .to_str()
+                        .map_err(|_| OcioError::InvalidInput("uniform name is not UTF-8".into()))?;
+                    (state.uniform)(ShaderUniform {
+                        name,
+                        uniform_type: GpuUniformType::from_raw(uniform_type),
+                        index,
+                        max_size: has_max_size.then_some(max_size),
+                        buffer_offset: has_buffer_offset.then_some(buffer_offset),
+                    })
+                }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput(
+                        "shader uniform callback panicked".into(),
+                    ));
+                    false
+                }
+            }
+        }
+        unsafe extern "C" fn callback<F, G>(
+            context: *mut c_void,
+            p: *const i8,
+            t: *const i8,
+            h: *const i8,
+            head: *const i8,
+            body: *const i8,
+            foot: *const i8,
+        ) -> *const i8
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<std::ffi::CString> {
+                    let read = |ptr: *const i8| -> Result<&str> {
+                        if ptr.is_null() {
+                            return Err(OcioError::InvalidInput("null shader section".into()));
+                        }
+                        unsafe { std::ffi::CStr::from_ptr(ptr) }
+                            .to_str()
+                            .map_err(|_| {
+                                OcioError::InvalidInput("shader section is not UTF-8".into())
+                            })
+                    };
+                    let text = (state.function)(ShaderSections {
+                        parameters: read(p)?,
+                        textures: read(t)?,
+                        helpers: read(h)?,
+                        header: read(head)?,
+                        body: read(body)?,
+                        footer: read(foot)?,
+                    })?;
+                    std::ffi::CString::new(text).map_err(|_| {
+                        OcioError::InvalidInput("assembled shader contains a NUL byte".into())
+                    })
+                },
+            ));
+            match result {
+                Ok(Ok(output)) => {
+                    state.output = Some(output);
+                    state.output.as_ref().unwrap().as_ptr()
+                }
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    std::ptr::null()
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput("shader assembler panicked".into()));
+                    std::ptr::null()
+                }
+            }
+        }
+        unsafe extern "C" fn texture_callback<F, G>(
+            context: *mut c_void,
+            event: *const ocio_sys::OcioShaderTextureEvent,
+            replace: *mut bool,
+            binding: *mut u32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<Option<u32>> {
+                    let event = unsafe { event.as_ref() }
+                        .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
+                    let read = |ptr: *const i8| -> Result<&str> {
+                        if ptr.is_null() {
+                            return Err(OcioError::InvalidInput("null texture name".into()));
+                        }
+                        unsafe { std::ffi::CStr::from_ptr(ptr) }
+                            .to_str()
+                            .map_err(|_| {
+                                OcioError::InvalidInput("texture name is not UTF-8".into())
+                            })
+                    };
+                    if event.values.is_null()
+                        || event.value_count > isize::MAX as usize / std::mem::size_of::<f32>()
+                    {
+                        return Err(OcioError::InvalidInput("invalid texture data".into()));
+                    }
+                    let dimensions = match event.dimensions {
+                        1 => Some(GpuTextureDimensions::Texture1D),
+                        2 => Some(GpuTextureDimensions::Texture2D),
+                        3 => None,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "unknown texture dimensions".into(),
+                            ))
+                        }
+                    };
+                    let channel = match event.channel {
+                        0 => GpuTextureChannel::Red,
+                        1 => GpuTextureChannel::Rgb,
+                        _ => return Err(OcioError::InvalidInput("unknown texture channel".into())),
+                    };
+                    // SAFETY: OCIO owns the valid native float array during this
+                    // synchronous callback; its checked length fits a Rust slice.
+                    let values =
+                        unsafe { std::slice::from_raw_parts(event.values, event.value_count) };
+                    (state.texture)(ShaderTexture {
+                        texture_name: read(event.texture_name)?,
+                        sampler_name: read(event.sampler_name)?,
+                        width: event.width,
+                        height: event.height,
+                        depth: event.depth,
+                        channel,
+                        dimensions,
+                        interpolation: interpolation_from_raw(event.interpolation),
+                        values,
+                        suggested_binding: event.has_binding.then_some(event.binding),
+                    })
+                },
+            ));
+            match result {
+                Ok(Ok(value)) => {
+                    if let Some(value) = value {
+                        unsafe {
+                            *replace = true;
+                            *binding = value;
+                        }
+                    }
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput(
+                        "shader texture callback panicked".into(),
+                    ));
+                    false
+                }
+            }
+        }
+        let mut state = State {
+            function: &mut assemble,
+            texture: &mut texture,
+            uniform,
+            lifecycle,
+            code,
+            output: None,
+            code_output: None,
+            error: None,
+        };
+        crate::clear_last_error();
+        let ptr = unsafe {
+            let context = (&mut state as *mut State<'_, F, G>).cast();
+            let extract = if stream_textures {
+                ocio_sys::ocio_gpu_processor_extract_with_streamed_texture_hooks
+                    as unsafe extern "C" fn(_, _, _, _, _, _, _, _) -> _
+            } else {
+                ocio_sys::ocio_gpu_processor_extract_with_hooks
+            };
+            extract(
+                self.handle.as_ptr(),
+                template.handle.as_ptr(),
+                callback::<F, G>,
+                notify_texture.then_some(texture_callback::<F, G>),
+                notify_uniform.then_some(uniform_callback::<F, G>),
+                notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                notify_code.then_some(code_callback::<F, G>),
+                context,
+            )
+        };
+        let result = crate::handle_result(ptr);
+        if let Some(error) = state.error {
+            return Err(error);
+        }
+        Ok(GpuShaderDesc { handle: result? })
+    }
     /// Return whether the GPU path is an identity/no-op transform.
     ///
     /// Returns `false` if OCIO reports an error. Use [`Self::try_is_no_op`] to
@@ -1175,9 +2822,11 @@ impl GPUProcessor {
 
     /// # Safety
     /// `shader_creator` must point to a valid mutable OCIO shader creator object
-    /// for the active ABI and remain alive for the duration of the call. OCIO
-    /// writes generated resources through that object, but neither this method
-    /// nor the Rust binding takes ownership of or destroys it. Prefer
+    /// for the active ABI and remain alive and exclusively accessible for the
+    /// duration of the call. OCIO receives a temporary non-owning shared pointer;
+    /// the object and its callbacks must not retain that shared pointer or depend
+    /// on it sharing ownership with another control block. Neither this method
+    /// nor the Rust binding destroys the object. Prefer
     /// [`Self::try_extract_shader_info`] with [`GpuShaderDesc`] for a typed,
     /// Rust-owned descriptor.
     #[doc(hidden)]
@@ -1189,13 +2838,18 @@ impl GPUProcessor {
         let _ = unsafe { self.try_extract_shader_info_raw(shader_creator) };
     }
 
-    /// Extract shader information through a raw OCIO shader-creator pointer.
+    /// Extract shader information through a raw `OCIO::GpuShaderCreator*`.
     ///
     /// # Safety
-    /// `shader_creator` must meet the same ABI, lifetime, and ownership
+    /// `shader_creator` must meet the same ABI, exclusivity, lifetime, and ownership
     /// requirements as [`Self::extract_gpu_shader_info_v2`].
     #[doc(hidden)]
     pub unsafe fn try_extract_shader_info_raw(&self, shader_creator: *mut c_void) -> Result<()> {
+        if shader_creator.is_null() {
+            return Err(OcioError::InvalidInput(
+                "native shader creator cannot be null".into(),
+            ));
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v2(
@@ -1233,15 +2887,104 @@ impl Drop for GPUProcessor {
 /// [`create_shader_text`](Self::create_shader_text) let you build the final
 /// shader string from OCIO-provided fragments.
 ///
+/// This handle is thread-confined; its dynamic property handles may outlive it.
+///
+/// ```compile_fail
+/// # use ocio_rs::GpuShaderDesc;
+/// fn require_send<T: Send>() {}
+/// require_send::<GpuShaderDesc>();
+/// ```
+///
 /// [`GpuLanguage`]: crate::GpuLanguage
 /// [`GPUProcessor::extract_shader_info`]: crate::GPUProcessor::extract_shader_info
 pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }
 
-// SAFETY: The bridge owns this handle through a shared_ptr, so transferring
-// exclusive Rust ownership to another thread does not invalidate it.
-unsafe impl Send for GpuShaderDesc {}
+/// Result of copying a cached live uniform into caller-owned storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuUniformCopy {
+    Written(usize),
+    BufferTooSmall { required: usize },
+    WrongType,
+}
+
+/// Cached OCIO uniform getters for repeated sampling without bridge allocations.
+///
+/// The descriptor remains exclusively borrowed because native getters may
+/// reference properties owned by it. Values remain live; only the getters,
+/// not their results, are cached. This type cannot be sent to another thread.
+/// Getter implementations may themselves allocate or perform other work.
+pub struct GpuUniformCache<'a> {
+    handle: NonNull<c_void>,
+    _desc: std::marker::PhantomData<&'a mut GpuShaderDesc>,
+}
+
+impl GpuUniformCache<'_> {
+    fn copy_result(status: i32, actual: usize) -> Result<GpuUniformCopy> {
+        crate::ocio_call_status()?;
+        match status {
+            0 => Ok(GpuUniformCopy::WrongType),
+            1 => Ok(GpuUniformCopy::Written(actual)),
+            2 => Ok(GpuUniformCopy::BufferTooSmall { required: actual }),
+            _ => Err(OcioError::Ocio("uniform cache operation failed".into())),
+        }
+    }
+
+    /// Copies a double, boolean, float3, or float array as `f32` values.
+    /// An undersized buffer is left untouched.
+    pub fn copy_f32_into(&mut self, index: u32, values: &mut [f32]) -> Result<GpuUniformCopy> {
+        let mut actual = 0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_copy_f32(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+                &mut actual,
+            )
+        };
+        Self::copy_result(status, actual)
+    }
+
+    /// Copies an integer array. An undersized buffer is left untouched.
+    pub fn copy_i32_into(&mut self, index: u32, values: &mut [i32]) -> Result<GpuUniformCopy> {
+        let mut actual = 0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_copy_i32(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+                &mut actual,
+            )
+        };
+        Self::copy_result(status, actual)
+    }
+
+    /// Reads a double without narrowing to `f32`; returns `None` for other types.
+    pub fn double(&mut self, index: u32) -> Result<Option<f64>> {
+        let mut value = 0.0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_double(self.handle.as_ptr(), index, &mut value)
+        };
+        crate::ocio_call_status()?;
+        match status {
+            0 => Ok(None),
+            1 => Ok(Some(value)),
+            _ => Err(OcioError::Ocio("uniform cache operation failed".into())),
+        }
+    }
+}
+
+impl Drop for GpuUniformCache<'_> {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_gpu_uniform_cache_destroy(self.handle.as_ptr()) }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
@@ -1271,14 +3014,14 @@ impl GpuTextureChannel {
 #[repr(i32)]
 /// Dimensionality metadata for extracted 1D/2D GPU texture payloads.
 pub enum GpuTextureDimensions {
-    Texture1D = 0,
-    Texture2D = 1,
+    Texture1D = 1,
+    Texture2D = 2,
 }
 
 impl GpuTextureDimensions {
     fn from_raw(value: i32) -> Self {
         match value {
-            1 => Self::Texture2D,
+            2 => Self::Texture2D,
             _ => Self::Texture1D,
         }
     }
@@ -1344,9 +3087,16 @@ pub struct GpuTexture2D {
 }
 
 impl GpuTexture2D {
-    /// Returns the number of `f32` values implied by the current metadata.
+    /// Returns the number of `f32` values, saturating at `usize::MAX` on overflow.
     pub fn expected_value_count(&self) -> usize {
-        self.width as usize * self.height as usize * self.channel.channel_count()
+        self.checked_expected_value_count().unwrap_or(usize::MAX)
+    }
+
+    /// Returns the number of `f32` values, or `None` if it overflows.
+    pub fn checked_expected_value_count(&self) -> Option<usize> {
+        (self.width as usize)
+            .checked_mul(self.height as usize)?
+            .checked_mul(self.channel.channel_count())
     }
 }
 
@@ -1370,10 +3120,15 @@ pub struct GpuTexture3D {
 }
 
 impl GpuTexture3D {
-    /// Returns the number of `f32` values implied by the current metadata.
+    /// Returns the number of `f32` values, saturating at `usize::MAX` on overflow.
     pub fn expected_value_count(&self) -> usize {
+        self.checked_expected_value_count().unwrap_or(usize::MAX)
+    }
+
+    /// Returns the number of `f32` values, or `None` if it overflows.
+    pub fn checked_expected_value_count(&self) -> Option<usize> {
         let edge = self.edge_len as usize;
-        edge * edge * edge * 3
+        edge.checked_mul(edge)?.checked_mul(edge)?.checked_mul(3)
     }
 }
 
@@ -1405,6 +3160,41 @@ pub struct GpuUniform {
 }
 
 impl GpuShaderDesc {
+    /// Captures the current uniform getters for repeated reads without bridge allocations.
+    ///
+    /// Extract shader information before calling this method. Drop the cache
+    /// before changing the descriptor or extracting shader information again.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(mut desc: GpuShaderDesc) -> ocio_rs::Result<()> {
+    /// let mut cache = desc.uniform_cache()?;
+    /// desc.set_function_name("other")?;
+    /// let _ = cache.double(0)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn uniform_cache(&mut self) -> Result<GpuUniformCache<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_uniform_cache_create(self.handle.as_ptr()) };
+        crate::handle_result(ptr).map(|handle| GpuUniformCache {
+            handle,
+            _desc: std::marker::PhantomData,
+        })
+    }
+    /// Borrow this descriptor as a native `OCIO::GpuShaderCreator*` for C++ interop.
+    ///
+    /// The pointer is invalid after this descriptor is dropped. Native code
+    /// must not delete it, retain it beyond that lifetime, or access the object
+    /// concurrently or reentrantly with Rust operations on this descriptor.
+    /// The returned raw pointer is only usable with a compatible OCIO ABI.
+    pub fn borrow_native_creator(&mut self) -> Result<NonNull<c_void>> {
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_borrow_native_creator(self.handle.as_ptr()) };
+        crate::handle_result(ptr)
+    }
+
     /// Creates an empty OCIO GPU shader descriptor that can be configured and
     /// passed to `GPUProcessor::extract_shader_info`.
     pub fn create() -> Result<Self> {
@@ -1442,6 +3232,34 @@ impl GpuShaderDesc {
         };
         crate::ocio_call_status()?;
         Ok(shader_text)
+    }
+
+    /// Borrow OCIO's shader text without allocating or converting its bytes.
+    ///
+    /// The exclusive borrow prevents mutation or re-extraction into this
+    /// descriptor while the returned native string is in use. Raw native users
+    /// must also avoid concurrent or reentrant mutation of the descriptor.
+    /// The empty string is returned as `Some`; stub builds return `None`.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(desc: &mut GpuShaderDesc) {
+    /// let text = desc.shader_text_ref().unwrap().unwrap();
+    /// desc.set_function_name("changed").unwrap();
+    /// println!("{:?}", text);
+    /// # }
+    /// ```
+    pub fn shader_text_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_shader_desc_get_shader_text(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            Ok(None)
+        } else {
+            // SAFETY: OCIO owns a NUL-terminated string until the descriptor is
+            // mutated or dropped; the exclusive borrow prevents both in safe Rust.
+            Ok(Some(unsafe { std::ffi::CStr::from_ptr(ptr.cast()) }))
+        }
     }
 
     /// Returns the number of reported 1D/2D texture resources.
@@ -1926,6 +3744,47 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
+    /// Borrow 1D/2D LUT values directly from OCIO without copying.
+    ///
+    /// The exclusive descriptor borrow prevents safe Rust code from mutating
+    /// the descriptor while the returned slice is live. Native code using raw
+    /// pointers must likewise avoid concurrent or reentrant mutation.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(desc: &mut GpuShaderDesc) {
+    /// let values = desc.texture_values_ref(0).unwrap();
+    /// desc.set_function_name("changed").unwrap();
+    /// println!("{}", values[0]);
+    /// # }
+    /// ```
+    pub fn texture_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.borrow_texture_values(index, false)
+    }
+
+    fn borrow_texture_values(&mut self, index: u32, is_3d: bool) -> Result<&[f32]> {
+        let mut len = 0usize;
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_borrow_texture_values(
+                self.handle.as_ptr(),
+                index,
+                is_3d,
+                &mut len,
+            )
+        };
+        crate::ocio_call_status()?;
+        if ptr.is_null() || len == 0 {
+            return Err(OcioError::ValidationFailed(
+                "OCIO returned no GPU texture values".into(),
+            ));
+        }
+        // SAFETY: The bridge validates the count and returns OCIO-owned f32
+        // storage. The exclusive descriptor borrow keeps it alive and prevents
+        // safe mutations for the lifetime of the returned slice.
+        Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
+    }
+
     /// Adds a manual 1D/2D texture resource to the descriptor.
     ///
     /// The result contains the OCIO shader binding index on OpenColorIO 2.5.1
@@ -1943,7 +3802,12 @@ impl GpuShaderDesc {
         interpolation: Interpolation,
         values: &[f32],
     ) -> Result<Option<u32>> {
-        let expected = width as usize * height as usize * channel.channel_count();
+        let expected = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|count| count.checked_mul(channel.channel_count()))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU texture payload size overflowed usize".into())
+            })?;
         if values.len() != expected {
             return Err(OcioError::ValidationFailed(format!(
                 "gpu texture value count mismatch: expected {expected}, got {}",
@@ -2154,6 +4018,46 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live double uniform backed by a thread-safe Rust getter.
+    ///
+    /// OCIO owns the getter until it no longer needs the uniform. It may invoke
+    /// the getter multiple times and from native code; do not reenter the same
+    /// descriptor from the getter. A panic is contained and reported as an
+    /// OCIO error when the uniform is sampled. Returns `false` for a duplicate
+    /// uniform name, in which case the supplied getter is dropped immediately.
+    pub fn add_uniform_f64_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> f64 + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> f64>(context: *mut c_void, out: *mut f64) -> bool {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                unsafe { *out = getter() };
+            })) {
+                Ok(()) => true,
+                Err(_) => false,
+            }
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_double_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds a boolean uniform and returns `false` when the name already exists.
     pub fn add_uniform_bool(&self, name: impl AsRef<str>, value: bool) -> Result<bool> {
         let name = cstring(name)?;
@@ -2163,6 +4067,39 @@ impl GpuShaderDesc {
                 self.handle.as_ptr(),
                 name.as_ptr(),
                 value,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
+    /// Adds a live boolean uniform; see [`Self::add_uniform_f64_getter`] for
+    /// callback ownership, thread-safety, and panic behavior.
+    pub fn add_uniform_bool_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> bool + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> bool>(context: *mut c_void, out: *mut bool) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                unsafe { *out = getter() };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_bool_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
             )
         };
         Self::bool_call_result(ok)
@@ -2184,6 +4121,45 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live three-component uniform; see [`Self::add_uniform_f64_getter`]
+    /// for callback ownership and panic behavior. Native callers must not sample
+    /// the same descriptor concurrently or retain a returned native reference
+    /// across another sample of this uniform.
+    pub fn add_uniform_float3_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> [f32; 3] + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> [f32; 3]>(
+            context: *mut c_void,
+            out: *mut f32,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let value = getter();
+                unsafe { std::ptr::copy_nonoverlapping(value.as_ptr(), out, 3) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_float3_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds a floating-point array uniform and returns `false` when the name already exists.
     pub fn add_uniform_f32_array(
         &self,
@@ -2191,11 +4167,11 @@ impl GpuShaderDesc {
         values: &[f32],
         max_size: u32,
     ) -> Result<bool> {
-        if max_size < values.len() as u32 {
+        if values.len() > i32::MAX as usize || values.len() > max_size as usize {
             return Err(OcioError::ValidationFailed(format!(
-                "gpu uniform max_size {} is smaller than value count {}",
-                max_size,
-                values.len()
+                "gpu uniform value count {} exceeds max_size {} or the native integer limit",
+                values.len(),
+                max_size
             )));
         }
         let name = cstring(name)?;
@@ -2212,6 +4188,68 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live float array uniform. The getter fills the provided buffer and
+    /// returns the initialized length, which must not exceed `max_size`.
+    ///
+    /// Storage is allocated once at registration. Each native size query
+    /// refreshes the snapshot; its pointer getter reads that same snapshot.
+    /// Native callers must serialize descriptor access and consume the pointer
+    /// before the next size query. Panics and excessive lengths are errors.
+    pub fn add_uniform_f32_array_getter<F>(
+        &self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [f32]) -> usize + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn(&mut [f32]) -> usize>(
+            context: *mut c_void,
+            data: *mut f32,
+            capacity: usize,
+            length: *mut usize,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let data = if capacity == 0 {
+                    std::ptr::NonNull::<f32>::dangling().as_ptr()
+                } else {
+                    data
+                };
+                let buffer = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
+                unsafe { *length = getter(buffer) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        if max_size > i32::MAX as u32
+            || max_size as usize > isize::MAX as usize / std::mem::size_of::<f32>()
+        {
+            return Err(OcioError::ValidationFailed(
+                "uniform max_size exceeds the native integer limit".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_float_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                max_size,
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds an integer array uniform and returns `false` when the name already exists.
     pub fn add_uniform_i32_array(
         &self,
@@ -2219,11 +4257,11 @@ impl GpuShaderDesc {
         values: &[i32],
         max_size: u32,
     ) -> Result<bool> {
-        if max_size < values.len() as u32 {
+        if values.len() > i32::MAX as usize || values.len() > max_size as usize {
             return Err(OcioError::ValidationFailed(format!(
-                "gpu uniform max_size {} is smaller than value count {}",
-                max_size,
-                values.len()
+                "gpu uniform value count {} exceeds max_size {} or the native integer limit",
+                values.len(),
+                max_size
             )));
         }
         let name = cstring(name)?;
@@ -2235,6 +4273,63 @@ impl GpuShaderDesc {
                 values.as_ptr(),
                 values.len(),
                 max_size,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
+    /// Adds a live integer array uniform with the same snapshot and lifetime
+    /// rules as [`Self::add_uniform_f32_array_getter`].
+    pub fn add_uniform_i32_array_getter<F>(
+        &self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [i32]) -> usize + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn(&mut [i32]) -> usize>(
+            context: *mut c_void,
+            data: *mut i32,
+            capacity: usize,
+            length: *mut usize,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let data = if capacity == 0 {
+                    std::ptr::NonNull::<i32>::dangling().as_ptr()
+                } else {
+                    data
+                };
+                let buffer = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
+                unsafe { *length = getter(buffer) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        if max_size > i32::MAX as u32
+            || max_size as usize > isize::MAX as usize / std::mem::size_of::<i32>()
+        {
+            return Err(OcioError::ValidationFailed(
+                "uniform max_size exceeds the native integer limit".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_int_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                max_size,
+                context,
+                invoke::<F>,
+                release::<F>,
             )
         };
         Self::bool_call_result(ok)
@@ -2329,6 +4424,8 @@ impl GpuShaderDesc {
     /// OCIO did not report a usable uniform without raising an error. A uniform
     /// with a payload that OCIO cannot expose through this ABI is returned with
     /// [`GpuUniformValue::Unsupported`].
+    /// Dynamic arrays are sampled with their actual copied length. If an array
+    /// repeatedly outgrows the buffer during sampling, an error is returned.
     pub fn try_uniform(&self, index: u32) -> Result<Option<GpuUniform>> {
         let mut info = ocio_sys::OcioGpuUniformInfo {
             name: std::ptr::null(),
@@ -2349,17 +4446,37 @@ impl GpuShaderDesc {
         let value = match uniform_type {
             GpuUniformType::VectorInt => {
                 let mut values = vec![0i32; info.value_count];
-                crate::clear_last_error();
-                let ok = unsafe {
-                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
-                        self.handle.as_ptr(),
-                        index,
-                        values.as_mut_ptr(),
-                        values.len(),
-                    )
-                };
-                crate::ocio_call_status()?;
-                if ok {
+                let mut copied = false;
+                for attempt in 0..3 {
+                    let mut actual = 0;
+                    crate::clear_last_error();
+                    let ok = unsafe {
+                        ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(
+                            self.handle.as_ptr(),
+                            index,
+                            values.as_mut_ptr(),
+                            values.len(),
+                            &mut actual,
+                        )
+                    };
+                    crate::ocio_call_status()?;
+                    if ok {
+                        values.truncate(actual);
+                        info.value_count = actual;
+                        copied = true;
+                        break;
+                    }
+                    if actual <= values.len() {
+                        break;
+                    }
+                    if attempt == 2 {
+                        return Err(OcioError::ValidationFailed(
+                            "uniform array kept growing while sampled".into(),
+                        ));
+                    }
+                    values.resize(actual, 0);
+                }
+                if copied {
                     GpuUniformValue::I32(values)
                 } else {
                     GpuUniformValue::Unsupported
@@ -2368,17 +4485,37 @@ impl GpuShaderDesc {
             GpuUniformType::Unknown => GpuUniformValue::Unsupported,
             _ => {
                 let mut values = vec![0.0f32; info.value_count];
-                crate::clear_last_error();
-                let ok = unsafe {
-                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
-                        self.handle.as_ptr(),
-                        index,
-                        values.as_mut_ptr(),
-                        values.len(),
-                    )
-                };
-                crate::ocio_call_status()?;
-                if ok {
+                let mut copied = false;
+                for attempt in 0..3 {
+                    let mut actual = 0;
+                    crate::clear_last_error();
+                    let ok = unsafe {
+                        ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(
+                            self.handle.as_ptr(),
+                            index,
+                            values.as_mut_ptr(),
+                            values.len(),
+                            &mut actual,
+                        )
+                    };
+                    crate::ocio_call_status()?;
+                    if ok {
+                        values.truncate(actual);
+                        info.value_count = actual;
+                        copied = true;
+                        break;
+                    }
+                    if actual <= values.len() {
+                        break;
+                    }
+                    if attempt == 2 {
+                        return Err(OcioError::ValidationFailed(
+                            "uniform array kept growing while sampled".into(),
+                        ));
+                    }
+                    values.resize(actual, 0.0);
+                }
+                if copied {
                     GpuUniformValue::F32(values)
                 } else {
                     GpuUniformValue::Unsupported
@@ -2405,9 +4542,18 @@ impl GpuShaderDesc {
 
     /// Returns the scalar value count for a uniform, or `0` when absent.
     pub fn uniform_value_count(&self, index: u32) -> usize {
-        self.uniform(index)
-            .map(|uniform| uniform.value_count)
-            .unwrap_or(0)
+        self.try_uniform_value_count(index).unwrap_or(0)
+    }
+
+    /// Return the current scalar count without allocating or copying the payload.
+    /// An invalid index or a native error is returned as an error.
+    pub fn try_uniform_value_count(&self, index: u32) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_value_count(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -2422,6 +4568,63 @@ impl GpuShaderDesc {
             Some(GpuUniformValue::F32(values)) => values,
             _ => Vec::new(),
         }
+    }
+
+    /// Reads the current native double uniform value without narrowing to `f32`.
+    /// Returns `Ok(None)` for a uniform of another type; invalid indices and
+    /// failures from the native or Rust getter are returned as errors.
+    pub fn try_uniform_f64_value(&self, index: u32) -> Result<Option<f64>> {
+        let mut value = 0.0;
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_double_value(
+                self.handle.as_ptr(),
+                index,
+                &mut value,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found.then_some(value))
+    }
+
+    /// Read a native boolean uniform without converting it to a float.
+    /// Returns `Ok(None)` for another uniform type; invalid indices and getter
+    /// failures are returned as errors. `Some(false)` is a valid value.
+    pub fn try_uniform_bool_value(&self, index: u32) -> Result<Option<bool>> {
+        let mut value = false;
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_bool_value(
+                self.handle.as_ptr(),
+                index,
+                &mut value,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found.then_some(value))
+    }
+
+    /// Read the current floating-point uniform payload into caller-owned storage.
+    ///
+    /// Returns `Ok(false)` if the uniform is not representable as floats or
+    /// `values` is too short. Double uniforms are converted to `f32`, and bool
+    /// uniforms are represented as 0.0 or 1.0, matching OCIO GPU conventions.
+    /// An invalid index or native failure is returned as an error. No Rust
+    /// allocation is performed; the native getter is called on every invocation
+    /// so updates to dynamic properties are observed.
+    pub fn try_copy_uniform_f32_into(&self, index: u32, values: &mut [f32]) -> Result<bool> {
+        crate::clear_last_error();
+        // SAFETY: The bridge writes at most values.len() floats into the slice.
+        let copied = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(copied)
     }
 
     #[doc(hidden)]
@@ -2439,6 +4642,24 @@ impl GpuShaderDesc {
             Some(GpuUniformValue::I32(values)) => values,
             _ => Vec::new(),
         }
+    }
+
+    /// Read an integer-vector uniform into caller-owned storage without a Rust
+    /// allocation. Returns `Ok(false)` for a different type or a short buffer;
+    /// invalid indices and native failures are returned as errors.
+    pub fn try_copy_uniform_i32_into(&self, index: u32, values: &mut [i32]) -> Result<bool> {
+        crate::clear_last_error();
+        // SAFETY: The bridge writes at most values.len() integers into the slice.
+        let copied = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(copied)
     }
 
     #[doc(hidden)]
@@ -2601,6 +4822,12 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
+    /// Borrow the native 3D LUT values without allocating or copying.
+    /// The returned slice is tied to the exclusive descriptor borrow.
+    pub fn texture_3d_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.borrow_texture_values(index, true)
+    }
+
     /// Adds a manual 3D texture resource to the descriptor.
     ///
     /// The result contains the OCIO shader binding index on OpenColorIO 2.5.1
@@ -2615,7 +4842,13 @@ impl GpuShaderDesc {
         values: &[f32],
     ) -> Result<Option<u32>> {
         let edge = edge_len as usize;
-        let expected = edge * edge * edge * 3;
+        let expected = edge
+            .checked_mul(edge)
+            .and_then(|count| count.checked_mul(edge))
+            .and_then(|count| count.checked_mul(3))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU 3D texture payload size overflowed usize".into())
+            })?;
         if values.len() != expected {
             return Err(OcioError::ValidationFailed(format!(
                 "gpu 3d texture value count mismatch: expected {expected}, got {}",
@@ -2745,6 +4978,70 @@ pub struct DynamicProperty {
 }
 
 impl DynamicProperty {
+    /// Return an independent native RGB curve value, including its non-point state.
+    pub fn grading_rgb_curve_object(&self) -> Result<crate::GradingRGBCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingRgbCurve,
+            "DynamicProperty::grading_rgb_curve_object",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_object_get(self.handle.as_ptr())
+        };
+        Ok(crate::GradingRGBCurve {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// Replace the native RGB curve value in one update.
+    pub fn set_grading_rgb_curve_object(&self, value: &crate::GradingRGBCurve) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingRgbCurve,
+            "DynamicProperty::set_grading_rgb_curve_object",
+        )?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_rgb_curve_object_set(
+                self.handle.as_ptr(),
+                value.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    #[cfg(feature = "v2_5")]
+    /// Return an independent native HUE curve value, including its non-point state.
+    pub fn grading_hue_curve_object(&self) -> Result<crate::GradingHueCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingHueCurve,
+            "DynamicProperty::grading_hue_curve_object",
+        )?;
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_object_get(self.handle.as_ptr())
+        };
+        Ok(crate::GradingHueCurve {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    #[cfg(feature = "v2_5")]
+    /// Replace the native HUE curve value in one update.
+    pub fn set_grading_hue_curve_object(&self, value: &crate::GradingHueCurve) -> Result<()> {
+        self.require_property_type(
+            DynamicPropertyType::GradingHueCurve,
+            "DynamicProperty::set_grading_hue_curve_object",
+        )?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_object_set(
+                self.handle.as_ptr(),
+                value.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     fn require_property_type(
         &self,
         expected: DynamicPropertyType,
@@ -3058,6 +5355,75 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    /// Snapshot all eight curves of a dynamic hue-curve property.
+    ///
+    /// This is a control-plane operation: it copies the native curve data.
+    #[cfg(feature = "v2_5")]
+    pub fn complete_grading_hue_curve_value(
+        &self,
+    ) -> Result<crate::grading::CompleteGradingHueCurveValue> {
+        use crate::grading::{
+            CompleteGradingHueCurveValue, GradingCurvePoint, GradingHueCurveValue,
+        };
+        let read = |kind| -> Result<Vec<GradingCurvePoint>> {
+            let count = self.grading_hue_curve_num_control_points(kind)?;
+            (0..count)
+                .map(|index| {
+                    let (x, y) = self.grading_hue_curve_control_point(kind, index)?;
+                    let slope = self.grading_hue_curve_slope(kind, index)?;
+                    Ok(GradingCurvePoint { x, y, slope })
+                })
+                .collect()
+        };
+        Ok(CompleteGradingHueCurveValue {
+            base: GradingHueCurveValue {
+                hue_hue: read(HueCurveType::HueHue)?,
+                hue_sat: read(HueCurveType::HueSat)?,
+                hue_lum: read(HueCurveType::HueLum)?,
+                lum_sat: read(HueCurveType::LumSat)?,
+            },
+            sat_sat: read(HueCurveType::SatSat)?,
+            lum_lum: read(HueCurveType::LumLum)?,
+            sat_lum: read(HueCurveType::SatLum)?,
+            hue_fx: read(HueCurveType::HueFx)?,
+        })
+    }
+
+    /// Validate and replace all eight curves in one native update.
+    ///
+    /// If curve validation fails, the original property is left unchanged. The curve data is
+    /// borrowed across the FFI boundary; no Rust-side point copy is made.
+    #[cfg(feature = "v2_5")]
+    pub fn set_complete_grading_hue_curve_value(
+        &self,
+        value: &crate::grading::CompleteGradingHueCurveValue,
+    ) -> Result<()> {
+        self.require_grading_hue_curve_property(
+            "DynamicProperty::set_complete_grading_hue_curve_value",
+        )?;
+        let curves = [
+            &value.base.hue_hue,
+            &value.base.hue_sat,
+            &value.base.hue_lum,
+            &value.base.lum_sat,
+            &value.sat_sat,
+            &value.lum_lum,
+            &value.sat_lum,
+            &value.hue_fx,
+        ];
+        let pointers = curves.map(|points| points.as_ptr().cast::<std::ffi::c_void>());
+        let counts = curves.map(|points| points.len());
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_dynamic_property_grading_hue_curve_set_complete(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                counts.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_num_control_points(
@@ -3223,7 +5589,159 @@ impl Drop for DynamicProperty {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn packed_layout_rejects_out_of_bounds_and_overflow() {
+        let bytes = [0u8; 24];
+        let layout = PackedImageLayout {
+            width: 2,
+            height: 2,
+            origin: 0,
+            channel_stride: 1,
+            x_stride: 4,
+            y_stride: 8,
+            bit_depth: BitDepth::Uint8,
+            channel_order: ChannelOrdering::Rgba,
+        };
+        assert!(packed_image_descriptor(layout, &bytes[..16]).is_ok());
+        assert!(packed_image_descriptor(layout, &bytes[..15]).is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: isize::MIN,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                channel_stride: usize::MAX,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: -4,
+                origin: 4,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: -4,
+                origin: 8,
+                ..layout
+            },
+            &bytes
+        )
+        .is_ok());
+    }
     use crate::Config;
+
+    #[test]
+    fn gpu_texture_dimension_discriminants_match_native_headers() {
+        assert_eq!(GpuTextureDimensions::Texture1D as i32, 1);
+        assert_eq!(GpuTextureDimensions::Texture2D as i32, 2);
+        assert_eq!(
+            GpuTextureDimensions::from_raw(1),
+            GpuTextureDimensions::Texture1D
+        );
+        assert_eq!(
+            GpuTextureDimensions::from_raw(2),
+            GpuTextureDimensions::Texture2D
+        );
+    }
+
+    #[test]
+    fn gpu_texture_dimensions_reject_overflow_without_panicking() {
+        let desc = GpuShaderDesc::create().unwrap();
+        assert!(desc
+            .add_texture_3d("texture", "sampler", 1 << 22, Interpolation::Linear, &[])
+            .is_err());
+        assert!(desc
+            .add_texture_2d(
+                "texture",
+                "sampler",
+                u32::MAX,
+                u32::MAX,
+                GpuTextureChannel::Rgb,
+                GpuTextureDimensions::Texture2D,
+                Interpolation::Linear,
+                &[]
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn signed_planar_layout_checks_all_corners_and_pointer_steps() {
+        let plane = [0u8; 8];
+        for x in [-1isize, 1] {
+            for y in [-3isize, 3] {
+                let layout = SignedPlanarByteLayout {
+                    width: 2,
+                    height: 2,
+                    origin: 1 + if x < 0 { 1 } else { 0 } + if y < 0 { 3 } else { 0 },
+                    x_stride: x,
+                    y_stride: y,
+                    bit_depth: BitDepth::Uint8,
+                };
+                assert!(validate_signed_planar(layout, &[&plane]).is_ok());
+                assert!(validate_signed_planar(layout, &[&plane[..4]]).is_err());
+            }
+        }
+        let underflow = SignedPlanarByteLayout {
+            width: 2,
+            height: 1,
+            origin: 1,
+            x_stride: -1,
+            y_stride: 2,
+            bit_depth: BitDepth::Uint8,
+        };
+        assert!(validate_signed_planar(underflow, &[&plane]).is_err());
+        assert!(validate_signed_planar(
+            SignedPlanarByteLayout {
+                x_stride: isize::MIN,
+                ..underflow
+            },
+            &[&plane]
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn planar_layout_requires_native_row_stride_even_for_one_row() {
+        let plane = [0u8; 3];
+        let layout = PlanarByteLayout {
+            width: 2,
+            height: 1,
+            x_stride: 2,
+            y_stride: 3,
+            bit_depth: BitDepth::Uint8,
+        };
+        assert!(validate_planar_buffer(layout, &[&plane]).is_err());
+        assert!(validate_planar_buffer(
+            PlanarByteLayout {
+                y_stride: 4,
+                ..layout
+            },
+            &[&plane]
+        )
+        .is_ok());
+        assert!(validate_planar_buffer(
+            PlanarByteLayout {
+                width: 2,
+                x_stride: usize::MAX,
+                y_stride: usize::MAX,
+                ..layout
+            },
+            &[&plane]
+        )
+        .is_err());
+    }
 
     #[test]
     fn processor_metadata() {

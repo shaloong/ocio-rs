@@ -2,7 +2,7 @@
 
 ## At a glance
 
-**The 0.3 line supports OpenColorIO `>= 2.4.1, < 2.6`.** API introduced in
+**The development branch supports OpenColorIO `>= 2.4.1, < 2.7`.** API introduced in
 2.5.1 requires `v2_5`; no backend feature or legacy override means stub mode.
 The safe-wrapper
 surface, bridge parity, and bundled validation cover the major runtime
@@ -10,10 +10,8 @@ paths — Config, Context, Processor, CPU/GPU execution, GPU shader
 extraction, dynamic properties, and the full transform family. Fallible safe
 APIs propagate C++ exceptions to Rust `Result` across mutators and an
 expanding set of checked getters; legacy low-level compatibility entry points
-may still use OCIO-style default return values. The remaining work is
-longer-tail behavioral validation, platform coverage, and documentation
-completeness
-rather than missing core binding coverage.
+may still use OCIO-style default return values. A signature-by-signature and
+behavioral audit remains necessary before claiming full-library coverage.
 
 | Mode | Status |
 |---|---|
@@ -26,6 +24,8 @@ rather than missing core binding coverage.
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
 | Installed OpenColorIO 2.4.x | **Automatic** Fedora 43 job on pushes/PRs |
+| OpenColorIO 2.6.0 representative native behavior | **PRs** (Linux source build) |
+| OpenColorIO 2.6.0 all interface levels and installed library | **Weekly** and manual Linux source builds |
 | Bundled with host zlib-ng | **PRs**, weekly and manual runs (Arch Linux) |
 | Exact native minima 2.4.1 and 2.5.1 | **Weekly** and manual Linux source builds |
 | Bundled real-OCIO tests | **Weekly**, plus manual `workflow_dispatch` (Linux, macOS, Windows) |
@@ -62,9 +62,9 @@ rather than missing core binding coverage.
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Strong but still expanding — fallible safe APIs preserve C++ exceptions for mutators and audited getters; legacy low-level compatibility endpoints may retain default-return semantics |
 | docs.rs documentation | Built in stub mode with `v2_5` and feature annotations; missing-doc enforcement is not a release gate |
-| Send/Sync | Implemented for `Processor`, `CPUProcessor`, `GPUProcessor`, `GpuShaderDesc` |
+| Send/Sync | Dynamic processor and shader handles are thread-confined; validated non-dynamic CPU processors may be shared across threads |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
-| CI real-OCIO validation | Automatic Fedora system backend, PR Arch/zlib-ng bundled backend, weekly/manual bundled matrix and exact minima; manual release audit |
+| CI real-OCIO validation | Automatic Fedora system backend, PR OpenColorIO 2.6 and Arch/zlib-ng bundled backends, weekly/manual bundled matrix and exact minima; manual release audit |
 
 The 0.3 line makes installed-library integration and the 2.4 baseline available
 to registry consumers while retaining opt-in 2.5 API. Optimization flags and
@@ -84,11 +84,10 @@ runs in each release PR. See [RELEASING.md](docs/RELEASING.md) for the full flow
 - The `0.3.0` release line maintains a practical bar: core OCIO Rust
   bindings are broadly present, bridge-backed, and usable for early adopters,
   while deeper edge-case reliability work continues into follow-up releases.
-- Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
-  surface exposed by this crate.
-- Run the parity checker with `--check-l3`; its output is the source of truth
-  for counts. One compatibility-only FFI extra (`ocio_error_get_last`) is
-  intentional. Parity establishes coverage, not behavioral equivalence.
+- Run the parity checker with `--check-l3` for name-level checks on its selected
+  classes. Set `OCIO_SOURCE_DIR` to audit a different source tree, such as 2.6.0.
+  The counts do not establish complete class, overload, signature, or behavior
+  coverage. One compatibility-only FFI extra (`ocio_error_get_last`) is intentional.
 - Run `cargo test --workspace --no-default-features` and with `--features v2_5`.
 - Run `cargo test --examples --no-default-features`.
 - Run `cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1`.

@@ -140,3 +140,25 @@ fn fixed_function_set_params_uses_ocio_delayed_validation() {
     };
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn hsy_bridge_discriminants_select_the_native_styles() {
+    use ocio_rs::{transform::GroupTransform, Config};
+    let config = Config::raw().unwrap();
+    for (style, native_name) in [
+        (FixedFunctionStyle::RgbToHsyLin, "RGB_TO_HSY_LIN"),
+        (FixedFunctionStyle::RgbToHsyLog, "RGB_TO_HSY_LOG"),
+        (FixedFunctionStyle::RgbToHsyVid, "RGB_TO_HSY_VID"),
+    ] {
+        let transform = FixedFunctionTransform::create_with_params(style, &[]).unwrap();
+        assert_eq!(transform.style(), style);
+        let group = GroupTransform::create().unwrap();
+        group.append_transform(&transform).unwrap();
+        let ctf = group
+            .write_to_string(&config, "Color Transform Format")
+            .unwrap()
+            .unwrap();
+        assert!(ctf.contains(native_name), "{ctf}");
+    }
+}

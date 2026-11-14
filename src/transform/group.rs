@@ -60,6 +60,22 @@ impl GroupTransform {
         Ok(transform_from_raw_handle(handle))
     }
 
+    /// Replace a child in place, preserving the group's identity and metadata.
+    ///
+    /// The group retains the same native transform as `child`. Existing handles
+    /// to the previous child remain valid. An invalid index returns an error.
+    pub fn set_transform(&self, index: i32, child: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_group_transform_set_transform(
+                self.handle.as_ptr(),
+                index,
+                child.as_ptr(),
+            );
+        }
+        crate::ocio_call_status()
+    }
+
     #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]
     pub fn get_transform(&self, index: i32) -> Option<Transform> {
         self.transform(index)

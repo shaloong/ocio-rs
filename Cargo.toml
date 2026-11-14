@@ -3,14 +3,14 @@ name = "ocio-rs"
 version = "0.3.0"
 edition = "2021"
 authors = ["shaloong <contact@shaloong.com>"]
-description = "Rust bindings for OpenColorIO 2.4.1 through 2.5.x"
+description = "Rust bindings for OpenColorIO 2.4.1 through 2.6.x"
 license = "BSD-3-Clause"
 repository = "https://github.com/shaloong/ocio-rs"
 documentation = "https://docs.rs/ocio-rs"
 keywords = ["opencolorio", "color", "ocio", "vfx", "imaging"]
 categories = ["multimedia", "api-bindings"]
 readme = "README.md"
-exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*"]
+exclude = ["tests/data/*", "tests/data/**/*", "third_party/*", "third_party/**/*", "tools/gpu-validation/**", "tools/cpu-benchmark/**"]
 
 [dependencies]
 ocio-sys = { version = "0.3.0", path = "ocio-sys" }
@@ -23,10 +23,11 @@ system = ["ocio-sys/system"]
 # Additive OpenColorIO API version features. The baseline (no feature)
 # targets OCIO 2.4.1.
 v2_5 = ["ocio-sys/v2_5"]
+v2_6 = ["v2_5", "ocio-sys/v2_6"]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["v2_5"]
+features = ["v2_6"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]

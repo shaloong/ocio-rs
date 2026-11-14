@@ -13,6 +13,59 @@ pub struct ProcessorMetadata {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared read-only native processor metadata.
+pub struct ConstProcessorMetadata {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstProcessorMetadata {
+    fn count(&self, looks: bool) -> Result<i32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_processor_metadata_count(self.handle.as_ptr(), looks) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn entry(&self, looks: bool, index: i32) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_processor_metadata_entry(self.handle.as_ptr(), looks, index)
+        };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    /// Number of source files.
+    pub fn num_files(&self) -> Result<i32> {
+        self.count(false)
+    }
+    /// Borrow a source file name.
+    pub fn file(&self, index: i32) -> Result<Option<&std::ffi::CStr>> {
+        self.entry(false, index)
+    }
+    /// Number of looks.
+    pub fn num_looks(&self) -> Result<i32> {
+        self.count(true)
+    }
+    /// Borrow a look name.
+    pub fn look(&self, index: i32) -> Result<Option<&std::ffi::CStr>> {
+        self.entry(true, index)
+    }
+    /// Copy entries into an independent editable metadata object.
+    pub fn create_editable_copy(&self) -> Result<ProcessorMetadata> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_processor_metadata_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| ProcessorMetadata { handle })
+    }
+}
+impl Drop for ConstProcessorMetadata {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_processor_metadata_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl ProcessorMetadata {
     /// Create an empty metadata container.
     pub fn create() -> Result<Self> {

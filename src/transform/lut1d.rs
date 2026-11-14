@@ -34,6 +34,14 @@ impl Lut1DTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create a native identity LUT with the requested length and domain.
+    pub fn create_with_length(length: u64, half_domain: bool) -> Result<Self> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_lut1d_transform_create_with_length(length, half_domain) };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
     /// Return the current interpolation mode.
     pub fn interpolation(&self) -> Interpolation {
         let i = unsafe { ocio_sys::ocio_lut1d_transform_get_interpolation(self.handle.as_ptr()) };

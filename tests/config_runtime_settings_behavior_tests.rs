@@ -88,10 +88,7 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
     );
 
     let initial_cache_flags = config.processor_cache_flags();
-    assert_eq!(
-        initial_cache_flags,
-        (ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES).0 as i32
-    );
+    assert_eq!(initial_cache_flags, ProcessorCacheFlags::DEFAULT.0 as i32);
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
     config
         .try_set_processor_cache_flags(custom_flags.0 as i32)

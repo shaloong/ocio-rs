@@ -36,6 +36,13 @@ impl Lut3DTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
+    /// Create a native identity 3D LUT with the requested grid size.
+    pub fn create_with_grid_size(grid_size: u64) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_lut3d_transform_create_with_grid_size(grid_size) };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
     /// Return the current interpolation mode.
     pub fn interpolation(&self) -> Interpolation {
         let i = unsafe { ocio_sys::ocio_lut3d_transform_get_interpolation(self.handle.as_ptr()) };

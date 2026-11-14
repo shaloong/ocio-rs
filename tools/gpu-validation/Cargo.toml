@@ -1,0 +1,14 @@
+[package]
+name = "ocio-gpu-validation"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Keep GPU test dependencies out of the library's production dependency graph.
+[workspace]
+
+[dependencies]
+ocio-rs = { path = "../..", features = ["bundled", "v2_6"] }
+wgpu = { version = "=30.0.0", default-features = false, features = ["std", "parking_lot", "vulkan", "glsl"] }
+pollster = "0.4"
+bytemuck = "1"

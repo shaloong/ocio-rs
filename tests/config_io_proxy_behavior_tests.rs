@@ -12,7 +12,145 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::{Config, ConfigIOProxy, Context};
+use ocio_rs::{Config, ConfigIOProvider, ConfigIOProxy, Context};
+
+struct OnDemandProvider {
+    config: String,
+    lut: Vec<u8>,
+    calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl ConfigIOProvider for OnDemandProvider {
+    fn config_data(&self) -> ocio_rs::Result<String> {
+        Ok(self.config.clone())
+    }
+    fn lut_data(&self, path: &std::ffi::CStr) -> ocio_rs::Result<Vec<u8>> {
+        self.calls
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if path.to_bytes().ends_with(b"lut1.clf") {
+            Ok(self.lut.clone())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+    fn fast_lut_file_hash(&self, path: &std::ffi::CStr) -> ocio_rs::Result<String> {
+        Ok(if path.to_bytes().ends_with(b"lut1.clf") {
+            "on-demand-lut-v1"
+        } else {
+            ""
+        }
+        .into())
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
+    let _guard = config_io_proxy_test_lock();
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let provider = OnDemandProvider {
+        config: fs::read_to_string(test_data_path("configs/context_test1/config.ocio")).unwrap(),
+        lut: fs::read(test_data_path("configs/context_test1/shot1/lut1.clf")).unwrap(),
+        calls: calls.clone(),
+    };
+    let proxy = ConfigIOProxy::from_provider(provider).unwrap();
+    assert!(proxy.try_config_data().unwrap().is_some());
+    assert_eq!(
+        proxy
+            .try_lut_data("E:/virtual/context/shot1/lut1.clf")
+            .unwrap()
+            .unwrap(),
+        fs::read(test_data_path("configs/context_test1/shot1/lut1.clf")).unwrap()
+    );
+    assert_eq!(calls.load(std::sync::atomic::Ordering::Relaxed), 1);
+    assert_eq!(proxy.try_lut_data("missing.clf").unwrap(), None);
+    assert!(proxy.set_config_data("not supported").is_err());
+    assert!(proxy.set_lut_data("file", &[1], "hash").is_err());
+    let config = Config::from_config_io_proxy(&proxy).unwrap();
+    config.set_working_dir("E:/virtual/context").unwrap();
+    drop(proxy);
+    let cpu = config
+        .processor("shot1_lut1_cs", "reference")
+        .unwrap()
+        .optimized_cpu_processor(0)
+        .unwrap();
+    let mut pixel = [1.0f32; 4];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert_close(pixel[0] as f64, 10.0, 1e-6);
+    assert!(calls.load(std::sync::atomic::Ordering::Relaxed) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_provider_errors_and_panics_do_not_cross_ffi() {
+    struct Failing(bool);
+    impl ConfigIOProvider for Failing {
+        fn config_data(&self) -> ocio_rs::Result<String> {
+            if self.0 {
+                panic!("provider panic");
+            }
+            Err(ocio_rs::OcioError::InvalidInput("provider error".into()))
+        }
+        fn lut_data(&self, _: &std::ffi::CStr) -> ocio_rs::Result<Vec<u8>> {
+            Ok(Vec::new())
+        }
+        fn fast_lut_file_hash(&self, _: &std::ffi::CStr) -> ocio_rs::Result<String> {
+            Ok(String::new())
+        }
+    }
+    let _guard = config_io_proxy_test_lock();
+    for panic in [false, true] {
+        let proxy = ConfigIOProxy::from_provider(Failing(panic)).unwrap();
+        let expected = if panic {
+            "provider panicked"
+        } else {
+            "provider error"
+        };
+        assert!(proxy
+            .try_config_data()
+            .unwrap_err()
+            .to_string()
+            .contains(expected));
+        assert!(Config::from_config_io_proxy(&proxy)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains(expected));
+    }
+    struct LutFailure;
+    impl ConfigIOProvider for LutFailure {
+        fn config_data(&self) -> ocio_rs::Result<String> {
+            Ok(String::new())
+        }
+        fn lut_data(&self, _: &std::ffi::CStr) -> ocio_rs::Result<Vec<u8>> {
+            Err(ocio_rs::OcioError::InvalidInput(
+                "LUT backend unavailable".into(),
+            ))
+        }
+        fn fast_lut_file_hash(&self, _: &std::ffi::CStr) -> ocio_rs::Result<String> {
+            Ok("known".into())
+        }
+    }
+    let proxy = ConfigIOProxy::from_provider(LutFailure).unwrap();
+    assert!(proxy
+        .try_lut_data("test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("LUT backend unavailable"));
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn custom_provider_stub_releases_ownership() {
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let provider = OnDemandProvider {
+        config: String::new(),
+        lut: Vec::new(),
+        calls: calls.clone(),
+    };
+    assert!(ConfigIOProxy::from_provider(provider).is_err());
+    assert_eq!(std::sync::Arc::strong_count(&calls), 1);
+}
 
 fn config_io_proxy_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();

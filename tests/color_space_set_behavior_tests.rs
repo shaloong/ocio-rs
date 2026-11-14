@@ -43,6 +43,229 @@ fn set_names(set: &ColorSpaceSet) -> BTreeSet<String> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_set_operations_preserve_results_and_name_equality() {
+    let left = ColorSpaceSet::create().unwrap();
+    let right = ColorSpaceSet::create().unwrap();
+    left.add_color_space(&named_color_space("A", &[]));
+    left.add_color_space(&named_color_space("B", &[]));
+    let replacement = named_color_space("B", &[]);
+    replacement.set_description("right side").unwrap();
+    right.add_color_space(&replacement);
+    right.add_color_space(&named_color_space("C", &[]));
+    let union = left.union(&right).unwrap();
+    let intersection = left.intersection(&right).unwrap();
+    let difference = left.difference(&right).unwrap();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    let copied_b = union.copy_color_space("B").unwrap().unwrap();
+    assert_eq!(copied_b.description().as_deref(), Some("right side"));
+    copied_b.set_description("changed copy").unwrap();
+    assert_eq!(
+        union
+            .copy_color_space("B")
+            .unwrap()
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("right side")
+    );
+    assert!(union.copy_color_space("missing").unwrap().is_none());
+    assert!(union.copy_color_space_by_index(-1).unwrap().is_none());
+    assert!(union.copy_color_space_by_index(0).unwrap().is_some());
+    assert_eq!(
+        union
+            .create_editable_copy()
+            .unwrap()
+            .color_space("B")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("right side")
+    );
+    assert_eq!(intersection.try_num_color_spaces().unwrap(), 1);
+    assert_eq!(
+        intersection
+            .try_color_space_name_by_index(0)
+            .unwrap()
+            .as_deref(),
+        Some("B")
+    );
+    assert_eq!(
+        difference
+            .try_color_space_name_by_index(0)
+            .unwrap()
+            .as_deref(),
+        Some("A")
+    );
+    assert!(!left.try_equals(&right).unwrap());
+    assert!(left
+        .try_equals(&left.create_editable_copy().unwrap())
+        .unwrap());
+    let same_names = ColorSpaceSet::create().unwrap();
+    same_names.add_color_space(&named_color_space("A", &[]));
+    same_names.add_color_space(&replacement);
+    assert!(left.try_equals(&same_names).unwrap());
+    assert!(intersection
+        .union(&difference)
+        .unwrap()
+        .try_equals(&left)
+        .unwrap());
+    left.clear_color_spaces();
+    right.clear_color_spaces();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    let editable = union.create_editable_copy().unwrap();
+    editable.remove_color_space("A").unwrap();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    assert_eq!(editable.num_color_spaces(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn set_color_space_lookups_return_independent_editable_copies() {
+    let set = ColorSpaceSet::create().unwrap();
+    set.add_color_space(&named_color_space("Original", &[]));
+    let by_name = set.color_space("Original").unwrap();
+    let by_index = set.color_space_by_index(0).unwrap();
+    by_name.set_name("Changed").unwrap();
+    by_index.set_description("changed copy").unwrap();
+    assert!(set.has_color_space("Original"));
+    assert!(!set.has_color_space("Changed"));
+    assert_ne!(
+        set.color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("changed copy")
+    );
+    set.add_color_space(&by_index);
+    assert_eq!(
+        set.color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("changed copy")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_color_space_lookup_requires_explicit_registration_for_edits() {
+    let config = Config::raw().unwrap();
+    let original = named_color_space("Original", &[]);
+    config.try_add_color_space(&original).unwrap();
+    let copy = config.color_space("Original").unwrap();
+    copy.set_description("edited copy").unwrap();
+    assert_ne!(
+        config
+            .color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("edited copy")
+    );
+    config.try_add_color_space(&copy).unwrap();
+    assert_eq!(
+        config
+            .color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("edited copy")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_color_spaces_survive_parent_drop_and_copy_independently() {
+    let config = Config::raw().unwrap();
+    config
+        .try_add_color_space(&named_color_space("Stable", &[]))
+        .unwrap();
+    let view = config.try_const_color_space("Stable").unwrap().unwrap();
+    let set = ColorSpaceSet::create().unwrap();
+    set.add_color_space(&named_color_space("Other", &[]));
+    let set_view = set.try_const_color_space("Other").unwrap().unwrap();
+    drop(config);
+    drop(set);
+    assert_eq!(view.name().unwrap().to_str().unwrap(), "Stable");
+    assert_eq!(set_view.name().unwrap().to_str().unwrap(), "Other");
+    assert!(!view.description().unwrap().to_bytes().is_empty());
+    let editable = view.create_editable_copy().unwrap();
+    editable.set_name("Changed").unwrap();
+    assert_eq!(view.name().unwrap().to_str().unwrap(), "Stable");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_color_space_reads_native_metadata_and_allocation() {
+    use ocio_rs::{Allocation, BitDepth, ReferenceSpaceType};
+    let config = Config::raw().unwrap();
+    let space = named_color_space("ReadOnly", &["working-space"]);
+    space.add_alias("alias").unwrap();
+    space.set_family("ACES/Input").unwrap();
+    space.set_equality_group("same").unwrap();
+    space.set_encoding("scene-linear").unwrap();
+    space.try_set_bit_depth(BitDepth::F32).unwrap();
+    space.try_set_is_data(true).unwrap();
+    space.try_set_allocation(Allocation::Lg2).unwrap();
+    space.set_allocation_vars(&[-8.0, 6.0, 0.1]).unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        space.set_interop_id("aces:cg").unwrap();
+        space
+            .set_interchange_attribute("icc_profile_name", "Example")
+            .unwrap();
+    }
+    config.try_add_color_space(&space).unwrap();
+    let view = config.try_const_color_space("ReadOnly").unwrap().unwrap();
+    assert_eq!(
+        view.family().unwrap().unwrap().to_str().unwrap(),
+        "ACES/Input"
+    );
+    assert_eq!(
+        view.equality_group().unwrap().unwrap().to_str().unwrap(),
+        "same"
+    );
+    assert_eq!(
+        view.encoding().unwrap().unwrap().to_str().unwrap(),
+        "scene-linear"
+    );
+    assert_eq!(view.num_aliases().unwrap(), 1);
+    assert_eq!(view.alias(0).unwrap().unwrap().to_str().unwrap(), "alias");
+    assert!(view.alias(usize::MAX).unwrap().is_none());
+    assert!(view.has_alias("alias").unwrap());
+    assert!(view.has_alias_cstr(c"alias").unwrap());
+    assert_eq!(view.num_categories().unwrap(), 1);
+    assert!(view.has_category("working-space").unwrap());
+    assert!(view.has_category_cstr(c"working-space").unwrap());
+    assert!(view.category(usize::MAX).unwrap().is_none());
+    assert_eq!(view.bit_depth().unwrap(), BitDepth::F32);
+    assert_eq!(
+        view.reference_space_type().unwrap(),
+        ReferenceSpaceType::Scene
+    );
+    assert!(view.is_data().unwrap());
+    assert_eq!(view.allocation().unwrap(), Allocation::Lg2);
+    assert_eq!(view.num_allocation_vars().unwrap(), 3);
+    let mut vars = [0.0; 3];
+    view.allocation_vars_into(&mut vars).unwrap();
+    assert_eq!(vars, [-8.0, 6.0, 0.1]);
+    assert!(view.allocation_vars_into(&mut [0.0; 2]).is_err());
+    assert!(view.has_alias("bad\0alias").is_err());
+    #[cfg(feature = "v2_5")]
+    {
+        assert_eq!(view.interop_id().unwrap().unwrap(), c"aces:cg");
+        assert_eq!(
+            view.interchange_attribute(c"icc_profile_name")
+                .unwrap()
+                .unwrap(),
+            c"Example"
+        );
+        assert!(view.interchange_attribute(c"invalid").is_err());
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_mutation_and_copy_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {

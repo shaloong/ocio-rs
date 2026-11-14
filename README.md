@@ -7,7 +7,7 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-Version 0.3 supports OpenColorIO `>= 2.4.1, < 2.6` (API introduced in OCIO
+The development branch supports OpenColorIO `>= 2.4.1, < 2.7` (API introduced in OCIO
 2.5.1 is opt-in via the `v2_5` Cargo feature; see Compatibility below).
 The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
@@ -88,8 +88,8 @@ OCIO_RS_ENABLE_REAL=0 cargo build
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
 
-Installed mode accepts OpenColorIO `>= 2.4.1, < 2.6`, raised to
-`>= 2.5.1, < 2.6` by the `v2_5` feature. It first probes
+Installed mode accepts OpenColorIO `>= 2.4.1, < 2.7`, raised to
+`>= 2.5.1, < 2.7` by the `v2_5` feature. It first probes
 `opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
 the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
 directories; for older installations without a `.pc` file, the conventional
@@ -149,7 +149,7 @@ ocio-rs/
 
 ## Compatibility
 
-The baseline API works with OpenColorIO `>= 2.4.1, < 2.6`. API added in newer OCIO
+The baseline API works with OpenColorIO `>= 2.4.1, < 2.7`. API added in newer OCIO
 versions is opt-in through additive `vX_Y` cargo features; enabling one raises
 the version requirement checked against the OpenColorIO resolved at build
 time, failing with a clear error on mismatch.
@@ -158,6 +158,11 @@ time, failing with a clear error on mismatch.
 | ------- | -------------- | ------------------------------------------------------------ |
 | (none)  | 2.4.1          | everything else                                               |
 | `v2_5`  | 2.5.1          | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
+| `v2_6`  | 2.6.0          | display/view aliases, color interop lookup, HDR compatibility, HMJ fixed function and CLF ID metadata |
+
+`v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
+`bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
+The vendored 2.5.2 source remains the default for builds without `v2_6`.
 
 Vendored OCIO per release:
 

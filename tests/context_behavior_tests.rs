@@ -267,7 +267,7 @@ fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
     let error = ctx
         .try_resolve_file_location("definitely-not-present-ocio-rs.spi1d")
         .expect_err("missing file resolution must report an OCIO error");
-    assert!(matches!(error, ocio_rs::OcioError::Ocio(_)));
+    assert!(matches!(error, ocio_rs::OcioError::MissingFile(_)));
     assert!(ctx
         .try_resolve_file_location("definitely-not-present\0.spi1d")
         .is_err());
@@ -325,6 +325,9 @@ fn context_load_environment_honors_selected_mode_behavior() {
         .expect("select all mode");
     ctx.load_environment().expect("load complete environment");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    if let Some((key, value)) = std::env::vars().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        assert!(ctx.string_var(key).is_some_and(|loaded| loaded == value));
+    }
     assert_ne!(
         ctx.cache_id().as_deref(),
         Some(predefined_cache_id.as_str())

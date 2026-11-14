@@ -1,4 +1,4 @@
-//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4.1 through 2.5.x).
+//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4.1 through 2.6.x).
 //!
 //! This crate wraps the OpenColorIO C++ API through a generated FFI layer
 //! ([`ocio_sys`]) and exposes safe Rust types for configuration, color-space
@@ -7,7 +7,7 @@
 //!
 //! # OCIO version support
 //!
-//! The baseline API works with OpenColorIO >= 2.4.1 and < 2.6. API added in newer
+//! The baseline API works with OpenColorIO >= 2.4.1 and < 2.7. API added in newer
 //! OCIO versions is opt-in through additive `vX_Y` cargo features (e.g.
 //! `v2_5` for hue-curve grading, interchange attributes, and GPU uniform
 //! buffers); enabling one raises the OpenColorIO version requirement checked
@@ -78,14 +78,35 @@
     clippy::unnecessary_cast
 )]
 
+mod app_helpers;
+mod spline;
+mod system_monitors;
+#[cfg(feature = "v2_5")]
+pub use spline::BSplineType;
+#[cfg(feature = "v2_5")]
+pub use spline::GradingHueCurve;
+pub use spline::{GradingBSplineCurve, GradingRGBCurve};
+pub use system_monitors::SystemMonitors;
 mod baker;
+pub use app_helpers::{
+    ColorSpaceMenuHelper, ColorSpaceMenuParameters, DisplayViewFromFile, LegacyViewingPipeline,
+    MixingColorSpaceManager, MixingSlider,
+};
 mod builtin_config_registry;
 mod builtin_transform_registry;
 mod color_space_set;
 mod colorspace;
 mod config;
+#[cfg(feature = "v2_5")]
+mod config_merging;
+#[cfg(feature = "v2_5")]
+pub use config_merging::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
 mod config_io_proxy;
+mod const_config_item;
+mod const_rules;
+pub mod constants;
 mod context;
+mod enum_text;
 mod file_rules;
 mod format_metadata;
 pub mod grading;
@@ -101,22 +122,35 @@ mod viewing_rules;
 pub use baker::Baker;
 pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use builtin_transform_registry::BuiltinTransformRegistry;
-pub use color_space_set::ColorSpaceSet;
-pub use colorspace::ColorSpace;
-pub use config::Config;
-pub use config_io_proxy::ConfigIOProxy;
-pub use context::Context;
+pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
+pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
+pub use config::{Config, ConstConfig};
+pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
+pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
+pub use const_rules::{ConstFileRules, ConstViewingRules};
+pub use context::{ConstContext, Context};
+pub use enum_text::OcioEnumText;
 pub use file_rules::FileRules;
-pub use format_metadata::FormatMetadata;
+pub use format_metadata::{ConstFormatMetadata, FormatMetadata};
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
-    GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
-    Processor, TextureInfo,
+    GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformCache, GpuUniformCopy,
+    GpuUniformType, GpuUniformValue, PackedConversionLayout, PackedImageLayout, PlanarByteLayout,
+    PlanarBytes, PlanarBytesMut, PlanarF32Layout, Processor, SignedPlanarByteLayout,
+    SignedPlanarBytes, SignedPlanarBytesMut, StaticCPUProcessor, TextureInfo,
 };
-pub use processor_metadata::ProcessorMetadata;
+pub use processor::{
+    ShaderCodeSection, ShaderExtractionHooks, ShaderLifecycle, ShaderSections, ShaderTexture,
+    ShaderUniform,
+};
+pub use processor_metadata::{ConstProcessorMetadata, ProcessorMetadata};
 pub use types::*;
+#[cfg(feature = "v2_6")]
+mod v2_6;
+#[cfg(feature = "v2_6")]
+pub use v2_6::{metadata_id_element, ViewWithAliases};
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 
@@ -137,6 +171,9 @@ pub use ocio_sys;
 pub enum OcioError {
     #[error("OpenColorIO error: {0}")]
     Ocio(String),
+    /// OCIO could not locate a required file, such as a config or LUT.
+    #[error("OpenColorIO file not found: {0}")]
+    MissingFile(String),
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
     #[error("invalid input: {0}")]
@@ -187,7 +224,7 @@ unsafe extern "C" fn rust_logging_callback(message: *const i8) {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone();
     if let Some(callback) = callback {
-        let message = unsafe { CStr::from_ptr(message).to_string_lossy().into_owned() };
+        let message = unsafe { CStr::from_ptr(message).to_string_lossy() };
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
     }
 }
@@ -208,7 +245,11 @@ unsafe extern "C" fn rust_compute_hash_callback(
     let Some(callback) = callback else {
         return false;
     };
-    let input = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let input = if input_len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(input, input_len) }
+    };
     let Ok(value) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(input)))
     else {
         return false;
@@ -235,8 +276,7 @@ pub fn is_stub_build() -> bool {
 
 /// Returns the process-global current OCIO config, if one is installed.
 ///
-/// The returned handle follows OCIO's shared ownership semantics and can be
-/// queried or copied like any other `Config`. This compatibility helper
+/// The returned config is an independent editable copy. This compatibility helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
@@ -257,6 +297,15 @@ pub fn try_current_config() -> Result<Option<Config>> {
     let handle = unsafe { ocio_sys::ocio_get_current_config() };
     ocio_call_status()?;
     Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
+}
+
+/// Share the native process-global current config without making an editable copy.
+/// The returned snapshot stays alive if another config is subsequently installed.
+pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
+    clear_last_error();
+    let handle = unsafe { ocio_sys::ocio_get_const_current_config() };
+    ocio_call_status()?;
+    Ok(std::ptr::NonNull::new(handle).map(|handle| ConstConfig { handle }))
 }
 
 #[deprecated(since = "0.2.0", note = "compat alias; prefer current_config()")]
@@ -321,8 +370,7 @@ pub fn logging_level() -> crate::LoggingLevel {
         1 => crate::LoggingLevel::Warning,
         2 => crate::LoggingLevel::Info,
         3 => crate::LoggingLevel::Debug,
-        4 => crate::LoggingLevel::Trace,
-        _ => crate::LoggingLevel::None,
+        _ => crate::LoggingLevel::Unknown,
     }
 }
 
@@ -340,6 +388,11 @@ pub fn set_logging_level(level: crate::LoggingLevel) {
 
 /// Try to set the OCIO global logging level.
 pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
+    if level as i32 == 4 {
+        return Err(OcioError::InvalidInput(
+            "OpenColorIO does not support trace logging".into(),
+        ));
+    }
     clear_last_error();
     unsafe { ocio_sys::ocio_set_logging_level(level as i32) };
     ocio_call_status()
@@ -350,6 +403,11 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
 /// OCIO's logging mechanism is thread-safe. This only invokes the current
 /// OCIO logger; use `try_set_logging_level` to control filtering.
 pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> Result<()> {
+    if level as i32 == 4 {
+        return Err(OcioError::InvalidInput(
+            "OpenColorIO does not support trace logging".into(),
+        ));
+    }
     let message = cstring(message)?;
     clear_last_error();
     unsafe { ocio_sys::ocio_log_message(level as i32, message.as_ptr()) };
@@ -411,7 +469,7 @@ pub fn reset_logging_callback() -> Result<()> {
 ///
 /// The callback receives and returns raw bytes so OCIO `std::string` values,
 /// including embedded NUL bytes, round-trip without loss. Its output is copied
-/// by OCIO before the callback returns. Panics are caught and never unwind
+/// by the bridge immediately after the callback returns. Panics are caught and never unwind
 /// across the FFI boundary.
 pub fn set_compute_hash_callback(
     callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
@@ -610,24 +668,33 @@ pub(crate) fn last_error_message() -> Option<String> {
 /// Each safe wrapper clears the slot before calling into the bridge. Consuming
 /// an error here prevents a handled failure from being observed by a later FFI
 /// call on the same thread.
-pub(crate) fn take_last_error_message() -> Option<String> {
+fn take_last_error() -> Option<(String, bool)> {
     let message = last_error_message();
-    if message.is_some() {
+    message.map(|message| {
+        let missing_file = unsafe { ocio_sys::ocio_error_get_last_kind() == 1 };
         clear_last_error();
+        (message, missing_file)
+    })
+}
+
+fn bridge_error(message: String, missing_file: bool) -> OcioError {
+    if missing_file {
+        OcioError::MissingFile(message)
+    } else {
+        OcioError::Ocio(message)
     }
-    message
 }
 
 pub(crate) fn validation_status() -> Result<()> {
-    match take_last_error_message() {
-        Some(message) => Err(OcioError::ValidationFailed(message)),
+    match take_last_error() {
+        Some((message, _)) => Err(OcioError::ValidationFailed(message)),
         None => Ok(()),
     }
 }
 
 pub(crate) fn ocio_call_status() -> Result<()> {
-    match take_last_error_message() {
-        Some(message) => Err(OcioError::Ocio(message)),
+    match take_last_error() {
+        Some((message, missing_file)) => Err(bridge_error(message, missing_file)),
         None => Ok(()),
     }
 }
@@ -635,8 +702,8 @@ pub(crate) fn ocio_call_status() -> Result<()> {
 pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
     match NonNull::new(handle) {
         Some(handle) => Ok(handle),
-        None => match take_last_error_message() {
-            Some(message) => Err(OcioError::Ocio(message)),
+        None => match take_last_error() {
+            Some((message, missing_file)) => Err(bridge_error(message, missing_file)),
             None => Err(OcioError::AllocationFailed),
         },
     }
@@ -644,6 +711,46 @@ pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn hash_callback_accepts_null_empty_input() {
+        let _guard = super::compute_hash_callback_update_lock().lock().unwrap();
+        let previous =
+            super::compute_hash_callback_slot()
+                .lock()
+                .unwrap()
+                .replace(std::sync::Arc::new(|input| {
+                    assert!(input.is_empty());
+                    b"hash".to_vec()
+                }));
+        let mut output = std::ptr::null();
+        let mut output_len = 0;
+        assert!(!unsafe {
+            super::rust_compute_hash_callback(std::ptr::null(), 1, &mut output, &mut output_len)
+        });
+        let succeeded = unsafe {
+            super::rust_compute_hash_callback(std::ptr::null(), 0, &mut output, &mut output_len)
+        };
+        assert!(succeeded);
+        assert_eq!(
+            unsafe { std::slice::from_raw_parts(output, output_len) },
+            b"hash"
+        );
+        *super::compute_hash_callback_slot().lock().unwrap() = previous;
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn unsupported_trace_logging_is_rejected_before_native_call() {
+        assert!(matches!(
+            super::try_set_logging_level(super::LoggingLevel::Trace),
+            Err(super::OcioError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            super::try_log_message(super::LoggingLevel::Trace, "message"),
+            Err(super::OcioError::InvalidInput(_))
+        ));
+    }
+
     use super::*;
 
     #[test]
@@ -669,8 +776,17 @@ mod tests {
         clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
 
-        assert!(matches!(handle_result(handle), Err(OcioError::Ocio(_))));
+        let error = handle_result(handle).expect_err("missing config");
+        if version_hex() >= 0x02060000 {
+            assert!(matches!(error, OcioError::MissingFile(_)));
+        } else {
+            assert!(matches!(
+                error,
+                OcioError::Ocio(_) | OcioError::MissingFile(_)
+            ));
+        }
         assert!(last_error_message().is_none());
+        assert_eq!(unsafe { ocio_sys::ocio_error_get_last_kind() }, 0);
     }
 
     #[cfg(feature = "bundled")]

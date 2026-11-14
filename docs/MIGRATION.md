@@ -1,5 +1,18 @@
 # Migration Notes
 
+## Unreleased: processor thread confinement
+
+`Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` no longer
+implement `Send`. A dynamic-property handle may outlive the processor or shader
+descriptor it came from, and OCIO does not synchronize all property access.
+Build each pipeline on its owning worker thread rather than moving an existing
+handle between threads. For a non-dynamic CPU processor, `try_into_static()`
+validates it once and returns a `StaticCPUProcessor` that is `Send + Sync` and
+can be shared, for example with `Arc`, without a lock in the pixel path.
+Independent queries through the shared current config
+isolate dynamic pipelines; static lookups still use OCIO's native cache. This
+does not synchronize callers using raw C++ interop.
+
 ## 0.3.0
 
 `0.3.0` is a breaking release relative to `0.2.1`. Both `ocio-rs` and
@@ -122,7 +135,44 @@ being conflated with `FormatMetadata`. Use `Processor::processor_metadata()`
 to obtain it; bundled coverage validates standalone file/look mutation plus
 metadata extraction from a real processor.
 
+Metadata obtained from `Processor::processor_metadata` is now an independent
+editable copy. Use `try_const_processor_metadata` to share the native immutable
+metadata without copying its entries.
+
+Processor format-metadata getters now return independent editable trees. Use
+`try_const_format_metadata` or `try_const_transform_format_metadata` to inspect
+shared native metadata without copying; const child handles keep the processor
+alive independently.
+
 ### Config processors and file rules
+
+Color-space lookup on `Config` and `ColorSpaceSet` returns an independent
+editable copy. To apply edits, register that copy back with the parent. For
+shared read-only access without copying the native object, use
+`try_const_color_space`; its `name` and `description` borrow native text, and
+`create_editable_copy` creates an editable object on demand.
+
+Transform getters on color spaces, looks, named transforms and view transforms
+now return editable copies. Use the corresponding `try_const_transform` (or
+`try_const_inverse_transform` on a look) for shared read-only access and direct
+processor creation. Reassign editable copies to their parent to apply changes.
+
+`Config::current_context` now returns an independent editable copy. Use
+`try_const_current_context` for a shared read-only context; context text queries
+return owned strings because the configuration can change the underlying state.
+
+The process-global `current_config` getter now returns an independent editable
+copy. Use `try_const_current_config` for a shared read-only native snapshot,
+and explicitly install an edited copy with `try_set_current_config`.
+
+Config look, named-transform and view-transform getters return independent
+editable copies. Register edits back into the config. For shared read-only
+objects, use `try_const_look`, `try_const_named_transform`, or
+`try_const_view_transform`.
+
+Config file-rules and viewing-rules getters now return editable copies. Reattach
+an edited copy with the respective setter. `try_const_file_rules` and
+`try_const_viewing_rules` offer shared read-only access without a rules copy.
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 

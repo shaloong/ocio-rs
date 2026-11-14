@@ -7,6 +7,154 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+### Breaking safety changes
+
+- Processor, CPU/GPU processor, and GPU shader descriptor handles are no longer
+  `Send`: OCIO dynamic properties can remain live independently and are not
+  synchronized. Create independent pipelines on the threads using them.
+- Global const-config processor queries isolate dynamic pipelines to avoid
+  sharing mutable dynamic properties between independent callers. Static
+  pipelines continue to use the native processor cache.
+
+- Add unified GPU shader hooks for rewriting OCIO code fragments alongside resource and lifecycle callbacks.
+
+- Expose synchronous begin, finalized, and end notifications for custom GPU shader extraction.
+
+- Reduce FFI and shared-ownership overhead on successful F32 RGBA pixel and batch processing; preserve native error propagation.
+- Add an isolated direct-C++ versus safe-Rust CPU benchmark for single pixels and packed batches.
+
+- Add an isolated Vulkan hardware validation tool comparing GPU matrix, dynamic exposure, 1D/3D LUT (linear and tetrahedral), and OCIO 2.6 RGB↔HMJ output against OCIO CPU results.
+
+- Report uniform registrations, descriptor indices, and version-appropriate buffer layout to custom GPU shader resource callbacks during extraction.
+
+- Borrow generated GPU shader text directly from OCIO without allocating.
+
+- Allow replacing a group transform's child in place using the native mutable child slot.
+
+- Expose OCIO's standard roles, environment-variable names, metadata keys and config path identifiers as allocation-free Rust constants.
+
+### Added
+
+- Share non-dynamic CPU processors across threads through the once-validated
+  `StaticCPUProcessor`, with no additional per-pixel synchronization.
+- Expose native OCIO enum/string conversions and direction and bit-depth
+  utilities, including cross-version GPU and fixed-function enum mapping.
+- Share immutable processor format-metadata trees with borrowed strings and
+  independently owned child views.
+- Share read-only processor metadata with borrowed file and look names.
+- Access the process-global current config as a shared immutable native object,
+  including direct processor, color-space and context queries.
+- Inspect shared look, named-transform and view-transform metadata without
+  cloning the object; resolve named transforms using native inverse fallback.
+- Share and query native file rules and viewing rules without cloning them;
+  rule strings borrow their immutable native owner.
+- Share read-only looks, named transforms and view transforms from a config,
+  and access their native child transforms without making editable copies.
+- Share a configuration's read-only context without cloning it; use it directly
+  for named color-space or shared-transform processors.
+- Share immutable child transforms and use them directly to create processors,
+  with explicit copying when editing is required.
+- Construct processors directly from editable or shared read-only color-space
+  objects, with optional explicit context, and copy transforms for editing.
+- Expose native color-space set union, intersection, difference and name-based
+  equality, retaining read-only operation results without an extra copy.
+- Look up shared read-only color spaces from configurations and sets without
+  copying the native object; borrow names and descriptions without allocation.
+- Inspect read-only color-space metadata, aliases, categories, bit depth and
+  allocation settings, with borrowed strings and caller-owned parameter buffers.
+- Process and convert packed images in native RGB, BGR, RGBA, BGRA, and ABGR
+  order with checked channel spacing and signed pixel and row strides.
+- Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers
+  can distinguish it from other runtime errors. Exception types for particular
+  failures may vary by native OCIO version. This adds
+  an enum variant and changes the error variant for those failures; exhaustive
+  matches must be updated.
+- Create color spaces in either scene or display reference space.
+- Create an empty editable config separately from OCIO's raw fallback config.
+- Construct native identity 1D and 3D LUTs with explicit sizes and half-domain mode.
+- Supply configs and LUTs on demand through thread-safe Rust ConfigIOProxy providers.
+- Process planar F32 image channels in place through native OpenColorIO.
+- Support checked positive row and pixel strides for planar F32 processing.
+- Support planar native-depth byte channels and explicit CPU processor bit depths.
+- Convert separate packed RGB/RGBA buffers between native input and output bit depths.
+- Convert separate planar RGB/RGBA buffers between native input and output bit depths.
+- Process and convert planar RGB/RGBA buffers with checked signed byte strides.
+- Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
+- Read current GPU uniform values into caller-provided buffers without Rust
+  allocations, including live dynamic-property updates.
+- Read native double uniform values without reducing precision to GPU `f32`.
+- Read native boolean uniform values without converting them to floats.
+- Register live, thread-safe Rust scalar, float3, and array uniform getters
+  with native shader descriptors.
+- Borrow GPU LUT texture values directly from OCIO for upload without copying.
+- Customize GPU shader assembly in a synchronous Rust callback while
+  preserving OCIO-owned textures and dynamic uniforms on OCIO 2.4 and newer.
+- Inspect native LUT textures during shader extraction and optionally assign
+  custom texture bindings on OCIO 2.5 and newer.
+- Expose independently owned native grading B-spline curves, including
+  2.5 spline-type constructors and editing.
+- Expose native RGB and hue grading curve sets, their editable constituent
+  curves, transform value exchange, and hue curve-only drawing mode.
+- Construct grading splines and curve sets from borrowed native curve data.
+- Exchange complete native grading curve objects with dynamic properties,
+  including hue curve-only drawing state.
+- Add complete eight-curve hue grading snapshots while preserving the legacy
+  four-curve snapshot API.
+- Expose complete dynamic hue-property snapshots, including all eight curves.
+- Update all eight dynamic hue curves in one validated native commit.
+- Bind native monitor profile enumeration and add OCIOM parsing coverage.
+- Bind the native color-space menu and mixing helpers. Menu text borrows
+  native storage and mixing sliders borrow their manager.
+- Bind the legacy viewing pipeline and its optional correction stages,
+  context-aware processing, and dynamic display-view identity helper.
+- Support OpenColorIO 2.6 with the existing baseline and `v2_5` Rust APIs.
+  Opt in to the new API with `v2_6`. The default bundled source remains 2.5.2;
+  use an installed 2.6 library or point `OCIO_SOURCE_DIR` at 2.6.0.
+
+### Fixed
+
+- Processor format-metadata getters now return independent editable deep copies
+  instead of mutable aliases to native const data. This changes prior mutation
+  behavior; use shared const metadata for no-copy inspection.
+- Processor metadata getters now return editable copies rather than exposing
+  writable aliases to native const processor state. This changes code that
+  relied on mutating metadata through a processor-returned object.
+- `current_config` now returns an independent editable copy rather than a
+  mutable alias of OCIO's process-global const config. Install edited copies
+  explicitly; this changes the prior mutation behavior.
+- Config file-rules and viewing-rules getters now return independent editable
+  copies, rather than mutable aliases of OCIO-owned const rules. Reattach edits
+  to apply them; this changes the prior mutation behavior.
+- Config look, named-transform and view-transform getters now return editable
+  copies instead of writable aliases to OCIO-owned const objects. Register an
+  edited copy to apply changes; this changes the previous mutation behavior.
+- Return an independent editable context from `Config::current_context` instead
+  of exposing the configuration's native const context as writable. Existing
+  code that mutated the returned context to change the config must be updated.
+- Editable transform getters on color spaces, looks, named transforms and view
+  transforms now return independent copies instead of writable aliases to OCIO
+  const objects. Reassign a modified copy to update its parent; this changes
+  code that relied on mutating the previously returned alias.
+- Return independent editable color-space copies from config and set lookups.
+  Previously these exposed OCIO-owned const objects as mutable, allowing edits
+  that bypassed parent configuration or set invariants. To apply an edit,
+  add the modified copy back to the parent. Each lookup now allocates a copy;
+  this changes the behavior of code that relied on mutating the returned object.
+- Accept the documented native `GpuShaderCreator*` in raw GPU extraction without
+  treating it as an internal bridge handle or taking ownership.
+- Match OCIO's default processor-cache flags and reject the unsupported trace
+  logging level instead of silently passing it to native code.
+- Reject overflowing GPU texture dimensions before calculating buffer sizes or
+  passing pixel data to the native library.
+- Map GPU texture dimension discriminants to OpenColorIO's native 1D and 2D values.
+- Match native environment-loading mode values, so selecting `LoadAll` actually
+  loads the process environment.
+- Reject planar row strides that violate native descriptor requirements before
+  OpenColorIO can overflow its stride arithmetic.
+- Compile dynamic hue curve updates with OpenColorIO 2.5's reference signature.
+
+- Preserve the HSY fixed-function style mapping when built with OpenColorIO 2.6.
+
 ## [0.3.0] - 2026-10-23
 
 ### Breaking

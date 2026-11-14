@@ -9,6 +9,63 @@ pub struct Context {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared, read-only OCIO context. Queries return owned text because a config
+/// may update its current context while this handle remains alive.
+pub struct ConstContext {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstContext {
+    fn text(&self, field: i32, argument: Option<&std::ffi::CStr>) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_get_text(
+                self.handle.as_ptr(),
+                field,
+                argument.map_or(std::ptr::null(), |s| s.as_ptr()),
+            )
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Get the working directory as owned text.
+    pub fn working_dir(&self) -> Result<Option<String>> {
+        self.text(0, None)
+    }
+    /// Get the concatenated search path as owned text.
+    pub fn search_path(&self) -> Result<Option<String>> {
+        self.text(1, None)
+    }
+    /// Get a variable's value as owned text.
+    pub fn string_var(&self, name: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(2, Some(name))
+    }
+    /// Get the current native context cache ID.
+    pub fn cache_id(&self) -> Result<Option<String>> {
+        self.text(3, None)
+    }
+    /// Resolve context variables into owned text.
+    pub fn resolve_string_var(&self, value: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(4, Some(value))
+    }
+    /// Resolve a file location, preserving OCIO missing-file errors.
+    pub fn resolve_file_location(&self, value: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(5, Some(value))
+    }
+    /// Create an independently editable context.
+    pub fn create_editable_copy(&self) -> Result<Context> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_context_create_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Context { handle })
+    }
+}
+impl Drop for ConstContext {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_context_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl Context {
     /// Create a new OCIO context with default search-path and environment behavior.
     pub fn create() -> Result<Self> {
@@ -401,8 +458,9 @@ impl Context {
     pub fn environment_mode(&self) -> EnvironmentMode {
         let m = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
         match m {
-            1 => EnvironmentMode::LoadAll,
-            _ => EnvironmentMode::LoadPredefined,
+            1 => EnvironmentMode::LoadPredefined,
+            2 => EnvironmentMode::LoadAll,
+            _ => EnvironmentMode::Unknown,
         }
     }
 

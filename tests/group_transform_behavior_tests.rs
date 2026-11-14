@@ -143,6 +143,39 @@ fn group_child_handle_survives_parent_drop_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_replaces_child_in_place_and_keeps_old_handles_alive() {
+    let _guard = group_transform_test_lock();
+    let group = GroupTransform::create().expect("group");
+    let old = scale_matrix([2.0, 1.0, 1.0, 1.0]);
+    let replacement = scale_matrix([3.0, 1.0, 1.0, 1.0]);
+    group.append_transform(&old).expect("append");
+    let old_handle = group.try_transform(0).unwrap().unwrap();
+    group.set_transform(0, &replacement).expect("replace");
+    assert_eq!(group.num_transforms(), 1);
+    let Some(Transform::Matrix(new_handle)) = group.try_transform(0).unwrap() else {
+        panic!("expected matrix child");
+    };
+    assert_eq!(new_handle.matrix()[0], 3.0);
+    let Transform::Matrix(old_handle) = old_handle else {
+        panic!("expected old matrix");
+    };
+    assert_eq!(old_handle.matrix()[0], 2.0);
+    let mut updated = replacement.matrix();
+    updated[0] = 4.0;
+    replacement.set_matrix(&updated).unwrap();
+    assert_eq!(
+        new_handle.matrix()[0],
+        4.0,
+        "replacement shares native ownership"
+    );
+    assert!(group.set_transform(-1, &old).is_err());
+    assert!(group.set_transform(1, &old).is_err());
+    assert_eq!(group.num_transforms(), 1);
+    assert_eq!(new_handle.matrix()[0], 4.0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_writer_and_format_query_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {

@@ -235,6 +235,52 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
 
     let src_lookup = config.color_space("UnitColorSpaceA").expect("src lookup");
     let dst_lookup = config.color_space("UnitColorSpaceB").expect("dst lookup");
+    let src_const = config
+        .try_const_color_space("UnitColorSpaceA")
+        .unwrap()
+        .unwrap();
+    let dst_const = config
+        .try_const_color_space("UnitColorSpaceB")
+        .unwrap()
+        .unwrap();
+    let context = config.current_context().unwrap();
+    for processor in [
+        config
+            .processor_from_color_space_refs(&src_const, &dst_const)
+            .unwrap(),
+        config
+            .processor_from_color_space_refs(&src_lookup, &dst_const)
+            .unwrap(),
+        config
+            .processor_from_color_space_refs_with_context(&context, &src_const, &dst_lookup)
+            .unwrap(),
+    ] {
+        let mut value = [0.25f32, 0.5, 0.5, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .apply_rgba(&mut value);
+        assert_close(value[0] as f64, 0.5, 1e-6);
+        assert_close(value[2] as f64, 0.25, 1e-6);
+    }
+    let copied = src_const
+        .copy_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(matrix) = copied else {
+        panic!("expected matrix transform")
+    };
+    let mut values = matrix.matrix();
+    values[0] = 7.0;
+    matrix.set_matrix(&values).unwrap();
+    let copied_again = src_const
+        .copy_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(original) = copied_again else {
+        panic!("expected matrix transform")
+    };
+    assert_eq!(original.matrix()[0], 2.0);
     let processor_by_object = config
         .processor_from_color_spaces(&src_lookup, &dst_lookup)
         .expect("processor by object");
@@ -247,6 +293,52 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
     assert_close(second_pixel[1] as f64, 0.5, 1e-6);
     assert_close(second_pixel[2] as f64, 0.25, 1e-6);
     assert_close(second_pixel[3] as f64, 1.0, 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_object_processor_uses_explicit_context() {
+    use ocio_rs::transform::FileTransform;
+    use ocio_rs::{ColorSpaceDirection, Context};
+    let config = Config::raw().unwrap();
+    let reference = ColorSpace::create().unwrap();
+    reference.set_name("context-reference").unwrap();
+    config.try_add_color_space(&reference).unwrap();
+    let input = ColorSpace::create().unwrap();
+    input.set_name("context-input").unwrap();
+    let file = FileTransform::create().unwrap();
+    file.set_src("${LUT_DIR}/lut1.clf").unwrap();
+    input
+        .try_set_transform(&file, ColorSpaceDirection::ToReference)
+        .unwrap();
+    config.try_add_color_space(&input).unwrap();
+    let input_view = config
+        .try_const_color_space("context-input")
+        .unwrap()
+        .unwrap();
+    let raw_view = config
+        .try_const_color_space("context-reference")
+        .unwrap()
+        .unwrap();
+    assert!(raw_view
+        .copy_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .is_none());
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/configs/context_test1");
+    for (dir, expected) in [("shot1", 0.1), ("shot4", 0.4)] {
+        let context = Context::create().unwrap();
+        context.set_working_dir(root.to_str().unwrap()).unwrap();
+        context.set_string_var("LUT_DIR", dir).unwrap();
+        let cpu = config
+            .processor_from_color_space_refs_with_context(&context, &input_view, &raw_view)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        let mut value = [0.01, 0.01, 0.01, 1.0];
+        cpu.try_apply_rgba(&mut value).unwrap();
+        assert_close(value[0] as f64, expected, 1e-5);
+    }
 }
 
 #[cfg(feature = "v2_5")]

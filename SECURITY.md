@@ -14,7 +14,7 @@ basis for the current release line and development branch.
 
 ## Reporting a Vulnerability
 
-The supported native range is OpenColorIO `>= 2.4.1, < 2.6`. Installed builds
+The supported native range is OpenColorIO `>= 2.4.1, < 2.7`. Installed builds
 use the distribution's library and security updates; bundled builds contain
 the pinned OpenColorIO and transitive sources, so native fixes may require a
 new `ocio-sys` release. Stub tests cannot validate real native processing.

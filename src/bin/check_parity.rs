@@ -53,6 +53,7 @@ struct L2Missing {
 
 #[derive(Debug)]
 struct L3Result {
+    header_dir: PathBuf,
     total_cpp_methods: usize,
     matched: usize,
     normalized_create_matches: usize,
@@ -73,6 +74,17 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "file_rules" => Some("FileRules"),
         "color_space" => Some("ColorSpace"),
         "color_space_set" => Some("ColorSpaceSet"),
+        "color_space_menu_parameters" => Some("ColorSpaceMenuParameters"),
+        "color_space_menu_helper" => Some("ColorSpaceMenuHelper"),
+        "mixing_color_space_manager" => Some("MixingColorSpaceManager"),
+        "mixing_slider" => Some("MixingSlider"),
+        "legacy_viewing_pipeline" => Some("LegacyViewingPipeline"),
+        "config_merging_parameters" => Some("ConfigMergingParameters"),
+        "config_merger" => Some("ConfigMerger"),
+        "system_monitors" => Some("SystemMonitors"),
+        "grading_bspline_curve" => Some("GradingBSplineCurve"),
+        "grading_rgb_curve_object" => Some("GradingRGBCurve"),
+        "grading_hue_curve_object" => Some("GradingHueCurve"),
         "look" => Some("Look"),
         "named_transform" => Some("NamedTransform"),
         "view_transform" => Some("ViewTransform"),
@@ -134,6 +146,17 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "builtin_config_registry",
         "builtin_transform_registry",
         "color_space_set",
+        "color_space_menu_parameters",
+        "color_space_menu_helper",
+        "mixing_color_space_manager",
+        "mixing_slider",
+        "legacy_viewing_pipeline",
+        "config_merging_parameters",
+        "config_merger",
+        "system_monitors",
+        "grading_bspline_curve",
+        "grading_rgb_curve_object",
+        "grading_hue_curve_object",
         "allocation_transform",
         "look_transform",
         "lut1d_transform",
@@ -247,6 +270,9 @@ fn classify_ocio_func(name: &str) -> (String, String) {
                 | "remove_color_spaces"
                 | "clear_color_spaces"
                 | "create_editable_copy"
+                | "get_const_color_space"
+                | "operation"
+                | "equal"
         );
         if !is_real_color_space_set_method {
             return (
@@ -447,14 +473,27 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
     }
 
     let cpp_classes = [
+        "ColorSpaceMenuParameters",
+        "ColorSpaceMenuHelper",
+        "MixingColorSpaceManager",
+        "MixingSlider",
+        "LegacyViewingPipeline",
+        "ConfigMergingParameters",
+        "ConfigMerger",
+        "SystemMonitors",
+        "GradingBSplineCurve",
+        "GradingRGBCurve",
+        "GradingHueCurve",
         "Config",
         "FileRules",
+        "ViewingRules",
         "ColorSpace",
         "ColorSpaceSet",
         "Look",
         "NamedTransform",
         "ViewTransform",
         "Processor",
+        "ProcessorMetadata",
         "CPUProcessor",
         "GPUProcessor",
         "GpuShaderDesc",
@@ -495,9 +534,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         .filter_map(|e| e.ok())
         .filter(|e| {
             e.path().extension().is_some_and(|ext| ext == "h")
-                && e.path()
-                    .file_name()
-                    .is_some_and(|n| n != "OpenColorABI.h" && n != "OpenColorAppHelpers.h")
+                && e.path().file_name().is_some_and(|n| n != "OpenColorABI.h")
         })
         .collect();
 
@@ -516,6 +553,10 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
                     continue;
                 }
                 if let Some(brace_pos) = text[after_keyword..].find('{') {
+                    if text[after_keyword..after_keyword + brace_pos].contains(';') {
+                        search_from = after_keyword;
+                        continue; // Forward declaration, not a class body.
+                    }
                     let body_start = after_keyword + brace_pos + 1;
                     let mut depth = 1;
                     let mut body_end = body_start;
@@ -615,6 +656,74 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
 // L2: Only the truly irregular mappings that can't be derived by get_/set_ stripping.
 fn l2_overrides() -> HashMap<&'static str, &'static str> {
     [
+        ("apply_planar_f32", "try_apply_planar_f32"),
+        ("apply_planar_strided_f32", "try_apply_planar_strided_f32"),
+        ("apply_planar_bytes", "try_apply_planar_bytes"),
+        ("borrow_texture_values", "texture_values_ref"),
+        ("extract_with_assembler", "try_extract_with_assembler"),
+        ("extract_with_hooks", "try_extract_with_hooks"),
+        (
+            "extract_with_streamed_texture_hooks",
+            "try_extract_with_streamed_textures",
+        ),
+        (
+            "extract_with_lifecycle_callbacks",
+            "try_extract_with_lifecycle_callbacks",
+        ),
+        (
+            "extract_with_resource_callbacks",
+            "try_extract_with_resource_callbacks",
+        ),
+        (
+            "extract_with_texture_callback",
+            "try_extract_with_texture_callback",
+        ),
+        ("apply_planar_convert", "try_apply_planar_convert"),
+        ("apply_packed_convert", "try_apply_packed_convert"),
+        ("apply_packed_image", "try_apply_packed_image"),
+        ("convert_packed_image", "try_convert_packed_image"),
+        ("operation", "union"),
+        ("equal", "try_equals"),
+        ("get_const_color_space", "try_const_color_space"),
+        ("get_const_named_item", "try_const_look"),
+        (
+            "get_processor_from_const_named_transform",
+            "processor_from_const_named_transform",
+        ),
+        ("get_const_current_context", "try_const_current_context"),
+        ("get_const_metadata", "try_const_processor_metadata"),
+        ("get_const_format_metadata", "try_const_format_metadata"),
+        ("get_const_rules", "try_const_file_rules"),
+        (
+            "get_processor_with_const_context",
+            "processor_with_const_context",
+        ),
+        (
+            "get_processor_const_transform_with_const_context",
+            "processor_from_const_transform_with_const_context",
+        ),
+        (
+            "get_processor_from_const_transform",
+            "processor_from_const_transform",
+        ),
+        (
+            "get_processor_from_color_space_refs",
+            "processor_from_color_space_refs",
+        ),
+        ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
+        (
+            "grading_rgb_curve_object_set",
+            "set_grading_rgb_curve_object",
+        ),
+        ("grading_hue_curve_object_get", "grading_hue_curve_object"),
+        (
+            "grading_hue_curve_object_set",
+            "set_grading_hue_curve_object",
+        ),
+        (
+            "grading_hue_curve_set_complete",
+            "set_complete_grading_hue_curve_value",
+        ),
         // Constructor/static factory variants
         ("create_raw", "raw"),
         ("create_from_file", "from_file"),
@@ -688,8 +797,24 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("add_texture", "add_texture_2d"),
         ("add3d_texture", "add_texture_3d"),
         ("add_uniform_double", "add_uniform_f64"),
+        ("copy_uniform_f32_values_with_count", "try_uniform"),
+        ("copy_uniform_i32_values_with_count", "try_uniform"),
+        ("get_uniform_double_value", "try_uniform_f64_value"),
+        ("get_uniform_bool_value", "try_uniform_bool_value"),
+        ("create_empty", "create"),
+        ("create_with_callback", "from_provider"),
+        ("visit_lut_data", "try_lut_data"),
+        ("add_uniform_double_getter", "add_uniform_f64_getter"),
         ("add_uniform_vector_float", "add_uniform_f32_array"),
+        (
+            "add_uniform_vector_float_getter",
+            "add_uniform_f32_array_getter",
+        ),
         ("add_uniform_vector_int", "add_uniform_i32_array"),
+        (
+            "add_uniform_vector_int_getter",
+            "add_uniform_i32_array_getter",
+        ),
         // FormatMetadata: get_num_children_elements -> num_children
         ("get_num_children_elements", "num_children"),
         // MatrixTransform: static factories differ
@@ -791,6 +916,7 @@ fn find_rust_method(
 fn run_l3(
     bridge_funcs: &[CFunc],
     cpp_classes: &HashMap<String, Vec<(String, String)>>,
+    header_dir: &Path,
 ) -> L3Result {
     let bridge_methods: HashMap<String, HashSet<String>> =
         bridge_funcs.iter().fold(HashMap::new(), |mut acc, f| {
@@ -807,6 +933,17 @@ fn run_l3(
         ("FileRules", "FileRules"),
         ("ColorSpace", "ColorSpace"),
         ("ColorSpaceSet", "ColorSpaceSet"),
+        ("ColorSpaceMenuParameters", "ColorSpaceMenuParameters"),
+        ("ColorSpaceMenuHelper", "ColorSpaceMenuHelper"),
+        ("MixingColorSpaceManager", "MixingColorSpaceManager"),
+        ("MixingSlider", "MixingSlider"),
+        ("LegacyViewingPipeline", "LegacyViewingPipeline"),
+        ("ConfigMergingParameters", "ConfigMergingParameters"),
+        ("ConfigMerger", "ConfigMerger"),
+        ("SystemMonitors", "SystemMonitors"),
+        ("GradingBSplineCurve", "GradingBSplineCurve"),
+        ("GradingRGBCurve", "GradingRGBCurve"),
+        ("GradingHueCurve", "GradingHueCurve"),
         ("Look", "Look"),
         ("NamedTransform", "NamedTransform"),
         ("ViewTransform", "ViewTransform"),
@@ -851,6 +988,9 @@ fn run_l3(
     .collect();
 
     let method_name_overrides: HashMap<&str, &str> = [
+        ("getNumConfigMergingParameters", "num_params"),
+        ("setColorspaces", "set_color_spaces"),
+        ("getColorspaces", "get_color_spaces"),
         ("CreateRaw", "raw"),
         ("CreateFromFile", "from_file"),
         ("CreateEditableCopy", "create_editable_copy"),
@@ -882,6 +1022,17 @@ fn run_l3(
 
         total_cpp += methods.len();
         for (method_name, _signature) in methods {
+            // OCIO deprecated this in 2.3 and removed it in 2.6; its documented
+            // replacement is ResolveConfigPath("ocio://default").
+            if cpp_class == "BuiltinConfigRegistry"
+                && method_name == "getDefaultBuiltinConfigName"
+                && bridge_funcs
+                    .iter()
+                    .any(|f| f.name == "ocio_resolve_config_path")
+            {
+                matched += 1;
+                continue;
+            }
             if matches!(
                 method_name.as_str(),
                 "operator=" | "operator==" | "operator!=" | "OCIO_DYNAMIC_POINTER_CAST<T,U>"
@@ -891,8 +1042,21 @@ fn run_l3(
             }
 
             if method_name == "Create" {
-                matched += 1;
-                normalized_create_matches += 1;
+                if bridged.is_some_and(|methods| {
+                    methods.contains("create")
+                        || (cpp_class == "Config" && methods.contains("create_empty"))
+                }) {
+                    matched += 1;
+                    normalized_create_matches += 1;
+                } else {
+                    missing
+                        .entry(cpp_class.clone())
+                        .or_insert_with(Vec::new)
+                        .push(L3Missing {
+                            cpp_name: method_name.clone(),
+                            expected_snake: "create".to_string(),
+                        });
+                }
                 continue;
             }
 
@@ -937,6 +1101,7 @@ fn run_l3(
     }
 
     L3Result {
+        header_dir: header_dir.to_path_buf(),
         total_cpp_methods: total_cpp,
         matched,
         normalized_create_matches,
@@ -1006,9 +1171,11 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
 
     // L3
     if let Some(l3) = l3 {
-        println!("[L3] OCIO C++ headers <-> bridge.hpp");
-        println!("  C++ methods total: {}", l3.total_cpp_methods);
-        println!("  Bridged: {}/{}", l3.matched, l3.total_cpp_methods);
+        println!("[L3] Selected OCIO C++ class method names <-> bridge.hpp");
+        println!("  Header directory: {}", l3.header_dir.display());
+        println!("  Parsed method names: {}", l3.total_cpp_methods);
+        println!("  Name matches: {}/{}", l3.matched, l3.total_cpp_methods);
+        println!("  Scope: selected classes and names only; signatures, overloads, behavior, and excluded classes are not verified.");
         if l3.normalized_create_matches > 0 {
             println!(
                 "  Includes {} normalized static Create constructor matches",
@@ -1060,7 +1227,11 @@ fn main() {
 
     // Parse
     let bridge_funcs = parse_bridge_hpp(&root.join(BRIDGE_HPP));
-    let lib_funcs = parse_lib_rs(&root.join(LIB_RS));
+    let mut lib_funcs = parse_lib_rs(&root.join(LIB_RS));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/v2_6.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/app_helpers.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/config_merging.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/spline.rs")));
     let rust_methods = parse_rust_wrappers(&root.join(SRC_DIR));
 
     // Compare
@@ -1068,7 +1239,9 @@ fn main() {
     let l2 = run_l2(&bridge_funcs, &rust_methods);
 
     let l3 = if check_l3 {
-        let include_dir = root.join(OCIO_INCLUDE);
+        let include_dir = std::env::var_os("OCIO_SOURCE_DIR")
+            .map(|source| PathBuf::from(source).join("include/OpenColorIO"))
+            .unwrap_or_else(|| root.join(OCIO_INCLUDE));
         let primary_header = include_dir.join("OpenColorIO.h");
         if !primary_header.is_file() {
             eprintln!(
@@ -1085,7 +1258,7 @@ fn main() {
             );
             process::exit(2);
         }
-        Some(run_l3(&bridge_funcs, &cpp_classes))
+        Some(run_l3(&bridge_funcs, &cpp_classes, &include_dir))
     } else {
         None
     };
@@ -1143,8 +1316,11 @@ fn main() {
             if let Some(ref l3) = l3 {
                 let missing_count: usize = l3.missing.values().map(|v| v.len()).sum();
                 format!(
-                    r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {} }}"#,
-                    l3.total_cpp_methods, l3.matched, missing_count
+                    r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {}, "header_dir": {:?}, "scope": "selected class method names only; signatures, overloads, behavior, and excluded classes are not verified" }}"#,
+                    l3.total_cpp_methods,
+                    l3.matched,
+                    missing_count,
+                    l3.header_dir.to_string_lossy()
                 )
             } else {
                 r#""skipped (use --check-l3)""#.to_string()
@@ -1156,5 +1332,77 @@ fn main() {
 
     if has_gaps {
         process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn l3_skips_forward_declarations_and_reads_real_classes() {
+        let dir = std::env::temp_dir().join(format!(
+            "ocio-rs-parity-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let header = dir.join("fixture.h");
+        fs::write(&header, "class OCIOEXPORT ViewingRules;\nclass Other { public: void wrong(); };\nclass OCIOEXPORT ViewingRules { public:\nvoid correct();\n};\nclass OCIOEXPORT ProcessorMetadata { public:\nvoid actual();\n};\n").unwrap();
+        let parsed = parse_ocio_cpp_headers(&dir);
+        fs::remove_file(&header).unwrap();
+        fs::remove_dir(&dir).unwrap();
+        assert_eq!(parsed["ViewingRules"][0].0, "correct");
+        assert_eq!(parsed["ProcessorMetadata"][0].0, "actual");
+        assert_eq!(parsed["ViewingRules"].len(), 1);
+    }
+
+    #[test]
+    fn l3_does_not_credit_missing_create() {
+        let classes = HashMap::from([(
+            "ViewingRules".to_owned(),
+            vec![("Create".to_owned(), "static Create()".to_owned())],
+        )]);
+        let result = run_l3(&[], &classes, Path::new("."));
+        assert_eq!(result.matched, 0);
+        assert_eq!(result.missing["ViewingRules"][0].cpp_name, "Create");
+    }
+
+    #[test]
+    fn l3_recognizes_config_create_empty() {
+        let classes = HashMap::from([(
+            "Config".to_owned(),
+            vec![("Create".to_owned(), "static Create()".to_owned())],
+        )]);
+        let funcs = [CFunc {
+            name: "ocio_config_create_empty".to_owned(),
+            return_type: "void*".to_owned(),
+            params: "void".to_owned(),
+            class_prefix: "config".to_owned(),
+            method_name: "create_empty".to_owned(),
+        }];
+        let result = run_l3(&funcs, &classes, Path::new("."));
+        assert_eq!(result.matched, 1);
+        assert!(result.missing.is_empty());
+    }
+
+    #[test]
+    fn l3_requires_the_documented_default_config_replacement() {
+        let classes = HashMap::from([(
+            "BuiltinConfigRegistry".to_owned(),
+            vec![("getDefaultBuiltinConfigName".to_owned(), String::new())],
+        )]);
+        assert_eq!(run_l3(&[], &classes, Path::new(".")).matched, 0);
+        let funcs = [CFunc {
+            name: "ocio_resolve_config_path".to_owned(),
+            return_type: "const char*".to_owned(),
+            params: "const char*".to_owned(),
+            class_prefix: String::new(),
+            method_name: String::new(),
+        }];
+        assert_eq!(run_l3(&funcs, &classes, Path::new(".")).matched, 1);
     }
 }

@@ -36,6 +36,9 @@ fn global_version_and_logging_helper_behavior() {
 
     let runtime_version = version().expect("runtime version");
     assert!(!runtime_version.trim().is_empty());
+    if let Ok(expected) = std::env::var("OCIO_RS_TEST_VERSION") {
+        assert_eq!(runtime_version, expected, "unexpected native library");
+    }
     // The runtime must provide at least the API level the crate targets.
     #[cfg(feature = "v2_5")]
     assert!(version_hex() >= 0x0205_0000);
@@ -158,6 +161,47 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
 
     let _ = loaded;
     assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_hash_callback_accepts_null_empty_output() {
+    static CALLS: AtomicUsize = AtomicUsize::new(0);
+    unsafe extern "C" fn empty_hash(
+        _input: *const u8,
+        _input_len: usize,
+        output: *mut *const u8,
+        output_len: *mut usize,
+    ) -> bool {
+        CALLS.fetch_add(1, Ordering::SeqCst);
+        unsafe {
+            *output = std::ptr::null();
+            *output_len = 0;
+        }
+        true
+    }
+    let _guard = runtime_helpers_test_lock();
+    if is_stub() {
+        return;
+    }
+    CALLS.store(0, Ordering::SeqCst);
+    unsafe { ocio_sys::ocio_set_compute_hash_callback(Some(empty_hash)) };
+    try_clear_all_caches().expect("clear OCIO caches");
+    let transform = FileTransform::create().expect("create file transform");
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/clf/matrix_3x4_example.clf");
+    transform
+        .set_src(path.to_string_lossy())
+        .expect("set CLF path");
+    let result = Config::raw()
+        .expect("raw config")
+        .processor_from_transform_default_direction(&transform);
+    reset_compute_hash_callback().expect("reset compute hash callback");
+    assert!(CALLS.load(Ordering::SeqCst) > 0);
+    // OCIO interprets an empty file hash as a missing file; the bridge must
+    // nevertheless safely accept and copy the callback's empty result.
+    let error = result.err().expect("empty file hash is treated as missing");
+    assert!(!error.to_string().contains("compute hash callback"));
 }
 
 #[test]

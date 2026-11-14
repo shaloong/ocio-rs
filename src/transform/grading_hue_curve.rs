@@ -92,6 +92,41 @@ impl GradingHueCurveTransform {
         })
     }
 
+    /// Read every native hue curve, including the four omitted by `value`.
+    pub fn complete_value(&self) -> Result<crate::grading::CompleteGradingHueCurveValue> {
+        Ok(crate::grading::CompleteGradingHueCurveValue {
+            base: self.value()?,
+            sat_sat: self.read_curve(HueCurveType::SatSat)?,
+            lum_lum: self.read_curve(HueCurveType::LumLum)?,
+            sat_lum: self.read_curve(HueCurveType::SatLum)?,
+            hue_fx: self.read_curve(HueCurveType::HueFx)?,
+        })
+    }
+
+    /// Replace all eight native curves. Existing `set_value` changes only four.
+    pub fn set_complete_value(
+        &self,
+        value: &crate::grading::CompleteGradingHueCurveValue,
+    ) -> Result<()> {
+        self.set_value(&value.base)?;
+        for (kind, points) in [
+            (HueCurveType::SatSat, &value.sat_sat),
+            (HueCurveType::LumLum, &value.lum_lum),
+            (HueCurveType::SatLum, &value.sat_lum),
+            (HueCurveType::HueFx, &value.hue_fx),
+        ] {
+            let count = i32::try_from(points.len())
+                .map_err(|_| OcioError::InvalidInput("too many control points".into()))?;
+            self.set_num_control_points(kind, count)?;
+            for (index, point) in points.iter().enumerate() {
+                let index = index as i32;
+                self.set_control_point(kind, index, point.x, point.y)?;
+                self.set_slope(kind, index, point.slope)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Set the hue curve grading values.
     pub fn set_value(&self, value: &GradingHueCurveValue) -> Result<()> {
         fn write_curve(

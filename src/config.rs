@@ -45,6 +45,82 @@ pub struct Config {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared immutable native configuration, independent of later global replacement.
+pub struct ConstConfig {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstConfig {
+    fn text(&self, field: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_config_text(self.handle.as_ptr(), field) };
+        let text = unsafe { cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Config name as owned text.
+    pub fn name(&self) -> Result<Option<String>> {
+        self.text(0)
+    }
+    /// Native cache identifier as owned text.
+    pub fn cache_id(&self) -> Result<Option<String>> {
+        self.text(1)
+    }
+    /// Config description as owned text.
+    pub fn description(&self) -> Result<Option<String>> {
+        self.text(2)
+    }
+    /// Default display name as owned text.
+    pub fn default_display(&self) -> Result<Option<String>> {
+        self.text(3)
+    }
+    /// Create a fully independent editable copy.
+    pub fn create_editable_copy(&self) -> Result<Config> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_config_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Config { handle })
+    }
+    /// Share an immutable color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: &std::ffi::CStr,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_color_space(self.handle.as_ptr(), name.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+    /// Share the native current context without copying it.
+    pub fn try_const_current_context(&self) -> Result<Option<crate::ConstContext>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_config_get_context(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstContext { handle }))
+    }
+    /// Create a processor from native C-string color-space names.
+    ///
+    /// Static pipelines use OCIO's native cache. Dynamic pipelines are built
+    /// from an independent configuration copy, so separate threads querying a
+    /// global config cannot concurrently mutate shared dynamic properties.
+    pub fn processor(&self, src: &std::ffi::CStr, dst: &std::ffi::CStr) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor(
+                self.handle.as_ptr(),
+                src.as_ptr(),
+                dst.as_ptr(),
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+}
+impl Drop for ConstConfig {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_config_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl Config {
     fn processor_handle_result(handle: *mut c_void) -> Result<Processor> {
         crate::handle_result(handle).map(|handle| Processor { handle })
@@ -63,7 +139,15 @@ impl Config {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an empty editable config using OCIO defaults.
+    /// Create an empty editable configuration using OCIO defaults.
+    /// Unlike [`Self::raw`], this does not install the built-in raw color space.
+    pub fn create() -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_config_create_empty() };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    /// Create OCIO's fallback raw configuration with a raw color space.
     pub fn raw() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_raw() };
@@ -1193,14 +1277,25 @@ impl Config {
         }
     }
 
-    /// Return the default scene-to-display view-transform object.
+    /// Return an editable copy of the default scene-to-display view transform.
     pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
+        self.try_default_scene_to_display_view_transform()
+            .ok()
+            .flatten()
+    }
+
+    /// Copy the default view transform while preserving native errors.
+    pub fn try_default_scene_to_display_view_transform(
+        &self,
+    ) -> Result<Option<crate::ViewTransform>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_default_scene_to_display_view_transform(
                 self.handle.as_ptr() as *mut c_void
             )
         };
-        NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| crate::ViewTransform { handle: h }))
     }
 
     /// Return the name of the default view transform.
@@ -1268,6 +1363,47 @@ impl Config {
         Self::processor_handle_result(handle)
     }
 
+    /// Create a processor using editable or read-only color-space objects.
+    pub fn processor_from_color_space_refs<'a, 'b>(
+        &self,
+        src: impl Into<crate::ColorSpaceRef<'a>>,
+        dst: impl Into<crate::ColorSpaceRef<'b>>,
+    ) -> Result<Processor> {
+        self.processor_from_color_space_refs_inner(None, src.into(), dst.into())
+    }
+
+    /// Create a processor using object references and an explicit OCIO context.
+    pub fn processor_from_color_space_refs_with_context<'a, 'b>(
+        &self,
+        context: &Context,
+        src: impl Into<crate::ColorSpaceRef<'a>>,
+        dst: impl Into<crate::ColorSpaceRef<'b>>,
+    ) -> Result<Processor> {
+        self.processor_from_color_space_refs_inner(Some(context), src.into(), dst.into())
+    }
+
+    fn processor_from_color_space_refs_inner(
+        &self,
+        context: Option<&Context>,
+        src: crate::ColorSpaceRef<'_>,
+        dst: crate::ColorSpaceRef<'_>,
+    ) -> Result<Processor> {
+        let (src, src_const) = src.raw();
+        let (dst, dst_const) = dst.raw();
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_color_space_refs(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                src,
+                src_const,
+                dst,
+                dst_const,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
@@ -1325,6 +1461,81 @@ impl Config {
         direction: TransformDirection,
     ) -> Result<Processor> {
         self.processor_display(src, display, view, direction)
+    }
+
+    /// Create a processor from names using a shared read-only context.
+    pub fn processor_with_const_context(
+        &self,
+        src: &std::ffi::CStr,
+        dst: &std::ffi::CStr,
+        context: &crate::ConstContext,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_with_const_context(
+                self.handle.as_ptr(),
+                context.handle.as_ptr(),
+                src.as_ptr(),
+                dst.as_ptr(),
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+    /// Create a processor directly from shared read-only context and transform objects.
+    pub fn processor_from_const_transform_with_const_context(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: TransformDirection,
+        context: &crate::ConstContext,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_const_transform_with_const_context(
+                self.handle.as_ptr(),
+                context.handle.as_ptr(),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
+    /// Create a processor directly from a shared named transform and optional context.
+    pub fn processor_from_const_named_transform(
+        &self,
+        named: &crate::ConstNamedTransform,
+        direction: TransformDirection,
+        context: Option<&Context>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_const_named_transform(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                named.raw(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
+    /// Create a processor from a shared read-only transform and optional context.
+    pub fn processor_from_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: TransformDirection,
+        context: Option<&Context>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_const_transform(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
     }
 
     /// Create a processor from a transform with an explicit direction.
@@ -2133,12 +2344,29 @@ impl Config {
         )
     }
 
-    /// Look up a color space by authored name.
+    /// Look up an independent editable copy by name, role, or alias.
+    ///
+    /// Mutating the copy does not update this config. Register it with
+    /// [`Self::try_add_color_space`] to apply changes to the config.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.try_color_space(name).ok().flatten()
     }
 
-    /// Look up a color space by authored name while preserving bridge failures.
+    /// Look up a shared read-only color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_const_color_space(self.handle.as_ptr(), name.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+
+    /// Look up an independent editable color-space copy, preserving failures.
     pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -2268,12 +2496,12 @@ impl Config {
         }
     }
 
-    /// Look up a `Look` by its authored name.
+    /// Look up an independent editable `Look` copy by authored name.
     pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
         self.try_look(name).ok().flatten()
     }
 
-    /// Look up a `Look` by authored name while preserving bridge failures.
+    /// Copy a `Look` by authored name while preserving bridge failures.
     pub fn try_look(&self, name: impl AsRef<str>) -> Result<Option<Look>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3032,12 +3260,12 @@ impl Config {
         self.named_transform_name_by_index(index)
     }
 
-    /// Look up a `NamedTransform` by name.
+    /// Look up an independent editable `NamedTransform` copy by name.
     pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         self.try_named_transform(name).ok().flatten()
     }
 
-    /// Look up a `NamedTransform` by name while preserving bridge failures.
+    /// Copy a `NamedTransform` by name while preserving bridge failures.
     pub fn try_named_transform(&self, name: impl AsRef<str>) -> Result<Option<NamedTransform>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3123,12 +3351,12 @@ impl Config {
         }
     }
 
-    /// Look up a `ViewTransform` by name.
+    /// Look up an independent editable `ViewTransform` copy by name.
     pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         self.try_view_transform(name).ok().flatten()
     }
 
-    /// Look up a `ViewTransform` by name while preserving bridge failures.
+    /// Copy a `ViewTransform` by name while preserving bridge failures.
     pub fn try_view_transform(&self, name: impl AsRef<str>) -> Result<Option<ViewTransform>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3331,8 +3559,7 @@ impl Config {
 
     /// Try to get the current context associated with this config.
     ///
-    /// The returned context owns an independent OCIO shared reference and may
-    /// outlive this `Config` wrapper.
+    /// Returns an independent editable copy; edits do not change the config.
     pub fn try_current_context(&self) -> Result<Option<Context>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -3340,6 +3567,15 @@ impl Config {
         };
         crate::ocio_call_status()?;
         Ok(NonNull::new(handle).map(|handle| Context { handle }))
+    }
+
+    /// Share the config's current native context without an editable copy.
+    pub fn try_const_current_context(&self) -> Result<Option<crate::ConstContext>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_config_get_const_current_context(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstContext { handle }))
     }
 
     // --- Clear all ---
@@ -3424,7 +3660,7 @@ impl Config {
 
     // --- FileRules ---
 
-    /// Return the editable file-rules object attached to this config.
+    /// Return an independent editable copy of the config's file rules.
     pub fn file_rules(&self) -> Result<FileRules> {
         crate::clear_last_error();
         let handle =
@@ -3461,8 +3697,9 @@ impl Config {
             ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr() as *mut c_void)
         };
         match m {
-            1 => crate::EnvironmentMode::LoadAll,
-            _ => crate::EnvironmentMode::LoadPredefined,
+            1 => crate::EnvironmentMode::LoadPredefined,
+            2 => crate::EnvironmentMode::LoadAll,
+            _ => crate::EnvironmentMode::Unknown,
         }
     }
 
@@ -3961,7 +4198,7 @@ impl Config {
         self.view_by_reference_space(reference_space, display, index)
     }
 
-    /// Return the editable viewing-rules object attached to this config, if any.
+    /// Return an independent editable copy of the config's viewing rules, if any.
     pub fn viewing_rules(&self) -> Option<ViewingRules> {
         self.try_viewing_rules().ok().flatten()
     }

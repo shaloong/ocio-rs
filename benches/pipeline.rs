@@ -86,11 +86,57 @@ fn bench_batch_pixels(c: &mut Criterion) {
     });
 }
 
+fn bench_ocio_2_6(c: &mut Criterion) {
+    #[cfg(feature = "v2_6")]
+    if !ocio_rs::is_stub_build() {
+        use ocio_rs::{transform::FixedFunctionTransform, Config, FixedFunctionStyle};
+        let config = Config::raw().unwrap();
+        let transform = FixedFunctionTransform::create_with_params(
+            FixedFunctionStyle::AcesRgbToHmj20,
+            &[0.7347, 0.2653, 0.0, 1.0, 0.0001, -0.0770, 0.32168, 0.33767],
+        )
+        .unwrap();
+        let cpu = config
+            .processor_from_transform(&transform, TransformDirection::Forward)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        let input = [0.2, 0.4, 0.6, 1.0].repeat(1024);
+        let mut group = c.benchmark_group("ocio_2_6_hmj");
+        group.throughput(criterion::Throughput::Elements(1024));
+        group.bench_function("batch_1024", |b| {
+            b.iter_batched_ref(
+                || input.clone(),
+                |pixels| {
+                    cpu.try_apply_rgba_pixels(black_box(pixels), 1024, 4)
+                        .unwrap();
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+        group.bench_function("per_pixel_1024", |b| {
+            b.iter_batched_ref(
+                || input.clone(),
+                |pixels| {
+                    for pixel in pixels.chunks_exact_mut(4) {
+                        cpu.try_apply_rgba(black_box(pixel.try_into().unwrap()))
+                            .unwrap();
+                    }
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+    }
+    #[cfg(not(feature = "v2_6"))]
+    let _ = c;
+}
+
 criterion_group!(
     benches,
     bench_matrix_pipeline,
     bench_matrix_scale,
     bench_full_pipeline,
     bench_batch_pixels,
+    bench_ocio_2_6,
 );
 criterion_main!(benches);

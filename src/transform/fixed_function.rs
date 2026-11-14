@@ -67,6 +67,8 @@ impl FixedFunctionTransform {
             21 => FixedFunctionStyle::RgbToHsyLog,
             #[cfg(feature = "v2_5")]
             22 => FixedFunctionStyle::RgbToHsyVid,
+            #[cfg(feature = "v2_6")]
+            23 => FixedFunctionStyle::AcesRgbToHmj20,
             _ => FixedFunctionStyle::AcesRedMod03,
         }
     }

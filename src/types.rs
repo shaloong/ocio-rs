@@ -138,8 +138,12 @@ pub enum GpuLanguage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum EnvironmentMode {
-    LoadPredefined = 0,
-    LoadAll = 1,
+    /// No recognized environment-loading policy.
+    Unknown = 0,
+    /// Load only variables declared in the configuration.
+    LoadPredefined = 1,
+    /// Load all variables from the process environment.
+    LoadAll = 2,
 }
 
 /// Whether a range transform clamps values at its domain boundaries.
@@ -180,6 +184,8 @@ pub enum FixedFunctionStyle {
     RgbToHsyLog = 21,
     #[cfg(feature = "v2_5")]
     RgbToHsyVid = 22,
+    #[cfg(feature = "v2_6")]
+    AcesRgbToHmj20 = 23,
 }
 
 /// Domain in which exposure/contrast parameters are applied.
@@ -326,7 +332,12 @@ pub enum LoggingLevel {
     Warning = 1,
     Info = 2,
     Debug = 3,
+    /// OCIO has no trace level. Retained for source compatibility; logging
+    /// operations reject this value instead of passing it to the native API.
+    #[deprecated(note = "OpenColorIO does not define a trace logging level")]
     Trace = 4,
+    /// OCIO's sentinel for an unrecognized level.
+    Unknown = 255,
 }
 
 /// Bit flags controlling config-level processor-cache behavior.
@@ -337,7 +348,11 @@ impl ProcessorCacheFlags {
     pub const OFF: Self = Self(0x00000000);
     pub const ENABLED: Self = Self(0x00000001);
     pub const SHARE_DYN_PROPERTIES: Self = Self(0x00000002);
-    pub const DEFAULT: Self = Self::ENABLED;
+    /// Native default: cache processors and share dynamic properties.
+    ///
+    /// A cached processor's dynamic property values may have been changed by
+    /// another user of that processor; set the desired values before processing.
+    pub const DEFAULT: Self = Self(Self::ENABLED.0 | Self::SHARE_DYN_PROPERTIES.0);
 }
 
 impl std::ops::BitOr for ProcessorCacheFlags {

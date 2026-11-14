@@ -82,6 +82,92 @@ fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
         .ok()
 }
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn dynamic_hue_snapshot_includes_every_curve() {
+    let _guard = dynamic_property_test_lock();
+    let processor = dynamic_grading_hue_curve_processor().unwrap();
+    let property = processor
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .unwrap();
+    for kind in [
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ] {
+        property.grading_hue_curve_set_slope(kind, 0, 0.37).unwrap();
+    }
+    let value = property.complete_grading_hue_curve_value().unwrap();
+    for curve in [
+        &value.sat_sat,
+        &value.lum_lum,
+        &value.sat_lum,
+        &value.hue_fx,
+    ] {
+        assert!((curve[0].slope - 0.37).abs() < 1e-6);
+    }
+    let mut replacement = value.clone();
+    replacement.sat_sat[0].slope = 0.7;
+    replacement.lum_lum[0].slope = 0.8;
+    property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .unwrap();
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap(),
+        replacement
+    );
+    replacement.hue_fx.clear();
+    assert!(property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .is_err());
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap().sat_sat[0].slope,
+        0.7
+    );
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
+    let _guard = dynamic_property_test_lock();
+    let hue = dynamic_grading_hue_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .unwrap();
+    let mut value = hue.grading_hue_curve_object().unwrap();
+    value.set_draw_curve_only(true).unwrap();
+    value
+        .curve(HueCurveType::HueFx)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    hue.set_grading_hue_curve_object(&value).unwrap();
+    let result = hue.grading_hue_curve_object().unwrap();
+    assert!(result.draw_curve_only().unwrap());
+    assert!(result.equals(&value).unwrap());
+
+    let rgb = dynamic_grading_rgb_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .unwrap();
+    let mut value = rgb.grading_rgb_curve_object().unwrap();
+    value
+        .curve(RGBCurveType::Red)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    rgb.set_grading_rgb_curve_object(&value).unwrap();
+    assert!(rgb
+        .grading_rgb_curve_object()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
+    assert!(rgb.grading_hue_curve_object().is_err());
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_exposure_processor_property_seeds_cpu_behavior() {

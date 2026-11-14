@@ -35,6 +35,13 @@ pub struct ViewTransform {
 }
 
 impl ViewTransform {
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ViewTransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 5, direction as i32)
+    }
     /// Create a new view transform with the given reference space (alias for [`Self::create`]).
     pub fn create_with_reference_space(reference_space: ReferenceSpaceType) -> Result<Self> {
         Self::create(reference_space)
@@ -248,12 +255,12 @@ impl ViewTransform {
         }
     }
 
-    /// Get the transform for the given direction (scene-to-display or display-to-scene).
+    /// Get an independent editable copy for the given direction.
     pub fn transform(&self, direction: ViewTransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: ViewTransformDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {

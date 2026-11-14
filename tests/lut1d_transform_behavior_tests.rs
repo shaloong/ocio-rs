@@ -160,3 +160,21 @@ fn lut1d_transform_processor_behavior() {
     assert_close(restored[2] as f64, original[2] as f64, 5e-5);
     assert_close(restored[3] as f64, original[3] as f64, 5e-5);
 }
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn sized_identity_constructor_preserves_domain_and_values() {
+    let lut = ocio_rs::transform::Lut1DTransform::create_with_length(5, false).unwrap();
+    assert_eq!(lut.length(), 5);
+    assert!(!lut.input_half_domain());
+    assert_eq!(lut.value(2), Some([0.5; 3]));
+    let half = ocio_rs::transform::Lut1DTransform::create_with_length(65536, true).unwrap();
+    assert!(half.input_half_domain());
+    assert_eq!(half.value(0x3c00), Some([1.0; 3]));
+    assert!(ocio_rs::transform::Lut1DTransform::create_with_length(u64::MAX, false).is_err());
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn sized_constructor_reports_missing_native_backend() {
+    assert!(ocio_rs::transform::Lut1DTransform::create_with_length(5, false).is_err());
+}

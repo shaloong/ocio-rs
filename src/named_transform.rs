@@ -11,6 +11,21 @@ pub struct NamedTransform {
 }
 
 impl NamedTransform {
+    /// Resolve a native transform, synthesizing it from the opposite direction if needed.
+    /// Returns an error if neither direction is defined.
+    pub fn resolve_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 11, direction as i32)
+    }
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 4, direction as i32)
+    }
     /// Create a new default named transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -219,12 +234,12 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
-    /// Get the transform for the given direction.
+    /// Get an independent editable copy of the transform for the given direction.
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: TransformDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
