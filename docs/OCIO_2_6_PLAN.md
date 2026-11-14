@@ -35,11 +35,13 @@ The current inventory and runtime validation are incomplete; the status in
 
 ## Validation placement and cost
 
-- **Every push / PR:** existing cross-platform stub suites, lint/docs/parity,
+- **Main/develop pushes and PRs:** existing cross-platform stub suites, lint/docs/parity,
   and Fedora's installed 2.4 system-library regression suite. PRs additionally
   run representative 2.6 native tests and the existing Arch zlib-ng integration.
   The 2.6 PR selection exercises new-version behavior, app helpers, CPU image
   layouts and GPU descriptors with the highest interface level, not all combinations.
+  Feature-branch pushes are checked through their PR rather than triggering a
+  duplicate push workflow; branches without a PR can use manual dispatch.
 - **Scheduled and manual:** exact minimum-version builds, full bundled platform
   matrix, all three interface levels against 2.6, and separate installed 2.6
   shared-library discovery/runtime. These are also appropriate release-candidate
