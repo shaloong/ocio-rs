@@ -67,6 +67,9 @@ Reuse the built-in config passed to matching to retain its native cache.
 The parity checker measures its recognized API surface, not every overload,
 global, or runtime behavior. Its name matching can conflate getters and setters,
 and a matching bridge name alone does not prove the implementation is correct.
+`Baker::bake_to_writer` streams native output through a bounded buffer into a
+caller-provided Rust writer. Bytes already written remain on failure;
+`bake_to_bytes` is available when an owned in-memory result is required.
 The exact-tag CI also runs behavior tests and
 all three API feature levels. DirectX and Vulkan test frameworks are upstream
 test infrastructure, not additional application-facing binding APIs.

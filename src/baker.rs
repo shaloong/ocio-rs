@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::fs;
+use std::io::Write;
 use std::ptr::NonNull;
 
 use crate::{
@@ -157,17 +158,94 @@ impl Baker {
         crate::ocio_call_status()
     }
 
-    /// Bake the configured output to an in-memory string.
+    /// Bake to a writer using bounded native buffering, without retaining the
+    /// entire output. A writer error or panic is returned as an error; bytes
+    /// already written cannot be rolled back. The writer is not retained or
+    /// flushed; callers control any additional buffering in their writer.
+    /// Do not reenter the same baker from the writer callback.
+    /// In stub builds, no bytes are written.
+    pub fn bake_to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> Result<()> {
+        struct State<'a, W: ?Sized> {
+            writer: &'a mut W,
+            error: Option<OcioError>,
+        }
+        unsafe extern "C" fn write<W: Write + ?Sized>(
+            context: *mut c_void,
+            data: *const u8,
+            len: usize,
+        ) -> bool {
+            let state = unsafe { &mut *context.cast::<State<'_, W>>() };
+            if state.error.is_some() {
+                return false;
+            }
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let bytes = if len == 0 {
+                    &[]
+                } else {
+                    unsafe { std::slice::from_raw_parts(data, len) }
+                };
+                state.writer.write_all(bytes)
+            }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error = Some(OcioError::Ocio(error.to_string()));
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::Ocio("Baker output writer panicked".into()));
+                    false
+                }
+            }
+        }
+        let mut state = State {
+            writer,
+            error: None,
+        };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_baker_bake_to_writer(
+                self.handle.as_ptr(),
+                (&mut state as *mut State<'_, W>).cast(),
+                write::<W>,
+            )
+        };
+        if let Some(error) = state.error {
+            return Err(error);
+        }
+        crate::ocio_call_status()?;
+        if !ok {
+            return Err(OcioError::Ocio("Baker output writer failed".into()));
+        }
+        Ok(())
+    }
+
+    /// Bake into a byte buffer. Returns `None` in stub builds.
+    pub fn bake_to_bytes(&self) -> Result<Option<Vec<u8>>> {
+        if crate::is_stub_build() {
+            crate::clear_last_error();
+            return Ok(None);
+        }
+        let mut bytes = Vec::new();
+        self.bake_to_writer(&mut bytes)?;
+        Ok(Some(bytes))
+    }
+
+    /// Bake the configured output to an in-memory UTF-8 string.
     ///
     /// Returns `Ok(None)` in stub builds where no real OCIO baker is linked.
     ///
     /// Returns an error when OCIO cannot bake the configured output.
     pub fn bake_to_string(&self) -> Result<Option<String>> {
-        crate::clear_last_error();
-        let text =
-            unsafe { cstr_from_mut(ocio_sys::ocio_baker_bake_to_string(self.handle.as_ptr())) };
-        crate::ocio_call_status()?;
-        Ok(text)
+        self.bake_to_bytes()?
+            .map(|bytes| {
+                String::from_utf8(bytes).map_err(|_| {
+                    OcioError::InvalidInput(
+                        "baked output is not UTF-8; use bake_to_bytes or bake_to_writer".into(),
+                    )
+                })
+            })
+            .transpose()
     }
 
     /// Bake the configured output and write it to `output_path`.
@@ -175,7 +253,7 @@ impl Baker {
     /// In stub builds, no output text is generated and this method returns `Ok(())`
     /// without writing a file.
     pub fn bake(&self, output_path: impl AsRef<str>) -> Result<()> {
-        let Some(contents) = self.bake_to_string()? else {
+        let Some(contents) = self.bake_to_bytes()? else {
             return Ok(());
         };
         fs::write(output_path.as_ref(), contents).map_err(|e| OcioError::Ocio(e.to_string()))?;

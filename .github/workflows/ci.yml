@@ -190,7 +190,7 @@ jobs:
           cargo test --locked --no-default-features --features bundled,v2_6 \
             --test ocio_2_6_behavior_tests --test gpu_shader_desc_behavior_tests \
             --test app_helpers_behavior_tests --test const_current_config_behavior_tests \
-            --test config_io_proxy_behavior_tests \
+            --test config_io_proxy_behavior_tests --test baker_behavior_tests \
             --test processor_behavior_tests --test cpu_processor_behavior_tests \
             -- --test-threads=1
       - name: Test all interface levels

@@ -39,7 +39,7 @@ The current inventory and runtime validation are incomplete; the status in
   and Fedora's installed 2.4 system-library regression suite. PRs additionally
   run representative 2.6 native tests and the existing Arch zlib-ng integration.
   The 2.6 PR selection exercises new-version behavior, app helpers, CPU image
-  layouts, config I/O proxies, and GPU descriptors with the highest interface level,
+  layouts, config I/O proxies, baking, and GPU descriptors with the highest interface level,
   not all combinations.
   Feature-branch pushes are checked through their PR rather than triggering a
   duplicate push workflow; branches without a PR can use manual dispatch.

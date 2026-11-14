@@ -114,6 +114,26 @@ fn baker_bake_to_string_and_file_behavior() {
     assert!(!baked.trim().is_empty());
     assert!(baked.contains("LUT_1D_SIZE 2"));
     assert!(baked.lines().any(|line| line.contains("0.000000")));
+    assert_eq!(baker.bake_to_bytes().unwrap().unwrap(), baked.as_bytes());
+    struct ShortWriter(Vec<u8>);
+    impl std::io::Write for ShortWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let n = bytes.len().min(7);
+            self.0.extend_from_slice(&bytes[..n]);
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut writer = ShortWriter(Vec::new());
+    baker.bake_to_writer(&mut writer).unwrap();
+    assert_eq!(writer.0, baked.as_bytes());
+    let mut dynamic = Vec::new();
+    baker
+        .bake_to_writer(&mut dynamic as &mut dyn std::io::Write)
+        .unwrap();
+    assert_eq!(dynamic, baked.as_bytes());
 
     let output_path = unique_temp_path("baker", "cube");
     baker
@@ -123,6 +143,108 @@ fn baker_bake_to_string_and_file_behavior() {
     assert_eq!(written, baked);
 
     let _ = fs::remove_file(output_path);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_writer_errors_and_panics_do_not_cross_ffi() {
+    struct Failed(bool);
+    impl std::io::Write for Failed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            assert!(!self.0, "intentional writer panic");
+            Err(std::io::Error::other("writer rejected output"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2).unwrap();
+    for panic in [false, true] {
+        let error = baker
+            .bake_to_writer(&mut Failed(panic))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(if panic {
+            "writer panicked"
+        } else {
+            "writer rejected output"
+        }));
+    }
+    struct Zero;
+    impl std::io::Write for Zero {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(baker.bake_to_writer(&mut Zero).is_err());
+    struct Partial(usize);
+    impl std::io::Write for Partial {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.0 != 0 {
+                return Err(std::io::Error::other("partial write failure"));
+            }
+            let n = bytes.len().min(5);
+            self.0 += n;
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut partial = Partial(0);
+    assert!(baker
+        .bake_to_writer(&mut partial)
+        .unwrap_err()
+        .to_string()
+        .contains("partial write failure"));
+    assert_eq!(partial.0, 5);
+    assert!(baker.bake_to_bytes().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_streams_large_output_in_bounded_chunks() {
+    struct Sink {
+        bytes: Vec<u8>,
+        max_chunk: usize,
+        calls: usize,
+    }
+    impl std::io::Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.max_chunk = self.max_chunk.max(bytes.len());
+            self.calls += 1;
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2048).unwrap();
+    let mut sink = Sink {
+        bytes: Vec::new(),
+        max_chunk: 0,
+        calls: 0,
+    };
+    baker.bake_to_writer(&mut sink).unwrap();
+    assert!(sink.calls > 1);
+    assert!(sink.max_chunk <= 16384);
+    assert_eq!(sink.bytes, baker.bake_to_bytes().unwrap().unwrap());
 }
 
 #[test]

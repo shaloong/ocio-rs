@@ -47,6 +47,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Bake directly to a Rust `Write` with bounded native buffering, or obtain
+  lossless bytes in memory without treating output as a C string.
 - Expose OCIO's diagnostic stream output for application helpers and merging
   parameters as owned Rust strings.
 - Detect direct reentrant logging operations from OCIO logging callbacks and
@@ -140,6 +142,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- `Baker::bake` writes the full native byte output; `bake_to_string` now reports
+  invalid UTF-8 instead of silently truncating or replacing data.
 - Synchronize shared in-memory config I/O proxy access and retain immutable LUT
   snapshots across concurrent reads and replacements.
 - Report missing custom-provider LUTs consistently when copying into a caller

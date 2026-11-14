@@ -2032,6 +2032,11 @@ unsafe extern "C" {
     pub fn ocio_baker_set_cube_size(handle: *mut c_void, cubesize: i32) -> ();
     pub fn ocio_baker_bake(handle: *mut c_void, os: *mut c_void) -> ();
     pub fn ocio_baker_bake_to_string(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_bake_to_writer(
+        handle: *mut c_void,
+        context: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
 
     // --- Context ---
     pub fn ocio_context_create() -> *mut c_void;

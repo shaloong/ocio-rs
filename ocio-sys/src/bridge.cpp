@@ -10912,6 +10912,47 @@ void* ocio_baker_bake_to_string(void* handle) {
 #endif
 }
 
+bool ocio_baker_bake_to_writer(void* handle, void* context, ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)write;
+  return true;
+#else
+  try {
+    if (!handle || !write) throw std::invalid_argument("invalid baker writer");
+    class CallbackStreambuf final : public std::streambuf {
+      char buffer[16384];
+      void* context;
+      ocio_proxy_write_callback write;
+      bool flushBuffer() {
+        const auto count = static_cast<size_t>(pptr() - pbase());
+        if (count && !write(context, reinterpret_cast<const unsigned char*>(pbase()), count)) return false;
+        setp(buffer, buffer + sizeof(buffer));
+        return true;
+      }
+    protected:
+      int_type overflow(int_type ch) override {
+        if (!flushBuffer()) return traits_type::eof();
+        if (!traits_type::eq_int_type(ch, traits_type::eof())) {
+          *pptr() = traits_type::to_char_type(ch);
+          pbump(1);
+        }
+        return traits_type::not_eof(ch);
+      }
+      int sync() override { return flushBuffer() ? 0 : -1; }
+    public:
+      CallbackStreambuf(void* c, ocio_proxy_write_callback w) : context(c), write(w) {
+        setp(buffer, buffer + sizeof(buffer));
+      }
+    } buffer(context, write);
+    std::ostream stream(&buffer);
+    ocio_rs_bridge::get_real_baker(handle)->bake(stream);
+    stream.flush();
+    if (!stream) throw ocio::Exception("Baker output writer failed");
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 
 // --- Context ---
 

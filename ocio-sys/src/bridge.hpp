@@ -941,6 +941,8 @@ int ocio_baker_get_cube_size(void* handle);
 void ocio_baker_set_cube_size(void* handle, int cubesize);
 void ocio_baker_bake(void* handle, void* os);
 void* ocio_baker_bake_to_string(void* handle);
+/* Writes synchronously in bounded chunks; callback and context are not retained. */
+bool ocio_baker_bake_to_writer(void* handle, void* context, ocio_proxy_write_callback write);
 int ocio_baker_get_num_formats(void);
 const char* ocio_baker_get_format_name_by_index(int index);
 const char* ocio_baker_get_format_extension_by_index(int index);
