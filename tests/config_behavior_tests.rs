@@ -190,6 +190,129 @@ fn cross_config_processors_apply_explicit_interchange_and_contexts() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cross_config_processors_use_their_respective_contexts_for_luts() {
+    use ocio_rs::transform::FileTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, Config, Context};
+    let _guard = config_test_lock();
+    let source = Config::create().unwrap();
+    let destination = Config::create().unwrap();
+    for (config, reference, name, path, direction) in [
+        (
+            &source,
+            "src_ref",
+            "input",
+            "${SRC_LUT_DIR}/lut1.clf",
+            ColorSpaceDirection::ToReference,
+        ),
+        (
+            &destination,
+            "dst_ref",
+            "output",
+            "${DST_LUT_DIR}/lut1.clf",
+            ColorSpaceDirection::FromReference,
+        ),
+    ] {
+        let reference_space = ColorSpace::create().unwrap();
+        reference_space.set_name(reference).unwrap();
+        config.try_add_color_space(&reference_space).unwrap();
+        config.set_role("aces_interchange", reference).unwrap();
+        let file = FileTransform::create().unwrap();
+        file.set_src(path).unwrap();
+        let space = ColorSpace::create().unwrap();
+        space.set_name(name).unwrap();
+        space.try_set_transform(&file, direction).unwrap();
+        config.try_add_color_space(&space).unwrap();
+    }
+    let working_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/configs/context_test1");
+    let src_context = Context::create().unwrap();
+    let dst_context = Context::create().unwrap();
+    src_context
+        .set_working_dir(working_dir.to_str().unwrap())
+        .unwrap();
+    dst_context
+        .set_working_dir(working_dir.to_str().unwrap())
+        .unwrap();
+    src_context.set_string_var("SRC_LUT_DIR", "shot1").unwrap();
+    dst_context.set_string_var("DST_LUT_DIR", "shot4").unwrap();
+    destination
+        .add_display("Screen", "View", "output", "")
+        .unwrap();
+    let processors = [
+        source
+            .processor_from_configs_with_contexts(
+                &src_context,
+                &source,
+                "input",
+                &dst_context,
+                &destination,
+                "output",
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_with_contexts_and_interchange(
+                &src_context,
+                &source,
+                "input",
+                "src_ref",
+                &dst_context,
+                &destination,
+                "output",
+                "dst_ref",
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_to_display_with_contexts(
+                &src_context,
+                &source,
+                "input",
+                &dst_context,
+                &destination,
+                "Screen",
+                "View",
+                ocio_rs::TransformDirection::Forward,
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_to_display_with_contexts_and_interchange(
+                &src_context,
+                &source,
+                "input",
+                "src_ref",
+                &dst_context,
+                &destination,
+                "Screen",
+                "View",
+                "dst_ref",
+                ocio_rs::TransformDirection::Forward,
+            )
+            .unwrap(),
+    ];
+    for processor in processors {
+        let mut pixel = [0.001, 0.002, 0.003, 1.0];
+        processor
+            .optimized_cpu_processor(0)
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+    }
+    assert!(source
+        .processor_from_configs_with_contexts(
+            &dst_context,
+            &source,
+            "input",
+            &src_context,
+            &destination,
+            "output"
+        )
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
 {
     let _guard = config_test_lock();
