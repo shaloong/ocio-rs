@@ -102,8 +102,10 @@ Custom creators may supply a native-owned cache ID through
 creator configuration or output changes, including after descriptor mutation;
 cloning the descriptor does not preserve the override.
 Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
-registration notifications, and creator lifecycle notifications are supported,
-and `GPUProcessor::try_extract_with_streamed_textures` permits uploading native
+registration notifications, and creator lifecycle notifications are supported.
+Default hook assembly delegates to OCIO, including its Vulkan uniform block.
+An overridden assembler must supply its own required language-specific wrapping.
+`GPUProcessor::try_extract_with_streamed_textures` permits uploading native
 LUT data during extraction without retaining a descriptor-owned copy. Its sink
 must own or upload the data before returning; the resulting descriptor does
 not enumerate the streamed textures. `ShaderUniformControl` can retain native

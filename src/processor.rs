@@ -2264,9 +2264,8 @@ pub enum ShaderCodeSection {
 
 /// Synchronous customization hooks for OCIO shader extraction.
 ///
-/// Defaults retain OCIO's resource handling and forward individual code
-/// fragments. Default assembly concatenates the supplied sections and may need
-/// a language-specific wrapper (such as a Vulkan uniform block).
+/// Defaults retain OCIO's resource handling, forward individual code
+/// fragments, and use OCIO's native shader assembly.
 /// Implementations may override selected callbacks; they must not reenter
 /// extraction on the same processor. Callbacks must not retain borrowed inputs.
 ///
@@ -2304,12 +2303,10 @@ pub trait ShaderExtractionHooks {
     fn code(&mut self, _section: ShaderCodeSection, _code: &str) -> Result<Option<String>> {
         Ok(None)
     }
-    /// Assemble the final shader. Vulkan users may need a uniform-buffer wrapper.
-    fn assemble(&mut self, parts: ShaderSections<'_>) -> Result<String> {
-        Ok(format!(
-            "{}{}{}{}{}{}",
-            parts.parameters, parts.textures, parts.helpers, parts.header, parts.body, parts.footer
-        ))
+    /// Return replacement shader text, or `None` to use OCIO's native assembly.
+    /// A replacement must include any required language-specific uniform block.
+    fn assemble(&mut self, _parts: ShaderSections<'_>) -> Result<Option<String>> {
+        Ok(None)
     }
 }
 
@@ -2339,7 +2336,7 @@ impl GPUProcessor {
     pub fn try_extract_with_assembler<F>(
         &self,
         template: &GpuShaderDesc,
-        assemble: F,
+        mut assemble: F,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -2350,7 +2347,7 @@ impl GPUProcessor {
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
-            assemble,
+            |parts| assemble(parts).map(Some),
             |_| Ok(None),
             false,
             &mut |_| Ok(()),
@@ -2386,7 +2383,7 @@ impl GPUProcessor {
     pub fn try_extract_with_texture_callback<F, G>(
         &self,
         template: &GpuShaderDesc,
-        assemble: F,
+        mut assemble: F,
         texture: G,
     ) -> Result<GpuShaderDesc>
     where
@@ -2399,7 +2396,7 @@ impl GPUProcessor {
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
-            assemble,
+            |parts| assemble(parts).map(Some),
             texture,
             true,
             &mut |_| Ok(()),
@@ -2434,7 +2431,7 @@ impl GPUProcessor {
     pub fn try_extract_with_resource_callbacks<F, G, H>(
         &self,
         template: &GpuShaderDesc,
-        assemble: F,
+        mut assemble: F,
         texture: G,
         mut uniform: H,
     ) -> Result<GpuShaderDesc>
@@ -2449,7 +2446,7 @@ impl GPUProcessor {
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
-            assemble,
+            |parts| assemble(parts).map(Some),
             texture,
             true,
             &mut uniform,
@@ -2485,7 +2482,7 @@ impl GPUProcessor {
     pub fn try_extract_with_lifecycle_callbacks<F, G, H, L>(
         &self,
         template: &GpuShaderDesc,
-        assemble: F,
+        mut assemble: F,
         texture: G,
         mut uniform: H,
         mut lifecycle: L,
@@ -2502,7 +2499,7 @@ impl GPUProcessor {
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
-            assemble,
+            |parts| assemble(parts).map(Some),
             texture,
             true,
             &mut uniform,
@@ -2721,7 +2718,7 @@ impl GPUProcessor {
         notify_code: bool,
     ) -> Result<GpuShaderDesc>
     where
-        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
         G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
     {
         struct State<'a, F, G> {
@@ -2743,7 +2740,7 @@ impl GPUProcessor {
             replacement: *mut *const i8,
         ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
@@ -2804,7 +2801,7 @@ impl GPUProcessor {
             uid: *const i8,
         ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
@@ -2853,7 +2850,7 @@ impl GPUProcessor {
             buffer_offset: usize,
         ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
@@ -2895,14 +2892,15 @@ impl GPUProcessor {
             head: *const i8,
             body: *const i8,
             foot: *const i8,
-        ) -> *const i8
+            output_ptr: *mut *const i8,
+        ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-                || -> Result<std::ffi::CString> {
+                || -> Result<Option<std::ffi::CString>> {
                     let read = |ptr: *const i8| -> Result<&str> {
                         if ptr.is_null() {
                             return Err(OcioError::InvalidInput("null shader section".into()));
@@ -2921,23 +2919,32 @@ impl GPUProcessor {
                         body: read(body)?,
                         footer: read(foot)?,
                     })?;
-                    std::ffi::CString::new(text).map_err(|_| {
-                        OcioError::InvalidInput("assembled shader contains a NUL byte".into())
+                    text.map(|text| {
+                        std::ffi::CString::new(text).map_err(|_| {
+                            OcioError::InvalidInput("assembled shader contains a NUL byte".into())
+                        })
                     })
+                    .transpose()
                 },
             ));
             match result {
                 Ok(Ok(output)) => {
-                    state.output = Some(output);
-                    state.output.as_ref().unwrap().as_ptr()
+                    state.output = output;
+                    unsafe {
+                        *output_ptr = state
+                            .output
+                            .as_ref()
+                            .map_or(std::ptr::null(), |text| text.as_ptr())
+                    };
+                    true
                 }
                 Ok(Err(error)) => {
                     state.error = Some(error);
-                    std::ptr::null()
+                    false
                 }
                 Err(_) => {
                     state.error = Some(OcioError::InvalidInput("shader assembler panicked".into()));
-                    std::ptr::null()
+                    false
                 }
             }
         }
@@ -2948,7 +2955,7 @@ impl GPUProcessor {
             binding: *mut u32,
         ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
@@ -3036,7 +3043,7 @@ impl GPUProcessor {
             action: *mut i32,
         ) -> bool
         where
-            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };

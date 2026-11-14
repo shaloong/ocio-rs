@@ -36,6 +36,11 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - Expose OCIO's standard roles, environment-variable names, metadata keys and config path identifiers as allocation-free Rust constants.
 
+### Breaking changes
+
+- `ShaderExtractionHooks::assemble` now returns `Option<String>`: `None`
+  delegates to OCIO's native assembler, including Vulkan uniform blocks.
+
 ### Added
 
 - Detect direct reentrant logging operations from OCIO logging callbacks and
@@ -129,6 +134,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Default shader hooks now preserve native shader assembly, including Vulkan
+  uniform blocks, instead of concatenating incomplete shader sections.
 - Drop replaced logging and hash callback captures outside internal locks, so
   their destructors can safely reenter callback management.
 - Processor format-metadata getters now return independent editable deep copies

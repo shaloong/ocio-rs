@@ -1512,7 +1512,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         context: *mut c_void,
     ) -> *mut c_void;
     pub fn ocio_gpu_processor_extract_with_texture_callback(
@@ -1526,7 +1527,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: unsafe extern "C" fn(
             *mut c_void,
             *const OcioShaderTextureEvent,
@@ -1546,7 +1548,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,
@@ -1571,7 +1574,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,
@@ -1597,7 +1601,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,
@@ -1624,7 +1629,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,
@@ -1663,7 +1669,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,
@@ -1703,7 +1710,8 @@ unsafe extern "C" {
             *const i8,
             *const i8,
             *const i8,
-        ) -> *const i8,
+            *mut *const i8,
+        ) -> bool,
         texture: Option<
             unsafe extern "C" fn(
                 *mut c_void,

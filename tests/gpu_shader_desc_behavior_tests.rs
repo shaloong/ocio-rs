@@ -625,9 +625,9 @@ fn custom_uniform_control_honors_duplicate_result_and_scalar_types() {
         duplicate: bool,
     }
     impl ShaderExtractionHooks for Hooks {
-        fn assemble(&mut self, sections: ShaderSections<'_>) -> ocio_rs::Result<String> {
+        fn assemble(&mut self, sections: ShaderSections<'_>) -> ocio_rs::Result<Option<String>> {
             self.declarations = sections.parameters.to_owned();
-            Ok(format!(
+            Ok(Some(format!(
                 "{}{}{}{}{}{}",
                 sections.parameters,
                 sections.textures,
@@ -635,7 +635,7 @@ fn custom_uniform_control_honors_duplicate_result_and_scalar_types() {
                 sections.header,
                 sections.body,
                 sections.footer
-            ))
+            )))
         }
     }
     impl ShaderUniformControl for Hooks {
@@ -724,6 +724,36 @@ fn custom_uniform_control_honors_duplicate_result_and_scalar_types() {
         .names
         .iter()
         .all(|name| !duplicate.declarations.contains(name)));
+}
+
+#[test]
+#[cfg(feature = "v2_5")]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn default_hooks_preserve_native_vulkan_uniform_block() {
+    use ocio_rs::ShaderExtractionHooks;
+    struct Hooks;
+    impl ShaderExtractionHooks for Hooks {}
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    template.set_function_name("customDisplay").unwrap();
+    template.try_set_descriptor_set_index(3, 7).unwrap();
+    let hooks_desc = gpu.try_extract_with_hooks(&template, &mut Hooks).unwrap();
+    let text = hooks_desc.try_shader_text().unwrap().unwrap();
+    assert!(
+        text.contains("layout (set = 3, binding = 0) uniform customDisplay_Parameters"),
+        "{text}"
+    );
+    assert!(text.contains("uniform"));
+    assert_eq!(hooks_desc.num_uniforms(), 1);
 }
 
 #[test]

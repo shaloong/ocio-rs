@@ -23,7 +23,7 @@ the bridge selects the native ABI separately.
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | Helper, function header/body/footer append methods | Descriptor methods and code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
-| `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, `ShaderExtractionHooks::assemble` | Caller supplies any necessary Vulkan uniform-block handling when using a custom assembler. |
+| `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
 | Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache | Descriptor semantics apply; streamed textures are intentionally not enumerated. |
 
 ## Design constraints for closing the creator gap

@@ -5,9 +5,8 @@ use ocio_rs::transform::{
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderCreatorOptions, ShaderExtractionHooks, ShaderSections, ShaderTexture,
-    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
-    TransformDirection,
+    ShaderCreatorOptions, ShaderExtractionHooks, ShaderTexture, ShaderUniformAction,
+    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -57,7 +56,6 @@ fn validate_case(
             seen: bool,
             modified_footer: bool,
             external_uniform: Option<ShaderUniformGetter>,
-            capture_uniform: bool,
         }
         impl ShaderExtractionHooks for MarkBody {
             fn code(
@@ -79,25 +77,6 @@ fn validate_case(
                     Ok(None)
                 }
             }
-            fn assemble(&mut self, parts: ShaderSections<'_>) -> ocio_rs::Result<String> {
-                let parameters = if self.capture_uniform {
-                    format!(
-                        "layout(set=0,binding=0) uniform Parameters {{\n{}\n}};\n",
-                        parts.parameters
-                    )
-                } else {
-                    parts.parameters.to_owned()
-                };
-                Ok(format!(
-                    "{}{}{}{}{}{}",
-                    parameters,
-                    parts.textures,
-                    parts.helpers,
-                    parts.header,
-                    parts.body,
-                    parts.footer
-                ))
-            }
         }
         impl ShaderUniformControl for MarkBody {
             fn register_uniform(
@@ -118,7 +97,6 @@ fn validate_case(
             seen: false,
             modified_footer: false,
             external_uniform: None,
-            capture_uniform: expect_uniform,
         };
         let mut texture_sink = |texture: ShaderTexture<'_>| {
             if streamed_lut.is_some() {

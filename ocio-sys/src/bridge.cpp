@@ -8919,16 +8919,18 @@ public:
   void createShaderText(const char* p, const char* t, const char* helpers,
                         const char* header, const char* body, const char* footer) override {
     if (!callback) { ocio::GpuShaderCreator::createShaderText(p, t, helpers, header, body, footer); return; }
-    const char* text = callback(context, p, t, helpers, header, body, footer);
-    if (!text) throw ocio::Exception("Rust shader assembler failed");
+    const char* text = nullptr;
+    if (!callback(context, p, t, helpers, header, body, footer, &text)) throw ocio::Exception("Rust shader assembler failed");
+    if (!text) { ocio::GpuShaderCreator::createShaderText(p, t, helpers, header, body, footer); return; }
     ocio::GpuShaderCreator::createShaderText("", "", "", "", text, "");
   }
 #else
   void createShaderText(const char* declarations, const char* helpers,
                         const char* header, const char* body, const char* footer) override {
     if (!callback) { ocio::GpuShaderCreator::createShaderText(declarations, helpers, header, body, footer); return; }
-    const char* text = callback(context, declarations, "", helpers, header, body, footer);
-    if (!text) throw ocio::Exception("Rust shader assembler failed");
+    const char* text = nullptr;
+    if (!callback(context, declarations, "", helpers, header, body, footer, &text)) throw ocio::Exception("Rust shader assembler failed");
+    if (!text) { ocio::GpuShaderCreator::createShaderText(declarations, helpers, header, body, footer); return; }
     ocio::GpuShaderCreator::createShaderText("", "", "", text, "");
   }
 #endif
