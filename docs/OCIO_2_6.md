@@ -16,6 +16,10 @@ default vendored version or the Rust ABI values of existing enums.
 The native enum inserts HMJ before the HSY variants. The bridge translates
 style values in both directions at the API boundary, not in the pixel loop.
 
+Independent B-spline and RGB/Hue curve set objects use native shared ownership.
+Transform value exchange creates a native editable copy, while a constituent
+spline handle keeps its native curve alive independently.
+
 For rendering, build the processor once and pass the caller's mutable buffer
 to `CPUProcessor::try_apply_rgba_pixels`. A batch crosses the bridge once
 for processing, with no Rust pixel-buffer allocation or copy. This does not

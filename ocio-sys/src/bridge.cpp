@@ -16350,4 +16350,406 @@ const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index) {
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+using Spline = ocio::GradingBSplineCurveRcPtr;
+static const Spline& spline(void* h) { return *static_cast<Spline*>(h); }
+#endif
+void* ocio_grading_bspline_curve_create(size_t count) {
+#if defined(OCIO_RS_STUB)
+  (void)count;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline(ocio::GradingBSplineCurve::Create(count)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)count; (void)kind;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline(ocio::GradingBSplineCurve::Create(count, static_cast<ocio::BSplineType>(kind))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void* ocio_grading_bspline_curve_create_with_hue_type(size_t count, int kind) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)count; (void)kind;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline(ocio::GradingBSplineCurve::Create(count, static_cast<ocio::HueCurveType>(kind))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
+void ocio_grading_bspline_curve_destroy(void* h) {
+#if defined(OCIO_RS_STUB)
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { delete static_cast<Spline*>(h); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_grading_bspline_curve_create_editable_copy(void* h) {
+#if defined(OCIO_RS_STUB)
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline(spline(h)->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+size_t ocio_grading_bspline_curve_get_num_control_points(void* h) {
+#if defined(OCIO_RS_STUB)
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return 0;
+#else
+  try { return spline(h)->getNumControlPoints(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_grading_bspline_curve_set_num_control_points(void* h, size_t count) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)count;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { spline(h)->setNumControlPoints(count); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_grading_bspline_curve_get_control_point(void* h, size_t index, float* x, float* y) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)index; (void)x; (void)y;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { { const auto& p = spline(h)->getControlPoint(index); *x = p.m_x; *y = p.m_y; } } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_grading_bspline_curve_set_control_point(void* h, size_t index, float x, float y) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)index; (void)x; (void)y;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { { auto& p = spline(h)->getControlPoint(index); p.m_x = x; p.m_y = y; } } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+float ocio_grading_bspline_curve_get_slope(void* h, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)index;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return 0.0f;
+#else
+  try { return spline(h)->getSlope(index); } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0.0f; }
+#endif
+}
+
+void ocio_grading_bspline_curve_set_slope(void* h, size_t index, float slope) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)index; (void)slope;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { spline(h)->setSlope(index, slope); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_grading_bspline_curve_slopes_are_default(void* h) {
+#if defined(OCIO_RS_STUB)
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return false;
+#else
+  try { return spline(h)->slopesAreDefault(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_grading_bspline_curve_validate(void* h) {
+#if defined(OCIO_RS_STUB)
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { spline(h)->validate(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+int ocio_grading_bspline_curve_get_spline_type(void* h) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return 0;
+#else
+  try { return static_cast<int>(spline(h)->getSplineType()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void ocio_grading_bspline_curve_set_spline_type(void* h, int kind) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)kind;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return;
+#else
+  try { spline(h)->setSplineType(static_cast<ocio::BSplineType>(kind)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+#endif
+
+bool ocio_grading_bspline_curve_equals(void* h, void* other) {
+#if defined(OCIO_RS_STUB)
+  (void)h; (void)other;
+  ocio_rs_bridge::capture_error_message("B-spline operation requires native OpenColorIO");
+  return false;
+#else
+  try { return *spline(h) == *spline(other); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+#ifndef OCIO_RS_STUB
+using CurveObjectrgb = ocio::GradingRGBCurveRcPtr;
+#endif
+
+void* ocio_grading_rgb_curve_object_create(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new CurveObjectrgb(ocio::GradingRGBCurve::Create(static_cast<ocio::GradingStyle>(style))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_grading_rgb_curve_object_destroy(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { delete static_cast<CurveObjectrgb*>(h); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_grading_rgb_curve_object_create_editable_copy(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new CurveObjectrgb((*static_cast<CurveObjectrgb*>(h))->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_grading_rgb_curve_object_validate(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { (*static_cast<CurveObjectrgb*>(h))->validate(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_grading_rgb_curve_object_is_identity(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return false;
+#else
+  try { return (*static_cast<CurveObjectrgb*>(h))->isIdentity(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void* ocio_grading_rgb_curve_object_get_curve(void* h, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)kind;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline((*static_cast<CurveObjectrgb*>(h))->getCurve(static_cast<ocio::RGBCurveType>(kind))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+bool ocio_grading_rgb_curve_object_equals(void* h, void* other) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)other;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return false;
+#else
+  try { return **static_cast<CurveObjectrgb*>(h) == **static_cast<CurveObjectrgb*>(other); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+#ifndef OCIO_RS_STUB
+using CurveObjecthue = ocio::GradingHueCurveRcPtr;
+#endif
+
+void* ocio_grading_hue_curve_object_create(int style) {
+#ifdef OCIO_RS_STUB
+  (void)style;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new CurveObjecthue(ocio::GradingHueCurve::Create(static_cast<ocio::GradingStyle>(style))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_grading_hue_curve_object_destroy(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { delete static_cast<CurveObjecthue*>(h); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_grading_hue_curve_object_create_editable_copy(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new CurveObjecthue((*static_cast<CurveObjecthue*>(h))->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_grading_hue_curve_object_validate(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { (*static_cast<CurveObjecthue*>(h))->validate(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_grading_hue_curve_object_is_identity(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return false;
+#else
+  try { return (*static_cast<CurveObjecthue*>(h))->isIdentity(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void* ocio_grading_hue_curve_object_get_curve(void* h, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)kind;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { return new Spline((*static_cast<CurveObjecthue*>(h))->getCurve(static_cast<ocio::HueCurveType>(kind))); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+bool ocio_grading_hue_curve_object_equals(void* h, void* other) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)other;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return false;
+#else
+  try { return **static_cast<CurveObjecthue*>(h) == **static_cast<CurveObjecthue*>(other); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_grading_hue_curve_object_get_draw_curve_only(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return false;
+#else
+  try { return (*static_cast<CurveObjecthue*>(h))->getDrawCurveOnly(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_grading_hue_curve_object_set_draw_curve_only(void* h, bool value) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)value;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { (*static_cast<CurveObjecthue*>(h))->setDrawCurveOnly(value); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+
+#endif
+
+void* ocio_grading_rgb_curve_object_from_transform(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { auto value = ocio_rs_bridge::get_real_grading_rgb_curve_transform(transform)->getValue(); return new CurveObjectrgb(value->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_grading_rgb_curve_object_set_transform(void* h, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)transform;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { ocio_rs_bridge::get_real_grading_rgb_curve_transform(transform)->setValue(*static_cast<CurveObjectrgb*>(h)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void* ocio_grading_hue_curve_object_from_transform(void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)transform;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try { auto value = ocio_rs_bridge::get_real_grading_hue_curve_transform(transform)->getValue(); return new CurveObjecthue(value->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+void ocio_grading_hue_curve_object_set_transform(void* h, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)transform;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return;
+#else
+  try { ocio_rs_bridge::get_real_grading_hue_curve_transform(transform)->setValue(*static_cast<CurveObjecthue*>(h)); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+int ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(int kind) {
+#ifdef OCIO_RS_STUB
+  (void)kind;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return 0;
+#else
+  try { return static_cast<int>(ocio::GradingHueCurve::GetBSplineTypeForHueCurveType(static_cast<ocio::HueCurveType>(kind))); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+#endif
 }  // extern "C"

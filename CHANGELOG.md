@@ -9,6 +9,10 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose independently owned native grading B-spline curves, including
+  2.5 spline-type constructors and editing.
+- Expose native RGB and hue grading curve sets, their editable constituent
+  curves, transform value exchange, and hue curve-only drawing mode.
 - Add complete eight-curve hue grading snapshots while preserving the legacy
   four-curve snapshot API.
 - Expose complete dynamic hue-property snapshots, including all eight curves.

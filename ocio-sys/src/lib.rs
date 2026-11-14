@@ -12,6 +12,8 @@ mod v2_6;
 pub use v2_6::*;
 
 use std::ffi::c_void;
+mod spline;
+pub use spline::*;
 mod app_helpers;
 pub use app_helpers::*;
 #[cfg(feature = "v2_5")]

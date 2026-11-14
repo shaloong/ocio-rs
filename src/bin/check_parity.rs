@@ -81,6 +81,9 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "config_merging_parameters" => Some("ConfigMergingParameters"),
         "config_merger" => Some("ConfigMerger"),
         "system_monitors" => Some("SystemMonitors"),
+        "grading_bspline_curve" => Some("GradingBSplineCurve"),
+        "grading_rgb_curve_object" => Some("GradingRGBCurve"),
+        "grading_hue_curve_object" => Some("GradingHueCurve"),
         "look" => Some("Look"),
         "named_transform" => Some("NamedTransform"),
         "view_transform" => Some("ViewTransform"),
@@ -150,6 +153,9 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "config_merging_parameters",
         "config_merger",
         "system_monitors",
+        "grading_bspline_curve",
+        "grading_rgb_curve_object",
+        "grading_hue_curve_object",
         "allocation_transform",
         "look_transform",
         "lut1d_transform",
@@ -471,6 +477,9 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         "ConfigMergingParameters",
         "ConfigMerger",
         "SystemMonitors",
+        "GradingBSplineCurve",
+        "GradingRGBCurve",
+        "GradingHueCurve",
         "Config",
         "FileRules",
         "ColorSpace",
@@ -841,6 +850,9 @@ fn run_l3(
         ("ConfigMergingParameters", "ConfigMergingParameters"),
         ("ConfigMerger", "ConfigMerger"),
         ("SystemMonitors", "SystemMonitors"),
+        ("GradingBSplineCurve", "GradingBSplineCurve"),
+        ("GradingRGBCurve", "GradingRGBCurve"),
+        ("GradingHueCurve", "GradingHueCurve"),
         ("Look", "Look"),
         ("NamedTransform", "NamedTransform"),
         ("ViewTransform", "ViewTransform"),
@@ -1101,6 +1113,7 @@ fn main() {
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/v2_6.rs")));
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/app_helpers.rs")));
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/config_merging.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/spline.rs")));
     let rust_methods = parse_rust_wrappers(&root.join(SRC_DIR));
 
     // Compare

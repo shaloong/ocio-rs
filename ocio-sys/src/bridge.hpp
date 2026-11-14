@@ -1510,4 +1510,44 @@ size_t ocio_system_monitors_get_num_monitors(void* h);
 const char* ocio_system_monitors_get_monitor_name(void* h, size_t index);
 const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index);
 
+void* ocio_grading_bspline_curve_create(size_t count);
+void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind);
+void* ocio_grading_bspline_curve_create_with_hue_type(size_t count, int kind);
+void ocio_grading_bspline_curve_destroy(void* h);
+void* ocio_grading_bspline_curve_create_editable_copy(void* h);
+size_t ocio_grading_bspline_curve_get_num_control_points(void* h);
+void ocio_grading_bspline_curve_set_num_control_points(void* h, size_t count);
+void ocio_grading_bspline_curve_get_control_point(void* h, size_t index, float* x, float* y);
+void ocio_grading_bspline_curve_set_control_point(void* h, size_t index, float x, float y);
+float ocio_grading_bspline_curve_get_slope(void* h, size_t index);
+void ocio_grading_bspline_curve_set_slope(void* h, size_t index, float slope);
+bool ocio_grading_bspline_curve_slopes_are_default(void* h);
+void ocio_grading_bspline_curve_validate(void* h);
+int ocio_grading_bspline_curve_get_spline_type(void* h);
+void ocio_grading_bspline_curve_set_spline_type(void* h, int kind);
+bool ocio_grading_bspline_curve_equals(void* h, void* other);
+
+void* ocio_grading_rgb_curve_object_create(int style);
+void ocio_grading_rgb_curve_object_destroy(void* h);
+void* ocio_grading_rgb_curve_object_create_editable_copy(void* h);
+void ocio_grading_rgb_curve_object_validate(void* h);
+bool ocio_grading_rgb_curve_object_is_identity(void* h);
+void* ocio_grading_rgb_curve_object_get_curve(void* h, int kind);
+bool ocio_grading_rgb_curve_object_equals(void* h, void* other);
+void* ocio_grading_hue_curve_object_create(int style);
+void ocio_grading_hue_curve_object_destroy(void* h);
+void* ocio_grading_hue_curve_object_create_editable_copy(void* h);
+void ocio_grading_hue_curve_object_validate(void* h);
+bool ocio_grading_hue_curve_object_is_identity(void* h);
+void* ocio_grading_hue_curve_object_get_curve(void* h, int kind);
+bool ocio_grading_hue_curve_object_equals(void* h, void* other);
+bool ocio_grading_hue_curve_object_get_draw_curve_only(void* h);
+void ocio_grading_hue_curve_object_set_draw_curve_only(void* h, bool value);
+
+void* ocio_grading_rgb_curve_object_from_transform(void* transform);
+void ocio_grading_rgb_curve_object_set_transform(void* h, void* transform);
+void* ocio_grading_hue_curve_object_from_transform(void* transform);
+void ocio_grading_hue_curve_object_set_transform(void* h, void* transform);
+
+int ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(int kind);
 }  // extern "C"
