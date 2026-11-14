@@ -472,7 +472,19 @@ pub fn reset_logging_callback() -> Result<()> {
 /// including embedded NUL bytes, round-trip without loss. Its output is copied
 /// by the bridge immediately after the callback returns. Panics are caught and never unwind
 /// across the FFI boundary.
-pub fn set_compute_hash_callback(
+///
+/// # Safety
+///
+/// OCIO does not synchronize replacement of its process-global hash function
+/// with calls to it. The caller must ensure that no thread or reentrant
+/// callback is executing or can start an OCIO operation that may hash a file
+/// until this function returns. Coordinate with other native users of OCIO too;
+/// the crate's internal update lock only serializes updates through this crate.
+///
+/// ```compile_fail
+/// ocio_rs::set_compute_hash_callback(|bytes| bytes.to_vec()).unwrap();
+/// ```
+pub unsafe fn set_compute_hash_callback(
     callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
 ) -> Result<()> {
     let _update = compute_hash_callback_update_lock()
@@ -498,7 +510,17 @@ pub fn set_compute_hash_callback(
 }
 
 /// Restore OCIO's default process-global compute-hash function.
-pub fn reset_compute_hash_callback() -> Result<()> {
+///
+/// # Safety
+///
+/// The same process-wide exclusion requirements as
+/// [`set_compute_hash_callback`] apply, including exclusion of a callback
+/// currently executing on the calling thread.
+///
+/// ```compile_fail
+/// ocio_rs::reset_compute_hash_callback().unwrap();
+/// ```
+pub unsafe fn reset_compute_hash_callback() -> Result<()> {
     let _update = compute_hash_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());

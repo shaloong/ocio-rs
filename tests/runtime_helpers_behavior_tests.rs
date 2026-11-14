@@ -144,10 +144,13 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
 
     let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
-    set_compute_hash_callback(move |_| {
-        callback_calls.fetch_add(1, Ordering::SeqCst);
-        b"intentionally-invalid-hash".to_vec()
-    })
+    // All tests in this process that access OCIO use runtime_helpers_test_lock.
+    unsafe {
+        set_compute_hash_callback(move |_| {
+            callback_calls.fetch_add(1, Ordering::SeqCst);
+            b"intentionally-invalid-hash".to_vec()
+        })
+    }
     .expect("install compute hash callback");
     try_clear_all_caches().expect("clear OCIO caches");
     let transform = FileTransform::create().expect("create file transform");
@@ -157,7 +160,7 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
     let loaded = Config::raw()
         .expect("raw config")
         .processor_from_transform_default_direction(&transform);
-    reset_compute_hash_callback().expect("reset compute hash callback");
+    unsafe { reset_compute_hash_callback() }.expect("reset compute hash callback");
 
     let _ = loaded;
     assert!(calls.load(Ordering::SeqCst) > 0);
@@ -196,7 +199,7 @@ fn raw_hash_callback_accepts_null_empty_output() {
     let result = Config::raw()
         .expect("raw config")
         .processor_from_transform_default_direction(&transform);
-    reset_compute_hash_callback().expect("reset compute hash callback");
+    unsafe { reset_compute_hash_callback() }.expect("reset compute hash callback");
     assert!(CALLS.load(Ordering::SeqCst) > 0);
     // OCIO interprets an empty file hash as a missing file; the bridge must
     // nevertheless safely accept and copy the callback's empty result.
@@ -216,10 +219,12 @@ fn global_compute_hash_callback_panic_does_not_cross_ffi() {
         .join("tests/data/clf/matrix_3x4_example.clf");
     let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
-    set_compute_hash_callback(move |_| {
-        callback_calls.fetch_add(1, Ordering::SeqCst);
-        panic!("intentional compute hash callback panic")
-    })
+    unsafe {
+        set_compute_hash_callback(move |_| {
+            callback_calls.fetch_add(1, Ordering::SeqCst);
+            panic!("intentional compute hash callback panic")
+        })
+    }
     .expect("install compute hash callback");
     try_clear_all_caches().expect("clear OCIO caches");
     let transform = FileTransform::create().expect("create file transform");
@@ -229,7 +234,7 @@ fn global_compute_hash_callback_panic_does_not_cross_ffi() {
     let result = Config::raw()
         .expect("raw config")
         .processor_from_transform_default_direction(&transform);
-    reset_compute_hash_callback().expect("reset compute hash callback");
+    unsafe { reset_compute_hash_callback() }.expect("reset compute hash callback");
 
     let _ = result;
     assert!(calls.load(Ordering::SeqCst) > 0);

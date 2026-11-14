@@ -9,6 +9,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Breaking safety changes
 
+- Installing or resetting the process-global compute-hash callback is now
+  `unsafe`: OCIO does not synchronize hash function replacement with file hashing,
+  so callers must ensure process-wide exclusion during updates.
 - Processor, CPU/GPU processor, and GPU shader descriptor handles are no longer
   `Send`: OCIO dynamic properties can remain live independently and are not
   synchronized. Create independent pipelines on the threads using them.
