@@ -639,6 +639,10 @@ bool ocio_gpu_shader_desc_add_uniform_bool_getter(void* handle, const char* name
     bool (*getter)(void*, bool*), void (*release)(void*));
 bool ocio_gpu_shader_desc_add_uniform_float3_getter(void* handle, const char* name, void* context,
     bool (*getter)(void*, float*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_vector_float_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, float*, size_t, size_t*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_vector_int_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, int*, size_t, size_t*), void (*release)(void*));
 bool ocio_gpu_shader_desc_add_uniform_bool(void* handle, const char* name, bool value);
 bool ocio_gpu_shader_desc_add_uniform_float3(void* handle, const char* name, float x, float y, float z);
 bool ocio_gpu_shader_desc_add_uniform_vector_float(

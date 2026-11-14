@@ -3338,6 +3338,68 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live float array uniform. The getter fills the provided buffer and
+    /// returns the initialized length, which must not exceed `max_size`.
+    ///
+    /// Storage is allocated once at registration. Each native size query
+    /// refreshes the snapshot; its pointer getter reads that same snapshot.
+    /// Native callers must serialize descriptor access and consume the pointer
+    /// before the next size query. Panics and excessive lengths are errors.
+    pub fn add_uniform_f32_array_getter<F>(
+        &self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [f32]) -> usize + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn(&mut [f32]) -> usize>(
+            context: *mut c_void,
+            data: *mut f32,
+            capacity: usize,
+            length: *mut usize,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let data = if capacity == 0 {
+                    std::ptr::NonNull::<f32>::dangling().as_ptr()
+                } else {
+                    data
+                };
+                let buffer = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
+                unsafe { *length = getter(buffer) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        if max_size > i32::MAX as u32
+            || max_size as usize > isize::MAX as usize / std::mem::size_of::<f32>()
+        {
+            return Err(OcioError::ValidationFailed(
+                "uniform max_size exceeds the native integer limit".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_float_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                max_size,
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds an integer array uniform and returns `false` when the name already exists.
     pub fn add_uniform_i32_array(
         &self,
@@ -3361,6 +3423,63 @@ impl GpuShaderDesc {
                 values.as_ptr(),
                 values.len(),
                 max_size,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
+    /// Adds a live integer array uniform with the same snapshot and lifetime
+    /// rules as [`Self::add_uniform_f32_array_getter`].
+    pub fn add_uniform_i32_array_getter<F>(
+        &self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [i32]) -> usize + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn(&mut [i32]) -> usize>(
+            context: *mut c_void,
+            data: *mut i32,
+            capacity: usize,
+            length: *mut usize,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let data = if capacity == 0 {
+                    std::ptr::NonNull::<i32>::dangling().as_ptr()
+                } else {
+                    data
+                };
+                let buffer = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
+                unsafe { *length = getter(buffer) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        if max_size > i32::MAX as u32
+            || max_size as usize > isize::MAX as usize / std::mem::size_of::<i32>()
+        {
+            return Err(OcioError::ValidationFailed(
+                "uniform max_size exceeds the native integer limit".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_vector_int_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                max_size,
+                context,
+                invoke::<F>,
+                release::<F>,
             )
         };
         Self::bool_call_result(ok)

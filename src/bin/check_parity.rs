@@ -746,7 +746,15 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("add_uniform_double", "add_uniform_f64"),
         ("add_uniform_double_getter", "add_uniform_f64_getter"),
         ("add_uniform_vector_float", "add_uniform_f32_array"),
+        (
+            "add_uniform_vector_float_getter",
+            "add_uniform_f32_array_getter",
+        ),
         ("add_uniform_vector_int", "add_uniform_i32_array"),
+        (
+            "add_uniform_vector_int_getter",
+            "add_uniform_i32_array_getter",
+        ),
         // FormatMetadata: get_num_children_elements -> num_children
         ("get_num_children_elements", "num_children"),
         // MatrixTransform: static factories differ

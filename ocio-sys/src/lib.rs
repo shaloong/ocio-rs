@@ -1352,6 +1352,22 @@ unsafe extern "C" {
         getter: unsafe extern "C" fn(*mut c_void, *mut f32) -> bool,
         release: unsafe extern "C" fn(*mut c_void),
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_float_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_int_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut i32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_add_uniform_bool(
         handle: *mut c_void,
         name: *const i8,

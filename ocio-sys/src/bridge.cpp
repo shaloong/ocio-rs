@@ -1473,6 +1473,33 @@ static void* wrap_editable_transform_copy(const ocio::TransformRcPtr& transform)
 
 }  // namespace ocio_rs_bridge
 
+#ifndef OCIO_RS_STUB
+// OCIO exposes separate size and pointer getters. Refresh once on each size
+// query, then return that same snapshot from the pointer getter.
+template<typename T> struct OcioRsUniformArrayGetter {
+  std::shared_ptr<void> owner;
+  bool (*getter)(void*, T*, size_t, size_t*);
+  std::vector<T> values;
+  size_t length = 0;
+  bool initialized = false;
+  OcioRsUniformArrayGetter(std::shared_ptr<void> ctx,
+      bool (*fn)(void*, T*, size_t, size_t*), size_t capacity)
+      : owner(std::move(ctx)), getter(fn), values(capacity) {}
+  int refresh() {
+    size_t next = 0;
+    if (!getter(owner.get(), values.data(), values.size(), &next) || next > values.size())
+      throw ocio::Exception("Rust uniform array getter failed or exceeded max size");
+    length = next;
+    initialized = true;
+    return static_cast<int>(length);
+  }
+  const T* data() {
+    if (!initialized) refresh();
+    return length ? values.data() : nullptr;
+  }
+};
+#endif
+
 // =====================================================================
 // extern "C" implementations
 // =====================================================================
@@ -7899,6 +7926,54 @@ bool ocio_gpu_shader_desc_add_uniform_float3_getter(void* handle, const char* na
       return *value;
     };
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name, native);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_vector_float_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, float*, size_t, size_t*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)maxSize; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO");
+  return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !getter || !release || maxSize > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid float uniform getter");
+    auto state = std::make_shared<OcioRsUniformArrayGetter<float>>(owner, getter, maxSize);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name,
+        [state]() { return state->refresh(); }, [state]() { return state->data(); }, maxSize);
+#else
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name,
+        [state]() { return state->refresh(); }, [state]() { return state->data(); });
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_vector_int_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, int*, size_t, size_t*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)maxSize; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO");
+  return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !getter || !release || maxSize > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid integer uniform getter");
+    auto state = std::make_shared<OcioRsUniformArrayGetter<int>>(owner, getter, maxSize);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name,
+        [state]() { return state->refresh(); }, [state]() { return state->data(); }, maxSize);
+#else
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name,
+        [state]() { return state->refresh(); }, [state]() { return state->data(); });
+#endif
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }

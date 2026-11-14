@@ -1324,6 +1324,55 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_uniform_array_getters_refresh_and_validate_snapshots() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    let count = Arc::new(AtomicUsize::new(2));
+    let n = count.clone();
+    assert!(desc
+        .add_uniform_f32_array_getter("floats", 4, move |out| {
+            for (i, x) in out.iter_mut().enumerate() {
+                *x = i as f32 + 0.5;
+            }
+            n.load(Ordering::Relaxed)
+        })
+        .unwrap());
+    assert!(desc
+        .add_uniform_i32_array_getter("ints", 3, |out| {
+            out.copy_from_slice(&[3, 4, 5]);
+            3
+        })
+        .unwrap());
+    let mut floats = [0.0; 4];
+    let mut ints = [0; 3];
+    assert!(desc.try_copy_uniform_f32_into(0, &mut floats).unwrap());
+    assert_eq!(&floats[..2], &[0.5, 1.5]);
+    assert!(desc.try_copy_uniform_i32_into(1, &mut ints).unwrap());
+    assert_eq!(ints, [3, 4, 5]);
+    count.store(4, Ordering::Relaxed);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut floats).unwrap());
+    assert_eq!(floats, [0.5, 1.5, 2.5, 3.5]);
+    count.store(5, Ordering::Relaxed);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut floats).is_err());
+    assert!(desc
+        .add_uniform_i32_array_getter("panic", 1, |_| panic!("array panic"))
+        .unwrap());
+    assert!(desc.try_copy_uniform_i32_into(2, &mut ints).is_err());
+    assert!(desc
+        .add_uniform_f32_array_getter("empty", 0, |out| {
+            assert!(out.is_empty());
+            0
+        })
+        .unwrap());
+    assert_eq!(desc.try_uniform_value_count(3).unwrap(), 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn uniform_array_sys_rejects_unrepresentable_lengths_and_accepts_empty() {
     let _guard = gpu_shader_desc_test_lock();
     let name = CString::new("empty").unwrap();
@@ -1467,6 +1516,22 @@ fn rust_uniform_double_getter_stub_releases_closure() {
         .add_uniform_float3_getter("rgb", move || {
             let _ = &captured;
             [0.0; 3]
+        })
+        .is_err());
+    assert_eq!(std::sync::Arc::strong_count(&value), 1);
+    let captured = value.clone();
+    assert!(desc
+        .add_uniform_f32_array_getter("float_array", 2, move |_| {
+            let _ = &captured;
+            0
+        })
+        .is_err());
+    assert_eq!(std::sync::Arc::strong_count(&value), 1);
+    let captured = value.clone();
+    assert!(desc
+        .add_uniform_i32_array_getter("int_array", 2, move |_| {
+            let _ = &captured;
+            0
         })
         .is_err());
     assert_eq!(std::sync::Arc::strong_count(&value), 1);
