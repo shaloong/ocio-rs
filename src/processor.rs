@@ -3058,6 +3058,40 @@ impl DynamicProperty {
         Ok(value)
     }
 
+    /// Snapshot all eight curves of a dynamic hue-curve property.
+    ///
+    /// This is a control-plane operation: it copies the native curve data.
+    #[cfg(feature = "v2_5")]
+    pub fn complete_grading_hue_curve_value(
+        &self,
+    ) -> Result<crate::grading::CompleteGradingHueCurveValue> {
+        use crate::grading::{
+            CompleteGradingHueCurveValue, GradingCurvePoint, GradingHueCurveValue,
+        };
+        let read = |kind| -> Result<Vec<GradingCurvePoint>> {
+            let count = self.grading_hue_curve_num_control_points(kind)?;
+            (0..count)
+                .map(|index| {
+                    let (x, y) = self.grading_hue_curve_control_point(kind, index)?;
+                    let slope = self.grading_hue_curve_slope(kind, index)?;
+                    Ok(GradingCurvePoint { x, y, slope })
+                })
+                .collect()
+        };
+        Ok(CompleteGradingHueCurveValue {
+            base: GradingHueCurveValue {
+                hue_hue: read(HueCurveType::HueHue)?,
+                hue_sat: read(HueCurveType::HueSat)?,
+                hue_lum: read(HueCurveType::HueLum)?,
+                lum_sat: read(HueCurveType::LumSat)?,
+            },
+            sat_sat: read(HueCurveType::SatSat)?,
+            lum_lum: read(HueCurveType::LumLum)?,
+            sat_lum: read(HueCurveType::SatLum)?,
+            hue_fx: read(HueCurveType::HueFx)?,
+        })
+    }
+
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn grading_hue_curve_set_num_control_points(

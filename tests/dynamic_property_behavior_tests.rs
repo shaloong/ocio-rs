@@ -82,6 +82,34 @@ fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
         .ok()
 }
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn dynamic_hue_snapshot_includes_every_curve() {
+    let _guard = dynamic_property_test_lock();
+    let processor = dynamic_grading_hue_curve_processor().unwrap();
+    let property = processor
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .unwrap();
+    for kind in [
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ] {
+        property.grading_hue_curve_set_slope(kind, 0, 0.37).unwrap();
+    }
+    let value = property.complete_grading_hue_curve_value().unwrap();
+    for curve in [
+        &value.sat_sat,
+        &value.lum_lum,
+        &value.sat_lum,
+        &value.hue_fx,
+    ] {
+        assert!((curve[0].slope - 0.37).abs() < 1e-6);
+    }
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
