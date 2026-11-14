@@ -513,3 +513,129 @@ fn planar_conversion_changes_bit_depth_without_touching_padding() {
         )
         .is_err());
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn signed_planar_strides_convert_and_process_in_place() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, SignedPlanarByteLayout, SignedPlanarBytes,
+        SignedPlanarBytesMut, TransformDirection,
+    };
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[0.5, 1.0, 1.0, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let input_layout = SignedPlanarByteLayout {
+        width: 2,
+        height: 2,
+        origin: 5,
+        x_stride: -1,
+        y_stride: -3,
+        bit_depth: BitDepth::Uint8,
+    };
+    let output_layout = SignedPlanarByteLayout {
+        width: 2,
+        height: 2,
+        origin: 0,
+        x_stride: 2,
+        y_stride: 6,
+        bit_depth: BitDepth::Uint16,
+    };
+    let mut red = [99u8, 40, 80, 99, 120, 200, 99];
+    let mut green = [99u8, 10, 20, 99, 30, 40, 99];
+    let mut blue = [99u8, 50, 60, 99, 70, 80, 99];
+    let mut alpha = [99u8, 50, 100, 99, 150, 200, 99];
+    let mut r = [0xaaaau16; 5];
+    let mut g = [0xaaaau16; 5];
+    let mut b = [0xaaaau16; 5];
+    let mut a = [0xaaaau16; 5];
+    fn bytes(words: &mut [u16]) -> &mut [u8] {
+        // SAFETY: The returned bytes cover only the exclusively borrowed words.
+        unsafe {
+            std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), std::mem::size_of_val(words))
+        }
+    }
+    let convert = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    convert
+        .try_apply_planar_signed_convert(
+            SignedPlanarBytes {
+                red: &red,
+                green: &green,
+                blue: &blue,
+                alpha: Some(&alpha),
+                layout: input_layout,
+            },
+            SignedPlanarBytesMut {
+                red: bytes(&mut r),
+                green: bytes(&mut g),
+                blue: bytes(&mut b),
+                alpha: Some(bytes(&mut a)),
+                layout: output_layout,
+            },
+        )
+        .unwrap();
+    assert_eq!(r, [25700, 15420, 0xaaaa, 10280, 5140]);
+    assert_eq!(g, [10280, 7710, 0xaaaa, 5140, 2570]);
+    assert_eq!(b, [20560, 17990, 0xaaaa, 15420, 12850]);
+    assert_eq!(a, [51400, 38550, 0xaaaa, 25700, 12850]);
+    let reversed_output = SignedPlanarByteLayout {
+        origin: 10,
+        x_stride: -2,
+        y_stride: -6,
+        ..output_layout
+    };
+    let mut rr = [0xaaaau16; 6];
+    let mut gg = [0xaaaau16; 6];
+    let mut bb = [0xaaaau16; 6];
+    let mut aa = [0xaaaau16; 6];
+    convert
+        .try_apply_planar_signed_convert(
+            SignedPlanarBytes {
+                red: &red,
+                green: &green,
+                blue: &blue,
+                alpha: Some(&alpha),
+                layout: input_layout,
+            },
+            SignedPlanarBytesMut {
+                red: bytes(&mut rr),
+                green: bytes(&mut gg),
+                blue: bytes(&mut bb),
+                alpha: Some(bytes(&mut aa)),
+                layout: reversed_output,
+            },
+        )
+        .unwrap();
+    assert_eq!(rr, [0xaaaa, 5140, 10280, 0xaaaa, 15420, 25700]);
+    assert_eq!(aa, [0xaaaa, 12850, 25700, 0xaaaa, 38550, 51400]);
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    cpu.try_apply_planar_signed(SignedPlanarBytesMut {
+        red: &mut red,
+        green: &mut green,
+        blue: &mut blue,
+        alpha: Some(&mut alpha),
+        layout: input_layout,
+    })
+    .unwrap();
+    assert_eq!(red, [99, 20, 40, 99, 60, 100, 99]);
+    let invalid = SignedPlanarByteLayout {
+        origin: 4,
+        ..input_layout
+    };
+    assert!(cpu
+        .try_apply_planar_signed(SignedPlanarBytesMut {
+            red: &mut red,
+            green: &mut green,
+            blue: &mut blue,
+            alpha: None,
+            layout: invalid
+        })
+        .is_err());
+}

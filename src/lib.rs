@@ -131,7 +131,7 @@ pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
     PackedConversionLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut, PlanarF32Layout,
-    Processor, TextureInfo,
+    Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut, TextureInfo,
 };
 pub use processor_metadata::ProcessorMetadata;
 pub use types::*;

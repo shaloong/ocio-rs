@@ -588,6 +588,100 @@ pub struct PlanarBytesMut<'a> {
     pub layout: PlanarByteLayout,
 }
 
+/// A planar image layout with signed byte strides and an origin in each plane.
+///
+/// The origin is the byte offset of the first pixel to process in every slice.
+/// Strides and origin must be aligned to the sample size. The row stride's
+/// magnitude must be at least `width * abs(x_stride)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SignedPlanarByteLayout {
+    /// Number of pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte offset of the first logical pixel in each plane.
+    pub origin: usize,
+    /// Signed byte distance between horizontally adjacent pixels.
+    pub x_stride: isize,
+    /// Signed byte distance between adjacent rows.
+    pub y_stride: isize,
+    /// Native storage and interpretation of each channel.
+    pub bit_depth: BitDepth,
+}
+
+/// Immutable planar input with signed byte strides.
+pub struct SignedPlanarBytes<'a> {
+    pub red: &'a [u8],
+    pub green: &'a [u8],
+    pub blue: &'a [u8],
+    pub alpha: Option<&'a [u8]>,
+    pub layout: SignedPlanarByteLayout,
+}
+
+/// Exclusively borrowed planar image with signed byte strides.
+pub struct SignedPlanarBytesMut<'a> {
+    pub red: &'a mut [u8],
+    pub green: &'a mut [u8],
+    pub blue: &'a mut [u8],
+    pub alpha: Option<&'a mut [u8]>,
+    pub layout: SignedPlanarByteLayout,
+}
+
+fn validate_signed_planar(layout: SignedPlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
+    let SignedPlanarByteLayout {
+        width,
+        height,
+        origin,
+        x_stride,
+        y_stride,
+        bit_depth,
+    } = layout;
+    let size = bit_depth_bytes_per_channel("CPUProcessor planar image", bit_depth)?;
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing signed planar layout".into());
+    let x = x_stride.checked_abs().ok_or_else(invalid)? as usize;
+    let y = y_stride.checked_abs().ok_or_else(invalid)? as usize;
+    if width == 0
+        || height == 0
+        || x < size
+        || y == 0
+        || x > y / width
+        || !x.is_multiple_of(size)
+        || !y.is_multiple_of(size)
+        || !origin.is_multiple_of(size)
+    {
+        return Err(invalid());
+    }
+    let dx = (width - 1).checked_mul(x).ok_or_else(invalid)?;
+    let dy = (height - 1).checked_mul(y).ok_or_else(invalid)?;
+    let backward = (if x_stride < 0 { dx } else { 0 })
+        .checked_add(if y_stride < 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let forward = (if x_stride > 0 { dx } else { 0 })
+        .checked_add(if y_stride > 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let low = origin.checked_sub(backward).ok_or_else(invalid)?;
+    let high = origin.checked_add(forward).ok_or_else(invalid)?;
+    // OCIO advances each pixel pointer once after processing the last sample.
+    // Keep that pointer within, or one past, the borrowed allocation too.
+    if x_stride < 0 && low < x {
+        return Err(invalid());
+    }
+    let required = high
+        .checked_add(if x_stride > 0 { x.max(size) } else { size })
+        .ok_or_else(invalid)?;
+    if planes
+        .iter()
+        .any(|p| p.len() < required || !(p.as_ptr() as usize).is_multiple_of(size))
+    {
+        return Err(invalid());
+    }
+    let [Ok(w), Ok(h)] = [width, height].map(i64::try_from) else {
+        return Err(invalid());
+    };
+    Ok([w, h, x_stride as i64, y_stride as i64])
+}
+
 fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
     let PlanarByteLayout {
         width,
@@ -637,6 +731,109 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Process a planar image in place with signed byte strides without copying.
+    ///
+    /// OCIO advances pointers after the last pixel of each row. Therefore the
+    /// slices must also contain that final pointer position (one-past is valid).
+    /// In particular, a negative pixel stride requires preceding padding.
+    pub fn try_apply_planar_signed(&self, mut image: SignedPlanarBytesMut<'_>) -> Result<()> {
+        let [width, height, x_stride, y_stride] =
+            validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+        if let Some(alpha) = image.alpha.as_deref() {
+            validate_signed_planar(image.layout, &[alpha])?;
+        }
+        let origin = image.layout.origin;
+        crate::clear_last_error();
+        // SAFETY: The exclusive slices have validated bounds and alignment,
+        // including the original pointer position and the native strides.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_bytes(
+                self.handle.as_ptr(),
+                image.red.as_mut_ptr().add(origin).cast(),
+                image.green.as_mut_ptr().add(origin).cast(),
+                image.blue.as_mut_ptr().add(origin).cast(),
+                image
+                    .alpha
+                    .as_deref_mut()
+                    .map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().add(origin).cast()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+                image.layout.bit_depth as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Convert separate signed-stride planar images without copying pixel data.
+    ///
+    /// Source and destination must have equal dimensions and matching alpha
+    /// presence. Their layouts and bit depths may otherwise differ. As with
+    /// [`Self::try_apply_planar_signed`], pointer-step padding is required.
+    pub fn try_apply_planar_signed_convert(
+        &self,
+        source: SignedPlanarBytes<'_>,
+        mut destination: SignedPlanarBytesMut<'_>,
+    ) -> Result<()> {
+        if source.layout.width != destination.layout.width
+            || source.layout.height != destination.layout.height
+            || source.alpha.is_some() != destination.alpha.is_some()
+        {
+            return Err(OcioError::InvalidInput(
+                "planar dimensions and alpha presence must match".into(),
+            ));
+        }
+        let [iw, ih, ix, iy] =
+            validate_signed_planar(source.layout, &[source.red, source.green, source.blue])?;
+        let [ow, oh, ox, oy] = validate_signed_planar(
+            destination.layout,
+            &[destination.red, destination.green, destination.blue],
+        )?;
+        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
+            validate_signed_planar(source.layout, &[input])?;
+            validate_signed_planar(destination.layout, &[output])?;
+        }
+        let i = source.layout.origin;
+        let o = destination.layout.origin;
+        let input = ocio_sys::OcioPlanarBuffer {
+            red: source.red.as_ptr().wrapping_add(i).cast_mut().cast(),
+            green: source.green.as_ptr().wrapping_add(i).cast_mut().cast(),
+            blue: source.blue.as_ptr().wrapping_add(i).cast_mut().cast(),
+            alpha: source.alpha.map_or(std::ptr::null_mut(), |p| {
+                p.as_ptr().wrapping_add(i).cast_mut().cast()
+            }),
+            width: iw,
+            height: ih,
+            x_stride: ix,
+            y_stride: iy,
+            bit_depth: source.layout.bit_depth as i32,
+        };
+        let output = ocio_sys::OcioPlanarBuffer {
+            red: destination.red.as_mut_ptr().wrapping_add(o).cast(),
+            green: destination.green.as_mut_ptr().wrapping_add(o).cast(),
+            blue: destination.blue.as_mut_ptr().wrapping_add(o).cast(),
+            alpha: destination
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| {
+                    p.as_mut_ptr().wrapping_add(o).cast()
+                }),
+            width: ow,
+            height: oh,
+            x_stride: ox,
+            y_stride: oy,
+            bit_depth: destination.layout.bit_depth as i32,
+        };
+        crate::clear_last_error();
+        // SAFETY: Bounds and alignment have been checked, the source is only
+        // read, and Rust exclusively borrows all destination planes.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_convert(self.handle.as_ptr(), &input, &output)
+        };
+        crate::ocio_call_status()
+    }
+
     /// Convert separate planar buffers using the processor's input and output depths.
     ///
     /// Layouts may have different strides and bit depths, but must have identical
@@ -3800,6 +3997,42 @@ impl Drop for DynamicProperty {
 mod tests {
     use super::*;
     use crate::Config;
+
+    #[test]
+    fn signed_planar_layout_checks_all_corners_and_pointer_steps() {
+        let plane = [0u8; 8];
+        for x in [-1isize, 1] {
+            for y in [-3isize, 3] {
+                let layout = SignedPlanarByteLayout {
+                    width: 2,
+                    height: 2,
+                    origin: 1 + if x < 0 { 1 } else { 0 } + if y < 0 { 3 } else { 0 },
+                    x_stride: x,
+                    y_stride: y,
+                    bit_depth: BitDepth::Uint8,
+                };
+                assert!(validate_signed_planar(layout, &[&plane]).is_ok());
+                assert!(validate_signed_planar(layout, &[&plane[..4]]).is_err());
+            }
+        }
+        let underflow = SignedPlanarByteLayout {
+            width: 2,
+            height: 1,
+            origin: 1,
+            x_stride: -1,
+            y_stride: 2,
+            bit_depth: BitDepth::Uint8,
+        };
+        assert!(validate_signed_planar(underflow, &[&plane]).is_err());
+        assert!(validate_signed_planar(
+            SignedPlanarByteLayout {
+                x_stride: isize::MIN,
+                ..underflow
+            },
+            &[&plane]
+        )
+        .is_err());
+    }
 
     #[test]
     fn planar_layout_requires_native_row_stride_even_for_one_row() {

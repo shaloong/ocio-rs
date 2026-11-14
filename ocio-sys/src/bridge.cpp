@@ -7198,6 +7198,21 @@ void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+static bool ocio_rs_valid_planar_strides(int64_t width, int64_t height,
+                                          int64_t x_stride, int64_t y_stride) {
+  const int64_t limit = std::numeric_limits<ptrdiff_t>::max();
+  const int64_t long_limit = std::numeric_limits<long>::max();
+  if (width <= 0 || height <= 0 || width > long_limit || height > long_limit ||
+      width > long_limit / height || x_stride == 0 || y_stride == 0 ||
+      x_stride < -limit || x_stride > limit || y_stride < -limit || y_stride > limit)
+    return false;
+  const int64_t x_abs = x_stride < 0 ? -x_stride : x_stride;
+  const int64_t y_abs = y_stride < 0 ? -y_stride : y_stride;
+  return x_abs <= y_abs / width;
+}
+#endif
+
 void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green, void* blue,
     void* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride, int bit_depth) {
 #ifdef OCIO_RS_STUB
@@ -7206,11 +7221,7 @@ void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green,
   ocio_rs_bridge::clear_last_error();
 #else
   try {
-    const auto limit = std::numeric_limits<ptrdiff_t>::max();
-    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
-        height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
-        x_stride > limit || y_stride > limit || x_stride > y_stride / width ||
-        !red || !green || !blue)
+    if (!ocio_rs_valid_planar_strides(width, height, x_stride, y_stride) || !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions, strides or pointers");
     auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
     const auto depth = static_cast<ocio::BitDepth>(bit_depth);
@@ -7272,12 +7283,8 @@ void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buf
   try {
     if (!source || !destination) throw std::invalid_argument("null planar descriptor");
     auto check = [](const ocio_planar_buffer& d) {
-      if (!d.red || !d.green || !d.blue || d.width <= 0 || d.height <= 0 ||
-          d.width > std::numeric_limits<long>::max() || d.height > std::numeric_limits<long>::max() ||
-          d.x_stride <= 0 || d.y_stride <= 0 ||
-          d.x_stride > std::numeric_limits<ptrdiff_t>::max() ||
-          d.y_stride > std::numeric_limits<ptrdiff_t>::max() ||
-          d.x_stride > d.y_stride / d.width)
+      if (!d.red || !d.green || !d.blue ||
+          !ocio_rs_valid_planar_strides(d.width, d.height, d.x_stride, d.y_stride))
         throw std::invalid_argument("invalid planar descriptor");
     };
     check(*source);

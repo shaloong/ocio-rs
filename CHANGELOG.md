@@ -14,6 +14,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Support planar native-depth byte channels and explicit CPU processor bit depths.
 - Convert separate packed RGB/RGBA buffers between native input and output bit depths.
 - Convert separate planar RGB/RGBA buffers between native input and output bit depths.
+- Process and convert planar RGB/RGBA buffers with checked signed byte strides.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent
