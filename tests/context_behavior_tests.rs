@@ -325,6 +325,9 @@ fn context_load_environment_honors_selected_mode_behavior() {
         .expect("select all mode");
     ctx.load_environment().expect("load complete environment");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    if let Some((key, value)) = std::env::vars().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        assert!(ctx.string_var(key).is_some_and(|loaded| loaded == value));
+    }
     assert_ne!(
         ctx.cache_id().as_deref(),
         Some(predefined_cache_id.as_str())

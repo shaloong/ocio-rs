@@ -3461,8 +3461,9 @@ impl Config {
             ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr() as *mut c_void)
         };
         match m {
-            1 => crate::EnvironmentMode::LoadAll,
-            _ => crate::EnvironmentMode::LoadPredefined,
+            1 => crate::EnvironmentMode::LoadPredefined,
+            2 => crate::EnvironmentMode::LoadAll,
+            _ => crate::EnvironmentMode::Unknown,
         }
     }
 

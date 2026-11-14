@@ -138,8 +138,12 @@ pub enum GpuLanguage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum EnvironmentMode {
-    LoadPredefined = 0,
-    LoadAll = 1,
+    /// No recognized environment-loading policy.
+    Unknown = 0,
+    /// Load only variables declared in the configuration.
+    LoadPredefined = 1,
+    /// Load all variables from the process environment.
+    LoadAll = 2,
 }
 
 /// Whether a range transform clamps values at its domain boundaries.

@@ -401,8 +401,9 @@ impl Context {
     pub fn environment_mode(&self) -> EnvironmentMode {
         let m = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
         match m {
-            1 => EnvironmentMode::LoadAll,
-            _ => EnvironmentMode::LoadPredefined,
+            1 => EnvironmentMode::LoadPredefined,
+            2 => EnvironmentMode::LoadAll,
+            _ => EnvironmentMode::Unknown,
         }
     }
 

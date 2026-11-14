@@ -300,6 +300,18 @@ fn config_environment_declarations_and_loading_behavior() {
         config.environment_var_default(SHOT).as_deref(),
         Some("shot4")
     );
+    config
+        .set_environment_mode(ocio_rs::EnvironmentMode::LoadAll)
+        .unwrap();
+    config.load_environment().unwrap();
+    assert_eq!(config.environment_mode(), ocio_rs::EnvironmentMode::LoadAll);
+    if let Some((key, value)) = std::env::vars().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        assert!(config
+            .current_context()
+            .unwrap()
+            .string_var(key)
+            .is_some_and(|loaded| loaded == value));
+    }
     assert_eq!(
         config.environment_var_default("LUT_PATH").as_deref(),
         Some("shot3/lut1.clf")
