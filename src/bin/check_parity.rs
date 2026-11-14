@@ -748,6 +748,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("copy_uniform_i32_values_with_count", "try_uniform"),
         ("get_uniform_double_value", "try_uniform_f64_value"),
         ("create_empty", "create"),
+        ("create_with_callback", "from_provider"),
+        ("visit_lut_data", "try_lut_data"),
         ("add_uniform_double_getter", "add_uniform_f64_getter"),
         ("add_uniform_vector_float", "add_uniform_f32_array"),
         (

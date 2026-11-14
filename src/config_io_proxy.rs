@@ -1,10 +1,25 @@
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
 use crate::{cstr_to_opt_string, cstring, OcioError, Result};
 use ocio_sys;
 
-/// In-memory provider for OCIO config text and LUT file payloads.
+/// On-demand provider for the OCIO config and its referenced LUTs.
+///
+/// Paths are fully resolved by OCIO. A missing LUT must have an empty fast
+/// hash. Keep hashes stable for unchanged content and change them when content
+/// changes so OCIO's caches remain correct. Methods may be called from native
+/// threads; implementations must be thread-safe and must not reenter OCIO.
+pub trait ConfigIOProvider: Send + Sync + 'static {
+    /// Return the configuration YAML.
+    fn config_data(&self) -> Result<String>;
+    /// Return the bytes of a referenced LUT, or an empty vector if unavailable.
+    fn lut_data(&self, path: &CStr) -> Result<Vec<u8>>;
+    /// Return a fast cache identifier, or an empty string if unavailable.
+    fn fast_lut_file_hash(&self, path: &CStr) -> Result<String>;
+}
+
+/// Provider for OCIO config text and LUT file payloads.
 ///
 /// This is primarily useful when embedding configs or serving OCIO assets from
 /// archives, databases, virtual file systems, or application-managed caches.
@@ -13,6 +28,53 @@ pub struct ConfigIOProxy {
 }
 
 impl ConfigIOProxy {
+    /// Create an on-demand provider whose lifetime is retained by OCIO.
+    /// Provider errors and panics become OCIO errors without unwinding across
+    /// the native boundary. The in-memory `set_*` methods do not apply to it.
+    pub fn from_provider<P: ConfigIOProvider>(provider: P) -> Result<Self> {
+        type Write = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool;
+        unsafe extern "C" fn read<P: ConfigIOProvider>(
+            context: *mut c_void,
+            kind: i32,
+            path: *const i8,
+            destination: *mut c_void,
+            write: Write,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<bool> {
+                let provider = unsafe { &*context.cast::<P>() };
+                let bytes = match kind {
+                    0 => provider.config_data()?.into_bytes(),
+                    1 | 2 => {
+                        if path.is_null() {
+                            return Ok(false);
+                        }
+                        let path = unsafe { CStr::from_ptr(path) };
+                        if kind == 1 {
+                            provider.lut_data(path)?
+                        } else {
+                            provider.fast_lut_file_hash(path)?.into_bytes()
+                        }
+                    }
+                    _ => return Ok(false),
+                };
+                Ok(unsafe { write(destination, bytes.as_ptr(), bytes.len()) })
+            }))
+            .unwrap_or(Ok(false))
+            .unwrap_or(false)
+        }
+        unsafe extern "C" fn release<P>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<P>()));
+            }));
+        }
+        let context = Box::into_raw(Box::new(provider)).cast();
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_io_proxy_create_with_callback(context, read::<P>, release::<P>)
+        };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
     /// Create an empty in-memory config/LUT provider.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -86,20 +148,35 @@ impl ConfigIOProxy {
     /// Return the registered LUT payload for `filepath`, distinguishing
     /// "not found" (`Ok(None)`) from "internal error" (`Err`).
     pub fn try_lut_data(&self, filepath: impl AsRef<str>) -> Result<Option<Vec<u8>>> {
-        let filepath = filepath.as_ref();
-        if !self.try_has_lut_data(filepath)? {
-            return Ok(None);
+        unsafe extern "C" fn write(destination: *mut c_void, data: *const u8, len: usize) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let result = unsafe { &mut *destination.cast::<Vec<u8>>() };
+                if len != 0 {
+                    let data = unsafe { std::slice::from_raw_parts(data, len) };
+                    result.extend_from_slice(data);
+                }
+            }))
+            .is_ok()
         }
-        let len = self.try_get_lut_data_size(filepath)? as usize;
-        let mut bytes = vec![0u8; len];
-        let copied = self.try_copy_lut_data(filepath, &mut bytes)?;
-        Ok(copied.then_some(bytes))
+        let filepath = cstring(filepath)?;
+        let mut bytes = Vec::new();
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_config_io_proxy_visit_lut_data(
+                self.handle.as_ptr(),
+                filepath.as_ptr(),
+                (&mut bytes as *mut Vec<u8>).cast(),
+                write,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found.then_some(bytes))
     }
 
     /// Copy the LUT payload into `data`, returning whether the copy succeeded.
     ///
     /// Returns `Ok(true)` if data was copied, `Ok(false)` if the LUT was not
-    /// found, and `Err` if an internal error occurred.
+    /// found or the buffer is too small, and `Err` on internal errors.
     pub fn try_copy_lut_data(&self, filepath: impl AsRef<str>, data: &mut [u8]) -> Result<bool> {
         let filepath = cstring(filepath)?;
         crate::clear_last_error();

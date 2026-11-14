@@ -768,6 +768,38 @@ public:
     return findFastHash(filepath);
   }
 };
+
+class CallbackConfigIOProxy final : public ocio::ConfigIOProxy {
+  std::shared_ptr<void> context;
+  ocio_proxy_read_callback read;
+  struct Output { std::vector<uint8_t> bytes; bool failed = false; };
+  static bool write(void* destination, const unsigned char* data, size_t len) noexcept {
+    auto& out = *static_cast<Output*>(destination);
+    try {
+      if (!data && len) return false;
+      if (len) out.bytes.insert(out.bytes.end(), data, data + len);
+      return true;
+    } catch (...) { out.failed = true; return false; }
+  }
+  std::vector<uint8_t> invoke(int kind, const char* path) const {
+    Output out;
+    if (!read(context.get(), kind, path, &out, write) || out.failed)
+      throw ocio::Exception("Rust config IO provider failed");
+    return std::move(out.bytes);
+  }
+public:
+  CallbackConfigIOProxy(std::shared_ptr<void> ctx, ocio_proxy_read_callback cb)
+      : context(std::move(ctx)), read(cb) {}
+  std::vector<uint8_t> getLutData(const char* path) const override { return invoke(1, path); }
+  std::string getConfigData() const override {
+    auto data = invoke(0, nullptr);
+    return std::string(data.begin(), data.end());
+  }
+  std::string getFastLutFileHash(const char* path) const override {
+    auto data = invoke(2, path);
+    return std::string(data.begin(), data.end());
+  }
+};
 #endif
 
 template <typename MapLike>
@@ -1857,8 +1889,53 @@ void* ocio_config_io_proxy_create(void) {
 #endif
 }
 
+void* ocio_config_io_proxy_create_with_callback(void* context, ocio_proxy_read_callback read,
+                                                 void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)read;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("custom config IO requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !read || !release) throw std::invalid_argument("invalid config IO provider");
+    auto proxy = std::make_shared<ocio_rs_bridge::CallbackConfigIOProxy>(owner, read);
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
+      ocio_rs_bridge::RealConfigIOProxy{proxy, nullptr});
+    return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_config_io_proxy_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(handle);
+}
+
+bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* destination,
+                                        ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)path; (void)destination; (void)write;
+  ocio_rs_bridge::capture_error_message("config IO requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!path || !write) throw std::invalid_argument("invalid LUT visitor");
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto memory = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (memory) {
+      const auto* bytes = memory->findLutData(path);
+      if (!bytes) return false;
+      if (!write(destination, bytes->data(), bytes->size())) throw ocio::Exception("LUT visitor failed");
+      return true;
+    }
+    if (real->proxy->getFastLutFileHash(path).empty()) return false;
+    const auto bytes = real->proxy->getLutData(path);
+    if (!write(destination, bytes.data(), bytes.size())) throw ocio::Exception("LUT visitor failed");
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
 }
 
 void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
@@ -1869,7 +1946,7 @@ void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
   try {
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy) return;
+    if (!rustProxy) throw std::invalid_argument("cannot set config data on a custom provider");
     rustProxy->configData = data ? data : "";
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -1882,9 +1959,7 @@ const char* ocio_config_io_proxy_get_config_data(void* handle) {
 #else
   try {
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
-    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy) return nullptr;
-    ocio_rs_bridge::g_serialized_text = rustProxy->configData;
+    ocio_rs_bridge::g_serialized_text = real->proxy->getConfigData();
     return ocio_rs_bridge::g_serialized_text.c_str();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -1904,7 +1979,7 @@ bool ocio_config_io_proxy_set_lut_data(
     if (!filepath) return false;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy) return false;
+    if (!rustProxy) throw std::invalid_argument("cannot set LUT data on a custom provider");
     std::vector<uint8_t> bytes;
     if (data && len > 0) {
       bytes.assign(data, data + len);
@@ -1933,7 +2008,7 @@ size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath
     if (!filepath) return 0;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy) return 0;
+    if (!rustProxy) return real->proxy->getLutData(filepath).size();
     const auto* data = rustProxy->findLutData(filepath);
     return data ? data->size() : 0;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
@@ -1949,7 +2024,8 @@ bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath) {
     if (!filepath) return false;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    return rustProxy && rustProxy->findLutData(filepath);
+    return rustProxy ? rustProxy->findLutData(filepath) != nullptr
+                     : !real->proxy->getFastLutFileHash(filepath).empty();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
@@ -1967,7 +2043,12 @@ bool ocio_config_io_proxy_copy_lut_data(
     if (!filepath || !data) return false;
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy) return false;
+    if (!rustProxy) {
+      const auto bytes = real->proxy->getLutData(filepath);
+      if (len < bytes.size()) return false;
+      if (!bytes.empty()) std::memcpy(data, bytes.data(), bytes.size());
+      return true;
+    }
     const auto* bytes = rustProxy->findLutData(filepath);
     if (!bytes || len < bytes->size()) return false;
     if (!bytes->empty()) {
@@ -1985,9 +2066,8 @@ const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char
 #else
   try {
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
-    auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
-    if (!rustProxy || !filepath) return nullptr;
-    ocio_rs_bridge::g_serialized_text = rustProxy->getFastLutFileHash(filepath);
+    if (!filepath) return nullptr;
+    ocio_rs_bridge::g_serialized_text = real->proxy->getFastLutFileHash(filepath);
     return ocio_rs_bridge::g_serialized_text.empty()
       ? nullptr
       : ocio_rs_bridge::g_serialized_text.c_str();

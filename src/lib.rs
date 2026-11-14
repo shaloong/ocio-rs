@@ -121,7 +121,7 @@ pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::ColorSpaceSet;
 pub use colorspace::ColorSpace;
 pub use config::Config;
-pub use config_io_proxy::ConfigIOProxy;
+pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
 pub use context::Context;
 pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;

@@ -12,6 +12,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Create color spaces in either scene or display reference space.
 - Create an empty editable config separately from OCIO's raw fallback config.
 - Construct native identity 1D and 3D LUTs with explicit sizes and half-domain mode.
+- Supply configs and LUTs on demand through thread-safe Rust ConfigIOProxy providers.
 - Process planar F32 image channels in place through native OpenColorIO.
 - Support checked positive row and pixel strides for planar F32 processing.
 - Support planar native-depth byte channels and explicit CPU processor bit depths.
