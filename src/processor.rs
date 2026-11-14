@@ -2598,6 +2598,47 @@ impl GpuShaderDesc {
             .unwrap_or_default()
     }
 
+    /// Borrow 1D/2D LUT values directly from OCIO without copying.
+    ///
+    /// The exclusive descriptor borrow prevents safe Rust code from mutating
+    /// the descriptor while the returned slice is live. Native code using raw
+    /// pointers must likewise avoid concurrent or reentrant mutation.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(desc: &mut GpuShaderDesc) {
+    /// let values = desc.texture_values_ref(0).unwrap();
+    /// desc.set_function_name("changed").unwrap();
+    /// println!("{}", values[0]);
+    /// # }
+    /// ```
+    pub fn texture_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.borrow_texture_values(index, false)
+    }
+
+    fn borrow_texture_values(&mut self, index: u32, is_3d: bool) -> Result<&[f32]> {
+        let mut len = 0usize;
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_borrow_texture_values(
+                self.handle.as_ptr(),
+                index,
+                is_3d,
+                &mut len,
+            )
+        };
+        crate::ocio_call_status()?;
+        if ptr.is_null() || len == 0 {
+            return Err(OcioError::ValidationFailed(
+                "OCIO returned no GPU texture values".into(),
+            ));
+        }
+        // SAFETY: The bridge validates the count and returns OCIO-owned f32
+        // storage. The exclusive descriptor borrow keeps it alive and prevents
+        // safe mutations for the lifetime of the returned slice.
+        Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
+    }
+
     /// Adds a manual 1D/2D texture resource to the descriptor.
     ///
     /// The result contains the OCIO shader binding index on OpenColorIO 2.5.1
@@ -3326,6 +3367,12 @@ impl GpuShaderDesc {
         self.texture_3d(index)
             .map(|texture| texture.values)
             .unwrap_or_default()
+    }
+
+    /// Borrow the native 3D LUT values without allocating or copying.
+    /// The returned slice is tied to the exclusive descriptor borrow.
+    pub fn texture_3d_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.borrow_texture_values(index, true)
     }
 
     /// Adds a manual 3D texture resource to the descriptor.

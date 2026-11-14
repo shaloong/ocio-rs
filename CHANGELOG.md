@@ -18,6 +18,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
 - Read current GPU uniform values into caller-provided buffers without Rust
   allocations, including live dynamic-property updates.
+- Borrow GPU LUT texture values directly from OCIO for upload without copying.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent

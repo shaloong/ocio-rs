@@ -8087,6 +8087,31 @@ bool ocio_gpu_shader_desc_copy3d_texture_values(void* handle, unsigned index, fl
 #endif
 }
 
+const float* ocio_gpu_shader_desc_borrow_texture_values(void* handle, unsigned index,
+                                                        bool is3d, size_t* len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)is3d;
+  if (len) *len = 0;
+  ocio_rs_bridge::capture_error_message("native GPU textures require OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle || !len) throw std::invalid_argument("invalid GPU texture request");
+    *len = 0;
+    const size_t count = is3d ? ocio_gpu_shader_desc_get3d_texture_value_count(handle, index)
+                              : ocio_gpu_shader_desc_get_texture_value_count(handle, index);
+    if (!count) return nullptr;
+    const float* values = nullptr;
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    if (is3d) desc->get3DTextureValues(index, values);
+    else desc->getTextureValues(index, values);
+    if (!values) throw std::runtime_error("GPU texture has no data");
+    *len = count;
+    return values;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_gpu_shader_desc_get_num_uniforms(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 

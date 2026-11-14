@@ -140,6 +140,32 @@ fn gpu_texture_dimensions_match_native_resources() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn gpu_texture_values_borrow_native_storage() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let samples = [0.0, 0.25, 0.5, 1.0];
+    desc.add_texture_2d(
+        "one",
+        "oneSampler",
+        4,
+        1,
+        GpuTextureChannel::Red,
+        GpuTextureDimensions::Texture1D,
+        Interpolation::Linear,
+        &samples,
+    )
+    .unwrap();
+    let cube = [0.5; 24];
+    desc.add_texture_3d("cube", "cubeSampler", 2, Interpolation::Linear, &cube)
+        .unwrap();
+    assert_eq!(desc.texture_values_ref(0).unwrap(), &samples);
+    assert_eq!(desc.texture_3d_values_ref(0).unwrap(), &cube);
+    assert!(desc.texture_values_ref(99).is_err());
+    assert!(desc.texture_3d_values_ref(99).is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn extracted_lut_texture_reports_native_dimension() {
     let _guard = gpu_shader_desc_test_lock();
     let config = ocio_rs::Config::raw().unwrap();

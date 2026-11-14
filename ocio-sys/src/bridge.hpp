@@ -649,6 +649,8 @@ unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
 size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len);
+// Borrowed until the descriptor is mutated or destroyed; caller must synchronize access.
+const float* ocio_gpu_shader_desc_borrow_texture_values(void* handle, unsigned index, bool is3d, size_t* len);
 bool ocio_gpu_shader_desc_add3d_texture(
     void* handle,
     const char* textureName,

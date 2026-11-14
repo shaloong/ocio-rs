@@ -1344,6 +1344,12 @@ unsafe extern "C" {
         values: *mut f32,
         len: usize,
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_borrow_texture_values(
+        handle: *mut c_void,
+        index: u32,
+        is3d: bool,
+        len: *mut usize,
+    ) -> *const f32;
     pub fn ocio_gpu_shader_desc_add3d_texture(
         handle: *mut c_void,
         texture_name: *const i8,
