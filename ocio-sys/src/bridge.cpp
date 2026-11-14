@@ -7799,6 +7799,16 @@ bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
 #endif
 }
 
+static bool ocio_rs_texture_count(size_t a, size_t b, size_t c, size_t d, size_t& count) {
+  const size_t max_count = static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) / sizeof(float);
+  count = 1;
+  for (const size_t factor : {a, b, c, d}) {
+    if (factor != 0 && count > max_count / factor) return false;
+    count *= factor;
+  }
+  return true;
+}
+
 bool ocio_gpu_shader_desc_add_texture(
     void* handle,
     const char* textureName,
@@ -7821,7 +7831,9 @@ bool ocio_gpu_shader_desc_add_texture(
 #else
   try {
     const size_t channels = channel == static_cast<int>(ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL) ? 1 : 3;
-    const size_t expected = static_cast<size_t>(width) * static_cast<size_t>(height) * channels;
+    size_t expected = 0;
+    if (!ocio_rs_texture_count(width, height, channels, 1, expected))
+      throw std::invalid_argument("GPU texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     const auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addTexture(
@@ -7908,7 +7920,12 @@ size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index
   OcioGpuTexture2DInfo info{};
   if (!ocio_gpu_shader_desc_get_texture_info(handle, index, &info)) return 0;
   const size_t channels = info.channel == ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL ? 1 : 3;
-  return static_cast<size_t>(info.width) * static_cast<size_t>(info.height) * channels;
+  size_t count = 0;
+  if (!ocio_rs_texture_count(info.width, info.height, channels, 1, count)) {
+    ocio_rs_bridge::capture_error_message("GPU texture payload size overflow");
+    return 0;
+  }
+  return count;
 #endif
 }
 
@@ -7949,7 +7966,9 @@ bool ocio_gpu_shader_desc_add3d_texture(
 #else
   try {
     const size_t edge = static_cast<size_t>(edgeLen);
-    const size_t expected = edge * edge * edge * 3;
+    size_t expected = 0;
+    if (!ocio_rs_texture_count(edge, edge, edge, 3, expected))
+      throw std::invalid_argument("GPU 3D texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     const auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->add3DTexture(
@@ -8020,7 +8039,12 @@ size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned ind
   OcioGpuTexture3DInfo info{};
   if (!ocio_gpu_shader_desc_get3d_texture_info(handle, index, &info)) return 0;
   const size_t edge = static_cast<size_t>(info.edge_len);
-  return edge * edge * edge * 3;
+  size_t count = 0;
+  if (!ocio_rs_texture_count(edge, edge, edge, 3, count)) {
+    ocio_rs_bridge::capture_error_message("GPU 3D texture payload size overflow");
+    return 0;
+  }
+  return count;
 }
 
 bool ocio_gpu_shader_desc_copy3d_texture_values(void* handle, unsigned index, float* values, size_t len) {

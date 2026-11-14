@@ -1984,9 +1984,16 @@ pub struct GpuTexture2D {
 }
 
 impl GpuTexture2D {
-    /// Returns the number of `f32` values implied by the current metadata.
+    /// Returns the number of `f32` values, saturating at `usize::MAX` on overflow.
     pub fn expected_value_count(&self) -> usize {
-        self.width as usize * self.height as usize * self.channel.channel_count()
+        self.checked_expected_value_count().unwrap_or(usize::MAX)
+    }
+
+    /// Returns the number of `f32` values, or `None` if it overflows.
+    pub fn checked_expected_value_count(&self) -> Option<usize> {
+        (self.width as usize)
+            .checked_mul(self.height as usize)?
+            .checked_mul(self.channel.channel_count())
     }
 }
 
@@ -2010,10 +2017,15 @@ pub struct GpuTexture3D {
 }
 
 impl GpuTexture3D {
-    /// Returns the number of `f32` values implied by the current metadata.
+    /// Returns the number of `f32` values, saturating at `usize::MAX` on overflow.
     pub fn expected_value_count(&self) -> usize {
+        self.checked_expected_value_count().unwrap_or(usize::MAX)
+    }
+
+    /// Returns the number of `f32` values, or `None` if it overflows.
+    pub fn checked_expected_value_count(&self) -> Option<usize> {
         let edge = self.edge_len as usize;
-        edge * edge * edge * 3
+        edge.checked_mul(edge)?.checked_mul(edge)?.checked_mul(3)
     }
 }
 
@@ -2583,7 +2595,12 @@ impl GpuShaderDesc {
         interpolation: Interpolation,
         values: &[f32],
     ) -> Result<Option<u32>> {
-        let expected = width as usize * height as usize * channel.channel_count();
+        let expected = (width as usize)
+            .checked_mul(height as usize)
+            .and_then(|count| count.checked_mul(channel.channel_count()))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU texture payload size overflowed usize".into())
+            })?;
         if values.len() != expected {
             return Err(OcioError::ValidationFailed(format!(
                 "gpu texture value count mismatch: expected {expected}, got {}",
@@ -3255,7 +3272,13 @@ impl GpuShaderDesc {
         values: &[f32],
     ) -> Result<Option<u32>> {
         let edge = edge_len as usize;
-        let expected = edge * edge * edge * 3;
+        let expected = edge
+            .checked_mul(edge)
+            .and_then(|count| count.checked_mul(edge))
+            .and_then(|count| count.checked_mul(3))
+            .ok_or_else(|| {
+                OcioError::ValidationFailed("GPU 3D texture payload size overflowed usize".into())
+            })?;
         if values.len() != expected {
             return Err(OcioError::ValidationFailed(format!(
                 "gpu 3d texture value count mismatch: expected {expected}, got {}",
@@ -3997,6 +4020,26 @@ impl Drop for DynamicProperty {
 mod tests {
     use super::*;
     use crate::Config;
+
+    #[test]
+    fn gpu_texture_dimensions_reject_overflow_without_panicking() {
+        let desc = GpuShaderDesc::create().unwrap();
+        assert!(desc
+            .add_texture_3d("texture", "sampler", 1 << 22, Interpolation::Linear, &[])
+            .is_err());
+        assert!(desc
+            .add_texture_2d(
+                "texture",
+                "sampler",
+                u32::MAX,
+                u32::MAX,
+                GpuTextureChannel::Rgb,
+                GpuTextureDimensions::Texture2D,
+                Interpolation::Linear,
+                &[]
+            )
+            .is_err());
+    }
 
     #[test]
     fn signed_planar_layout_checks_all_corners_and_pointer_steps() {

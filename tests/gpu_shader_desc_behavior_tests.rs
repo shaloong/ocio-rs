@@ -26,6 +26,56 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_texture_bridge_rejects_overflow_before_reading_values() {
+    let _guard = gpu_shader_desc_test_lock();
+    unsafe {
+        let desc = ocio_sys::ocio_gpu_shader_desc_create_shader_desc();
+        assert!(!desc.is_null());
+        let name = CString::new("texture").unwrap();
+        let sample = [0.0f32];
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add3d_texture(
+            desc,
+            name.as_ptr(),
+            name.as_ptr(),
+            1 << 22,
+            Interpolation::Linear as i32,
+            sample.as_ptr(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut()
+        ));
+        let error = ocio_sys::ocio_error_get_last();
+        assert!(!error.is_null());
+        assert!(CStr::from_ptr(error)
+            .to_string_lossy()
+            .contains("payload size overflow"));
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add_texture(
+            desc,
+            name.as_ptr(),
+            name.as_ptr(),
+            u32::MAX,
+            u32::MAX,
+            1,
+            1,
+            Interpolation::Linear as i32,
+            sample.as_ptr(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut()
+        ));
+        let error = ocio_sys::ocio_error_get_last();
+        assert!(!error.is_null());
+        assert!(CStr::from_ptr(error)
+            .to_string_lossy()
+            .contains("payload size overflow"));
+        ocio_sys::ocio_gpu_shader_desc_destroy(desc);
+    }
+}
+
 fn extracted_gpu_shader_desc() -> Option<GpuShaderDesc> {
     let config = create_test_config()?;
     let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).ok()?;
