@@ -566,3 +566,17 @@ fn config_from_file_reports_real_ocio_errors() {
         Err(err) => assert!(matches!(err, OcioError::Ocio(_))),
     }
 }
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn empty_config_is_distinct_from_raw_fallback() {
+    let empty = ocio_rs::Config::create().unwrap();
+    let raw = ocio_rs::Config::raw().unwrap();
+    assert_eq!(empty.num_color_spaces(), 0);
+    assert!(raw.num_color_spaces() > 0);
+    assert!(raw.color_space("raw").is_some());
+    assert!(empty.color_space("raw").is_none());
+    let space = ocio_rs::ColorSpace::create().unwrap();
+    space.set_name("authored").unwrap();
+    empty.try_add_color_space(&space).unwrap();
+    assert!(empty.color_space("authored").is_some());
+}

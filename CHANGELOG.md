@@ -10,6 +10,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 ### Added
 
 - Create color spaces in either scene or display reference space.
+- Create an empty editable config separately from OCIO's raw fallback config.
 - Process planar F32 image channels in place through native OpenColorIO.
 - Support checked positive row and pixel strides for planar F32 processing.
 - Support planar native-depth byte channels and explicit CPU processor bit depths.

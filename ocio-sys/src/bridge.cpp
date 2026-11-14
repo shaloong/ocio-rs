@@ -2017,6 +2017,20 @@ void* ocio_config_create_raw(void) {
 #endif
 }
 
+void* ocio_config_create_empty(void) {
+#ifdef OCIO_RS_STUB
+  ocio_rs_bridge::clear_last_error();
+  return ocio_rs_bridge::make_stub_config().release();
+#else
+  try {
+    ocio_rs_bridge::clear_last_error();
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{ocio::Config::Create()});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_config_create_from_file(const char* path) {
 #ifdef OCIO_RS_STUB
   ocio_rs_bridge::clear_last_error();

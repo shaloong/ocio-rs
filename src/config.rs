@@ -63,7 +63,15 @@ impl Config {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an empty editable config using OCIO defaults.
+    /// Create an empty editable configuration using OCIO defaults.
+    /// Unlike [`Self::raw`], this does not install the built-in raw color space.
+    pub fn create() -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_config_create_empty() };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    /// Create OCIO's fallback raw configuration with a raw color space.
     pub fn raw() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_raw() };

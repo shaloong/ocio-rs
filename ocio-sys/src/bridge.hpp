@@ -123,6 +123,7 @@ const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char
 void* ocio_config_raw(void);
 void* ocio_config_from_file(const char* path);
 void* ocio_config_create_raw(void);
+void* ocio_config_create_empty(void);
 void* ocio_config_create_from_file(const char* path);
 void* ocio_config_create_from_builtin_config(const char* configName);
 void* ocio_config_create_from_env(void);
