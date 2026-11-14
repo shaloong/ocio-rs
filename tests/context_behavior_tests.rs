@@ -267,7 +267,7 @@ fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
     let error = ctx
         .try_resolve_file_location("definitely-not-present-ocio-rs.spi1d")
         .expect_err("missing file resolution must report an OCIO error");
-    assert!(matches!(error, ocio_rs::OcioError::Ocio(_)));
+    assert!(matches!(error, ocio_rs::OcioError::MissingFile(_)));
     assert!(ctx
         .try_resolve_file_location("definitely-not-present\0.spi1d")
         .is_err());

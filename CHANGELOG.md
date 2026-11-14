@@ -9,6 +9,11 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers
+  can distinguish it from other runtime errors. Exception types for particular
+  failures may vary by native OCIO version. This adds
+  an enum variant and changes the error variant for those failures; exhaustive
+  matches must be updated.
 - Create color spaces in either scene or display reference space.
 - Create an empty editable config separately from OCIO's raw fallback config.
 - Construct native identity 1D and 3D LUTs with explicit sizes and half-domain mode.

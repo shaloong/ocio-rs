@@ -563,7 +563,10 @@ fn config_from_file_reports_real_ocio_errors() {
     let missing = test_data_path("configs/does-not-exist.ocio");
     match Config::from_file(missing.to_string_lossy()) {
         Ok(_) => panic!("missing config should fail"),
-        Err(err) => assert!(matches!(err, OcioError::Ocio(_))),
+        Err(err) => assert!(matches!(
+            err,
+            OcioError::Ocio(_) | OcioError::MissingFile(_)
+        )),
     }
 }
 #[test]

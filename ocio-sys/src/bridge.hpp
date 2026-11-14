@@ -24,6 +24,8 @@ extern "C" {
 
 // --- Error state ---
 const char* ocio_error_get_last(void);
+// 0: ordinary error or no error; 1: OCIO ExceptionMissingFile.
+int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
 
 typedef struct OcioGpuTexture2DInfo {

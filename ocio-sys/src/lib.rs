@@ -150,6 +150,8 @@ unsafe extern "C" {
     );
     // --- Error state ---
     pub fn ocio_error_get_last() -> *const i8;
+    /// Returns 1 for an OCIO ExceptionMissingFile, or 0 otherwise.
+    pub fn ocio_error_get_last_kind() -> i32;
     pub fn ocio_error_clear_last();
 
     // --- Runtime ---

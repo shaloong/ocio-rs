@@ -160,6 +160,9 @@ pub use ocio_sys;
 pub enum OcioError {
     #[error("OpenColorIO error: {0}")]
     Ocio(String),
+    /// OCIO could not locate a required file, such as a config or LUT.
+    #[error("OpenColorIO file not found: {0}")]
+    MissingFile(String),
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
     #[error("invalid input: {0}")]
@@ -642,24 +645,33 @@ pub(crate) fn last_error_message() -> Option<String> {
 /// Each safe wrapper clears the slot before calling into the bridge. Consuming
 /// an error here prevents a handled failure from being observed by a later FFI
 /// call on the same thread.
-pub(crate) fn take_last_error_message() -> Option<String> {
+fn take_last_error() -> Option<(String, bool)> {
     let message = last_error_message();
-    if message.is_some() {
+    message.map(|message| {
+        let missing_file = unsafe { ocio_sys::ocio_error_get_last_kind() == 1 };
         clear_last_error();
+        (message, missing_file)
+    })
+}
+
+fn bridge_error(message: String, missing_file: bool) -> OcioError {
+    if missing_file {
+        OcioError::MissingFile(message)
+    } else {
+        OcioError::Ocio(message)
     }
-    message
 }
 
 pub(crate) fn validation_status() -> Result<()> {
-    match take_last_error_message() {
-        Some(message) => Err(OcioError::ValidationFailed(message)),
+    match take_last_error() {
+        Some((message, _)) => Err(OcioError::ValidationFailed(message)),
         None => Ok(()),
     }
 }
 
 pub(crate) fn ocio_call_status() -> Result<()> {
-    match take_last_error_message() {
-        Some(message) => Err(OcioError::Ocio(message)),
+    match take_last_error() {
+        Some((message, missing_file)) => Err(bridge_error(message, missing_file)),
         None => Ok(()),
     }
 }
@@ -667,8 +679,8 @@ pub(crate) fn ocio_call_status() -> Result<()> {
 pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
     match NonNull::new(handle) {
         Some(handle) => Ok(handle),
-        None => match take_last_error_message() {
-            Some(message) => Err(OcioError::Ocio(message)),
+        None => match take_last_error() {
+            Some((message, missing_file)) => Err(bridge_error(message, missing_file)),
             None => Err(OcioError::AllocationFailed),
         },
     }
@@ -714,8 +726,17 @@ mod tests {
         clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
 
-        assert!(matches!(handle_result(handle), Err(OcioError::Ocio(_))));
+        let error = handle_result(handle).expect_err("missing config");
+        if version_hex() >= 0x02060000 {
+            assert!(matches!(error, OcioError::MissingFile(_)));
+        } else {
+            assert!(matches!(
+                error,
+                OcioError::Ocio(_) | OcioError::MissingFile(_)
+            ));
+        }
         assert!(last_error_message().is_none());
+        assert_eq!(unsafe { ocio_sys::ocio_error_get_last_kind() }, 0);
     }
 
     #[cfg(feature = "bundled")]

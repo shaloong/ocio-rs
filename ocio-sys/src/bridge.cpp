@@ -38,13 +38,16 @@ namespace ocio_rs_bridge {
 
 thread_local std::string g_serialized_text;
 thread_local std::string g_last_error;
+thread_local int g_last_error_kind = 0;
 
 void clear_last_error() {
   g_last_error.clear();
+  g_last_error_kind = 0;
 }
 
 void capture_error_message(const char* msg) {
   g_last_error = msg ? msg : "OpenColorIO bridge error";
+  g_last_error_kind = 0;
 }
 
 void capture_current_exception() {
@@ -52,6 +55,10 @@ void capture_current_exception() {
     throw;
   }
 #ifndef OCIO_RS_STUB
+  catch (const ocio::ExceptionMissingFile& e) {
+    capture_error_message(e.what());
+    g_last_error_kind = 1;
+  }
   catch (const ocio::Exception& e) {
     capture_error_message(e.what());
   }
@@ -15031,6 +15038,10 @@ bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* handle, in
 
 const char* ocio_error_get_last(void) {
   return ocio_rs_bridge::g_last_error.empty() ? nullptr : ocio_rs_bridge::g_last_error.c_str();
+}
+
+int ocio_error_get_last_kind(void) {
+  return ocio_rs_bridge::g_last_error_kind;
 }
 
 void ocio_error_clear_last(void) {
