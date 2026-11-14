@@ -462,7 +462,7 @@ pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> 
 /// error; [`logging_level`] returns `Unknown` there for compatibility.
 pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> Result<()> {
     check_logging_reentrancy()?;
-    let _update = logging_callback_update_lock()
+    let update = logging_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let callback = Arc::new(callback) as Arc<LoggingCallback>;
@@ -475,14 +475,18 @@ pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> 
 
     clear_last_error();
     unsafe { ocio_sys::ocio_set_logging_callback(Some(rust_logging_callback)) };
-    if let Err(error) = ocio_call_status() {
+    let result = ocio_call_status();
+    let discarded = if result.is_err() {
         let mut slot = logging_callback_slot()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *slot = previous;
-        return Err(error);
-    }
-    Ok(())
+        std::mem::replace(&mut *slot, previous)
+    } else {
+        previous
+    };
+    drop(update);
+    drop(discarded);
+    result
 }
 
 /// Restore OCIO's default process-global logging function.
@@ -491,16 +495,18 @@ pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> 
 /// dropped after OCIO accepts the reset.
 pub fn reset_logging_callback() -> Result<()> {
     check_logging_reentrancy()?;
-    let _update = logging_callback_update_lock()
+    let update = logging_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     clear_last_error();
     unsafe { ocio_sys::ocio_reset_logging_callback() };
     ocio_call_status()?;
-    let mut slot = logging_callback_slot()
+    let previous = logging_callback_slot()
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    *slot = None;
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take();
+    drop(update);
+    drop(previous);
     Ok(())
 }
 
@@ -525,7 +531,7 @@ pub fn reset_logging_callback() -> Result<()> {
 pub unsafe fn set_compute_hash_callback(
     callback: impl Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static,
 ) -> Result<()> {
-    let _update = compute_hash_callback_update_lock()
+    let update = compute_hash_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let callback = Arc::new(callback) as Arc<ComputeHashCallback>;
@@ -537,14 +543,18 @@ pub unsafe fn set_compute_hash_callback(
     };
     clear_last_error();
     unsafe { ocio_sys::ocio_set_compute_hash_callback(Some(rust_compute_hash_callback)) };
-    if let Err(error) = ocio_call_status() {
+    let result = ocio_call_status();
+    let discarded = if result.is_err() {
         let mut slot = compute_hash_callback_slot()
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *slot = previous;
-        return Err(error);
-    }
-    Ok(())
+        std::mem::replace(&mut *slot, previous)
+    } else {
+        previous
+    };
+    drop(update);
+    drop(discarded);
+    result
 }
 
 /// Restore OCIO's default process-global compute-hash function.
@@ -559,16 +569,18 @@ pub unsafe fn set_compute_hash_callback(
 /// ocio_rs::reset_compute_hash_callback().unwrap();
 /// ```
 pub unsafe fn reset_compute_hash_callback() -> Result<()> {
-    let _update = compute_hash_callback_update_lock()
+    let update = compute_hash_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     clear_last_error();
     unsafe { ocio_sys::ocio_reset_compute_hash_callback() };
     ocio_call_status()?;
-    let mut slot = compute_hash_callback_slot()
+    let previous = compute_hash_callback_slot()
         .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    *slot = None;
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take();
+    drop(update);
+    drop(previous);
     Ok(())
 }
 
@@ -772,8 +784,13 @@ pub(crate) fn handle_result(handle: *mut c_void) -> Result<NonNull<c_void>> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(ocio_stub)]
+    static CALLBACK_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn hash_callback_accepts_null_empty_input() {
+        #[cfg(ocio_stub)]
+        let _test_guard = CALLBACK_TEST_LOCK.lock().unwrap();
         let _guard = super::compute_hash_callback_update_lock().lock().unwrap();
         let previous =
             super::compute_hash_callback_slot()
@@ -797,6 +814,70 @@ mod tests {
             b"hash"
         );
         *super::compute_hash_callback_slot().lock().unwrap() = previous;
+    }
+
+    #[test]
+    #[cfg(ocio_stub)]
+    fn callback_captures_are_dropped_without_internal_locks() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        struct Probe {
+            update: &'static std::sync::Mutex<()>,
+            slot_unlocked: fn() -> bool,
+            ok: Arc<AtomicBool>,
+        }
+        impl Drop for Probe {
+            fn drop(&mut self) {
+                self.ok.store(
+                    self.update.try_lock().is_ok() && (self.slot_unlocked)(),
+                    Ordering::SeqCst,
+                );
+            }
+        }
+        let _test_guard = CALLBACK_TEST_LOCK.lock().unwrap();
+        for reset in [false, true] {
+            let ok = Arc::new(AtomicBool::new(false));
+            let probe = Probe {
+                update: super::logging_callback_update_lock(),
+                slot_unlocked: || super::logging_callback_slot().try_lock().is_ok(),
+                ok: Arc::clone(&ok),
+            };
+            super::set_logging_callback(move |_| {
+                let _ = &probe;
+            })
+            .unwrap();
+            if reset {
+                super::reset_logging_callback().unwrap();
+            } else {
+                super::set_logging_callback(|_| {}).unwrap();
+                super::reset_logging_callback().unwrap();
+            }
+            assert!(ok.load(Ordering::SeqCst));
+
+            let ok = Arc::new(AtomicBool::new(false));
+            let probe = Probe {
+                update: super::compute_hash_callback_update_lock(),
+                slot_unlocked: || super::compute_hash_callback_slot().try_lock().is_ok(),
+                ok: Arc::clone(&ok),
+            };
+            // Stub mode performs no native hashing; the test lock excludes the
+            // other test that accesses the callback slot in this process.
+            unsafe {
+                super::set_compute_hash_callback(move |_| {
+                    let _ = &probe;
+                    Vec::new()
+                })
+            }
+            .unwrap();
+            if reset {
+                unsafe { super::reset_compute_hash_callback() }.unwrap();
+            } else {
+                unsafe { super::set_compute_hash_callback(|_| Vec::new()) }.unwrap();
+                unsafe { super::reset_compute_hash_callback() }.unwrap();
+            }
+            assert!(ok.load(Ordering::SeqCst));
+        }
     }
 
     #[test]

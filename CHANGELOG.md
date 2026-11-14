@@ -40,6 +40,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - Detect direct reentrant logging operations from OCIO logging callbacks and
   expose `try_logging_level` to report the error instead of deadlocking.
+
 - Allow custom GPU creator cache IDs without invoking Rust from OCIO's
   `noexcept` cache-ID getter.
 - Customize GPU uniform registration, retain thread-confined native getters,
@@ -128,6 +129,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Drop replaced logging and hash callback captures outside internal locks, so
+  their destructors can safely reenter callback management.
 - Processor format-metadata getters now return independent editable deep copies
   instead of mutable aliases to native const data. This changes prior mutation
   behavior; use shared const metadata for no-copy inspection.
