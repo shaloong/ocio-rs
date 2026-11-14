@@ -1070,6 +1070,34 @@ unsafe extern "C" {
 
     // --- ColorSpaceSet ---
     pub fn ocio_color_space_set_create() -> *mut c_void;
+    pub fn ocio_color_space_set_operation(
+        left: *mut c_void,
+        left_const: bool,
+        right: *mut c_void,
+        right_const: bool,
+        operation: i32,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_equal(
+        left: *mut c_void,
+        left_const: bool,
+        right: *mut c_void,
+        right_const: bool,
+    ) -> bool;
+    pub fn ocio_const_color_space_set_destroy(handle: *mut c_void);
+    pub fn ocio_const_color_space_set_get_num_color_spaces(handle: *mut c_void) -> i32;
+    pub fn ocio_const_color_space_set_get_color_space_name_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_const_color_space_set_copy_color_space(
+        handle: *mut c_void,
+        name: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_color_space_set_copy_color_space_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_color_space_set_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_set_destroy(handle: *mut c_void);
     pub fn ocio_color_space_set_get_num_color_spaces(handle: *mut c_void) -> i32;
     pub fn ocio_color_space_set_get_color_space_name_by_index(

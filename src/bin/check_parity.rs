@@ -270,6 +270,8 @@ fn classify_ocio_func(name: &str) -> (String, String) {
                 | "remove_color_spaces"
                 | "clear_color_spaces"
                 | "create_editable_copy"
+                | "operation"
+                | "equal"
         );
         if !is_real_color_space_set_method {
             return (
@@ -660,6 +662,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("apply_packed_convert", "try_apply_packed_convert"),
         ("apply_packed_image", "try_apply_packed_image"),
         ("convert_packed_image", "try_convert_packed_image"),
+        ("operation", "union"),
+        ("equal", "try_equals"),
         ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
         (
             "grading_rgb_curve_object_set",

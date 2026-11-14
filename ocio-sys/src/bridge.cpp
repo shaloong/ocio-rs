@@ -5702,6 +5702,110 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 
 // --- ColorSpaceSet ---
 
+#ifndef OCIO_RS_STUB
+extern "C++" {
+static ocio::ConstColorSpaceSetRcPtr ocio_rs_set_ref(void* handle, bool is_const) {
+  if (!handle) throw std::invalid_argument("null color space set");
+  return is_const ? *static_cast<ocio::ConstColorSpaceSetRcPtr*>(handle)
+                  : ocio_rs_bridge::get_real_color_space_set(handle);
+}
+}
+#endif
+
+void* ocio_color_space_set_operation(void* left, bool left_const, void* right, bool right_const, int operation) {
+#ifdef OCIO_RS_STUB
+  (void)left; (void)left_const; (void)right; (void)right_const; (void)operation;
+  ocio_rs_bridge::capture_error_message("Color space set operations require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    auto lhs = ocio_rs_set_ref(left, left_const);
+    auto rhs = ocio_rs_set_ref(right, right_const);
+    ocio::ConstColorSpaceSetRcPtr result;
+    switch (operation) {
+      case 0: result = ocio::operator||(lhs, rhs); break;
+      case 1: result = ocio::operator&&(lhs, rhs); break;
+      case 2: result = ocio::operator-(lhs, rhs); break;
+      default: throw std::invalid_argument("invalid color space set operation");
+    }
+    return new ocio::ConstColorSpaceSetRcPtr(std::move(result));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+bool ocio_color_space_set_equal(void* left, bool left_const, void* right, bool right_const) {
+#ifdef OCIO_RS_STUB
+  (void)left; (void)left_const; (void)right; (void)right_const;
+  ocio_rs_bridge::capture_error_message("Color space set comparison requires native OpenColorIO");
+  return false;
+#else
+  try { return *ocio_rs_set_ref(left, left_const) == *ocio_rs_set_ref(right, right_const); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_const_color_space_set_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  delete static_cast<ocio::ConstColorSpaceSetRcPtr*>(handle);
+#endif
+}
+int ocio_const_color_space_set_get_num_color_spaces(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; return 0;
+#else
+  try { return ocio_rs_set_ref(handle, true)->getNumColorSpaces(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+const char* ocio_const_color_space_set_get_color_space_name_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; return nullptr;
+#else
+  try { return ocio_rs_set_ref(handle, true)->getColorSpaceNameByIndex(index); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_color_space_set_copy_color_space(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; return nullptr;
+#else
+  try {
+    auto space = ocio_rs_set_ref(handle, true)->getColorSpace(name);
+    if (!space) return nullptr;
+    auto result = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    result->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{space->createEditableCopy()});
+    return result.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_color_space_set_copy_color_space_by_index(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; return nullptr;
+#else
+  try {
+    auto space = ocio_rs_set_ref(handle, true)->getColorSpaceByIndex(index);
+    if (!space) return nullptr;
+    auto result = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
+    result->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{space->createEditableCopy()});
+    return result.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_color_space_set_create_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native color space set required"); return nullptr;
+#else
+  try {
+    auto set = ocio_rs_set_ref(handle, true)->createEditableCopy();
+    auto result = std::make_unique<ocio_rs_bridge::ColorSpaceSetHandle>();
+    result->inner = std::make_shared<ocio_rs_bridge::RealColorSpaceSet>(ocio_rs_bridge::RealColorSpaceSet{set});
+    return result.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_color_space_set_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_color_space_set().release();

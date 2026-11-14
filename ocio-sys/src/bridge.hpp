@@ -443,6 +443,15 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---
 void* ocio_color_space_set_create(void);
+// A read-only set result owns an OCIO ConstColorSpaceSetRcPtr.
+void* ocio_color_space_set_operation(void* left, bool left_const, void* right, bool right_const, int operation);
+bool ocio_color_space_set_equal(void* left, bool left_const, void* right, bool right_const);
+void ocio_const_color_space_set_destroy(void* handle);
+int ocio_const_color_space_set_get_num_color_spaces(void* handle);
+const char* ocio_const_color_space_set_get_color_space_name_by_index(void* handle, int index);
+void* ocio_const_color_space_set_copy_color_space(void* handle, const char* name);
+void* ocio_const_color_space_set_copy_color_space_by_index(void* handle, int index);
+void* ocio_const_color_space_set_create_editable_copy(void* handle);
 void* ocio_color_space_set_create_editable_copy(void* handle);
 void ocio_color_space_set_destroy(void* handle);
 

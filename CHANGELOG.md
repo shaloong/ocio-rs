@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose native color-space set union, intersection, difference and name-based
+  equality, retaining read-only operation results without an extra copy.
 - Process and convert packed images in native RGB, BGR, RGBA, BGRA, and ABGR
   order with checked channel spacing and signed pixel and row strides.
 - Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers

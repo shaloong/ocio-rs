@@ -64,6 +64,9 @@ the native dynamic exposure, contrast, and gamma stages.
 The display-view and color-space namespace helpers now cover file-backed
 authoring, removal, and both native display processor overloads. The
 `v2_5` API exposes merge parameters and in-memory config/color-space merges.
+`ColorSpaceSet` exposes native union, intersection, difference and name-based
+equality. Set-operation results retain OCIO's immutable ownership; callers
+may request an editable copy of the set or an individual color space.
 The `ConfigMerger` controller supports OCIOM serialization and file-driven merges;
 its returned configurations and parameters are independent editable copies.
 Track overloads and

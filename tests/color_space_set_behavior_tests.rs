@@ -43,6 +43,83 @@ fn set_names(set: &ColorSpaceSet) -> BTreeSet<String> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_set_operations_preserve_results_and_name_equality() {
+    let left = ColorSpaceSet::create().unwrap();
+    let right = ColorSpaceSet::create().unwrap();
+    left.add_color_space(&named_color_space("A", &[]));
+    left.add_color_space(&named_color_space("B", &[]));
+    let replacement = named_color_space("B", &[]);
+    replacement.set_description("right side").unwrap();
+    right.add_color_space(&replacement);
+    right.add_color_space(&named_color_space("C", &[]));
+    let union = left.union(&right).unwrap();
+    let intersection = left.intersection(&right).unwrap();
+    let difference = left.difference(&right).unwrap();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    let copied_b = union.copy_color_space("B").unwrap().unwrap();
+    assert_eq!(copied_b.description().as_deref(), Some("right side"));
+    copied_b.set_description("changed copy").unwrap();
+    assert_eq!(
+        union
+            .copy_color_space("B")
+            .unwrap()
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("right side")
+    );
+    assert!(union.copy_color_space("missing").unwrap().is_none());
+    assert!(union.copy_color_space_by_index(-1).unwrap().is_none());
+    assert!(union.copy_color_space_by_index(0).unwrap().is_some());
+    assert_eq!(
+        union
+            .create_editable_copy()
+            .unwrap()
+            .color_space("B")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("right side")
+    );
+    assert_eq!(intersection.try_num_color_spaces().unwrap(), 1);
+    assert_eq!(
+        intersection
+            .try_color_space_name_by_index(0)
+            .unwrap()
+            .as_deref(),
+        Some("B")
+    );
+    assert_eq!(
+        difference
+            .try_color_space_name_by_index(0)
+            .unwrap()
+            .as_deref(),
+        Some("A")
+    );
+    assert!(!left.try_equals(&right).unwrap());
+    assert!(left
+        .try_equals(&left.create_editable_copy().unwrap())
+        .unwrap());
+    let same_names = ColorSpaceSet::create().unwrap();
+    same_names.add_color_space(&named_color_space("A", &[]));
+    same_names.add_color_space(&replacement);
+    assert!(left.try_equals(&same_names).unwrap());
+    assert!(intersection
+        .union(&difference)
+        .unwrap()
+        .try_equals(&left)
+        .unwrap());
+    left.clear_color_spaces();
+    right.clear_color_spaces();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    let editable = union.create_editable_copy().unwrap();
+    editable.remove_color_space("A").unwrap();
+    assert_eq!(union.try_num_color_spaces().unwrap(), 3);
+    assert_eq!(editable.num_color_spaces(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_mutation_and_copy_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {
