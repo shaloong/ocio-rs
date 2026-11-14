@@ -139,6 +139,11 @@ processor creation. Reassign editable copies to their parent to apply changes.
 `try_const_current_context` for a shared read-only context; context text queries
 return owned strings because the configuration can change the underlying state.
 
+Config look, named-transform and view-transform getters return independent
+editable copies. Register edits back into the config. For shared read-only
+objects, use `try_const_look`, `try_const_named_transform`, or
+`try_const_view_transform`.
+
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
 `Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.

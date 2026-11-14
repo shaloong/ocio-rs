@@ -102,6 +102,7 @@ mod config_merging;
 #[cfg(feature = "v2_5")]
 pub use config_merging::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
 mod config_io_proxy;
+mod const_config_item;
 mod context;
 mod file_rules;
 mod format_metadata;
@@ -122,6 +123,7 @@ pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
 pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
 pub use config::Config;
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
+pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
 pub use context::{ConstContext, Context};
 pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;

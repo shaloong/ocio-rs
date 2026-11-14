@@ -1201,14 +1201,25 @@ impl Config {
         }
     }
 
-    /// Return the default scene-to-display view-transform object.
+    /// Return an editable copy of the default scene-to-display view transform.
     pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
+        self.try_default_scene_to_display_view_transform()
+            .ok()
+            .flatten()
+    }
+
+    /// Copy the default view transform while preserving native errors.
+    pub fn try_default_scene_to_display_view_transform(
+        &self,
+    ) -> Result<Option<crate::ViewTransform>> {
+        crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_config_get_default_scene_to_display_view_transform(
                 self.handle.as_ptr() as *mut c_void
             )
         };
-        NonNull::new(handle).map(|h| crate::ViewTransform { handle: h })
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|h| crate::ViewTransform { handle: h }))
     }
 
     /// Return the name of the default view transform.
@@ -1407,6 +1418,25 @@ impl Config {
                 self.handle.as_ptr(),
                 context.handle.as_ptr(),
                 transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
+    /// Create a processor directly from a shared named transform and optional context.
+    pub fn processor_from_const_named_transform(
+        &self,
+        named: &crate::ConstNamedTransform,
+        direction: TransformDirection,
+        context: Option<&Context>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_const_named_transform(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                named.raw(),
                 direction as i32,
             )
         };
@@ -2390,12 +2420,12 @@ impl Config {
         }
     }
 
-    /// Look up a `Look` by its authored name.
+    /// Look up an independent editable `Look` copy by authored name.
     pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
         self.try_look(name).ok().flatten()
     }
 
-    /// Look up a `Look` by authored name while preserving bridge failures.
+    /// Copy a `Look` by authored name while preserving bridge failures.
     pub fn try_look(&self, name: impl AsRef<str>) -> Result<Option<Look>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3154,12 +3184,12 @@ impl Config {
         self.named_transform_name_by_index(index)
     }
 
-    /// Look up a `NamedTransform` by name.
+    /// Look up an independent editable `NamedTransform` copy by name.
     pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         self.try_named_transform(name).ok().flatten()
     }
 
-    /// Look up a `NamedTransform` by name while preserving bridge failures.
+    /// Copy a `NamedTransform` by name while preserving bridge failures.
     pub fn try_named_transform(&self, name: impl AsRef<str>) -> Result<Option<NamedTransform>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -3245,12 +3275,12 @@ impl Config {
         }
     }
 
-    /// Look up a `ViewTransform` by name.
+    /// Look up an independent editable `ViewTransform` copy by name.
     pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         self.try_view_transform(name).ok().flatten()
     }
 
-    /// Look up a `ViewTransform` by name while preserving bridge failures.
+    /// Copy a `ViewTransform` by name while preserving bridge failures.
     pub fn try_view_transform(&self, name: impl AsRef<str>) -> Result<Option<ViewTransform>> {
         let n = cstring(name)?;
         crate::clear_last_error();

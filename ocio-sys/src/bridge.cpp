@@ -3716,8 +3716,8 @@ void* ocio_config_get_look(void* handle, const char* name) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getLook(name);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::LookHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::Look>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -3789,8 +3789,8 @@ void* ocio_config_get_view_transform(void* handle, const char* name) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getViewTransform(name);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ViewTransformHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::ViewTransform>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -3829,8 +3829,8 @@ void* ocio_config_get_default_scene_to_display_view_transform(void* handle) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getDefaultSceneToDisplayViewTransform();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ViewTransformHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::ViewTransform>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -3933,8 +3933,8 @@ void* ocio_config_get_named_transform(void* handle, const char* name) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getNamedTransform(name);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::NamedTransformHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::NamedTransform>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -5702,6 +5702,80 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 
 // --- ColorSpaceSet ---
 
+void* ocio_config_get_const_named_item(void* config, const char* name, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)name; (void)kind; return nullptr;
+#else
+  try {
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    switch (kind) {
+      case 0: { auto p = cfg->getLook(name); return p ? new ocio::ConstLookRcPtr(std::move(p)) : nullptr; }
+      case 1: { auto p = cfg->getNamedTransform(name); return p ? new ocio::ConstNamedTransformRcPtr(std::move(p)) : nullptr; }
+      case 2: { auto p = cfg->getViewTransform(name); return p ? new ocio::ConstViewTransformRcPtr(std::move(p)) : nullptr; }
+      case 3: { auto p = cfg->getDefaultSceneToDisplayViewTransform(); return p ? new ocio::ConstViewTransformRcPtr(std::move(p)) : nullptr; }
+      default: throw std::invalid_argument("invalid const config item kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_named_item_destroy(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind;
+#else
+  switch (kind) {
+    case 0: delete static_cast<ocio::ConstLookRcPtr*>(handle); break;
+    case 1: delete static_cast<ocio::ConstNamedTransformRcPtr*>(handle); break;
+    case 2: delete static_cast<ocio::ConstViewTransformRcPtr*>(handle); break;
+  }
+#endif
+}
+const char* ocio_const_named_item_name(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; return nullptr;
+#else
+  try {
+    switch (kind) {
+      case 0: return (*static_cast<ocio::ConstLookRcPtr*>(handle))->getName();
+      case 1: return (*static_cast<ocio::ConstNamedTransformRcPtr*>(handle))->getName();
+      case 2: return (*static_cast<ocio::ConstViewTransformRcPtr*>(handle))->getName();
+      default: throw std::invalid_argument("invalid const config item kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_named_item_editable_copy(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; ocio_rs_bridge::capture_error_message("Native item required"); return nullptr;
+#else
+  try {
+    switch (kind) {
+      case 0: { auto p = (*static_cast<ocio::ConstLookRcPtr*>(handle))->createEditableCopy(); auto h = std::make_unique<ocio_rs_bridge::LookHandle>(); h->inner = std::make_shared<ocio_rs_bridge::RealLook>(ocio_rs_bridge::RealLook{p}); return h.release(); }
+      case 1: { auto p = (*static_cast<ocio::ConstNamedTransformRcPtr*>(handle))->createEditableCopy(); auto h = std::make_unique<ocio_rs_bridge::NamedTransformHandle>(); h->inner = std::make_shared<ocio_rs_bridge::RealNamedTransform>(ocio_rs_bridge::RealNamedTransform{p}); return h.release(); }
+      case 2: { auto p = (*static_cast<ocio::ConstViewTransformRcPtr*>(handle))->createEditableCopy(); auto h = std::make_unique<ocio_rs_bridge::ViewTransformHandle>(); h->inner = std::make_shared<ocio_rs_bridge::RealViewTransform>(ocio_rs_bridge::RealViewTransform{p}); return h.release(); }
+      default: throw std::invalid_argument("invalid const config item kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_config_get_processor_from_const_named_transform(void* config, void* context, void* named, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)named; (void)direction;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    auto& value = *static_cast<ocio::ConstNamedTransformRcPtr*>(named);
+    auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto processor = context ? cfg->getProcessor(ocio_rs_bridge::get_real_context(context), value, dir)
+                             : cfg->getProcessor(value, dir);
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_config_get_const_current_context(void* config) {
 #ifdef OCIO_RS_STUB
   (void)config; return nullptr;
@@ -5792,6 +5866,10 @@ void* ocio_get_const_child_transform(void* parent, int parent_kind, int directio
       case 3: value = ocio_rs_bridge::get_real_look(parent)->getInverseTransform(); break;
       case 4: value = ocio_rs_bridge::get_real_named_transform(parent)->getTransform(static_cast<ocio::TransformDirection>(direction)); break;
       case 5: value = ocio_rs_bridge::get_real_view_transform(parent)->getTransform(static_cast<ocio::ViewTransformDirection>(direction)); break;
+      case 6: value = (*static_cast<ocio::ConstLookRcPtr*>(parent))->getTransform(); break;
+      case 7: value = (*static_cast<ocio::ConstLookRcPtr*>(parent))->getInverseTransform(); break;
+      case 8: value = (*static_cast<ocio::ConstNamedTransformRcPtr*>(parent))->getTransform(static_cast<ocio::TransformDirection>(direction)); break;
+      case 9: value = (*static_cast<ocio::ConstViewTransformRcPtr*>(parent))->getTransform(static_cast<ocio::ViewTransformDirection>(direction)); break;
       default: throw std::invalid_argument("invalid transform parent kind");
     }
     return value ? new ocio::ConstTransformRcPtr(std::move(value)) : nullptr;

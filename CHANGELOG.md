@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share read-only looks, named transforms and view transforms from a config,
+  and access their native child transforms without making editable copies.
 - Share a configuration's read-only context without cloning it; use it directly
   for named color-space or shared-transform processors.
 - Share immutable child transforms and use them directly to create processors,
@@ -72,6 +74,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Config look, named-transform and view-transform getters now return editable
+  copies instead of writable aliases to OCIO-owned const objects. Register an
+  edited copy to apply changes; this changes the previous mutation behavior.
 - Return an independent editable context from `Config::current_context` instead
   of exposing the configuration's native const context as writable. Existing
   code that mutated the returned context to change the config must be updated.
