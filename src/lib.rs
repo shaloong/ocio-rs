@@ -1,4 +1,4 @@
-//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4.1 through 2.5.x).
+//! Safe Rust bindings for [OpenColorIO](https://opencolorio.org/) (OCIO 2.4.1 through 2.6.x).
 //!
 //! This crate wraps the OpenColorIO C++ API through a generated FFI layer
 //! ([`ocio_sys`]) and exposes safe Rust types for configuration, color-space
