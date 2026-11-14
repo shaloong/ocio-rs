@@ -178,7 +178,8 @@ impl GradingBSplineCurve {
         unsafe { ocio_sys::ocio_grading_bspline_curve_validate(self.handle.as_ptr()) };
         crate::ocio_call_status()
     }
-    /// Compare native curve values.
+    /// Use OCIO's native equality semantics. OCIO 2.4 does not compare slopes;
+    /// newer versions also compare slopes and spline type.
     pub fn equals(&self, other: &Self) -> Result<bool> {
         crate::clear_last_error();
         let value = unsafe {
@@ -293,7 +294,7 @@ impl GradingRGBCurve {
         unsafe { ocio_sys::ocio_grading_rgb_curve_object_validate(self.handle.as_ptr()) };
         crate::ocio_call_status()
     }
-    /// Compare all native curve values.
+    /// Use OCIO's native equality semantics, which vary by OCIO version.
     pub fn equals(&self, other: &Self) -> Result<bool> {
         crate::clear_last_error();
         let result = unsafe {
@@ -407,7 +408,7 @@ impl GradingHueCurve {
         unsafe { ocio_sys::ocio_grading_hue_curve_object_validate(self.handle.as_ptr()) };
         crate::ocio_call_status()
     }
-    /// Compare all native curve values.
+    /// Use OCIO's native equality semantics, which vary by OCIO version.
     pub fn equals(&self, other: &Self) -> Result<bool> {
         crate::clear_last_error();
         let result = unsafe {

@@ -391,6 +391,7 @@ fn packed_conversion_changes_bit_depth_without_touching_padding() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn planar_conversion_changes_bit_depth_without_touching_padding() {
     use ocio_rs::{
         transform::MatrixTransform, BitDepth, Config, PlanarByteLayout, PlanarBytes,
