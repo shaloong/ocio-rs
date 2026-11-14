@@ -389,3 +389,126 @@ fn packed_conversion_changes_bit_depth_without_touching_padding() {
         .try_apply_packed_convert(&input, &mut unaligned[offset..], layout)
         .is_err());
 }
+
+#[test]
+fn planar_conversion_changes_bit_depth_without_touching_padding() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, PlanarByteLayout, PlanarBytes,
+        PlanarBytesMut, TransformDirection,
+    };
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    let input_layout = PlanarByteLayout {
+        width: 2,
+        height: 2,
+        x_stride: 1,
+        y_stride: 3,
+        bit_depth: BitDepth::Uint8,
+    };
+    let output_layout = PlanarByteLayout {
+        width: 2,
+        height: 2,
+        x_stride: 2,
+        y_stride: 6,
+        bit_depth: BitDepth::Uint16,
+    };
+    let red = [0, 128, 99, 255, 64];
+    let green = [255, 0, 99, 128, 64];
+    let blue = [64, 255, 99, 0, 128];
+    let alpha = [255, 128, 99, 64, 0];
+    let mut r = [0xaaaau16; 5];
+    let mut g = [0xaaaau16; 5];
+    let mut b = [0xaaaau16; 5];
+    let mut a = [0xaaaau16; 5];
+    fn bytes(words: &mut [u16]) -> &mut [u8] {
+        // SAFETY: u8 has no alignment or validity restrictions, and the returned
+        // slice is limited to the lifetime and size of the exclusive word slice.
+        unsafe {
+            std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), std::mem::size_of_val(words))
+        }
+    }
+    let source = || PlanarBytes {
+        red: &red,
+        green: &green,
+        blue: &blue,
+        alpha: Some(&alpha),
+        layout: input_layout,
+    };
+    cpu.try_apply_planar_convert(
+        source(),
+        PlanarBytesMut {
+            red: bytes(&mut r),
+            green: bytes(&mut g),
+            blue: bytes(&mut b),
+            alpha: Some(bytes(&mut a)),
+            layout: output_layout,
+        },
+    )
+    .unwrap();
+    assert_eq!(r, [0, 32896, 0xaaaa, 65535, 16448]);
+    assert_eq!(g, [65535, 0, 0xaaaa, 32896, 16448]);
+    assert_eq!(b, [16448, 65535, 0xaaaa, 0, 32896]);
+    assert_eq!(a, [65535, 32896, 0xaaaa, 16448, 0]);
+    cpu.try_apply_planar_convert(
+        PlanarBytes {
+            alpha: None,
+            ..source()
+        },
+        PlanarBytesMut {
+            red: bytes(&mut r),
+            green: bytes(&mut g),
+            blue: bytes(&mut b),
+            alpha: None,
+            layout: output_layout,
+        },
+    )
+    .unwrap();
+    assert_eq!(r, [0, 32896, 0xaaaa, 65535, 16448]);
+    assert!(cpu
+        .try_apply_planar_convert(
+            source(),
+            PlanarBytesMut {
+                red: bytes(&mut r),
+                green: bytes(&mut g),
+                blue: bytes(&mut b),
+                alpha: Some(bytes(&mut a)),
+                layout: PlanarByteLayout {
+                    bit_depth: BitDepth::Uint8,
+                    ..output_layout
+                }
+            },
+        )
+        .is_err());
+    assert!(cpu
+        .try_apply_planar_convert(
+            source(),
+            PlanarBytesMut {
+                red: bytes(&mut r),
+                green: bytes(&mut g),
+                blue: bytes(&mut b),
+                alpha: None,
+                layout: output_layout
+            }
+        )
+        .is_err());
+    assert!(cpu
+        .try_apply_planar_convert(
+            source(),
+            PlanarBytesMut {
+                red: &mut [],
+                green: bytes(&mut g),
+                blue: bytes(&mut b),
+                alpha: Some(bytes(&mut a)),
+                layout: output_layout
+            }
+        )
+        .is_err());
+}

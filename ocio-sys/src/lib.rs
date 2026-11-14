@@ -12,6 +12,20 @@ mod v2_6;
 pub use v2_6::*;
 
 use std::ffi::c_void;
+
+/// Raw planar image descriptor passed to the bridge; pointers are caller-owned.
+#[repr(C)]
+pub struct OcioPlanarBuffer {
+    pub red: *mut c_void,
+    pub green: *mut c_void,
+    pub blue: *mut c_void,
+    pub alpha: *mut c_void,
+    pub width: i64,
+    pub height: i64,
+    pub x_stride: i64,
+    pub y_stride: i64,
+    pub bit_depth: i32,
+}
 mod spline;
 pub use spline::*;
 mod app_helpers;
@@ -64,6 +78,11 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_cpu_processor_apply_planar_convert(
+        handle: *mut c_void,
+        source: *const OcioPlanarBuffer,
+        destination: *const OcioPlanarBuffer,
+    );
     pub fn ocio_cpu_processor_apply_packed_convert(
         handle: *mut c_void,
         src: *const c_void,

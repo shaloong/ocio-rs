@@ -569,11 +569,136 @@ pub struct PackedConversionLayout {
     pub output_stride: i64,
 }
 
+/// Borrowed source channels for a planar conversion.
+pub struct PlanarBytes<'a> {
+    pub red: &'a [u8],
+    pub green: &'a [u8],
+    pub blue: &'a [u8],
+    pub alpha: Option<&'a [u8]>,
+    pub layout: PlanarByteLayout,
+}
+
+/// Borrowed destination channels for a planar conversion.
+pub struct PlanarBytesMut<'a> {
+    pub red: &'a mut [u8],
+    pub green: &'a mut [u8],
+    pub blue: &'a mut [u8],
+    pub alpha: Option<&'a mut [u8]>,
+    pub layout: PlanarByteLayout,
+}
+
+fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
+    let PlanarByteLayout {
+        width,
+        height,
+        x_stride,
+        y_stride,
+        bit_depth,
+    } = layout;
+    let size = bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_convert", bit_depth)?;
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
+    if width == 0
+        || height == 0
+        || x_stride < size
+        || y_stride == 0
+        || !x_stride.is_multiple_of(size)
+        || !y_stride.is_multiple_of(size)
+    {
+        return Err(invalid());
+    }
+    let row_span = (width - 1)
+        .checked_mul(x_stride)
+        .and_then(|n| n.checked_add(size))
+        .ok_or_else(invalid)?;
+    if height > 1 && y_stride < row_span {
+        return Err(invalid());
+    }
+    let required = (height - 1)
+        .checked_mul(y_stride)
+        .and_then(|n| n.checked_add(row_span))
+        .ok_or_else(invalid)?;
+    if planes
+        .iter()
+        .any(|p| p.len() < required || !(p.as_ptr() as usize).is_multiple_of(size))
+    {
+        return Err(invalid());
+    }
+    let [Ok(w), Ok(h), Ok(x), Ok(y)] = [width, height, x_stride, y_stride].map(i64::try_from)
+    else {
+        return Err(invalid());
+    };
+    Ok([w, h, x, y])
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Convert separate planar buffers using the processor's input and output depths.
+    ///
+    /// Layouts may have different strides and bit depths, but must have identical
+    /// dimensions and either both contain alpha or both omit it. Buffers are borrowed
+    /// directly without copying; strides are in bytes and must be positive and aligned.
+    pub fn try_apply_planar_convert(
+        &self,
+        source: PlanarBytes<'_>,
+        mut destination: PlanarBytesMut<'_>,
+    ) -> Result<()> {
+        if source.layout.width != destination.layout.width
+            || source.layout.height != destination.layout.height
+            || source.alpha.is_some() != destination.alpha.is_some()
+        {
+            return Err(OcioError::InvalidInput(
+                "planar dimensions and alpha presence must match".into(),
+            ));
+        }
+        let [iw, ih, ix, iy] =
+            validate_planar_buffer(source.layout, &[source.red, source.green, source.blue])?;
+        let [ow, oh, ox, oy] = validate_planar_buffer(
+            destination.layout,
+            &[destination.red, destination.green, destination.blue],
+        )?;
+        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
+            validate_planar_buffer(source.layout, &[input])?;
+            validate_planar_buffer(destination.layout, &[output])?;
+        }
+        let input = ocio_sys::OcioPlanarBuffer {
+            red: source.red.as_ptr().cast_mut().cast(),
+            green: source.green.as_ptr().cast_mut().cast(),
+            blue: source.blue.as_ptr().cast_mut().cast(),
+            alpha: source
+                .alpha
+                .map_or(std::ptr::null_mut(), |p| p.as_ptr().cast_mut().cast()),
+            width: iw,
+            height: ih,
+            x_stride: ix,
+            y_stride: iy,
+            bit_depth: source.layout.bit_depth as i32,
+        };
+        let output = ocio_sys::OcioPlanarBuffer {
+            red: destination.red.as_mut_ptr().cast(),
+            green: destination.green.as_mut_ptr().cast(),
+            blue: destination.blue.as_mut_ptr().cast(),
+            alpha: destination
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().cast()),
+            width: ow,
+            height: oh,
+            x_stride: ox,
+            y_stride: oy,
+            bit_depth: destination.layout.bit_depth as i32,
+        };
+        crate::clear_last_error();
+        // SAFETY: Both descriptors have validated extents and alignment. The source
+        // is read-only during apply, and the destination planes are exclusively borrowed.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_convert(self.handle.as_ptr(), &input, &output)
+        };
+        crate::ocio_call_status()
+    }
     /// Convert separate packed buffers with the processor's input/output depths.
     ///
     /// RGB and RGBA are supported. Strides are measured in samples. Input and

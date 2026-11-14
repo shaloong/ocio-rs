@@ -7261,6 +7261,42 @@ void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void
 #endif
 }
 
+void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buffer* source,
+                                            const ocio_planar_buffer* destination) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)source; (void)destination;
+  ocio_rs_bridge::capture_error_message("Planar conversion requires native OpenColorIO");
+#else
+  try {
+    if (!source || !destination) throw std::invalid_argument("null planar descriptor");
+    auto check = [](const ocio_planar_buffer& d) {
+      if (!d.red || !d.green || !d.blue || d.width <= 0 || d.height <= 0 ||
+          d.width > std::numeric_limits<long>::max() || d.height > std::numeric_limits<long>::max() ||
+          d.x_stride <= 0 || d.y_stride <= 0 ||
+          d.x_stride > std::numeric_limits<ptrdiff_t>::max() ||
+          d.y_stride > std::numeric_limits<ptrdiff_t>::max())
+        throw std::invalid_argument("invalid planar descriptor");
+    };
+    check(*source);
+    check(*destination);
+    if (source->width != destination->width || source->height != destination->height)
+      throw std::invalid_argument("planar source and destination dimensions differ");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    const auto input_depth = static_cast<ocio::BitDepth>(source->bit_depth);
+    const auto output_depth = static_cast<ocio::BitDepth>(destination->bit_depth);
+    if (cpu->getInputBitDepth() != input_depth || cpu->getOutputBitDepth() != output_depth)
+      throw std::invalid_argument("image bit depths must match processor input and output");
+    ocio::PlanarImageDesc input(source->red, source->green, source->blue, source->alpha,
+        static_cast<long>(source->width), static_cast<long>(source->height), input_depth,
+        static_cast<ptrdiff_t>(source->x_stride), static_cast<ptrdiff_t>(source->y_stride));
+    ocio::PlanarImageDesc output(destination->red, destination->green, destination->blue, destination->alpha,
+        static_cast<long>(destination->width), static_cast<long>(destination->height), output_depth,
+        static_cast<ptrdiff_t>(destination->x_stride), static_cast<ptrdiff_t>(destination->y_stride));
+    cpu->apply(input, output);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)numPixels; (void)stride;
