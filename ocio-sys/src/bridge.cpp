@@ -15060,4 +15060,244 @@ float ocio_mixing_slider_mixing_to_slider(void* handle, float value) {
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+using ViewingPipeline = ocio::LegacyViewingPipelineRcPtr;
+static const ViewingPipeline& viewing_pipeline(void* handle) {
+  return *static_cast<ViewingPipeline*>(handle);
+}
+#endif
+
+void* ocio_legacy_viewing_pipeline_create(void) {
+#ifdef OCIO_RS_STUB
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    return new ViewingPipeline(ocio::LegacyViewingPipeline::Create());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return;
+#else
+  delete static_cast<ViewingPipeline*>(handle);
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_display_view_transform(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto transform = viewing_pipeline(handle)->getDisplayViewTransform();
+    if (!transform) return nullptr;
+    auto result = ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+    if (!result) throw std::runtime_error("Unsupported transform type in legacy viewing pipeline");
+    return result;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_display_view_transform(void* handle, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform;
+  return;
+#else
+  viewing_pipeline(handle)->setDisplayViewTransform(transform ? ocio_rs_bridge::get_real_display_view_transform(transform) : nullptr);
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_linear_cc(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto transform = viewing_pipeline(handle)->getLinearCC();
+    if (!transform) return nullptr;
+    auto result = ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+    if (!result) throw std::runtime_error("Unsupported transform type in legacy viewing pipeline");
+    return result;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_linear_cc(void* handle, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform;
+  return;
+#else
+  viewing_pipeline(handle)->setLinearCC(transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : nullptr);
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_color_timing_cc(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto transform = viewing_pipeline(handle)->getColorTimingCC();
+    if (!transform) return nullptr;
+    auto result = ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+    if (!result) throw std::runtime_error("Unsupported transform type in legacy viewing pipeline");
+    return result;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_color_timing_cc(void* handle, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform;
+  return;
+#else
+  viewing_pipeline(handle)->setColorTimingCC(transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : nullptr);
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_channel_view(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto transform = viewing_pipeline(handle)->getChannelView();
+    if (!transform) return nullptr;
+    auto result = ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+    if (!result) throw std::runtime_error("Unsupported transform type in legacy viewing pipeline");
+    return result;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_channel_view(void* handle, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform;
+  return;
+#else
+  viewing_pipeline(handle)->setChannelView(transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : nullptr);
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_display_cc(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto transform = viewing_pipeline(handle)->getDisplayCC();
+    if (!transform) return nullptr;
+    auto result = ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
+    if (!result) throw std::runtime_error("Unsupported transform type in legacy viewing pipeline");
+    return result;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_display_cc(void* handle, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform;
+  return;
+#else
+  viewing_pipeline(handle)->setDisplayCC(transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : nullptr);
+#endif
+}
+
+const char* ocio_legacy_viewing_pipeline_get_looks_override(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    return viewing_pipeline(handle)->getLooksOverride();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_looks_override(void* handle, const char* looks) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)looks;
+  return;
+#else
+  try {
+    viewing_pipeline(handle)->setLooksOverride(looks);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_legacy_viewing_pipeline_get_looks_override_enabled(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return false;
+#else
+  try {
+    return viewing_pipeline(handle)->getLooksOverrideEnabled();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_looks_override_enabled(void* handle, bool enabled) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)enabled;
+  return;
+#else
+  try {
+    viewing_pipeline(handle)->setLooksOverrideEnabled(enabled);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_processor(void* handle, void* config) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config;
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    auto processor = viewing_pipeline(handle)->getProcessor(ocio_rs_bridge::get_real_config(config));
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void* config, void* context) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config; (void)context;
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    auto processor = viewing_pipeline(handle)->getProcessor(ocio_rs_bridge::get_real_config(config), ocio_rs_bridge::get_real_context(context));
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_get_display_view_helper_identity_processor(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Display view helpers require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    auto processor = ocio::DisplayViewHelpers::GetIdentityProcessor(ocio_rs_bridge::get_real_config(handle));
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(
+        ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 }  // extern "C"

@@ -167,4 +167,49 @@ unsafe extern "C" {
     pub fn ocio_mixing_slider_get_slider_max_edge(handle: *mut c_void) -> f32;
     pub fn ocio_mixing_slider_slider_to_mixing(handle: *mut c_void, value: f32) -> f32;
     pub fn ocio_mixing_slider_mixing_to_slider(handle: *mut c_void, value: f32) -> f32;
+    pub fn ocio_legacy_viewing_pipeline_create() -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_destroy(handle: *mut c_void);
+    pub fn ocio_legacy_viewing_pipeline_get_display_view_transform(
+        handle: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_display_view_transform(
+        handle: *mut c_void,
+        transform: *mut c_void,
+    );
+    pub fn ocio_legacy_viewing_pipeline_get_linear_cc(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_linear_cc(handle: *mut c_void, transform: *mut c_void);
+    pub fn ocio_legacy_viewing_pipeline_get_color_timing_cc(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_color_timing_cc(
+        handle: *mut c_void,
+        transform: *mut c_void,
+    );
+    pub fn ocio_legacy_viewing_pipeline_get_channel_view(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_channel_view(
+        handle: *mut c_void,
+        transform: *mut c_void,
+    );
+    pub fn ocio_legacy_viewing_pipeline_get_display_cc(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_display_cc(handle: *mut c_void, transform: *mut c_void);
+    pub fn ocio_legacy_viewing_pipeline_get_looks_override(handle: *mut c_void) -> *const c_char;
+    pub fn ocio_legacy_viewing_pipeline_set_looks_override(
+        handle: *mut c_void,
+        looks: *const c_char,
+    );
+    pub fn ocio_legacy_viewing_pipeline_get_looks_override_enabled(handle: *mut c_void) -> bool;
+    pub fn ocio_legacy_viewing_pipeline_set_looks_override_enabled(
+        handle: *mut c_void,
+        enabled: bool,
+    );
+    pub fn ocio_legacy_viewing_pipeline_get_processor(
+        handle: *mut c_void,
+        config: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_get_processor_with_context(
+        handle: *mut c_void,
+        config: *mut c_void,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_display_view_helper_identity_processor(
+        handle: *mut c_void,
+    ) -> *mut c_void;
 }

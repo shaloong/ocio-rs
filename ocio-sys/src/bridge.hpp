@@ -1397,4 +1397,25 @@ float ocio_mixing_slider_get_slider_max_edge(void* handle);
 float ocio_mixing_slider_slider_to_mixing(void* handle, float value);
 float ocio_mixing_slider_mixing_to_slider(void* handle, float value);
 
+void* ocio_legacy_viewing_pipeline_create(void);
+void ocio_legacy_viewing_pipeline_destroy(void* handle);
+void* ocio_legacy_viewing_pipeline_get_display_view_transform(void* handle);
+void ocio_legacy_viewing_pipeline_set_display_view_transform(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_linear_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_linear_cc(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_color_timing_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_color_timing_cc(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_channel_view(void* handle);
+void ocio_legacy_viewing_pipeline_set_channel_view(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_display_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_display_cc(void* handle, void* transform);
+const char* ocio_legacy_viewing_pipeline_get_looks_override(void* handle);
+void ocio_legacy_viewing_pipeline_set_looks_override(void* handle, const char* looks);
+bool ocio_legacy_viewing_pipeline_get_looks_override_enabled(void* handle);
+void ocio_legacy_viewing_pipeline_set_looks_override_enabled(void* handle, bool enabled);
+void* ocio_legacy_viewing_pipeline_get_processor(void* handle, void* config);
+void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void* config, void* context);
+
+void* ocio_config_get_display_view_helper_identity_processor(void* handle);
+
 }  // extern "C"

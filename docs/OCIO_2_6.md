@@ -46,7 +46,11 @@ The color-space menu parameters and immutable menu are now bound at their
 native version floors. The menu borrows native strings without allocating.
 The mixing manager also delegates selection and conversions to OCIO; its
 slider is an exclusive borrow with no allocation or shared-pointer increment.
-Config editing/merging and legacy viewing helper APIs remain.
+The legacy viewing pipeline includes all correction stages, looks overrides,
+and both processor overloads. The display-view identity helper also exposes
+the native dynamic exposure, contrast, and gamma stages.
+Config editing/merging and the remaining display-view namespace functions
+still need bindings.
 Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a

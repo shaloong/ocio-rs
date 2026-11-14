@@ -2,6 +2,100 @@ use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {
+    let cpu = Config::raw()
+        .unwrap()
+        .display_view_helper_identity_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Exposure));
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Contrast));
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Gamma));
+    let mut rgba = [0.25, 0.5, 0.75, 0.5];
+    cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.25, 0.5, 0.75, 0.5]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
+    use ocio_rs::transform::{DisplayViewTransform, MatrixTransform, Transform};
+    use ocio_rs::{Context, LegacyViewingPipeline};
+    let config = Config::from_stream(
+        "ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\n\
+         displays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\n\
+         colorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n",
+    )
+    .unwrap();
+    let mut pipeline = LegacyViewingPipeline::create().unwrap();
+    assert!(pipeline.display_view_transform().unwrap().is_none());
+    assert!(pipeline.processor(&config).is_err());
+    let display = DisplayViewTransform::create().unwrap();
+    display.set_src("linear").unwrap();
+    display.set_display("Monitor").unwrap();
+    display.set_view("Raw").unwrap();
+    pipeline.set_display_view_transform(Some(&display));
+    display.set_display("changed").unwrap();
+    assert_eq!(
+        pipeline
+            .display_view_transform()
+            .unwrap()
+            .unwrap()
+            .display()
+            .as_deref(),
+        Some("Monitor")
+    );
+    let stage = Transform::Matrix(MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap());
+    pipeline.set_display_cc(Some(&stage));
+    pipeline.set_linear_cc(Some(&stage));
+    pipeline.set_color_timing_cc(Some(&stage));
+    pipeline.set_channel_view(Some(&stage));
+    drop(stage);
+    assert!(matches!(
+        pipeline.display_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.linear_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.color_timing_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.channel_view().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    pipeline.set_linear_cc(None);
+    pipeline.set_color_timing_cc(None);
+    pipeline.set_channel_view(None);
+    assert!(pipeline.linear_cc().unwrap().is_none());
+    assert!(pipeline.color_timing_cc().unwrap().is_none());
+    assert!(pipeline.channel_view().unwrap().is_none());
+    pipeline.set_looks_override(c"").unwrap();
+    pipeline.set_looks_override_enabled(true).unwrap();
+    assert!(pipeline.looks_override_enabled().unwrap());
+    assert_eq!(pipeline.looks_override().unwrap(), c"");
+    for processor in [
+        pipeline.processor(&config).unwrap(),
+        pipeline
+            .processor_with_context(&config, &Context::create().unwrap())
+            .unwrap(),
+    ] {
+        let mut rgba = [0.25, 0.5, 0.75, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut rgba)
+            .unwrap();
+        assert_eq!(rgba, [0.5, 0.5, 0.375, 1.0]);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn mixing_manager_retains_config_and_slider_round_trips() {
     let config = Config::raw().unwrap();
     let mut manager = ocio_rs::MixingColorSpaceManager::create(&config).unwrap();

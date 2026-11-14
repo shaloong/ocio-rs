@@ -11,6 +11,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - Bind the native color-space menu and mixing helpers. Menu text borrows
   native storage and mixing sliders borrow their manager.
+- Bind the legacy viewing pipeline and its optional correction stages,
+  context-aware processing, and dynamic display-view identity helper.
 - Support OpenColorIO 2.6 with the existing baseline and `v2_5` Rust APIs.
   Opt in to the new API with `v2_6`. The default bundled source remains 2.5.2;
   use an installed 2.6 library or point `OCIO_SOURCE_DIR` at 2.6.0.

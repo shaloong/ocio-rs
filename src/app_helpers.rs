@@ -5,6 +5,10 @@ use std::{
     ptr::NonNull,
 };
 
+use crate::transform::{
+    transform_from_raw_handle, DisplayViewTransform, Transform, TransformHandle,
+};
+use crate::Context;
 use crate::{Config, Processor, Result, SearchReferenceSpaceType, TransformDirection};
 
 unsafe fn text<'a>(ptr: *const c_char) -> &'a CStr {
@@ -652,5 +656,213 @@ impl MixingSlider<'_> {
     /// Mixing to slider using the native implementation.
     pub fn mixing_to_slider(&self, value: f32) -> f32 {
         unsafe { ocio_sys::ocio_mixing_slider_mixing_to_slider(self.handle.as_ptr(), value) }
+    }
+}
+
+/** Native OCIO v1-style viewing pipeline for applications that need its correction stages. */
+pub struct LegacyViewingPipeline {
+    handle: NonNull<c_void>,
+}
+
+impl LegacyViewingPipeline {
+    /// Create a native pipeline with no correction stages.
+    pub fn create() -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_legacy_viewing_pipeline_create() };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Return an independent editable copy, if this stage is set.
+    pub fn display_view_transform(&self) -> Result<Option<DisplayViewTransform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_display_view_transform(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        match transform_from_raw_handle(handle) {
+            Some(Transform::DisplayView(transform)) => Ok(Some(transform)),
+            None => Ok(None),
+            _ => Err(crate::OcioError::Ocio(
+                "Unexpected legacy display transform type".into(),
+            )),
+        }
+    }
+
+    /// Set this stage using OCIO's native copy semantics, or clear it with `None`.
+    pub fn set_display_view_transform(&mut self, transform: Option<&DisplayViewTransform>) {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_display_view_transform(
+                self.handle.as_ptr(),
+                transform,
+            )
+        }
+    }
+
+    /// Return an independent editable copy, if this stage is set.
+    pub fn linear_cc(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_legacy_viewing_pipeline_get_linear_cc(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
+
+    /// Set this stage using OCIO's native copy semantics, or clear it with `None`.
+    pub fn set_linear_cc(&mut self, transform: Option<&Transform>) {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_linear_cc(self.handle.as_ptr(), transform)
+        }
+    }
+
+    /// Return an independent editable copy, if this stage is set.
+    pub fn color_timing_cc(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_color_timing_cc(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
+
+    /// Set this stage using OCIO's native copy semantics, or clear it with `None`.
+    pub fn set_color_timing_cc(&mut self, transform: Option<&Transform>) {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_color_timing_cc(
+                self.handle.as_ptr(),
+                transform,
+            )
+        }
+    }
+
+    /// Return an independent editable copy, if this stage is set.
+    pub fn channel_view(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_channel_view(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
+
+    /// Set this stage using OCIO's native copy semantics, or clear it with `None`.
+    pub fn set_channel_view(&mut self, transform: Option<&Transform>) {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_channel_view(self.handle.as_ptr(), transform)
+        }
+    }
+
+    /// Return an independent editable copy, if this stage is set.
+    pub fn display_cc(&self) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_legacy_viewing_pipeline_get_display_cc(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
+
+    /// Set this stage using OCIO's native copy semantics, or clear it with `None`.
+    pub fn set_display_cc(&mut self, transform: Option<&Transform>) {
+        let transform = transform.map_or(std::ptr::null_mut(), TransformHandle::as_ptr);
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_display_cc(self.handle.as_ptr(), transform)
+        }
+    }
+
+    /// Read the native looks override setting.
+    pub fn looks_override(&self) -> Result<&CStr> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_looks_override(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(unsafe { text(value) })
+    }
+
+    /// Update the native looks override setting.
+    pub fn set_looks_override(&mut self, looks: &CStr) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_looks_override(
+                self.handle.as_ptr(),
+                looks.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Read the native looks override enabled setting.
+    pub fn looks_override_enabled(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_looks_override_enabled(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Update the native looks override enabled setting.
+    pub fn set_looks_override_enabled(&mut self, enabled: bool) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_looks_override_enabled(
+                self.handle.as_ptr(),
+                enabled,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Build the native viewing processor with the config's context.
+    pub fn processor(&self, config: &Config) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_processor(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+            )
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Build the native viewing processor with an explicit context.
+    pub fn processor_with_context(&self, config: &Config, context: &Context) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_processor_with_context(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+                context.handle.as_ptr(),
+            )
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+}
+
+impl Drop for LegacyViewingPipeline {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_legacy_viewing_pipeline_destroy(self.handle.as_ptr()) }
+    }
+}
+
+impl Config {
+    /// Create an identity viewing processor with native dynamic adjustment stages.
+    pub fn display_view_helper_identity_processor(&self) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_display_view_helper_identity_processor(self.handle.as_ptr())
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
     }
 }

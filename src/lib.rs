@@ -81,7 +81,8 @@
 mod app_helpers;
 mod baker;
 pub use app_helpers::{
-    ColorSpaceMenuHelper, ColorSpaceMenuParameters, MixingColorSpaceManager, MixingSlider,
+    ColorSpaceMenuHelper, ColorSpaceMenuParameters, LegacyViewingPipeline, MixingColorSpaceManager,
+    MixingSlider,
 };
 mod builtin_config_registry;
 mod builtin_transform_registry;
