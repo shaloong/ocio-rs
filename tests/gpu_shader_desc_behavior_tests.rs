@@ -419,8 +419,8 @@ fn custom_uniform_callback_reports_vector_capacity_when_available() {
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_uniform_control_retains_live_getter_and_cleans_up_after_failure() {
     use ocio_rs::{
-        OcioError, ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl,
-        ShaderUniformGetter, ShaderUniformRegistration,
+        OcioError, ShaderCreatorOptions, ShaderExtractionHooks, ShaderUniformAction,
+        ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
     };
     struct Hooks {
         getter: Option<ShaderUniformGetter>,
@@ -501,6 +501,24 @@ fn custom_uniform_control_retains_live_getter_and_cleans_up_after_failure() {
         };
         assert!(gpu
             .try_extract_with_uniform_control(&template, &mut failed)
+            .is_err());
+        assert_eq!(failed.getter.as_mut().unwrap().double().unwrap(), Some(0.5));
+        let mut failed = Hooks {
+            getter: None,
+            fail: !panic,
+            panic,
+            store: false,
+        };
+        assert!(gpu
+            .try_extract_with_creator_options(
+                &template,
+                &mut failed,
+                ShaderCreatorOptions {
+                    cache_id_override: Some(c"failure-test"),
+                    stream_textures: false,
+                },
+                |_| Ok(None),
+            )
             .is_err());
         assert_eq!(failed.getter.as_mut().unwrap().double().unwrap(), Some(0.5));
     }
@@ -858,6 +876,28 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
     assert!(!first.key.is_empty());
     assert!(!second.key.is_empty());
     assert_ne!(first.key, second.key);
+    let mut repeated = Hooks::default();
+    let repeated_desc = gpu
+        .try_extract_with_creator_options(
+            &template,
+            &mut repeated,
+            ShaderCreatorOptions {
+                cache_id_override: Some(c"custom-cache-first"),
+                stream_textures: false,
+            },
+            |_| Ok(None),
+        )
+        .unwrap();
+    assert_eq!(first.key, repeated.key);
+    assert_eq!(
+        first_desc.try_cache_id().unwrap(),
+        repeated_desc.try_cache_id().unwrap()
+    );
+    let cloned = first_desc.clone_desc().expect("native clone");
+    assert_ne!(
+        cloned.try_cache_id().unwrap().as_deref(),
+        Some("custom-cache-first")
+    );
     first_desc.set_function_name("changed").unwrap();
     // Custom IDs are supplied by the caller and are not auto-invalidated.
     assert_eq!(

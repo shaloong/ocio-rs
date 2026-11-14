@@ -2196,6 +2196,8 @@ pub struct ShaderCreatorOptions<'a> {
     /// the ID changes whenever creator configuration or output changes,
     /// including after mutating the returned descriptor. The string is copied
     /// once into native ownership. `None` retains OCIO's default behavior.
+    /// Native descriptor cloning creates a generic descriptor and does not
+    /// preserve this override.
     pub cache_id_override: Option<&'a std::ffi::CStr>,
     /// Deliver textures to the supplied sink without retaining descriptor copies.
     pub stream_textures: bool,
@@ -4405,6 +4407,7 @@ impl GpuShaderDesc {
     /// Lower-level creator implementation knobs such as 1D texture width and
     /// `allow_texture_1d` may fall back to OCIO defaults on clone, and
     /// extracted shader payloads are not guaranteed to be copied into the clone.
+    /// A custom cache ID from [`ShaderCreatorOptions`] is not preserved.
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
         crate::clear_last_error();
         let h =
