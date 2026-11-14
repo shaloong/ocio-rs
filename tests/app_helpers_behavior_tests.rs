@@ -1,5 +1,103 @@
 use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config};
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
+    use ocio_rs::{ConfigMergingParameters, MergeStrategy};
+    let base = Config::raw().unwrap().create_editable_copy().unwrap();
+    let input = base.create_editable_copy().unwrap();
+    let space = ColorSpace::create().unwrap();
+    space.set_name("new-space").unwrap();
+    input.try_add_color_space(&space).unwrap();
+    let mut options = ConfigMergingParameters::create().unwrap();
+    options.set_name(c"merged").unwrap();
+    options.set_adjust_input_reference_space(false).unwrap();
+    options
+        .set_default_strategy(MergeStrategy::PreferBase)
+        .unwrap();
+    options
+        .set_color_spaces(MergeStrategy::PreferInput)
+        .unwrap();
+    options
+        .add_environment_var(c"MERGE_TEST", c"default")
+        .unwrap();
+    let copy = options.create_editable_copy().unwrap();
+    assert_eq!(copy.color_spaces().unwrap(), MergeStrategy::PreferInput);
+    assert_eq!(copy.environment_var(0).unwrap(), c"MERGE_TEST");
+    assert_eq!(copy.environment_var_value(0).unwrap(), c"default");
+    let merged = copy.merge_configs(&base, &input).unwrap();
+    assert_eq!(merged.name().as_deref(), Some("merged"));
+    assert!(merged.color_space("new-space").is_some());
+    let merged = copy.merge_color_space(&base, &space).unwrap();
+    assert!(merged.color_space("new-space").is_some());
+    assert!(base.color_space("new-space").is_none());
+    assert_ne!(input.name().as_deref(), Some("merged"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn file_backed_display_helpers_author_process_and_remove() {
+    use ocio_rs::{Context, DisplayViewFromFile, DynamicPropertyType, TransformDirection};
+    let mut config = Config::from_stream(
+        "ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\n\
+         displays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\n\
+         colorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n",
+    )
+    .unwrap();
+    let file = std::ffi::CString::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/clf/matrix_3x4_example.clf"
+    ))
+    .unwrap();
+    assert!(config
+        .add_color_space_from_file(c"Invalid", &file, c"", c"missing")
+        .is_err());
+    config
+        .add_color_space_from_file(c"File Input", &file, c"", c"linear")
+        .unwrap();
+    assert!(config.color_space("File Input").is_some());
+    config
+        .add_display_view_from_file(DisplayViewFromFile {
+            display: c"Extra",
+            view: c"File View",
+            looks: c"",
+            color_space: c"File Display",
+            family: c"Output",
+            description: c"Test output",
+            categories: c"",
+            file: &file,
+            connection_space: c"linear",
+        })
+        .unwrap();
+    assert!(config.color_space("File Display").is_some());
+    let context = Context::create().unwrap();
+    let mut output = [[0.25, 0.5, 0.75, 1.0]; 2];
+    for (rgba, ctx) in output.iter_mut().zip([None, Some(&context)]) {
+        let cpu = config
+            .application_display_processor(
+                ctx,
+                c"linear",
+                c"Extra",
+                c"File View",
+                None,
+                TransformDirection::Forward,
+            )
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        assert!(cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure));
+        cpu.try_apply_rgba(rgba).unwrap();
+    }
+    assert_eq!(output[0], output[1]);
+    assert_ne!(output[0], [0.25, 0.5, 0.75, 1.0]);
+    config
+        .remove_display_view_and_unused_color_space(c"Extra", c"File View")
+        .unwrap();
+    assert!(config.color_space("File Display").is_none());
+    assert!(config.color_space("File Input").is_some());
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {

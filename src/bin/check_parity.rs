@@ -78,6 +78,7 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "mixing_color_space_manager" => Some("MixingColorSpaceManager"),
         "mixing_slider" => Some("MixingSlider"),
         "legacy_viewing_pipeline" => Some("LegacyViewingPipeline"),
+        "config_merging_parameters" => Some("ConfigMergingParameters"),
         "look" => Some("Look"),
         "named_transform" => Some("NamedTransform"),
         "view_transform" => Some("ViewTransform"),
@@ -144,6 +145,7 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "mixing_color_space_manager",
         "mixing_slider",
         "legacy_viewing_pipeline",
+        "config_merging_parameters",
         "allocation_transform",
         "look_transform",
         "lut1d_transform",
@@ -462,6 +464,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         "MixingColorSpaceManager",
         "MixingSlider",
         "LegacyViewingPipeline",
+        "ConfigMergingParameters",
         "Config",
         "FileRules",
         "ColorSpace",
@@ -825,6 +828,7 @@ fn run_l3(
         ("MixingColorSpaceManager", "MixingColorSpaceManager"),
         ("MixingSlider", "MixingSlider"),
         ("LegacyViewingPipeline", "LegacyViewingPipeline"),
+        ("ConfigMergingParameters", "ConfigMergingParameters"),
         ("Look", "Look"),
         ("NamedTransform", "NamedTransform"),
         ("ViewTransform", "ViewTransform"),
@@ -869,6 +873,8 @@ fn run_l3(
     .collect();
 
     let method_name_overrides: HashMap<&str, &str> = [
+        ("setColorspaces", "set_color_spaces"),
+        ("getColorspaces", "get_color_spaces"),
         ("CreateRaw", "raw"),
         ("CreateFromFile", "from_file"),
         ("CreateEditableCopy", "create_editable_copy"),
@@ -1081,6 +1087,7 @@ fn main() {
     let mut lib_funcs = parse_lib_rs(&root.join(LIB_RS));
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/v2_6.rs")));
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/app_helpers.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/config_merging.rs")));
     let rust_methods = parse_rust_wrappers(&root.join(SRC_DIR));
 
     // Compare

@@ -14,6 +14,10 @@ pub use v2_6::*;
 use std::ffi::c_void;
 mod app_helpers;
 pub use app_helpers::*;
+#[cfg(feature = "v2_5")]
+mod config_merging;
+#[cfg(feature = "v2_5")]
+pub use config_merging::*;
 
 #[repr(C)]
 pub struct OcioGpuTexture2DInfo {

@@ -212,4 +212,37 @@ unsafe extern "C" {
     pub fn ocio_config_get_display_view_helper_identity_processor(
         handle: *mut c_void,
     ) -> *mut c_void;
+    pub fn ocio_config_get_application_display_processor(
+        handle: *mut c_void,
+        context: *mut c_void,
+        working: *const c_char,
+        display: *const c_char,
+        view: *const c_char,
+        channel: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_config_add_display_view_from_file(
+        handle: *mut c_void,
+        display: *const c_char,
+        view: *const c_char,
+        looks: *const c_char,
+        space: *const c_char,
+        family: *const c_char,
+        description: *const c_char,
+        categories: *const c_char,
+        file: *const c_char,
+        connection: *const c_char,
+    );
+    pub fn ocio_config_remove_display_view_and_unused_color_space(
+        handle: *mut c_void,
+        display: *const c_char,
+        view: *const c_char,
+    );
+    pub fn ocio_config_add_color_space_from_file(
+        handle: *mut c_void,
+        name: *const c_char,
+        file: *const c_char,
+        categories: *const c_char,
+        connection: *const c_char,
+    );
 }

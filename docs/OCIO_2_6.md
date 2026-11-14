@@ -49,8 +49,10 @@ slider is an exclusive borrow with no allocation or shared-pointer increment.
 The legacy viewing pipeline includes all correction stages, looks overrides,
 and both processor overloads. The display-view identity helper also exposes
 the native dynamic exposure, contrast, and gamma stages.
-Config editing/merging and the remaining display-view namespace functions
-still need bindings.
+The display-view and color-space namespace helpers now cover file-backed
+authoring, removal, and both native display processor overloads. The
+`v2_5` API exposes merge parameters and in-memory config/color-space merges.
+The file-driven `ConfigMerger` controller and OCIOM workflow still need bindings.
 Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a

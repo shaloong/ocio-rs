@@ -1418,4 +1418,66 @@ void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void
 
 void* ocio_config_get_display_view_helper_identity_processor(void* handle);
 
+void* ocio_config_get_application_display_processor(void* handle, void* context, const char* working, const char* display, const char* view, void* channel, int direction);
+void ocio_config_add_display_view_from_file(void* handle, const char* display, const char* view, const char* looks, const char* space, const char* family, const char* description, const char* categories, const char* file, const char* connection);
+void ocio_config_remove_display_view_and_unused_color_space(void* handle, const char* display, const char* view);
+void ocio_config_add_color_space_from_file(void* handle, const char* name, const char* file, const char* categories, const char* connection);
+
+void* ocio_config_merging_parameters_create(void);
+void ocio_config_merging_parameters_destroy(void* handle);
+void* ocio_config_merging_parameters_create_editable_copy(void* handle);
+const char* ocio_config_merging_parameters_get_base_config_name(void* handle);
+void ocio_config_merging_parameters_set_base_config_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_input_config_name(void* handle);
+void ocio_config_merging_parameters_set_input_config_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_output_name(void* handle);
+void ocio_config_merging_parameters_set_output_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_input_family_prefix(void* handle);
+void ocio_config_merging_parameters_set_input_family_prefix(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_base_family_prefix(void* handle);
+void ocio_config_merging_parameters_set_base_family_prefix(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_name(void* handle);
+void ocio_config_merging_parameters_set_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_description(void* handle);
+void ocio_config_merging_parameters_set_description(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_search_path(void* handle);
+void ocio_config_merging_parameters_set_search_path(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_active_displays(void* handle);
+void ocio_config_merging_parameters_set_active_displays(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_active_views(void* handle);
+void ocio_config_merging_parameters_set_active_views(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_inactive_color_spaces(void* handle);
+void ocio_config_merging_parameters_set_inactive_color_spaces(void* handle, const char* value);
+bool ocio_config_merging_parameters_is_input_first(void* handle);
+void ocio_config_merging_parameters_set_input_first(void* handle, bool value);
+bool ocio_config_merging_parameters_is_error_on_conflict(void* handle);
+void ocio_config_merging_parameters_set_error_on_conflict(void* handle, bool value);
+bool ocio_config_merging_parameters_is_avoid_duplicates(void* handle);
+void ocio_config_merging_parameters_set_avoid_duplicates(void* handle, bool value);
+bool ocio_config_merging_parameters_is_adjust_input_reference_space(void* handle);
+void ocio_config_merging_parameters_set_adjust_input_reference_space(void* handle, bool value);
+int ocio_config_merging_parameters_get_default_strategy(void* handle);
+void ocio_config_merging_parameters_set_default_strategy(void* handle, int value);
+int ocio_config_merging_parameters_get_roles(void* handle);
+void ocio_config_merging_parameters_set_roles(void* handle, int value);
+int ocio_config_merging_parameters_get_file_rules(void* handle);
+void ocio_config_merging_parameters_set_file_rules(void* handle, int value);
+int ocio_config_merging_parameters_get_display_views(void* handle);
+void ocio_config_merging_parameters_set_display_views(void* handle, int value);
+int ocio_config_merging_parameters_get_view_transforms(void* handle);
+void ocio_config_merging_parameters_set_view_transforms(void* handle, int value);
+int ocio_config_merging_parameters_get_looks(void* handle);
+void ocio_config_merging_parameters_set_looks(void* handle, int value);
+int ocio_config_merging_parameters_get_color_spaces(void* handle);
+void ocio_config_merging_parameters_set_color_spaces(void* handle, int value);
+int ocio_config_merging_parameters_get_named_transforms(void* handle);
+void ocio_config_merging_parameters_set_named_transforms(void* handle, int value);
+void ocio_config_merging_parameters_add_search_path(void* handle, const char* value);
+void ocio_config_merging_parameters_add_environment_var(void* handle, const char* name, const char* value);
+int ocio_config_merging_parameters_get_num_environment_vars(void* handle);
+const char* ocio_config_merging_parameters_get_environment_var(void* handle, int index);
+const char* ocio_config_merging_parameters_get_environment_var_value(void* handle, int index);
+void* ocio_config_merging_parameters_merge_configs(void* handle, void* base, void* input);
+void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base, void* input);
+
 }  // extern "C"

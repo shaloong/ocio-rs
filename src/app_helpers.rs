@@ -855,6 +855,92 @@ impl Drop for LegacyViewingPipeline {
 }
 
 impl Config {
+    /// Build a display processor with OCIO's dynamic adjustment stages.
+    /// If `context` is absent, use the configuration's current context.
+    pub fn application_display_processor(
+        &self,
+        context: Option<&Context>,
+        working: &CStr,
+        display: &CStr,
+        view: &CStr,
+        channel: Option<&crate::transform::MatrixTransform>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_application_display_processor(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                working.as_ptr(),
+                display.as_ptr(),
+                view.as_ptr(),
+                channel.map_or(std::ptr::null_mut(), TransformHandle::as_ptr),
+                direction as i32,
+            )
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Author a display view and its associated color space from a transform file.
+    pub fn add_display_view_from_file(&mut self, view: DisplayViewFromFile<'_>) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_add_display_view_from_file(
+                self.handle.as_ptr(),
+                view.display.as_ptr(),
+                view.view.as_ptr(),
+                view.looks.as_ptr(),
+                view.color_space.as_ptr(),
+                view.family.as_ptr(),
+                view.description.as_ptr(),
+                view.categories.as_ptr(),
+                view.file.as_ptr(),
+                view.connection_space.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Remove the view, its now-empty display, and its color space if unused.
+    pub fn remove_display_view_and_unused_color_space(
+        &mut self,
+        display: &CStr,
+        view: &CStr,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_remove_display_view_and_unused_color_space(
+                self.handle.as_ptr(),
+                display.as_ptr(),
+                view.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Add a color space using a file transform whose output is the connection space.
+    pub fn add_color_space_from_file(
+        &mut self,
+        name: &CStr,
+        file: &CStr,
+        categories: &CStr,
+        connection_space: &CStr,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_add_color_space_from_file(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                file.as_ptr(),
+                categories.as_ptr(),
+                connection_space.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Create an identity viewing processor with native dynamic adjustment stages.
     pub fn display_view_helper_identity_processor(&self) -> Result<Processor> {
         crate::clear_last_error();
@@ -865,4 +951,26 @@ impl Config {
             handle: crate::handle_result(handle)?,
         })
     }
+}
+
+/** Inputs to the native helper that authors a display view from a transform file. */
+pub struct DisplayViewFromFile<'a> {
+    /// Display name.
+    pub display: &'a CStr,
+    /// View name.
+    pub view: &'a CStr,
+    /// Look definition, or an empty string.
+    pub looks: &'a CStr,
+    /// Name for the new color space.
+    pub color_space: &'a CStr,
+    /// Color-space family, or an empty string.
+    pub family: &'a CStr,
+    /// Color-space description, or an empty string.
+    pub description: &'a CStr,
+    /// Comma-separated categories, or an empty string.
+    pub categories: &'a CStr,
+    /// Transform file path.
+    pub file: &'a CStr,
+    /// Color space expected by the file transform.
+    pub connection_space: &'a CStr,
 }

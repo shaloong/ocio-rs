@@ -81,14 +81,18 @@
 mod app_helpers;
 mod baker;
 pub use app_helpers::{
-    ColorSpaceMenuHelper, ColorSpaceMenuParameters, LegacyViewingPipeline, MixingColorSpaceManager,
-    MixingSlider,
+    ColorSpaceMenuHelper, ColorSpaceMenuParameters, DisplayViewFromFile, LegacyViewingPipeline,
+    MixingColorSpaceManager, MixingSlider,
 };
 mod builtin_config_registry;
 mod builtin_transform_registry;
 mod color_space_set;
 mod colorspace;
 mod config;
+#[cfg(feature = "v2_5")]
+mod config_merging;
+#[cfg(feature = "v2_5")]
+pub use config_merging::{ConfigMergingParameters, MergeStrategy};
 mod config_io_proxy;
 mod context;
 mod file_rules;

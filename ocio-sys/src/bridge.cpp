@@ -15300,4 +15300,753 @@ void* ocio_config_get_display_view_helper_identity_processor(void* handle) {
 #endif
 }
 
+void* ocio_config_get_application_display_processor(void* handle, void* context, const char* working, const char* display, const char* view, void* channel, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)working; (void)display; (void)view; (void)channel; (void)direction;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    ocio::ConstMatrixTransformRcPtr matrix = channel ? ocio_rs_bridge::get_real_matrix_transform(channel) : nullptr;
+    const auto& config = ocio_rs_bridge::get_real_config(handle);
+    const auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto processor = context
+        ? ocio::DisplayViewHelpers::GetProcessor(config, ocio_rs_bridge::get_real_context(context), working, display, view, matrix, dir)
+        : ocio::DisplayViewHelpers::GetProcessor(config, working, display, view, matrix, dir);
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(
+        ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_add_display_view_from_file(void* handle, const char* display, const char* view, const char* looks, const char* space, const char* family, const char* description, const char* categories, const char* file, const char* connection) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view; (void)looks; (void)space; (void)family; (void)description; (void)categories; (void)file; (void)connection;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO");
+  return;
+#else
+  try {
+    auto config = ocio_rs_bridge::get_real_config(handle);
+    ocio::DisplayViewHelpers::AddDisplayView(config, display, view, looks, space, family, description, categories, file, connection);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_config_remove_display_view_and_unused_color_space(void* handle, const char* display, const char* view) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)display; (void)view;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO");
+  return;
+#else
+  try {
+    auto config = ocio_rs_bridge::get_real_config(handle);
+    ocio::DisplayViewHelpers::RemoveDisplayView(config, display, view);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_config_add_color_space_from_file(void* handle, const char* name, const char* file, const char* categories, const char* connection) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)file; (void)categories; (void)connection;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO");
+  return;
+#else
+  try {
+    auto config = ocio_rs_bridge::get_real_config(handle);
+    ocio::ColorSpaceHelpers::AddColorSpace(config, name, file, categories, connection);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+#if !defined(OCIO_RS_STUB) && OCIO_RS_NATIVE_API_HEX >= 0x02050100
+using MergeParams = ocio::ConfigMergingParametersRcPtr;
+static const MergeParams& merge_params(void* handle) {
+  return *static_cast<MergeParams*>(handle);
+}
+#endif
+
+void* ocio_config_merging_parameters_create(void) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return new MergeParams(ocio::ConfigMergingParameters::Create());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_destroy(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    delete static_cast<MergeParams*>(handle);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_config_merging_parameters_create_editable_copy(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return new MergeParams(merge_params(handle)->createEditableCopy());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_base_config_name(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getBaseConfigName();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_base_config_name(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setBaseConfigName(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_input_config_name(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getInputConfigName();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_input_config_name(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setInputConfigName(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_output_name(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getOutputName();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_output_name(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setOutputName(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_input_family_prefix(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getInputFamilyPrefix();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_input_family_prefix(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setInputFamilyPrefix(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_base_family_prefix(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getBaseFamilyPrefix();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_base_family_prefix(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setBaseFamilyPrefix(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_name(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getName();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_name(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setName(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_description(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getDescription();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_description(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setDescription(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_search_path(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getSearchPath();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_search_path(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setSearchPath(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_active_displays(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getActiveDisplays();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_active_displays(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setActiveDisplays(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_active_views(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getActiveViews();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_active_views(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setActiveViews(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_inactive_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getInactiveColorSpaces();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_inactive_color_spaces(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setInactiveColorSpaces(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_config_merging_parameters_is_input_first(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return false;
+#else
+  try {
+    return merge_params(handle)->isInputFirst();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_input_first(void* handle, bool value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setInputFirst(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_config_merging_parameters_is_error_on_conflict(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return false;
+#else
+  try {
+    return merge_params(handle)->isErrorOnConflict();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_error_on_conflict(void* handle, bool value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setErrorOnConflict(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_config_merging_parameters_is_avoid_duplicates(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return false;
+#else
+  try {
+    return merge_params(handle)->isAvoidDuplicates();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_avoid_duplicates(void* handle, bool value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setAvoidDuplicates(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_config_merging_parameters_is_adjust_input_reference_space(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return false;
+#else
+  try {
+    return merge_params(handle)->isAdjustInputReferenceSpace();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_adjust_input_reference_space(void* handle, bool value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setAdjustInputReferenceSpace(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_default_strategy(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getDefaultStrategy());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_default_strategy(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setDefaultStrategy(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_roles(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getRoles());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_roles(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setRoles(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_file_rules(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getFileRules());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_file_rules(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setFileRules(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_display_views(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getDisplayViews());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_display_views(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setDisplayViews(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_view_transforms(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getViewTransforms());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_view_transforms(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setViewTransforms(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_looks(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getLooks());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_looks(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setLooks(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getColorspaces());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_color_spaces(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setColorspaces(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_named_transforms(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return static_cast<int>(merge_params(handle)->getNamedTransforms());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_config_merging_parameters_set_named_transforms(void* handle, int value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->setNamedTransforms(static_cast<ocio::ConfigMergingParameters::MergeStrategies>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_config_merging_parameters_add_search_path(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->addSearchPath(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_config_merging_parameters_add_environment_var(void* handle, const char* name, const char* value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)name; (void)value;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return;
+#else
+  try {
+    merge_params(handle)->addEnvironmentVar(name, value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+int ocio_config_merging_parameters_get_num_environment_vars(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return 0;
+#else
+  try {
+    return merge_params(handle)->getNumEnvironmentVars();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_environment_var(void* handle, int index) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)index;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getEnvironmentVar(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_merging_parameters_get_environment_var_value(void* handle, int index) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)index;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    return merge_params(handle)->getEnvironmentVarValue(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_merging_parameters_merge_configs(void* handle, void* base, void* input) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)base; (void)input;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    auto config = ocio::ConfigMergingHelpers::MergeConfigs(merge_params(handle), ocio_rs_bridge::get_real_config(base), ocio_rs_bridge::get_real_config(input));
+    if (!config) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::move(config)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base, void* input) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)base; (void)input;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    auto config = ocio::ConfigMergingHelpers::MergeColorSpace(merge_params(handle), ocio_rs_bridge::get_real_config(base), ocio_rs_bridge::get_real_color_space(input));
+    if (!config) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::move(config)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
 }  // extern "C"
