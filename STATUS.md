@@ -10,10 +10,8 @@ paths — Config, Context, Processor, CPU/GPU execution, GPU shader
 extraction, dynamic properties, and the full transform family. Fallible safe
 APIs propagate C++ exceptions to Rust `Result` across mutators and an
 expanding set of checked getters; legacy low-level compatibility entry points
-may still use OCIO-style default return values. The remaining work is
-longer-tail behavioral validation, platform coverage, and documentation
-completeness
-rather than missing core binding coverage.
+may still use OCIO-style default return values. A signature-by-signature and
+behavioral audit remains necessary before claiming full-library coverage.
 
 | Mode | Status |
 |---|---|
@@ -84,11 +82,10 @@ runs in each release PR. See [RELEASING.md](docs/RELEASING.md) for the full flow
 - The `0.3.0` release line maintains a practical bar: core OCIO Rust
   bindings are broadly present, bridge-backed, and usable for early adopters,
   while deeper edge-case reliability work continues into follow-up releases.
-- Safe-wrapper parity against the C++ bridge is in place for the OCIO 2.5 API
-  surface exposed by this crate.
-- Run the parity checker with `--check-l3`; its output is the source of truth
-  for counts. One compatibility-only FFI extra (`ocio_error_get_last`) is
-  intentional. Parity establishes coverage, not behavioral equivalence.
+- Run the parity checker with `--check-l3` for name-level checks on its selected
+  classes. Set `OCIO_SOURCE_DIR` to audit a different source tree, such as 2.6.0.
+  The counts do not establish complete class, overload, signature, or behavior
+  coverage. One compatibility-only FFI extra (`ocio_error_get_last`) is intentional.
 - Run `cargo test --workspace --no-default-features` and with `--features v2_5`.
 - Run `cargo test --examples --no-default-features`.
 - Run `cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1`.

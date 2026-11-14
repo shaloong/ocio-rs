@@ -53,6 +53,7 @@ struct L2Missing {
 
 #[derive(Debug)]
 struct L3Result {
+    header_dir: PathBuf,
     total_cpp_methods: usize,
     matched: usize,
     normalized_create_matches: usize,
@@ -863,6 +864,7 @@ fn find_rust_method(
 fn run_l3(
     bridge_funcs: &[CFunc],
     cpp_classes: &HashMap<String, Vec<(String, String)>>,
+    header_dir: &Path,
 ) -> L3Result {
     let bridge_methods: HashMap<String, HashSet<String>> =
         bridge_funcs.iter().fold(HashMap::new(), |mut acc, f| {
@@ -1023,6 +1025,7 @@ fn run_l3(
     }
 
     L3Result {
+        header_dir: header_dir.to_path_buf(),
         total_cpp_methods: total_cpp,
         matched,
         normalized_create_matches,
@@ -1092,9 +1095,11 @@ fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
 
     // L3
     if let Some(l3) = l3 {
-        println!("[L3] OCIO C++ headers <-> bridge.hpp");
-        println!("  C++ methods total: {}", l3.total_cpp_methods);
-        println!("  Bridged: {}/{}", l3.matched, l3.total_cpp_methods);
+        println!("[L3] Selected OCIO C++ class method names <-> bridge.hpp");
+        println!("  Header directory: {}", l3.header_dir.display());
+        println!("  Parsed method names: {}", l3.total_cpp_methods);
+        println!("  Name matches: {}/{}", l3.matched, l3.total_cpp_methods);
+        println!("  Scope: selected classes and names only; signatures, overloads, behavior, and excluded classes are not verified.");
         if l3.normalized_create_matches > 0 {
             println!(
                 "  Includes {} normalized static Create constructor matches",
@@ -1177,7 +1182,7 @@ fn main() {
             );
             process::exit(2);
         }
-        Some(run_l3(&bridge_funcs, &cpp_classes))
+        Some(run_l3(&bridge_funcs, &cpp_classes, &include_dir))
     } else {
         None
     };
@@ -1235,8 +1240,11 @@ fn main() {
             if let Some(ref l3) = l3 {
                 let missing_count: usize = l3.missing.values().map(|v| v.len()).sum();
                 format!(
-                    r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {} }}"#,
-                    l3.total_cpp_methods, l3.matched, missing_count
+                    r#"{{ "total_cpp_methods": {}, "matched": {}, "missing_count": {}, "header_dir": {:?}, "scope": "selected class method names only; signatures, overloads, behavior, and excluded classes are not verified" }}"#,
+                    l3.total_cpp_methods,
+                    l3.matched,
+                    missing_count,
+                    l3.header_dir.to_string_lossy()
                 )
             } else {
                 r#""skipped (use --check-l3)""#.to_string()

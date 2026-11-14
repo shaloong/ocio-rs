@@ -206,7 +206,7 @@ cargo test --workspace --no-default-features
 # Real OCIO mode
 cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
 
-# API parity checker (L1: FFI coverage, L2: wrapper coverage, L3: API diffs)
+# API name checker (L1: FFI names, L2: wrapper names, L3: selected C++ classes)
 cargo run --bin check_parity
 cargo run --bin check_parity -- --check-l3
 
