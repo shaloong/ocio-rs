@@ -715,6 +715,7 @@ typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_te
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
+typedef bool (*ocio_shader_code_callback)(void* context, int section, const char* code, const char** replacement);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
 void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
@@ -725,6 +726,10 @@ void* ocio_gpu_processor_extract_with_resource_callbacks(void* handle, void* tem
 void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
     ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle, void* context);
+void* ocio_gpu_processor_extract_with_hooks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

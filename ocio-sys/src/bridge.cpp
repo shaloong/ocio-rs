@@ -8631,7 +8631,15 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
   ocio_shader_texture_callback texture_callback;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
+  ocio_shader_code_callback code_callback;
   void* context;
+  const char* filterCode(int section, const char* code) {
+    if (!code_callback) return code;
+    const char* replacement = nullptr;
+    if (!code_callback(context, section, code ? code : "", &replacement))
+      throw ocio::Exception("Rust shader code callback failed");
+    return replacement ? replacement : code;
+  }
   void notifyLifecycle(int event, const char* uid = nullptr) {
     if (lifecycle_callback && !lifecycle_callback(context, event, uid))
       throw ocio::Exception("Rust shader lifecycle callback failed");
@@ -8695,12 +8703,23 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
 #endif
 public:
   OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, ocio_shader_texture_callback tex,
-                       ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle, void* ctx)
-      : callback(cb), texture_callback(tex), uniform_callback(uniform), lifecycle_callback(lifecycle), context(ctx) {}
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; context = nullptr; }
+                       ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+                       ocio_shader_code_callback code, void* ctx)
+      : callback(cb), texture_callback(tex), uniform_callback(uniform), lifecycle_callback(lifecycle), code_callback(code), context(ctx) {}
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; context = nullptr; }
   void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { notifyLifecycle(2); ocio::GpuShaderCreator::end(); }
   void finalize() override { ocio::GpuShaderCreator::finalize(); notifyLifecycle(1); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+  void addToParameterDeclareShaderCode(const char* code) override { ocio::GpuShaderCreator::addToParameterDeclareShaderCode(filterCode(1, code)); }
+  void addToTextureDeclareShaderCode(const char* code) override { ocio::GpuShaderCreator::addToTextureDeclareShaderCode(filterCode(2, code)); }
+#else
+  void addToDeclareShaderCode(const char* code) override { ocio::GpuShaderCreator::addToDeclareShaderCode(filterCode(0, code)); }
+#endif
+  void addToHelperShaderCode(const char* code) override { ocio::GpuShaderCreator::addToHelperShaderCode(filterCode(3, code)); }
+  void addToFunctionHeaderShaderCode(const char* code) override { ocio::GpuShaderCreator::addToFunctionHeaderShaderCode(filterCode(4, code)); }
+  void addToFunctionShaderCode(const char* code) override { ocio::GpuShaderCreator::addToFunctionShaderCode(filterCode(5, code)); }
+  void addToFunctionFooterShaderCode(const char* code) override { ocio::GpuShaderCreator::addToFunctionFooterShaderCode(filterCode(6, code)); }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
@@ -8791,18 +8810,19 @@ public:
 };
 #endif
 
-void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
+void* ocio_gpu_processor_extract_with_hooks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
-    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle, void* context) {
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, void* context) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)context;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)context;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
   try {
     if (!handle || !template_desc || !callback) throw std::invalid_argument("invalid shader assembler arguments");
     auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
-    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, context);
+    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, code, context);
     desc->setLanguage(source->getLanguage());
     desc->setFunctionName(source->getFunctionName());
     desc->setPixelName(source->getPixelName());
@@ -8822,6 +8842,11 @@ void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* te
     return out.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
+}
+void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle, void* context) {
+  return ocio_gpu_processor_extract_with_hooks(handle, template_desc, callback, texture, uniform, lifecycle, nullptr, context);
 }
 void* ocio_gpu_processor_extract_with_resource_callbacks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,

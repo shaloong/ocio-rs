@@ -4,7 +4,8 @@ use ocio_rs::transform::{
 };
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
-    GpuTextureDimensions, GpuUniformType, Interpolation, Processor, TransformDirection,
+    GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
+    ShaderExtractionHooks, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -38,6 +39,7 @@ fn validate_case(
     expected_texture: TextureKind,
     tolerance: f32,
     input_override: Option<&[[f32; 4]]>,
+    use_hooks: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let expect_uniform = exposure.is_some();
     let cpu = processor.default_cpu_processor()?;
@@ -46,7 +48,48 @@ fn validate_case(
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
-    gpu.try_extract_shader_info(&mut desc)?;
+    if use_hooks {
+        struct MarkBody {
+            seen: bool,
+            modified_footer: bool,
+        }
+        impl ShaderExtractionHooks for MarkBody {
+            fn code(
+                &mut self,
+                section: ShaderCodeSection,
+                code: &str,
+            ) -> ocio_rs::Result<Option<String>> {
+                if section == ShaderCodeSection::Body {
+                    self.seen = true;
+                    Ok(Some(format!("// GPU validation hook\n{code}")))
+                } else if section == ShaderCodeSection::Footer && code.contains("return outColor;")
+                {
+                    self.modified_footer = true;
+                    Ok(Some(code.replace(
+                        "return outColor;",
+                        "outColor.rgb *= 0.5;\n  return outColor;",
+                    )))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+        let mut hooks = MarkBody {
+            seen: false,
+            modified_footer: false,
+        };
+        desc = gpu.try_extract_with_hooks(&desc, &mut hooks)?;
+        if !hooks.seen
+            || !hooks.modified_footer
+            || !desc
+                .try_shader_text()?
+                .is_some_and(|text| text.contains("// GPU validation hook"))
+        {
+            return Err("shader code hook did not modify generated text".into());
+        }
+    } else {
+        gpu.try_extract_shader_info(&mut desc)?;
+    }
     if let Some(value) = exposure {
         cpu.dynamic_property(DynamicPropertyType::Exposure)?
             .set_double_value(value)?;
@@ -347,6 +390,11 @@ fn validate_case(
         let mut expected = input.to_vec();
         for pixel in &mut expected {
             cpu.apply_rgba(pixel);
+            if use_hooks {
+                for channel in &mut pixel[..3] {
+                    *channel *= 0.5;
+                }
+            }
         }
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         {
@@ -436,6 +484,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::None,
         1e-5,
         None,
+        false,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "matrix with shader hooks",
+        &processor,
+        None,
+        TextureKind::None,
+        1e-5,
+        None,
+        true,
     )?;
     let exposure = ExposureContrastTransform::create()?;
     exposure.set_exposure(1.1);
@@ -450,6 +510,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::None,
         1e-5,
         None,
+        false,
     )?;
     let lut = Lut3DTransform::create_with_grid_size(2)?;
     for r in 0..2 {
@@ -480,6 +541,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::ThreeD,
         5e-3,
         None,
+        false,
     )?;
     lut.try_set_interpolation(Interpolation::Tetrahedral)?;
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
@@ -517,6 +579,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::ThreeD,
         1e-6,
         Some(&tetra_pixels),
+        true,
     )?;
     let lut = Lut1DTransform::create()?;
     lut.set_length(3)?;
@@ -531,6 +594,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::TwoD,
         5e-3,
         None,
+        false,
     )?;
     validate_case(
         &device,
@@ -541,6 +605,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         TextureKind::OneD,
         5e-3,
         None,
+        false,
     )?;
     let hmj = FixedFunctionTransform::create_with_params(
         FixedFunctionStyle::AcesRgbToHmj20,
@@ -578,6 +643,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             TextureKind::None,
             tolerance,
             Some(&pixels),
+            false,
         )?;
     }
     Ok(())

@@ -13,6 +13,9 @@ software and virtual adapters. This is a targeted integration test, not
 comprehensive GPU, texture, language, driver, or color-pipeline coverage.
 It also exercises OCIO 2.6's ACES RGB↔HMJ fixed function in both directions,
 using representative upstream-derived high-light and negative-channel inputs.
+The matrix and tetrahedral cases also run through Rust shader code hooks that
+halve RGB in the generated footer; GPU output is compared with the equivalent
+CPU result, verifying that the rewrite actually affects execution.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support

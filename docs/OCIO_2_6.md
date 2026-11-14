@@ -84,7 +84,8 @@ exposure, linear and tetrahedral 3D LUTs, and 1D LUTs backed by 1D and 2D textur
 on a Vulkan GPU against OCIO CPU output; it also compares RGB↔HMJ forward and
 inverse results for a small set of upstream-derived inputs.
 It does not yet cover the full range of textures or transform surface.
-Custom shader assembly, texture callbacks, uniform registration notifications,
-and creator lifecycle notifications are supported, but they do not
+Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
+registration notifications, and creator lifecycle notifications are supported,
+but they do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers
 cannot yet implement every virtual method or control all resource storage.

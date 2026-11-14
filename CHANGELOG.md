@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Add unified GPU shader hooks for rewriting OCIO code fragments alongside resource and lifecycle callbacks.
+
 - Expose synchronous begin, finalized, and end notifications for custom GPU shader extraction.
 
 - Reduce FFI and shared-ownership overhead on successful F32 RGBA pixel and batch processing; preserve native error propagation.

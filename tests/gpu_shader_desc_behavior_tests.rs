@@ -28,6 +28,138 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_shader_hooks_can_rewrite_sections_and_preserve_cleanup() {
+    use ocio_rs::transform::{GroupTransform, Lut1DTransform};
+    use ocio_rs::{
+        OcioError, ShaderCodeSection, ShaderExtractionHooks, ShaderLifecycle, ShaderTexture,
+        ShaderUniform,
+    };
+    struct Hooks {
+        sections: Vec<ShaderCodeSection>,
+        lifecycle: Vec<&'static str>,
+        textures: usize,
+        uniforms: usize,
+        reject: bool,
+    }
+    impl ShaderExtractionHooks for Hooks {
+        fn lifecycle(&mut self, event: ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+            self.lifecycle.push(match event {
+                ShaderLifecycle::Begin { .. } => "begin",
+                ShaderLifecycle::Finalized => "finalized",
+                ShaderLifecycle::End => "end",
+            });
+            Ok(())
+        }
+        fn texture(&mut self, _: ShaderTexture<'_>) -> ocio_rs::Result<Option<u32>> {
+            self.textures += 1;
+            Ok(None)
+        }
+        fn uniform(&mut self, _: ShaderUniform<'_>) -> ocio_rs::Result<()> {
+            self.uniforms += 1;
+            Ok(())
+        }
+        fn code(
+            &mut self,
+            section: ShaderCodeSection,
+            code: &str,
+        ) -> ocio_rs::Result<Option<String>> {
+            self.sections.push(section);
+            if section == ShaderCodeSection::Body {
+                if self.reject {
+                    return Err(OcioError::InvalidInput("rejected shader code".into()));
+                }
+                return Ok(Some(format!("// Rust code hook\n{code}")));
+            }
+            Ok(None)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let group = GroupTransform::create().unwrap();
+    let lut = Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    group.append_transform(&lut).unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.make_exposure_dynamic();
+    group.append_transform(&exposure).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut hooks = Hooks {
+        sections: vec![],
+        lifecycle: vec![],
+        textures: 0,
+        uniforms: 0,
+        reject: false,
+    };
+    let desc = gpu.try_extract_with_hooks(&template, &mut hooks).unwrap();
+    assert!(desc.shader_text().unwrap().contains("// Rust code hook"));
+    assert!(hooks.sections.contains(&ShaderCodeSection::Body));
+    assert!(hooks.sections.contains(&ShaderCodeSection::Header));
+    assert!(hooks.sections.contains(&ShaderCodeSection::Footer));
+    if ocio_rs::version_hex() < 0x0205_0000 {
+        assert!(hooks.sections.contains(&ShaderCodeSection::Declarations));
+    } else {
+        assert!(hooks.sections.contains(&ShaderCodeSection::Textures));
+        assert!(hooks.sections.contains(&ShaderCodeSection::Parameters));
+    }
+    assert!(hooks.textures > 0 && hooks.uniforms > 0);
+    assert_eq!(hooks.lifecycle, ["begin", "finalized", "end"]);
+    let mut reject = Hooks {
+        sections: vec![],
+        lifecycle: vec![],
+        textures: 0,
+        uniforms: 0,
+        reject: true,
+    };
+    let result = gpu.try_extract_with_hooks(&template, &mut reject);
+    assert!(matches!(result, Err(OcioError::InvalidInput(ref e)) if e == "rejected shader code"));
+    assert_eq!(reject.lifecycle, ["begin", "end"]);
+    struct InvalidCode {
+        panic: bool,
+        ended: bool,
+    }
+    impl ShaderExtractionHooks for InvalidCode {
+        fn lifecycle(&mut self, event: ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+            if event == ShaderLifecycle::End {
+                self.ended = true;
+            }
+            Ok(())
+        }
+        fn code(&mut self, section: ShaderCodeSection, _: &str) -> ocio_rs::Result<Option<String>> {
+            if section != ShaderCodeSection::Body {
+                return Ok(None);
+            }
+            if self.panic {
+                panic!("intentional shader code panic");
+            }
+            Ok(Some("bad\0code".into()))
+        }
+    }
+    for panic in [false, true] {
+        let mut invalid = InvalidCode {
+            panic,
+            ended: false,
+        };
+        let result = gpu.try_extract_with_hooks(&template, &mut invalid);
+        if panic {
+            assert!(
+                matches!(result, Err(OcioError::InvalidInput(ref e)) if e.contains("panicked"))
+            );
+        } else {
+            assert!(matches!(result, Err(OcioError::InteriorNul)));
+        }
+        assert!(invalid.ended);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_shader_lifecycle_preserves_order_and_first_error() {
     use ocio_rs::ShaderLifecycle;
     use std::cell::RefCell;

@@ -1947,6 +1947,76 @@ pub enum ShaderLifecycle<'a> {
     End,
 }
 
+/// Native shader code section currently being appended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderCodeSection {
+    /// Combined parameter and texture declarations on OCIO 2.4.
+    Declarations,
+    /// Parameter declarations on OCIO 2.5 and newer.
+    Parameters,
+    /// Texture declarations on OCIO 2.5 and newer.
+    Textures,
+    /// Helper function definitions.
+    Helpers,
+    /// Function opening code.
+    Header,
+    /// Function body code.
+    Body,
+    /// Function closing code.
+    Footer,
+}
+
+/// Synchronous customization hooks for OCIO shader extraction.
+///
+/// Defaults retain OCIO's resource handling and forward individual code
+/// fragments. Default assembly concatenates the supplied sections and may need
+/// a language-specific wrapper (such as a Vulkan uniform block).
+/// Implementations may override selected callbacks; they must not reenter
+/// extraction on the same processor. Callbacks must not retain borrowed inputs.
+///
+/// ```no_run
+/// # use ocio_rs::{GPUProcessor, GpuShaderDesc, Result, ShaderCodeSection, ShaderExtractionHooks};
+/// struct MarkBody;
+/// impl ShaderExtractionHooks for MarkBody {
+///     fn code(&mut self, section: ShaderCodeSection, code: &str) -> Result<Option<String>> {
+///         if section == ShaderCodeSection::Body {
+///             Ok(Some(format!("// application hook\n{code}")))
+///         } else {
+///             Ok(None)
+///         }
+///     }
+/// }
+/// # fn extract(gpu: &GPUProcessor, template: &GpuShaderDesc) -> Result<()> {
+/// let desc = gpu.try_extract_with_hooks(template, &mut MarkBody)?;
+/// # let _ = desc;
+/// # Ok(()) }
+/// ```
+pub trait ShaderExtractionHooks {
+    /// Inspect a lifecycle event.
+    fn lifecycle(&mut self, _event: ShaderLifecycle<'_>) -> Result<()> {
+        Ok(())
+    }
+    /// Inspect a texture and optionally override its binding on OCIO 2.5+.
+    fn texture(&mut self, _texture: ShaderTexture<'_>) -> Result<Option<u32>> {
+        Ok(None)
+    }
+    /// Inspect a registered uniform.
+    fn uniform(&mut self, _uniform: ShaderUniform<'_>) -> Result<()> {
+        Ok(())
+    }
+    /// Return replacement code, or `None` to forward the original without copying.
+    fn code(&mut self, _section: ShaderCodeSection, _code: &str) -> Result<Option<String>> {
+        Ok(None)
+    }
+    /// Assemble the final shader. Vulkan users may need a uniform-buffer wrapper.
+    fn assemble(&mut self, parts: ShaderSections<'_>) -> Result<String> {
+        Ok(format!(
+            "{}{}{}{}{}{}",
+            parts.parameters, parts.textures, parts.helpers, parts.header, parts.body, parts.footer
+        ))
+    }
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GPUProcessor {}
@@ -1991,6 +2061,8 @@ impl GPUProcessor {
             false,
             &mut |_| Ok(()),
             false,
+            &mut |_, _| Ok(None),
+            false,
         )
     }
 
@@ -2033,6 +2105,8 @@ impl GPUProcessor {
             &mut |_| Ok(()),
             false,
             &mut |_| Ok(()),
+            false,
+            &mut |_, _| Ok(None),
             false,
         )
     }
@@ -2077,6 +2151,8 @@ impl GPUProcessor {
             &mut uniform,
             true,
             &mut |_| Ok(()),
+            false,
+            &mut |_, _| Ok(None),
             false,
         )
     }
@@ -2125,6 +2201,33 @@ impl GPUProcessor {
             true,
             &mut lifecycle,
             true,
+            &mut |_, _| Ok(None),
+            false,
+        )
+    }
+
+    /// Extract using a single hooks object for code, resources, and lifecycle.
+    ///
+    /// Events are synchronous; callback errors and panics abort extraction and
+    /// any already-created external resources remain the caller's responsibility.
+    /// On OCIO 2.4 declaration events are combined into `Declarations`.
+    pub fn try_extract_with_hooks<H: ShaderExtractionHooks>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+    ) -> Result<GpuShaderDesc> {
+        let hooks = std::cell::RefCell::new(hooks);
+        self.try_extract_with_callbacks(
+            template,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |texture| hooks.borrow_mut().texture(texture),
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
         )
     }
 
@@ -2139,6 +2242,8 @@ impl GPUProcessor {
         notify_uniform: bool,
         lifecycle: &mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
         notify_lifecycle: bool,
+        code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
+        notify_code: bool,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -2149,8 +2254,72 @@ impl GPUProcessor {
             texture: &'a mut G,
             uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
             lifecycle: &'a mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
+            code: &'a mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
             output: Option<std::ffi::CString>,
+            code_output: Option<std::ffi::CString>,
             error: Option<OcioError>,
+        }
+        unsafe extern "C" fn code_callback<F, G>(
+            context: *mut c_void,
+            section: i32,
+            code: *const i8,
+            replacement: *mut *const i8,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<Option<std::ffi::CString>> {
+                    let section = match section {
+                        0 => ShaderCodeSection::Declarations,
+                        1 => ShaderCodeSection::Parameters,
+                        2 => ShaderCodeSection::Textures,
+                        3 => ShaderCodeSection::Helpers,
+                        4 => ShaderCodeSection::Header,
+                        5 => ShaderCodeSection::Body,
+                        6 => ShaderCodeSection::Footer,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "invalid shader code section".into(),
+                            ))
+                        }
+                    };
+                    if code.is_null() || replacement.is_null() {
+                        return Err(OcioError::InvalidInput("null shader code event".into()));
+                    }
+                    let code = unsafe { std::ffi::CStr::from_ptr(code) }
+                        .to_str()
+                        .map_err(|_| OcioError::InvalidInput("shader code is not UTF-8".into()))?;
+                    (state.code)(section, code)?
+                        .map(std::ffi::CString::new)
+                        .transpose()
+                        .map_err(|_| OcioError::InteriorNul)
+                },
+            ));
+            match result {
+                Ok(Ok(value)) => {
+                    state.code_output = value;
+                    unsafe {
+                        *replacement = state
+                            .code_output
+                            .as_ref()
+                            .map_or(std::ptr::null(), |s| s.as_ptr());
+                    }
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("shader code callback panicked".into())
+                    });
+                    false
+                }
+            }
         }
         unsafe extern "C" fn lifecycle_callback<F, G>(
             context: *mut c_void,
@@ -2385,19 +2554,22 @@ impl GPUProcessor {
             texture: &mut texture,
             uniform,
             lifecycle,
+            code,
             output: None,
+            code_output: None,
             error: None,
         };
         crate::clear_last_error();
         let ptr = unsafe {
             let context = (&mut state as *mut State<'_, F, G>).cast();
-            ocio_sys::ocio_gpu_processor_extract_with_lifecycle_callbacks(
+            ocio_sys::ocio_gpu_processor_extract_with_hooks(
                 self.handle.as_ptr(),
                 template.handle.as_ptr(),
                 callback::<F, G>,
                 notify_texture.then_some(texture_callback::<F, G>),
                 notify_uniform.then_some(uniform_callback::<F, G>),
                 notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                notify_code.then_some(code_callback::<F, G>),
                 context,
             )
         };
