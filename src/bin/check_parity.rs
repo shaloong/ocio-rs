@@ -744,6 +744,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("add_texture", "add_texture_2d"),
         ("add3d_texture", "add_texture_3d"),
         ("add_uniform_double", "add_uniform_f64"),
+        ("copy_uniform_f32_values_with_count", "try_uniform"),
+        ("copy_uniform_i32_values_with_count", "try_uniform"),
         ("add_uniform_double_getter", "add_uniform_f64_getter"),
         ("add_uniform_vector_float", "add_uniform_f32_array"),
         (

@@ -1373,6 +1373,49 @@ fn rust_uniform_array_getters_refresh_and_validate_snapshots() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn structured_uniform_uses_actual_dynamic_array_snapshot_length() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    let shrinking = AtomicUsize::new(0);
+    assert!(desc
+        .add_uniform_f32_array_getter("shrinking", 3, move |out| {
+            out.copy_from_slice(&[1.0, 2.0, 3.0]);
+            if shrinking.fetch_add(1, Ordering::Relaxed) == 0 {
+                3
+            } else {
+                1
+            }
+        })
+        .unwrap());
+    let growing = AtomicUsize::new(0);
+    assert!(desc
+        .add_uniform_i32_array_getter("growing", 3, move |out| {
+            out.copy_from_slice(&[4, 5, 6]);
+            if growing.fetch_add(1, Ordering::Relaxed) == 0 {
+                1
+            } else {
+                3
+            }
+        })
+        .unwrap());
+    let one = desc.try_uniform(0).unwrap().unwrap();
+    assert_eq!(one.value_count, 1);
+    assert!(matches!(one.value, GpuUniformValue::F32(ref v) if v == &[1.0]));
+    let three = desc.try_uniform(1).unwrap().unwrap();
+    assert_eq!(three.value_count, 3);
+    assert!(matches!(three.value, GpuUniformValue::I32(ref v) if v == &[4, 5, 6]));
+    let increasing = AtomicUsize::new(0);
+    assert!(desc
+        .add_uniform_f32_array_getter("increasing", 4, move |_| {
+            increasing.fetch_add(1, Ordering::Relaxed) + 1
+        })
+        .unwrap());
+    assert!(desc.try_uniform(2).is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn uniform_array_sys_rejects_unrepresentable_lengths_and_accepts_empty() {
     let _guard = gpu_shader_desc_test_lock();
     let name = CString::new("empty").unwrap();

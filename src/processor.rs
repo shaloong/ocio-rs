@@ -3574,6 +3574,8 @@ impl GpuShaderDesc {
     /// OCIO did not report a usable uniform without raising an error. A uniform
     /// with a payload that OCIO cannot expose through this ABI is returned with
     /// [`GpuUniformValue::Unsupported`].
+    /// Dynamic arrays are sampled with their actual copied length. If an array
+    /// repeatedly outgrows the buffer during sampling, an error is returned.
     pub fn try_uniform(&self, index: u32) -> Result<Option<GpuUniform>> {
         let mut info = ocio_sys::OcioGpuUniformInfo {
             name: std::ptr::null(),
@@ -3594,17 +3596,37 @@ impl GpuShaderDesc {
         let value = match uniform_type {
             GpuUniformType::VectorInt => {
                 let mut values = vec![0i32; info.value_count];
-                crate::clear_last_error();
-                let ok = unsafe {
-                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
-                        self.handle.as_ptr(),
-                        index,
-                        values.as_mut_ptr(),
-                        values.len(),
-                    )
-                };
-                crate::ocio_call_status()?;
-                if ok {
+                let mut copied = false;
+                for attempt in 0..3 {
+                    let mut actual = 0;
+                    crate::clear_last_error();
+                    let ok = unsafe {
+                        ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(
+                            self.handle.as_ptr(),
+                            index,
+                            values.as_mut_ptr(),
+                            values.len(),
+                            &mut actual,
+                        )
+                    };
+                    crate::ocio_call_status()?;
+                    if ok {
+                        values.truncate(actual);
+                        info.value_count = actual;
+                        copied = true;
+                        break;
+                    }
+                    if actual <= values.len() {
+                        break;
+                    }
+                    if attempt == 2 {
+                        return Err(OcioError::ValidationFailed(
+                            "uniform array kept growing while sampled".into(),
+                        ));
+                    }
+                    values.resize(actual, 0);
+                }
+                if copied {
                     GpuUniformValue::I32(values)
                 } else {
                     GpuUniformValue::Unsupported
@@ -3613,17 +3635,37 @@ impl GpuShaderDesc {
             GpuUniformType::Unknown => GpuUniformValue::Unsupported,
             _ => {
                 let mut values = vec![0.0f32; info.value_count];
-                crate::clear_last_error();
-                let ok = unsafe {
-                    ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
-                        self.handle.as_ptr(),
-                        index,
-                        values.as_mut_ptr(),
-                        values.len(),
-                    )
-                };
-                crate::ocio_call_status()?;
-                if ok {
+                let mut copied = false;
+                for attempt in 0..3 {
+                    let mut actual = 0;
+                    crate::clear_last_error();
+                    let ok = unsafe {
+                        ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(
+                            self.handle.as_ptr(),
+                            index,
+                            values.as_mut_ptr(),
+                            values.len(),
+                            &mut actual,
+                        )
+                    };
+                    crate::ocio_call_status()?;
+                    if ok {
+                        values.truncate(actual);
+                        info.value_count = actual;
+                        copied = true;
+                        break;
+                    }
+                    if actual <= values.len() {
+                        break;
+                    }
+                    if attempt == 2 {
+                        return Err(OcioError::ValidationFailed(
+                            "uniform array kept growing while sampled".into(),
+                        ));
+                    }
+                    values.resize(actual, 0.0);
+                }
+                if copied {
                     GpuUniformValue::F32(values)
                 } else {
                     GpuUniformValue::Unsupported

@@ -7768,10 +7768,18 @@ bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpu
         out->value_count = 3;
         break;
       case ocio::UNIFORM_VECTOR_FLOAT:
-        out->value_count = data.m_vectorFloat.m_getSize ? static_cast<size_t>(data.m_vectorFloat.m_getSize()) : 0;
+        if (data.m_vectorFloat.m_getSize) {
+          const auto count = data.m_vectorFloat.m_getSize();
+          if (count < 0) throw ocio::Exception("Negative uniform array length");
+          out->value_count = static_cast<size_t>(count);
+        }
         break;
       case ocio::UNIFORM_VECTOR_INT:
-        out->value_count = data.m_vectorInt.m_getSize ? static_cast<size_t>(data.m_vectorInt.m_getSize()) : 0;
+        if (data.m_vectorInt.m_getSize) {
+          const auto count = data.m_vectorInt.m_getSize();
+          if (count < 0) throw ocio::Exception("Negative uniform array length");
+          out->value_count = static_cast<size_t>(count);
+        }
         break;
       default:
         out->value_count = 0;
@@ -7787,9 +7795,9 @@ size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index
   return ocio_gpu_shader_desc_get_uniform_info(handle, index, &info) ? info.value_count : 0;
 }
 
-bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len) {
+bool ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(void* handle, unsigned index, float* values, size_t len, size_t* actual) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)index; (void)values; (void)len;
+  (void)handle; (void)index; (void)values; (void)len; (void)actual;
   return false;
 #else
   try {
@@ -7799,14 +7807,17 @@ bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, 
     if (!name) return false;
     switch (data.m_type) {
       case ocio::UNIFORM_DOUBLE:
+        if (actual) *actual = 1;
         if (len < 1 || !data.m_getDouble) return false;
         values[0] = static_cast<float>(data.m_getDouble());
         return true;
       case ocio::UNIFORM_BOOL:
+        if (actual) *actual = 1;
         if (len < 1 || !data.m_getBool) return false;
         values[0] = data.m_getBool() ? 1.0f : 0.0f;
         return true;
       case ocio::UNIFORM_FLOAT3: {
+        if (actual) *actual = 3;
         if (len < 3 || !data.m_getFloat3) return false;
         const auto& rgb = data.m_getFloat3();
         values[0] = rgb[0];
@@ -7816,7 +7827,10 @@ bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, 
       }
       case ocio::UNIFORM_VECTOR_FLOAT: {
         if (!data.m_vectorFloat.m_getSize || !data.m_vectorFloat.m_getVector) return false;
-        const size_t count = static_cast<size_t>(data.m_vectorFloat.m_getSize());
+        const auto native_count = data.m_vectorFloat.m_getSize();
+        if (native_count < 0) throw ocio::Exception("Negative uniform array length");
+        const size_t count = static_cast<size_t>(native_count);
+        if (actual) *actual = count;
         if (len < count) return false;
         const float* src = data.m_vectorFloat.m_getVector();
         if (!src && count > 0) return false;
@@ -7830,9 +7844,13 @@ bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, 
 #endif
 }
 
-bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len) {
+bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len) {
+  return ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(handle, index, values, len, nullptr);
+}
+
+bool ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(void* handle, unsigned index, int* values, size_t len, size_t* actual) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)index; (void)values; (void)len;
+  (void)handle; (void)index; (void)values; (void)len; (void)actual;
   return false;
 #else
   try {
@@ -7841,7 +7859,10 @@ bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, 
     const char* name = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
     if (!name || data.m_type != ocio::UNIFORM_VECTOR_INT) return false;
     if (!data.m_vectorInt.m_getSize || !data.m_vectorInt.m_getVector) return false;
-    const size_t count = static_cast<size_t>(data.m_vectorInt.m_getSize());
+    const auto native_count = data.m_vectorInt.m_getSize();
+    if (native_count < 0) throw ocio::Exception("Negative uniform array length");
+    const size_t count = static_cast<size_t>(native_count);
+    if (actual) *actual = count;
     if (len < count) return false;
     const int* src = data.m_vectorInt.m_getVector();
     if (!src && count > 0) return false;
@@ -7849,6 +7870,10 @@ bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, 
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
+}
+
+bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len) {
+  return ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(handle, index, values, len, nullptr);
 }
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
