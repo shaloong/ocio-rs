@@ -1723,8 +1723,117 @@ void* ocio_get_current_config(void) {
     auto cfg = ocio::GetCurrentConfig();
     if (!cfg) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
-    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::const_pointer_cast<ocio::Config>(cfg)});
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{cfg->createEditableCopy()});
     return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_get_const_current_config(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  try {
+    auto cfg = ocio::GetCurrentConfig();
+    return cfg ? new ocio::ConstConfigRcPtr(std::move(cfg)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_config_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  delete static_cast<ocio::ConstConfigRcPtr*>(handle);
+#endif
+}
+void* ocio_const_config_editable_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native config required"); return nullptr;
+#else
+  try {
+    auto cfg = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->createEditableCopy();
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{cfg});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+const char* ocio_const_config_text(void* handle, int field) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; return nullptr;
+#else
+  try {
+    auto& cfg = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    switch (field) {
+      case 0: return cfg->getName();
+      case 1: return cfg->getCacheID();
+      case 2: return cfg->getDescription();
+      case 3: return cfg->getDefaultDisplay();
+      default: throw std::invalid_argument("invalid config text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_color_space(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; return nullptr;
+#else
+  try {
+    auto p = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->getColorSpace(name);
+    return p ? new ocio::ConstColorSpaceRcPtr(std::move(p)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_context(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; return nullptr;
+#else
+  try {
+    auto p = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->getCurrentContext();
+    return p ? new ocio::ConstContextRcPtr(std::move(p)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_named_item(void* handle, const char* name, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)kind; return nullptr;
+#else
+  try {
+    auto& cfg = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    switch (kind) {
+      case 0: { auto p = cfg->getLook(name); return p ? new ocio::ConstLookRcPtr(std::move(p)) : nullptr; }
+      case 1: { auto p = cfg->getNamedTransform(name); return p ? new ocio::ConstNamedTransformRcPtr(std::move(p)) : nullptr; }
+      case 2: { auto p = cfg->getViewTransform(name); return p ? new ocio::ConstViewTransformRcPtr(std::move(p)) : nullptr; }
+      case 3: { auto p = cfg->getDefaultSceneToDisplayViewTransform(); return p ? new ocio::ConstViewTransformRcPtr(std::move(p)) : nullptr; }
+      default: throw std::invalid_argument("invalid const config item kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_rules(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; return nullptr;
+#else
+  try {
+    auto& cfg = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    switch (kind) {
+      case 0: { auto p = cfg->getFileRules(); return p ? new ocio::ConstFileRulesRcPtr(std::move(p)) : nullptr; }
+      case 1: { auto p = cfg->getViewingRules(); return p ? new ocio::ConstViewingRulesRcPtr(std::move(p)) : nullptr; }
+      default: throw std::invalid_argument("invalid rules kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_processor(void* handle, const char* source, const char* destination) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)source; (void)destination; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    auto p = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->getProcessor(source, destination);
+    if (!p) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
+    return out.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }

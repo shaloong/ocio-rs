@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Access the process-global current config as a shared immutable native object,
+  including direct processor, color-space and context queries.
 - Inspect shared look, named-transform and view-transform metadata without
   cloning the object; resolve named transforms using native inverse fallback.
 - Share and query native file rules and viewing rules without cloning them;
@@ -78,6 +80,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- `current_config` now returns an independent editable copy rather than a
+  mutable alias of OCIO's process-global const config. Install edited copies
+  explicitly; this changes the prior mutation behavior.
 - Config file-rules and viewing-rules getters now return independent editable
   copies, rather than mutable aliases of OCIO-owned const rules. Reattach edits
   to apply them; this changes the prior mutation behavior.

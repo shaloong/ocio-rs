@@ -239,6 +239,43 @@ fn lookup(config: *mut c_void, name: Option<&CStr>, kind: i32) -> Result<Option<
     }))
 }
 
+fn lookup_const(config: *mut c_void, name: Option<&CStr>, kind: i32) -> Result<Option<Item>> {
+    crate::clear_last_error();
+    let handle = unsafe {
+        ocio_sys::ocio_const_config_get_named_item(
+            config,
+            name.map_or(std::ptr::null(), CStr::as_ptr),
+            kind,
+        )
+    };
+    crate::ocio_call_status()?;
+    Ok(NonNull::new(handle).map(|handle| Item {
+        handle,
+        kind: if kind == 3 { 2 } else { kind },
+    }))
+}
+
+impl crate::ConstConfig {
+    /// Share a native look without making an editable copy.
+    pub fn try_const_look(&self, name: &CStr) -> Result<Option<ConstLook>> {
+        Ok(lookup_const(self.handle.as_ptr(), Some(name), 0)?.map(ConstLook))
+    }
+    /// Share a native named transform without making an editable copy.
+    pub fn try_const_named_transform(&self, name: &CStr) -> Result<Option<ConstNamedTransform>> {
+        Ok(lookup_const(self.handle.as_ptr(), Some(name), 1)?.map(ConstNamedTransform))
+    }
+    /// Share a native view transform without making an editable copy.
+    pub fn try_const_view_transform(&self, name: &CStr) -> Result<Option<ConstViewTransform>> {
+        Ok(lookup_const(self.handle.as_ptr(), Some(name), 2)?.map(ConstViewTransform))
+    }
+    /// Share the default scene-to-display view transform.
+    pub fn try_const_default_scene_to_display_view_transform(
+        &self,
+    ) -> Result<Option<ConstViewTransform>> {
+        Ok(lookup_const(self.handle.as_ptr(), None, 3)?.map(ConstViewTransform))
+    }
+}
+
 impl Config {
     /// Share a named native look without making an editable copy.
     pub fn try_const_look(&self, name: &CStr) -> Result<Option<ConstLook>> {

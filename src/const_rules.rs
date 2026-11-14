@@ -144,3 +144,20 @@ impl Config {
         Ok(lookup(self.handle.as_ptr(), 1)?.map(ConstViewingRules))
     }
 }
+
+impl crate::ConstConfig {
+    /// Share native file rules without copying them.
+    pub fn try_const_file_rules(&self) -> Result<Option<ConstFileRules>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_config_get_rules(self.handle.as_ptr(), 0) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(ptr).map(|handle| ConstFileRules(Rules { handle, kind: 0 })))
+    }
+    /// Share native viewing rules without copying them.
+    pub fn try_const_viewing_rules(&self) -> Result<Option<ConstViewingRules>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_config_get_rules(self.handle.as_ptr(), 1) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(ptr).map(|handle| ConstViewingRules(Rules { handle, kind: 1 })))
+    }
+}

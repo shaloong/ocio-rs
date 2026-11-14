@@ -139,6 +139,10 @@ processor creation. Reassign editable copies to their parent to apply changes.
 `try_const_current_context` for a shared read-only context; context text queries
 return owned strings because the configuration can change the underlying state.
 
+The process-global `current_config` getter now returns an independent editable
+copy. Use `try_const_current_config` for a shared read-only native snapshot,
+and explicitly install an edited copy with `try_set_current_config`.
+
 Config look, named-transform and view-transform getters return independent
 editable copies. Register edits back into the config. For shared read-only
 objects, use `try_const_look`, `try_const_named_transform`, or

@@ -45,6 +45,78 @@ pub struct Config {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared immutable native configuration, independent of later global replacement.
+pub struct ConstConfig {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstConfig {
+    fn text(&self, field: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_config_text(self.handle.as_ptr(), field) };
+        let text = unsafe { cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Config name as owned text.
+    pub fn name(&self) -> Result<Option<String>> {
+        self.text(0)
+    }
+    /// Native cache identifier as owned text.
+    pub fn cache_id(&self) -> Result<Option<String>> {
+        self.text(1)
+    }
+    /// Config description as owned text.
+    pub fn description(&self) -> Result<Option<String>> {
+        self.text(2)
+    }
+    /// Default display name as owned text.
+    pub fn default_display(&self) -> Result<Option<String>> {
+        self.text(3)
+    }
+    /// Create a fully independent editable copy.
+    pub fn create_editable_copy(&self) -> Result<Config> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_config_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Config { handle })
+    }
+    /// Share an immutable color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: &std::ffi::CStr,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_color_space(self.handle.as_ptr(), name.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+    /// Share the native current context without copying it.
+    pub fn try_const_current_context(&self) -> Result<Option<crate::ConstContext>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_config_get_context(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstContext { handle }))
+    }
+    /// Create a processor from native C-string color-space names.
+    pub fn processor(&self, src: &std::ffi::CStr, dst: &std::ffi::CStr) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor(
+                self.handle.as_ptr(),
+                src.as_ptr(),
+                dst.as_ptr(),
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+}
+impl Drop for ConstConfig {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_config_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl Config {
     fn processor_handle_result(handle: *mut c_void) -> Result<Processor> {
         crate::handle_result(handle).map(|handle| Processor { handle })

@@ -122,7 +122,7 @@ pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
 pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
-pub use config::Config;
+pub use config::{Config, ConstConfig};
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
 pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
 pub use const_rules::{ConstFileRules, ConstViewingRules};
@@ -266,8 +266,7 @@ pub fn is_stub_build() -> bool {
 
 /// Returns the process-global current OCIO config, if one is installed.
 ///
-/// The returned handle follows OCIO's shared ownership semantics and can be
-/// queried or copied like any other `Config`. This compatibility helper
+/// The returned config is an independent editable copy. This compatibility helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
@@ -288,6 +287,15 @@ pub fn try_current_config() -> Result<Option<Config>> {
     let handle = unsafe { ocio_sys::ocio_get_current_config() };
     ocio_call_status()?;
     Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
+}
+
+/// Share the native process-global current config without making an editable copy.
+/// The returned snapshot stays alive if another config is subsequently installed.
+pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
+    clear_last_error();
+    let handle = unsafe { ocio_sys::ocio_get_const_current_config() };
+    ocio_call_status()?;
+    Ok(std::ptr::NonNull::new(handle).map(|handle| ConstConfig { handle }))
 }
 
 #[deprecated(since = "0.2.0", note = "compat alias; prefer current_config()")]

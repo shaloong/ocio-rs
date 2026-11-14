@@ -130,6 +130,15 @@ bool ocio_is_env_variable_present(const char* name);
 
 // --- Global config ---
 void* ocio_get_current_config(void);
+void* ocio_get_const_current_config(void);
+void ocio_const_config_destroy(void* handle);
+void* ocio_const_config_editable_copy(void* handle);
+const char* ocio_const_config_text(void* handle, int field);
+void* ocio_const_config_get_color_space(void* handle, const char* name);
+void* ocio_const_config_get_context(void* handle);
+void* ocio_const_config_get_named_item(void* handle, const char* name, int kind);
+void* ocio_const_config_get_rules(void* handle, int kind);
+void* ocio_const_config_get_processor(void* handle, const char* source, const char* destination);
 void ocio_set_current_config(void* config);
 void ocio_clear_all_caches(void);
 
