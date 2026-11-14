@@ -54,6 +54,84 @@ fn config_processor_from_configs_with_interchange_rejects_empty_interchange_beha
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cross_config_processors_apply_explicit_interchange_and_contexts() {
+    use ocio_rs::transform::MatrixTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, Config};
+    let _guard = config_test_lock();
+    let src = Config::create().unwrap();
+    let dst = Config::create().unwrap();
+    for (config, reference_name, color_name, factor, direction) in [
+        (
+            &src,
+            "src_reference",
+            "input",
+            2.0,
+            ColorSpaceDirection::ToReference,
+        ),
+        (
+            &dst,
+            "dst_reference",
+            "output",
+            3.0,
+            ColorSpaceDirection::FromReference,
+        ),
+    ] {
+        let reference = ColorSpace::create().unwrap();
+        reference.set_name(reference_name).unwrap();
+        config.try_add_color_space(&reference).unwrap();
+        config.set_role("aces_interchange", reference_name).unwrap();
+        let color = ColorSpace::create().unwrap();
+        color.set_name(color_name).unwrap();
+        color
+            .try_set_transform(
+                &MatrixTransform::scale(&[factor, factor, factor, 1.0]).unwrap(),
+                direction,
+            )
+            .unwrap();
+        config.try_add_color_space(&color).unwrap();
+    }
+    let src_ctx = src.current_context().unwrap();
+    let dst_ctx = dst.current_context().unwrap();
+    let processors = [
+        Config::processor_from_configs(&src, "input", &dst, "output").unwrap(),
+        src.processor_from_configs_with_contexts(&src_ctx, &src, "input", &dst_ctx, &dst, "output")
+            .unwrap(),
+        src.processor_from_configs_with_interchange(
+            &src,
+            "input",
+            "src_reference",
+            &dst,
+            "output",
+            "dst_reference",
+        )
+        .unwrap(),
+        src.processor_from_configs_with_contexts_and_interchange(
+            &src_ctx,
+            &src,
+            "input",
+            "src_reference",
+            &dst_ctx,
+            &dst,
+            "output",
+            "dst_reference",
+        )
+        .unwrap(),
+    ];
+    for processor in processors {
+        let mut pixel = [0.1, 0.2, 0.3, 1.0];
+        processor
+            .optimized_cpu_processor(0)
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        for (actual, expected) in pixel.into_iter().zip([0.6, 1.2, 1.8, 1.0]) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
 {
     let _guard = config_test_lock();
