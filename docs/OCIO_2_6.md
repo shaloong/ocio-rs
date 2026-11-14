@@ -1,5 +1,8 @@
 # OpenColorIO 2.6 compatibility audit
 
+See [the full-coverage plan](OCIO_2_6_PLAN.md) for remaining work, validation
+tiers, and the criteria for claiming completeness.
+
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the
 default vendored version or the Rust ABI values of existing enums.

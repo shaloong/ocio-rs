@@ -24,7 +24,8 @@ behavioral audit remains necessary before claiming full-library coverage.
 | Stub tests + examples | **Automatic** on every push/PR (Linux, macOS, Windows) |
 | Stub audit (fmt, clippy, docs, parity, packaging) | **Automatic** on every push/PR (Ubuntu) |
 | Installed OpenColorIO 2.4.x | **Automatic** Fedora 43 job on pushes/PRs |
-| OpenColorIO 2.6.0, all interface levels and installed library | **PRs**, weekly and manual Linux source builds |
+| OpenColorIO 2.6.0 representative native behavior | **PRs** (Linux source build) |
+| OpenColorIO 2.6.0 all interface levels and installed library | **Weekly** and manual Linux source builds |
 | Bundled with host zlib-ng | **PRs**, weekly and manual runs (Arch Linux) |
 | Exact native minima 2.4.1 and 2.5.1 | **Weekly** and manual Linux source builds |
 | Bundled real-OCIO tests | **Weekly**, plus manual `workflow_dispatch` (Linux, macOS, Windows) |
