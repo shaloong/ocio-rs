@@ -1475,6 +1475,7 @@ unsafe extern "C" {
     ) -> ();
     pub fn ocio_cpu_processor_apply_rgb(handle: *mut c_void, pixel: *mut c_void) -> ();
     pub fn ocio_cpu_processor_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> ();
+    pub fn ocio_cpu_processor_try_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> bool;
 
     // --- GPUProcessor ---
     pub fn ocio_gpu_processor_destroy(handle: *mut c_void);
@@ -2639,6 +2640,13 @@ unsafe extern "C" {
         numPixels: i64,
         stride: i64,
     ) -> ();
+
+    pub fn ocio_cpu_processor_try_apply_rgba_pixels(
+        cpu_processor: *mut c_void,
+        rgba: *mut f32,
+        numPixels: i64,
+        stride: i64,
+    ) -> bool;
 
     pub fn ocio_dynamic_property_double_get_value(prop: *mut c_void) -> f64;
 

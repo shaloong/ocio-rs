@@ -7,6 +7,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Reduce FFI and shared-ownership overhead on successful F32 RGBA pixel and batch processing; preserve native error propagation.
+- Add an isolated direct-C++ versus safe-Rust CPU benchmark for single pixels and packed batches.
+
 - Add an isolated Vulkan hardware validation tool comparing GPU matrix, dynamic exposure, 1D/3D LUT (linear and tetrahedral), and OCIO 2.6 RGB↔HMJ output against OCIO CPU results.
 
 - Report uniform registrations, descriptor indices, and version-appropriate buffer layout to custom GPU shader resource callbacks during extraction.

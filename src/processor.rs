@@ -1401,14 +1401,20 @@ impl CPUProcessor {
 
     /// Apply the processor in place to one RGBA pixel.
     pub fn try_apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
-        crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba(
+        let ok = unsafe {
+            ocio_sys::ocio_cpu_processor_try_apply_rgba(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr() as *mut c_void,
-            );
+            )
+        };
+        if ok {
+            Ok(())
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "OpenColorIO pixel processing failed without an error message".into(),
+            ))
         }
-        crate::ocio_call_status()
     }
 
     /// Apply the processor in place to one RGB pixel.
@@ -1453,16 +1459,22 @@ impl CPUProcessor {
             stride,
             4,
         )?;
-        crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgba_pixels(
+        let ok = unsafe {
+            ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
                 self.handle.as_ptr(),
                 rgba.as_mut_ptr(),
                 num_pixels,
                 stride,
-            );
+            )
+        };
+        if ok {
+            Ok(())
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "OpenColorIO pixel processing failed without an error message".into(),
+            ))
         }
-        crate::ocio_call_status()
     }
 
     /// Apply the processor to an RGB float buffer with an explicit scalar stride.

@@ -54,6 +54,41 @@ fn bytes_to_f32s(bytes: &[u8]) -> Vec<f32> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rgba_fast_path_clears_stale_native_errors_and_validates_buffers() {
+    let _guard = cpu_processor_test_lock();
+    let cpu = scaled_cpu_processor([0.5, 1.0, 1.0, 1.0]).unwrap();
+    let missing = std::ffi::CString::new("ocio-rs-nonexistent-fast-path-config.ocio").unwrap();
+    let set_stale_error = || unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert!(ocio_rs::ocio_sys::ocio_config_create_from_file(missing.as_ptr()).is_null());
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    };
+    set_stale_error();
+    let mut pixel = [0.8, 0.5, 0.25, 1.0];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert_close(pixel[0] as f64, 0.4, 1e-6);
+    assert!(unsafe { ocio_rs::ocio_sys::ocio_error_get_last().is_null() });
+    set_stale_error();
+    let mut pixels = [0.8, 0.5, 0.25, 1.0, 0.4, 0.5, 0.25, 1.0];
+    cpu.try_apply_rgba_pixels(&mut pixels, 2, 4).unwrap();
+    assert_close(pixels[0] as f64, 0.4, 1e-6);
+    assert_close(pixels[4] as f64, 0.2, 1e-6);
+    assert!(unsafe { ocio_rs::ocio_sys::ocio_error_get_last().is_null() });
+    assert!(cpu.try_apply_rgba_pixels(&mut pixels[..3], 1, 4).is_err());
+    cpu.try_apply_rgba_pixels(&mut pixels, 2, 4).unwrap();
+    let integer_cpu = scaled_processor([0.5, 1.0, 1.0, 1.0])
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    assert!(integer_cpu
+        .try_apply_rgba_pixels(&mut pixels, 2, 4)
+        .is_err());
+    assert!(unsafe { ocio_rs::ocio_sys::ocio_error_get_last().is_null() });
+    cpu.try_apply_rgba_pixels(&mut pixels, 2, 4).unwrap();
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn packed_images_support_order_padding_and_signed_rows() {
     use ocio_rs::{ChannelOrdering, PackedImageLayout};
     let processor = scaled_processor([0.5, 1.0, 1.0, 1.0]).unwrap();

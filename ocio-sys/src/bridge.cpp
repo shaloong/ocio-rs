@@ -1003,6 +1003,13 @@ static ocio::CPUProcessorRcPtr get_real_cpu_processor(void* handle) {
   return std::static_pointer_cast<ocio_rs_bridge::RealCPUProcessor>(h->inner)->cpu;
 }
 
+// The caller keeps the Rust handle alive for the duration of each bridge call.
+// Borrow the stored shared_ptr on hot paths rather than incrementing its count.
+static const ocio::CPUProcessorRcPtr& borrow_real_cpu_processor(void* handle) {
+  auto* h = static_cast<ocio_rs_bridge::CPUProcessorHandle*>(handle);
+  return static_cast<ocio_rs_bridge::RealCPUProcessor*>(h->inner.get())->cpu;
+}
+
 static ocio::GPUProcessorRcPtr get_real_gpu_processor(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::GPUProcessorHandle*>(handle);
   return std::static_pointer_cast<ocio_rs_bridge::RealGPUProcessor>(h->inner)->gpu;
@@ -8188,41 +8195,51 @@ void ocio_cpu_processor_apply_rgb(void* handle, void* pixel) {
 #endif
 }
 
-void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
+bool ocio_cpu_processor_try_apply_rgba(void* handle, void* pixel) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)pixel;
   ocio_rs_bridge::clear_last_error();
-  return;
+  return true;
 #else
   ocio_rs_bridge::clear_last_error();
   try {
-    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGBA(static_cast<float*>(pixel));
+    ocio_rs_bridge::borrow_real_cpu_processor(handle)->applyRGBA(static_cast<float*>(pixel));
+    return true;
   } catch (...) {
     ocio_rs_bridge::capture_current_exception();
-    return;
+    return false;
+  }
+#endif
+}
+
+void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
+  (void)ocio_cpu_processor_try_apply_rgba(handle, pixel);
+}
+
+bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)rgba; (void)numPixels; (void)stride;
+  ocio_rs_bridge::clear_last_error();
+  return true;
+#else
+  ocio_rs_bridge::clear_last_error();
+  try {
+    if (!rgba || numPixels <= 0) return true;
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
+    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
+    ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
+                              ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
+    ocio_rs_bridge::borrow_real_cpu_processor(handle)->apply(img);
+    return true;
+  } catch (...) {
+    ocio_rs_bridge::capture_current_exception();
+    return false;
   }
 #endif
 }
 
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)rgba; (void)numPixels; (void)stride;
-  ocio_rs_bridge::clear_last_error();
-  return;
-#else
-  ocio_rs_bridge::clear_last_error();
-  try {
-    if (!rgba || numPixels <= 0) return;
-    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
-    const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
-    ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
-                              ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
-    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(img);
-  } catch (...) {
-    ocio_rs_bridge::capture_current_exception();
-    return;
-  }
-#endif
+  (void)ocio_cpu_processor_try_apply_rgba_pixels(handle, rgba, numPixels, stride);
 }
 
 void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green, float* blue,
