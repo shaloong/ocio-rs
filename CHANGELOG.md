@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose native OCIO enum/string conversions and direction and bit-depth
+  utilities, including cross-version GPU and fixed-function enum mapping.
 - Share immutable processor format-metadata trees with borrowed strings and
   independently owned child views.
 - Share read-only processor metadata with borrowed file and look names.

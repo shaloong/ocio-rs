@@ -12248,6 +12248,83 @@ static int fixed_function_style_from_native(ocio::FixedFunctionStyle style) {
 }
 #endif
 
+const char* ocio_enum_to_string(int kind, int value) {
+#ifdef OCIO_RS_STUB
+  (void)kind; (void)value; ocio_rs_bridge::capture_error_message("Native enum conversion requires OpenColorIO"); return nullptr;
+#else
+  try {
+    switch (kind) {
+      case 0: return ocio::BoolToString(value != 0);
+      case 1: return ocio::LoggingLevelToString(static_cast<ocio::LoggingLevel>(value));
+      case 2: return ocio::TransformDirectionToString(static_cast<ocio::TransformDirection>(value));
+      case 3: return ocio::BitDepthToString(static_cast<ocio::BitDepth>(value));
+      case 4: return ocio::AllocationToString(static_cast<ocio::Allocation>(value));
+      case 5: return ocio::InterpolationToString(static_cast<ocio::Interpolation>(value));
+      case 6:
+#if OCIO_RS_NATIVE_API_HEX < 0x02050100
+        if (value > 4) --value;
+#endif
+        return ocio::GpuLanguageToString(static_cast<ocio::GpuLanguage>(value));
+      case 7: return ocio::EnvironmentModeToString(static_cast<ocio::EnvironmentMode>(value));
+      case 8: return ocio::CDLStyleToString(static_cast<ocio::CDLStyle>(value));
+      case 9: return ocio::RangeStyleToString(static_cast<ocio::RangeStyle>(value));
+      case 10: return ocio::FixedFunctionStyleToString(fixed_function_style_to_native(value));
+      case 11: return ocio::GradingStyleToString(static_cast<ocio::GradingStyle>(value));
+      case 12: return ocio::ExposureContrastStyleToString(static_cast<ocio::ExposureContrastStyle>(value));
+      case 13: return ocio::NegativeStyleToString(static_cast<ocio::NegativeStyle>(value));
+      default: throw std::invalid_argument("invalid enum conversion kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+int ocio_enum_from_string(int kind, const char* text) {
+#ifdef OCIO_RS_STUB
+  (void)kind; (void)text; ocio_rs_bridge::capture_error_message("Native enum conversion requires OpenColorIO"); return 0;
+#else
+  try {
+    switch (kind) {
+      case 0: return ocio::BoolFromString(text) ? 1 : 0;
+      case 1: return static_cast<int>(ocio::LoggingLevelFromString(text));
+      case 2: return static_cast<int>(ocio::TransformDirectionFromString(text));
+      case 3: return static_cast<int>(ocio::BitDepthFromString(text));
+      case 4: return static_cast<int>(ocio::AllocationFromString(text));
+      case 5: return static_cast<int>(ocio::InterpolationFromString(text));
+      case 6: {
+        int value = static_cast<int>(ocio::GpuLanguageFromString(text));
+#if OCIO_RS_NATIVE_API_HEX < 0x02050100
+        if (value >= 4) ++value;
+#endif
+        return value;
+      }
+      case 7: return static_cast<int>(ocio::EnvironmentModeFromString(text));
+      case 8: return static_cast<int>(ocio::CDLStyleFromString(text));
+      case 9: return static_cast<int>(ocio::RangeStyleFromString(text));
+      case 10: return fixed_function_style_from_native(ocio::FixedFunctionStyleFromString(text));
+      case 11: return static_cast<int>(ocio::GradingStyleFromString(text));
+      case 12: return static_cast<int>(ocio::ExposureContrastStyleFromString(text));
+      case 13: return static_cast<int>(ocio::NegativeStyleFromString(text));
+      default: throw std::invalid_argument("invalid enum conversion kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+int ocio_bit_depth_utility(int depth, bool as_integer) {
+#ifdef OCIO_RS_STUB
+  (void)depth; (void)as_integer; ocio_rs_bridge::capture_error_message("Native bit-depth utilities require OpenColorIO"); return 0;
+#else
+  try { auto d = static_cast<ocio::BitDepth>(depth); return as_integer ? ocio::BitDepthToInt(d) : (ocio::BitDepthIsFloat(d) ? 1 : 0); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+int ocio_direction_utility(int first, int second, bool combine) {
+#ifdef OCIO_RS_STUB
+  (void)first; (void)second; (void)combine; ocio_rs_bridge::capture_error_message("Native direction utilities require OpenColorIO"); return 0;
+#else
+  try { auto a = static_cast<ocio::TransformDirection>(first); auto b = static_cast<ocio::TransformDirection>(second); return static_cast<int>(combine ? ocio::CombineTransformDirections(a, b) : ocio::GetInverseTransformDirection(a)); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
 void* ocio_fixed_function_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_fixed_function_transform().release();

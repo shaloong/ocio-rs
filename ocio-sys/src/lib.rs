@@ -107,6 +107,10 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_enum_to_string(kind: i32, value: i32) -> *const i8;
+    pub fn ocio_enum_from_string(kind: i32, text: *const i8) -> i32;
+    pub fn ocio_bit_depth_utility(depth: i32, as_integer: bool) -> i32;
+    pub fn ocio_direction_utility(first: i32, second: i32, combine: bool) -> i32;
     pub fn ocio_processor_get_const_format_metadata(
         handle: *mut c_void,
         per_transform: bool,

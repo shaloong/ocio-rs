@@ -108,6 +108,10 @@ typedef struct OcioGpuUniformInfo {
 
 // --- Runtime ---
 bool ocio_runtime_is_stub(void);
+const char* ocio_enum_to_string(int kind, int value);
+int ocio_enum_from_string(int kind, const char* text);
+int ocio_bit_depth_utility(int depth, bool as_integer);
+int ocio_direction_utility(int first, int second, bool combine);
 
 // --- Global utility functions ---
 const char* ocio_get_version(void);
