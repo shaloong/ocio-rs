@@ -54,6 +54,109 @@ fn bytes_to_f32s(bytes: &[u8]) -> Vec<f32> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_images_support_order_padding_and_signed_rows() {
+    use ocio_rs::{ChannelOrdering, PackedImageLayout};
+    let processor = scaled_processor([0.5, 1.0, 1.0, 1.0]).unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    // Two BGRA rows, one pixel each, with two-byte channel spacing.
+    let layout = PackedImageLayout {
+        width: 1,
+        height: 2,
+        origin: 8,
+        channel_stride: 2,
+        x_stride: 8,
+        y_stride: -8,
+        bit_depth: BitDepth::Uint8,
+        channel_order: ChannelOrdering::Bgra,
+    };
+    let mut data = [
+        10, 99, 20, 99, 100, 99, 255, 99, 30, 99, 40, 99, 200, 99, 255, 99,
+    ];
+    cpu.try_apply_packed_image(&mut data, layout).unwrap();
+    assert_eq!(
+        data,
+        [10, 99, 20, 99, 50, 99, 255, 99, 30, 99, 40, 99, 100, 99, 255, 99]
+    );
+    let mut invalid = layout;
+    invalid.origin = 0;
+    assert!(cpu.try_apply_packed_image(&mut data, invalid).is_err());
+    invalid = layout;
+    invalid.channel_stride = usize::MAX;
+    assert!(cpu.try_apply_packed_image(&mut data, invalid).is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_images_convert_channel_order_and_bit_depth() {
+    use ocio_rs::{ChannelOrdering, PackedImageLayout};
+    let processor = scaled_processor([1.0; 4]).unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    let input = [10u8, 20, 30, 40, 50, 60]; // BGR
+    let input_layout = PackedImageLayout {
+        width: 2,
+        height: 1,
+        origin: 0,
+        channel_stride: 1,
+        x_stride: 3,
+        y_stride: 6,
+        bit_depth: BitDepth::Uint8,
+        channel_order: ChannelOrdering::Bgr,
+    };
+    let mut output = [0u16; 6];
+    let output_bytes = unsafe { std::slice::from_raw_parts_mut(output.as_mut_ptr().cast(), 12) };
+    let output_layout = PackedImageLayout {
+        width: 2,
+        height: 1,
+        origin: 0,
+        channel_stride: 2,
+        x_stride: 6,
+        y_stride: 12,
+        bit_depth: BitDepth::Uint16,
+        channel_order: ChannelOrdering::Rgb,
+    };
+    cpu.try_convert_packed_image(&input, input_layout, output_bytes, output_layout)
+        .unwrap();
+    assert_eq!(output, [7710, 5140, 2570, 15420, 12850, 10280]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_abgr_negative_pixel_stride_keeps_padding() {
+    use ocio_rs::{ChannelOrdering, PackedImageLayout};
+    let processor = scaled_processor([0.5, 1.0, 1.0, 1.0]).unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    let layout = PackedImageLayout {
+        width: 2,
+        height: 1,
+        origin: 8,
+        channel_stride: 1,
+        x_stride: -4,
+        y_stride: 8,
+        bit_depth: BitDepth::Uint8,
+        channel_order: ChannelOrdering::Abgr,
+    };
+    let mut data = [99, 99, 99, 99, 255, 10, 20, 100, 128, 30, 40, 200];
+    cpu.try_apply_packed_image(&mut data, layout).unwrap();
+    assert_eq!(data, [99, 99, 99, 99, 255, 10, 20, 50, 128, 30, 40, 100]);
+    assert!(cpu
+        .try_apply_packed_image(
+            &mut data[4..],
+            PackedImageLayout {
+                origin: 4,
+                ..layout
+            }
+        )
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgba_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {

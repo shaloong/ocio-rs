@@ -23,8 +23,16 @@ spline handle keeps its native curve alive independently.
 For rendering, build the processor once and pass the caller's mutable buffer
 to `CPUProcessor::try_apply_rgba_pixels`. A batch crosses the bridge once
 for processing, with no Rust pixel-buffer allocation or copy. This does not
-claim that OCIO itself never allocates. The HMJ benchmark compares batch and
-per-pixel calls using the same native processor:
+claim that OCIO itself never allocates.
+
+For two-dimensional packed buffers, `CPUProcessor::try_apply_packed_image`
+and `try_convert_packed_image` pass validated borrowed buffers directly to
+native packed image descriptors. `PackedImageLayout` supports OCIO's RGB,
+BGR, RGBA, BGRA and ABGR orderings, channel spacing, and signed pixel and row
+strides; its documented pointer-step padding requirements must be met.
+
+The HMJ benchmark compares batch and per-pixel calls using the same native
+processor:
 
 ```sh
 cargo bench --features bundled,v2_6 --bench pipeline -- ocio_2_6_hmj

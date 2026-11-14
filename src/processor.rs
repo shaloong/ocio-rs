@@ -5,8 +5,8 @@ use crate::transform::{transform_from_raw_handle, GroupTransform, Transform};
 #[cfg(feature = "v2_5")]
 use crate::HueCurveType;
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, DynamicPropertyType, FormatMetadata,
-    GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
+    cstr_from_mut, cstr_to_opt_string, cstring, BitDepth, ChannelOrdering, DynamicPropertyType,
+    FormatMetadata, GpuLanguage, Interpolation, OcioError, ProcessorMetadata, RGBCurveType, Result,
 };
 use ocio_sys;
 
@@ -570,6 +570,101 @@ pub struct PackedConversionLayout {
     pub output_stride: i64,
 }
 
+/// Packed image layout with signed pixel and row strides, in bytes.
+///
+/// `origin` points to the first stored channel of the first logical pixel.
+/// Channel stride is positive. Slices must include pointer-step padding after
+/// the final pixel, including before the lowest pixel for a negative x stride.
+/// Strides and origin must be aligned to the sample size. The pixel stride's
+/// magnitude must cover all stored channels, and the row stride's magnitude
+/// must be at least `width * abs(x_stride)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedImageLayout {
+    /// Pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte offset to the first stored channel of the first logical pixel.
+    pub origin: usize,
+    /// Positive byte distance between stored channels of a pixel.
+    pub channel_stride: usize,
+    /// Signed byte distance between adjacent pixels.
+    pub x_stride: isize,
+    /// Signed byte distance between adjacent rows.
+    pub y_stride: isize,
+    /// Native channel storage type, matching the processor bit depth.
+    pub bit_depth: BitDepth,
+    /// Ordering of the stored color and alpha channels.
+    pub channel_order: ChannelOrdering,
+}
+
+fn packed_image_descriptor(
+    layout: PackedImageLayout,
+    data: &[u8],
+) -> Result<ocio_sys::OcioPackedBuffer> {
+    let invalid =
+        || OcioError::InvalidInput("invalid, unaligned or overflowing packed image layout".into());
+    let size = bit_depth_bytes_per_channel("CPUProcessor packed image", layout.bit_depth)?;
+    let channels = match layout.channel_order {
+        ChannelOrdering::Rgb | ChannelOrdering::Bgr => 3,
+        _ => 4,
+    };
+    let pixel_size = (channels - 1usize)
+        .checked_mul(layout.channel_stride)
+        .and_then(|v| v.checked_add(size))
+        .ok_or_else(invalid)?;
+    let x = layout.x_stride.checked_abs().ok_or_else(invalid)? as usize;
+    let y = layout.y_stride.checked_abs().ok_or_else(invalid)? as usize;
+    if layout.width == 0
+        || layout.height == 0
+        || layout.channel_stride < size
+        || x < pixel_size
+        || y == 0
+        || x > y / layout.width
+        || !layout.channel_stride.is_multiple_of(size)
+        || !x.is_multiple_of(size)
+        || !y.is_multiple_of(size)
+        || !layout.origin.is_multiple_of(size)
+        || !(data.as_ptr() as usize).is_multiple_of(size)
+        || layout.channel_stride > isize::MAX as usize
+    {
+        return Err(invalid());
+    }
+    let dx = (layout.width - 1).checked_mul(x).ok_or_else(invalid)?;
+    let dy = (layout.height - 1).checked_mul(y).ok_or_else(invalid)?;
+    let backward = (if layout.x_stride < 0 { dx } else { 0 })
+        .checked_add(if layout.y_stride < 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let forward = (if layout.x_stride > 0 { dx } else { 0 })
+        .checked_add(if layout.y_stride > 0 { dy } else { 0 })
+        .ok_or_else(invalid)?;
+    let low = layout.origin.checked_sub(backward).ok_or_else(invalid)?;
+    let high = layout.origin.checked_add(forward).ok_or_else(invalid)?;
+    if (layout.x_stride < 0 && low < x)
+        || high
+            .checked_add(if layout.x_stride > 0 { x } else { pixel_size })
+            .ok_or_else(invalid)?
+            > data.len()
+    {
+        return Err(invalid());
+    }
+    let width = i64::try_from(layout.width).map_err(|_| invalid())?;
+    let height = i64::try_from(layout.height).map_err(|_| invalid())?;
+    Ok(ocio_sys::OcioPackedBuffer {
+        // The native API treats the source descriptor as read-only during conversion.
+        data: unsafe { data.as_ptr().add(layout.origin) }
+            .cast_mut()
+            .cast(),
+        width,
+        height,
+        channel_stride: layout.channel_stride as i64,
+        x_stride: layout.x_stride as i64,
+        y_stride: layout.y_stride as i64,
+        bit_depth: layout.bit_depth as i32,
+        channel_order: layout.channel_order as i32,
+    })
+}
+
 /// Borrowed source channels for a planar conversion.
 pub struct PlanarBytes<'a> {
     pub red: &'a [u8],
@@ -731,6 +826,45 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Process an exclusively borrowed packed image in place without pixel copies.
+    pub fn try_apply_packed_image(&self, data: &mut [u8], layout: PackedImageLayout) -> Result<()> {
+        let mut desc = packed_image_descriptor(layout, data)?;
+        desc.data = unsafe { data.as_mut_ptr().add(layout.origin).cast() };
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_cpu_processor_apply_packed_image(self.handle.as_ptr(), &desc) };
+        crate::ocio_call_status()
+    }
+
+    /// Convert independently laid-out packed images without pixel copies.
+    /// Dimensions must match; bit depths and channel ordering may differ.
+    pub fn try_convert_packed_image(
+        &self,
+        source: &[u8],
+        source_layout: PackedImageLayout,
+        destination: &mut [u8],
+        destination_layout: PackedImageLayout,
+    ) -> Result<()> {
+        if source_layout.width != destination_layout.width
+            || source_layout.height != destination_layout.height
+        {
+            return Err(OcioError::InvalidInput(
+                "packed image dimensions differ".into(),
+            ));
+        }
+        let src = packed_image_descriptor(source_layout, source)?;
+        let mut dst = packed_image_descriptor(destination_layout, destination)?;
+        dst.data = unsafe {
+            destination
+                .as_mut_ptr()
+                .add(destination_layout.origin)
+                .cast()
+        };
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_convert_packed_image(self.handle.as_ptr(), &src, &dst)
+        };
+        crate::ocio_call_status()
+    }
     /// Process a planar image in place with signed byte strides without copying.
     ///
     /// OCIO advances pointers after the last pixel of each row. Therefore the
@@ -4739,6 +4873,57 @@ impl Drop for DynamicProperty {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn packed_layout_rejects_out_of_bounds_and_overflow() {
+        let bytes = [0u8; 24];
+        let layout = PackedImageLayout {
+            width: 2,
+            height: 2,
+            origin: 0,
+            channel_stride: 1,
+            x_stride: 4,
+            y_stride: 8,
+            bit_depth: BitDepth::Uint8,
+            channel_order: ChannelOrdering::Rgba,
+        };
+        assert!(packed_image_descriptor(layout, &bytes[..16]).is_ok());
+        assert!(packed_image_descriptor(layout, &bytes[..15]).is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: isize::MIN,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                channel_stride: usize::MAX,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: -4,
+                origin: 4,
+                ..layout
+            },
+            &bytes
+        )
+        .is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: -4,
+                origin: 8,
+                ..layout
+            },
+            &bytes
+        )
+        .is_ok());
+    }
     use crate::Config;
 
     #[test]

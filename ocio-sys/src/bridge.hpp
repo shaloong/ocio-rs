@@ -28,6 +28,15 @@ const char* ocio_error_get_last(void);
 int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
 
+typedef struct OcioPackedBuffer {
+  void* data;
+  int64_t width, height, channel_stride, x_stride, y_stride;
+  int bit_depth, channel_order;
+} OcioPackedBuffer;
+void ocio_cpu_processor_apply_packed_image(void* handle, const OcioPackedBuffer* image);
+void ocio_cpu_processor_convert_packed_image(void* handle, const OcioPackedBuffer* source,
+                                             const OcioPackedBuffer* destination);
+
 typedef struct OcioGpuTexture2DInfo {
   const char* texture_name;
   const char* sampler_name;

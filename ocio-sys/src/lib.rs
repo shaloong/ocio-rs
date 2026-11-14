@@ -13,6 +13,19 @@ pub use v2_6::*;
 
 use std::ffi::c_void;
 
+/// Raw packed image descriptor; data is owned by the caller.
+#[repr(C)]
+pub struct OcioPackedBuffer {
+    pub data: *mut c_void,
+    pub width: i64,
+    pub height: i64,
+    pub channel_stride: i64,
+    pub x_stride: i64,
+    pub y_stride: i64,
+    pub bit_depth: i32,
+    pub channel_order: i32,
+}
+
 /// Raw planar image descriptor passed to the bridge; pointers are caller-owned.
 #[repr(C)]
 pub struct OcioPlanarBuffer {
@@ -94,6 +107,15 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_cpu_processor_apply_packed_image(
+        handle: *mut c_void,
+        image: *const OcioPackedBuffer,
+    );
+    pub fn ocio_cpu_processor_convert_packed_image(
+        handle: *mut c_void,
+        source: *const OcioPackedBuffer,
+        destination: *const OcioPackedBuffer,
+    );
     pub fn ocio_cpu_processor_apply_planar_convert(
         handle: *mut c_void,
         source: *const OcioPlanarBuffer,

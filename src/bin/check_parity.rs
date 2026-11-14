@@ -658,6 +658,8 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ),
         ("apply_planar_convert", "try_apply_planar_convert"),
         ("apply_packed_convert", "try_apply_packed_convert"),
+        ("apply_packed_image", "try_apply_packed_image"),
+        ("convert_packed_image", "try_convert_packed_image"),
         ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
         (
             "grading_rgb_curve_object_set",

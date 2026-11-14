@@ -130,8 +130,9 @@ pub use named_transform::NamedTransform;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
-    PackedConversionLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut, PlanarF32Layout,
-    Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut, TextureInfo,
+    PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut,
+    PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut,
+    TextureInfo,
 };
 pub use processor::{ShaderSections, ShaderTexture};
 pub use processor_metadata::ProcessorMetadata;

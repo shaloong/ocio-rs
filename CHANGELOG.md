@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Process and convert packed images in native RGB, BGR, RGBA, BGRA, and ABGR
+  order with checked channel spacing and signed pixel and row strides.
 - Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers
   can distinguish it from other runtime errors. Exception types for particular
   failures may vary by native OCIO version. This adds
