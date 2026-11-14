@@ -107,6 +107,23 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_config_get_const_rules(config: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_const_rules_destroy(handle: *mut c_void, kind: i32);
+    pub fn ocio_const_rules_editable_copy(handle: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_const_rules_number(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        rule: usize,
+        name: *const i8,
+    ) -> usize;
+    pub fn ocio_const_rules_text(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        rule: usize,
+        index: usize,
+    ) -> *const i8;
     pub fn ocio_config_get_processor_from_const_named_transform(
         config: *mut c_void,
         context: *mut c_void,

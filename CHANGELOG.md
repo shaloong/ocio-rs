@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share and query native file rules and viewing rules without cloning them;
+  rule strings borrow their immutable native owner.
 - Share read-only looks, named transforms and view transforms from a config,
   and access their native child transforms without making editable copies.
 - Share a configuration's read-only context without cloning it; use it directly
@@ -74,6 +76,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Config file-rules and viewing-rules getters now return independent editable
+  copies, rather than mutable aliases of OCIO-owned const rules. Reattach edits
+  to apply them; this changes the prior mutation behavior.
 - Config look, named-transform and view-transform getters now return editable
   copies instead of writable aliases to OCIO-owned const objects. Register an
   edited copy to apply changes; this changes the previous mutation behavior.

@@ -3584,7 +3584,7 @@ impl Config {
 
     // --- FileRules ---
 
-    /// Return the editable file-rules object attached to this config.
+    /// Return an independent editable copy of the config's file rules.
     pub fn file_rules(&self) -> Result<FileRules> {
         crate::clear_last_error();
         let handle =
@@ -4122,7 +4122,7 @@ impl Config {
         self.view_by_reference_space(reference_space, display, index)
     }
 
-    /// Return the editable viewing-rules object attached to this config, if any.
+    /// Return an independent editable copy of the config's viewing rules, if any.
     pub fn viewing_rules(&self) -> Option<ViewingRules> {
         self.try_viewing_rules().ok().flatten()
     }

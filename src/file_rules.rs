@@ -10,7 +10,7 @@ pub struct FileRules {
 }
 
 impl FileRules {
-    /// Create a new, empty set of file rules.
+    /// Create file rules containing OCIO's mandatory default rule.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_file_rules_create() };

@@ -144,6 +144,10 @@ editable copies. Register edits back into the config. For shared read-only
 objects, use `try_const_look`, `try_const_named_transform`, or
 `try_const_view_transform`.
 
+Config file-rules and viewing-rules getters now return editable copies. Reattach
+an edited copy with the respective setter. `try_const_file_rules` and
+`try_const_viewing_rules` offer shared read-only access without a rules copy.
+
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
 `Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.

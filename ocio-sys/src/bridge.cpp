@@ -3665,8 +3665,8 @@ void* ocio_config_get_viewing_rules(void* handle) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getViewingRules();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::ViewingRules>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -3986,8 +3986,8 @@ void* ocio_config_get_file_rules(void* handle) {
     auto result = ocio_rs_bridge::get_real_config(handle)->getFileRules();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::FileRulesHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::FileRules>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{result_unconst});
+    auto editable = result->createEditableCopy();
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{editable});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -5701,6 +5701,99 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 
 
 // --- ColorSpaceSet ---
+
+void* ocio_config_get_const_rules(void* config, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)kind; return nullptr;
+#else
+  try {
+    auto cfg = ocio_rs_bridge::get_real_config(config);
+    switch (kind) {
+      case 0: { auto p = cfg->getFileRules(); return p ? new ocio::ConstFileRulesRcPtr(std::move(p)) : nullptr; }
+      case 1: { auto p = cfg->getViewingRules(); return p ? new ocio::ConstViewingRulesRcPtr(std::move(p)) : nullptr; }
+      default: throw std::invalid_argument("invalid rules kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_rules_destroy(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind;
+#else
+  if (kind == 0) delete static_cast<ocio::ConstFileRulesRcPtr*>(handle);
+  else if (kind == 1) delete static_cast<ocio::ConstViewingRulesRcPtr*>(handle);
+#endif
+}
+void* ocio_const_rules_editable_copy(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; ocio_rs_bridge::capture_error_message("Native rules required"); return nullptr;
+#else
+  try {
+    switch (kind) {
+      case 0: { auto p = (*static_cast<ocio::ConstFileRulesRcPtr*>(handle))->createEditableCopy(); auto h = std::make_unique<ocio_rs_bridge::FileRulesHandle>(); h->inner = std::make_shared<ocio_rs_bridge::RealFileRules>(ocio_rs_bridge::RealFileRules{p}); return h.release(); }
+      case 1: { auto p = (*static_cast<ocio::ConstViewingRulesRcPtr*>(handle))->createEditableCopy(); auto h = std::make_unique<ocio_rs_bridge::ViewingRulesHandle>(); h->inner = std::make_shared<ocio_rs_bridge::RealViewingRules>(ocio_rs_bridge::RealViewingRules{p}); return h.release(); }
+      default: throw std::invalid_argument("invalid rules kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+size_t ocio_const_rules_number(void* handle, int kind, int field, size_t rule, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)field; (void)rule; (void)name; return 0;
+#else
+  try {
+    if (kind == 0) {
+      auto& p = *static_cast<ocio::ConstFileRulesRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getNumEntries();
+        case 1: return p->getIndexForRule(name);
+        case 2: return p->getNumCustomKeys(rule);
+        case 3: return p->isDefault() ? 1 : 0;
+      }
+    } else if (kind == 1) {
+      auto& p = *static_cast<ocio::ConstViewingRulesRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getNumEntries();
+        case 1: return p->getIndexForRule(name);
+        case 2: return p->getNumCustomKeys(rule);
+        case 4: return p->getNumColorSpaces(rule);
+        case 5: return p->getNumEncodings(rule);
+      }
+    }
+    throw std::invalid_argument("invalid rules count field");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+const char* ocio_const_rules_text(void* handle, int kind, int field, size_t rule, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)field; (void)rule; (void)index; return nullptr;
+#else
+  try {
+    if (kind == 0) {
+      auto& p = *static_cast<ocio::ConstFileRulesRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getName(rule);
+        case 1: return p->getPattern(rule);
+        case 2: return p->getExtension(rule);
+        case 3: return p->getRegex(rule);
+        case 4: return p->getColorSpace(rule);
+        case 5: return p->getCustomKeyName(rule, index);
+        case 6: return p->getCustomKeyValue(rule, index);
+      }
+    } else if (kind == 1) {
+      auto& p = *static_cast<ocio::ConstViewingRulesRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getName(rule);
+        case 5: return p->getCustomKeyName(rule, index);
+        case 6: return p->getCustomKeyValue(rule, index);
+        case 7: return p->getColorSpace(rule, index);
+        case 8: return p->getEncoding(rule, index);
+      }
+    }
+    throw std::invalid_argument("invalid rules text field");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 
 void* ocio_config_get_const_named_item(void* config, const char* name, int kind) {
 #ifdef OCIO_RS_STUB
