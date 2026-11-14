@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Expose synchronous begin, finalized, and end notifications for custom GPU shader extraction.
+
 - Reduce FFI and shared-ownership overhead on successful F32 RGBA pixel and batch processing; preserve native error propagation.
 - Add an isolated direct-C++ versus safe-Rust CPU benchmark for single pixels and packed batches.
 

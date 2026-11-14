@@ -141,7 +141,7 @@ pub use processor::{
     PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut,
     TextureInfo,
 };
-pub use processor::{ShaderSections, ShaderTexture, ShaderUniform};
+pub use processor::{ShaderLifecycle, ShaderSections, ShaderTexture, ShaderUniform};
 pub use processor_metadata::{ConstProcessorMetadata, ProcessorMetadata};
 pub use types::*;
 #[cfg(feature = "v2_6")]

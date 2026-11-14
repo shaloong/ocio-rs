@@ -28,6 +28,133 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_shader_lifecycle_preserves_order_and_first_error() {
+    use ocio_rs::ShaderLifecycle;
+    use std::cell::RefCell;
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = ExposureContrastTransform::create().unwrap();
+    transform.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_unique_id("rusttest_").unwrap();
+    let events = RefCell::new(Vec::new());
+    let desc = gpu
+        .try_extract_with_lifecycle_callbacks(
+            &template,
+            |p| {
+                events.borrow_mut().push("assembly");
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |_| {
+                events.borrow_mut().push("texture");
+                Ok(None)
+            },
+            |_| {
+                events.borrow_mut().push("uniform");
+                Ok(())
+            },
+            |event| {
+                match event {
+                    ShaderLifecycle::Begin { unique_id } => {
+                        assert!(unique_id.starts_with("rusttest_"));
+                        events.borrow_mut().push("begin");
+                    }
+                    ShaderLifecycle::Finalized => events.borrow_mut().push("finalized"),
+                    ShaderLifecycle::End => events.borrow_mut().push("end"),
+                };
+                Ok(())
+            },
+        )
+        .unwrap();
+    assert!(desc.shader_text().is_some());
+    let events = events.into_inner();
+    assert_eq!(events.first(), Some(&"begin"));
+    assert!(events.contains(&"uniform"));
+    let assembly = events
+        .iter()
+        .position(|event| *event == "assembly")
+        .unwrap();
+    assert!(events.iter().position(|event| *event == "uniform").unwrap() < assembly);
+    assert_eq!(&events[events.len() - 2..], &["finalized", "end"]);
+
+    let cleanup = RefCell::new(Vec::new());
+    let error = gpu.try_extract_with_lifecycle_callbacks(
+        &template,
+        |_| Ok(String::new()),
+        |_| Ok(None),
+        |_| Err(ocio_rs::OcioError::InvalidInput("first error".into())),
+        |event| {
+            if matches!(event, ShaderLifecycle::End) {
+                cleanup.borrow_mut().push("end");
+                return Err(ocio_rs::OcioError::InvalidInput("cleanup error".into()));
+            }
+            Ok(())
+        },
+    );
+    assert!(
+        matches!(error, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "first error")
+    );
+    assert_eq!(cleanup.into_inner(), ["end"]);
+
+    let after_finalize = RefCell::new(Vec::new());
+    let error = gpu.try_extract_with_lifecycle_callbacks(
+        &template,
+        |_| Ok(String::new()),
+        |_| Ok(None),
+        |_| Ok(()),
+        |event| {
+            match event {
+                ShaderLifecycle::Begin { .. } => after_finalize.borrow_mut().push("begin"),
+                ShaderLifecycle::Finalized => {
+                    after_finalize.borrow_mut().push("finalized");
+                    return Err(ocio_rs::OcioError::InvalidInput("finalize rejected".into()));
+                }
+                ShaderLifecycle::End => after_finalize.borrow_mut().push("end"),
+            }
+            Ok(())
+        },
+    );
+    assert!(
+        matches!(error, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "finalize rejected")
+    );
+    assert_eq!(after_finalize.into_inner(), ["begin", "finalized", "end"]);
+
+    let events = RefCell::new(Vec::new());
+    let error = gpu.try_extract_with_lifecycle_callbacks(
+        &template,
+        |_| Ok(String::new()),
+        |_| Ok(None),
+        |_| Ok(()),
+        |event| {
+            events.borrow_mut().push(event == ShaderLifecycle::End);
+            if matches!(event, ShaderLifecycle::Begin { .. }) {
+                panic!("begin callback panic");
+            }
+            Ok(())
+        },
+    );
+    assert!(
+        matches!(error, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message.contains("panicked"))
+    );
+    assert_eq!(events.into_inner(), [false]);
+    assert!(gpu
+        .try_extract_with_assembler(&template, |p| Ok(format!(
+            "{}{}{}{}{}{}",
+            p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+        )))
+        .is_ok());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_uniform_callbacks_report_registration_and_propagate_errors() {
     let _guard = gpu_shader_desc_test_lock();
     let config = ocio_rs::Config::raw().unwrap();

@@ -1936,6 +1936,17 @@ pub struct ShaderUniform<'a> {
     pub buffer_offset: Option<usize>,
 }
 
+/// Lifecycle stages of a native shader-creator extraction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderLifecycle<'a> {
+    /// OCIO has started collection with this generated resource identifier.
+    Begin { unique_id: &'a str },
+    /// OCIO has finalized and assembled the shader.
+    Finalized,
+    /// OCIO has ended collection, including after an extraction error.
+    End,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GPUProcessor {}
@@ -1978,6 +1989,8 @@ impl GPUProcessor {
             false,
             &mut |_| Ok(()),
             false,
+            &mut |_| Ok(()),
+            false,
         )
     }
 
@@ -2012,7 +2025,16 @@ impl GPUProcessor {
         F: FnMut(ShaderSections<'_>) -> Result<String>,
         G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
     {
-        self.try_extract_with_callbacks(template, assemble, texture, true, &mut |_| Ok(()), false)
+        self.try_extract_with_callbacks(
+            template,
+            assemble,
+            texture,
+            true,
+            &mut |_| Ok(()),
+            false,
+            &mut |_| Ok(()),
+            false,
+        )
     }
 
     /// Extract with synchronous shader assembly, texture, and uniform callbacks.
@@ -2047,9 +2069,66 @@ impl GPUProcessor {
         G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         H: FnMut(ShaderUniform<'_>) -> Result<()>,
     {
-        self.try_extract_with_callbacks(template, assemble, texture, true, &mut uniform, true)
+        self.try_extract_with_callbacks(
+            template,
+            assemble,
+            texture,
+            true,
+            &mut uniform,
+            true,
+            &mut |_| Ok(()),
+            false,
+        )
     }
 
+    /// Extract with shader, texture, uniform, and creator-lifecycle callbacks.
+    ///
+    /// Events occur synchronously in OCIO order: `Begin`, zero or more
+    /// resource callbacks, shader assembly, `Finalized`, then `End`. If an
+    /// extraction callback fails after `Begin`, OCIO still calls `End`;
+    /// an error from `Begin` itself does not trigger `End`. The first callback
+    /// error is preserved if cleanup also fails. IDs are borrowed for the
+    /// callback only. Do not reenter extraction on this processor.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, ShaderLifecycle};
+    /// # fn example(gpu: &GPUProcessor, desc: &GpuShaderDesc) {
+    /// let mut saved = None;
+    /// let _ = gpu.try_extract_with_lifecycle_callbacks(desc, |_| Ok(String::new()),
+    ///     |_| Ok(None), |_| Ok(()), |event| {
+    ///         if let ShaderLifecycle::Begin { unique_id } = event { saved = Some(unique_id); }
+    ///         Ok(())
+    ///     });
+    /// println!("{:?}", saved);
+    /// # }
+    /// ```
+    pub fn try_extract_with_lifecycle_callbacks<F, G, H, L>(
+        &self,
+        template: &GpuShaderDesc,
+        assemble: F,
+        texture: G,
+        mut uniform: H,
+        mut lifecycle: L,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        H: FnMut(ShaderUniform<'_>) -> Result<()>,
+        L: FnMut(ShaderLifecycle<'_>) -> Result<()>,
+    {
+        self.try_extract_with_callbacks(
+            template,
+            assemble,
+            texture,
+            true,
+            &mut uniform,
+            true,
+            &mut lifecycle,
+            true,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn try_extract_with_callbacks<F, G>(
         &self,
         template: &GpuShaderDesc,
@@ -2058,6 +2137,8 @@ impl GPUProcessor {
         notify_texture: bool,
         uniform: &mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
         notify_uniform: bool,
+        lifecycle: &mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
+        notify_lifecycle: bool,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<String>,
@@ -2067,8 +2148,53 @@ impl GPUProcessor {
             function: &'a mut F,
             texture: &'a mut G,
             uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
+            lifecycle: &'a mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
             output: Option<std::ffi::CString>,
             error: Option<OcioError>,
+        }
+        unsafe extern "C" fn lifecycle_callback<F, G>(
+            context: *mut c_void,
+            event: i32,
+            uid: *const i8,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                    let event = match event {
+                        0 if !uid.is_null() => ShaderLifecycle::Begin {
+                            unique_id: unsafe { std::ffi::CStr::from_ptr(uid) }.to_str().map_err(
+                                |_| {
+                                    OcioError::InvalidInput("shader identifier is not UTF-8".into())
+                                },
+                            )?,
+                        },
+                        1 => ShaderLifecycle::Finalized,
+                        2 => ShaderLifecycle::End,
+                        _ => {
+                            return Err(OcioError::InvalidInput(
+                                "invalid shader lifecycle event".into(),
+                            ))
+                        }
+                    };
+                    (state.lifecycle)(event)
+                }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("shader lifecycle callback panicked".into())
+                    });
+                    false
+                }
+            }
         }
         unsafe extern "C" fn uniform_callback<F, G>(
             context: *mut c_void,
@@ -2258,18 +2384,20 @@ impl GPUProcessor {
             function: &mut assemble,
             texture: &mut texture,
             uniform,
+            lifecycle,
             output: None,
             error: None,
         };
         crate::clear_last_error();
         let ptr = unsafe {
             let context = (&mut state as *mut State<'_, F, G>).cast();
-            ocio_sys::ocio_gpu_processor_extract_with_resource_callbacks(
+            ocio_sys::ocio_gpu_processor_extract_with_lifecycle_callbacks(
                 self.handle.as_ptr(),
                 template.handle.as_ptr(),
                 callback::<F, G>,
                 notify_texture.then_some(texture_callback::<F, G>),
                 notify_uniform.then_some(uniform_callback::<F, G>),
+                notify_lifecycle.then_some(lifecycle_callback::<F, G>),
                 context,
             )
         };
