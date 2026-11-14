@@ -7481,6 +7481,93 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 #endif
 }
 
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+#ifndef OCIO_RS_STUB
+// Keep OCIO's resource ownership and live getter behavior while allowing Rust
+// to customize the native virtual createShaderText stage synchronously.
+class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc {
+  ocio::GpuShaderDescRcPtr resources = ocio::GpuShaderDesc::CreateShaderDesc();
+  ocio_shader_assemble_callback callback;
+  void* context;
+public:
+  OcioRsAssemblingDesc(ocio_shader_assemble_callback cb, void* ctx) : callback(cb), context(ctx) {}
+  void clear_callback() noexcept { callback = nullptr; context = nullptr; }
+  void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
+  void setTextureMaxWidth(unsigned v) override { resources->setTextureMaxWidth(v); }
+  unsigned getTextureMaxWidth() const noexcept override { return resources->getTextureMaxWidth(); }
+  void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
+  bool getAllowTexture1D() const override { return resources->getAllowTexture1D(); }
+  bool addUniform(const char* n, const DoubleGetter& g) override { return resources->addUniform(n, g); }
+  bool addUniform(const char* n, const BoolGetter& g) override { return resources->addUniform(n, g); }
+  bool addUniform(const char* n, const Float3Getter& g) override { return resources->addUniform(n, g); }
+  bool addUniform(const char* n, const SizeGetter& s, const VectorFloatGetter& g, unsigned m) override {
+    return resources->addUniform(n, s, g, m);
+  }
+  bool addUniform(const char* n, const SizeGetter& s, const VectorIntGetter& g, unsigned m) override {
+    return resources->addUniform(n, s, g, m);
+  }
+  unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
+                      TextureDimensions d, ocio::Interpolation i, const float* v) override {
+    return resources->addTexture(n, s, w, h, c, d, i, v);
+  }
+  unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
+                        const float* v) override { return resources->add3DTexture(n, s, e, i, v); }
+  unsigned getNumUniforms() const noexcept override { return resources->getNumUniforms(); }
+  const char* getUniform(unsigned i, UniformData& data) const override { return resources->getUniform(i, data); }
+  size_t getUniformBufferSize() const noexcept override { return resources->getUniformBufferSize(); }
+  unsigned getNumTextures() const noexcept override { return resources->getNumTextures(); }
+  void getTexture(unsigned i, const char*& n, const char*& s, unsigned& w, unsigned& h,
+                  TextureType& c, TextureDimensions& d, ocio::Interpolation& interp) const override {
+    resources->getTexture(i, n, s, w, h, c, d, interp);
+  }
+  void getTextureValues(unsigned i, const float*& v) const override { resources->getTextureValues(i, v); }
+  unsigned getTextureShaderBindingIndex(unsigned i) const override { return resources->getTextureShaderBindingIndex(i); }
+  unsigned getNum3DTextures() const noexcept override { return resources->getNum3DTextures(); }
+  void get3DTexture(unsigned i, const char*& n, const char*& s, unsigned& e,
+                    ocio::Interpolation& interp) const override { resources->get3DTexture(i, n, s, e, interp); }
+  void get3DTextureValues(unsigned i, const float*& v) const override { resources->get3DTextureValues(i, v); }
+  unsigned get3DTextureShaderBindingIndex(unsigned i) const override { return resources->get3DTextureShaderBindingIndex(i); }
+  void createShaderText(const char* p, const char* t, const char* helpers,
+                        const char* header, const char* body, const char* footer) override {
+    if (!callback) { ocio::GpuShaderCreator::createShaderText(p, t, helpers, header, body, footer); return; }
+    const char* text = callback(context, p, t, helpers, header, body, footer);
+    if (!text) throw ocio::Exception("Rust shader assembler failed");
+    ocio::GpuShaderCreator::createShaderText("", "", "", "", text, "");
+  }
+};
+#endif
+
+void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, void* context) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)template_desc; (void)callback; (void)context;
+  ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle || !template_desc || !callback) throw std::invalid_argument("invalid shader assembler arguments");
+    auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
+    auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, context);
+    desc->setLanguage(source->getLanguage());
+    desc->setFunctionName(source->getFunctionName());
+    desc->setPixelName(source->getPixelName());
+    desc->setResourcePrefix(source->getResourcePrefix());
+    desc->setUniqueID(source->getUniqueID());
+    desc->setDescriptorSetIndex(source->getDescriptorSetIndex(), source->getTextureBindingStart());
+    desc->setResourceBindings(source->getDescriptorSetIndex(), source->getTextureBindingStart());
+    desc->setTextureMaxWidth(source->getTextureMaxWidth());
+    desc->setAllowTexture1D(source->getAllowTexture1D());
+    ocio::GpuShaderCreatorRcPtr creator = desc;
+    ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(creator);
+    desc->clear_callback();
+    auto out = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{desc});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
+
 
 // --- GpuShaderDesc ---
 

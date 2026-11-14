@@ -650,6 +650,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("apply_planar_strided_f32", "try_apply_planar_strided_f32"),
         ("apply_planar_bytes", "try_apply_planar_bytes"),
         ("borrow_texture_values", "texture_values_ref"),
+        ("extract_with_assembler", "try_extract_with_assembler"),
         ("apply_planar_convert", "try_apply_planar_convert"),
         ("apply_packed_convert", "try_apply_packed_convert"),
         ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),

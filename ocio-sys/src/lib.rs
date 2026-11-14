@@ -1249,6 +1249,21 @@ unsafe extern "C" {
         shaderCreator: *mut c_void,
     ) -> ();
     pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_gpu_processor_extract_with_assembler(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        callback: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+        ) -> *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
 
     // --- GpuShaderDesc ---
     pub fn ocio_gpu_shader_desc_create_shader_desc() -> *mut c_void;

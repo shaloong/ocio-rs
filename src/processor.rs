@@ -1706,11 +1706,137 @@ pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
 
+/// Shader sections supplied by OCIO to a custom assembler during extraction.
+#[cfg(feature = "v2_5")]
+pub struct ShaderSections<'a> {
+    /// Uniform parameter declarations, without a Vulkan uniform-block wrapper.
+    pub parameters: &'a str,
+    /// Texture and sampler declarations.
+    pub textures: &'a str,
+    /// Helper function definitions.
+    pub helpers: &'a str,
+    /// OCIO function signature and opening code.
+    pub header: &'a str,
+    /// OCIO color-processing function body.
+    pub body: &'a str,
+    /// OCIO function closing code.
+    pub footer: &'a str,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GPUProcessor {}
 
 impl GPUProcessor {
+    /// Extract a fresh descriptor while assembling its shader text in Rust.
+    ///
+    /// The template supplies language, resource names, binding settings and
+    /// texture preferences; existing template resources are not copied. OCIO
+    /// retains ownership of resources and live dynamic properties in the result.
+    /// The callback runs synchronously and must return the complete shader text.
+    /// Callback errors and panics are returned as errors without crossing FFI.
+    /// OCIO holds its GPU processor lock during the callback; do not reenter
+    /// extraction on the same processor. For Vulkan, the callback must include
+    /// any desired uniform-buffer wrapper around `parameters` itself.
+    ///
+    /// ```no_run
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, Result};
+    /// # fn example(gpu: &GPUProcessor, template: &GpuShaderDesc) -> Result<()> {
+    /// let desc = gpu.try_extract_with_assembler(template, |parts| {
+    ///     Ok(format!("// custom\n{}{}{}{}{}{}", parts.parameters, parts.textures,
+    ///         parts.helpers, parts.header, parts.body, parts.footer))
+    /// })?;
+    /// assert!(desc.shader_text().unwrap().starts_with("// custom"));
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "v2_5")]
+    pub fn try_extract_with_assembler<F>(
+        &self,
+        template: &GpuShaderDesc,
+        mut assemble: F,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<String>,
+    {
+        struct State<'a, F> {
+            function: &'a mut F,
+            output: Option<std::ffi::CString>,
+            error: Option<OcioError>,
+        }
+        unsafe extern "C" fn callback<F>(
+            context: *mut c_void,
+            p: *const i8,
+            t: *const i8,
+            h: *const i8,
+            head: *const i8,
+            body: *const i8,
+            foot: *const i8,
+        ) -> *const i8
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<String>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<std::ffi::CString> {
+                    let read = |ptr: *const i8| -> Result<&str> {
+                        if ptr.is_null() {
+                            return Err(OcioError::InvalidInput("null shader section".into()));
+                        }
+                        unsafe { std::ffi::CStr::from_ptr(ptr) }
+                            .to_str()
+                            .map_err(|_| {
+                                OcioError::InvalidInput("shader section is not UTF-8".into())
+                            })
+                    };
+                    let text = (state.function)(ShaderSections {
+                        parameters: read(p)?,
+                        textures: read(t)?,
+                        helpers: read(h)?,
+                        header: read(head)?,
+                        body: read(body)?,
+                        footer: read(foot)?,
+                    })?;
+                    std::ffi::CString::new(text).map_err(|_| {
+                        OcioError::InvalidInput("assembled shader contains a NUL byte".into())
+                    })
+                },
+            ));
+            match result {
+                Ok(Ok(output)) => {
+                    state.output = Some(output);
+                    state.output.as_ref().unwrap().as_ptr()
+                }
+                Ok(Err(error)) => {
+                    state.error = Some(error);
+                    std::ptr::null()
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::InvalidInput("shader assembler panicked".into()));
+                    std::ptr::null()
+                }
+            }
+        }
+        let mut state = State {
+            function: &mut assemble,
+            output: None,
+            error: None,
+        };
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_gpu_processor_extract_with_assembler(
+                self.handle.as_ptr(),
+                template.handle.as_ptr(),
+                callback::<F>,
+                (&mut state as *mut State<'_, F>).cast(),
+            )
+        };
+        let result = crate::handle_result(ptr);
+        if let Some(error) = state.error {
+            return Err(error);
+        }
+        Ok(GpuShaderDesc { handle: result? })
+    }
     /// Return whether the GPU path is an identity/no-op transform.
     ///
     /// Returns `false` if OCIO reports an error. Use [`Self::try_is_no_op`] to

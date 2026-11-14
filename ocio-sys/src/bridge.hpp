@@ -600,6 +600,10 @@ void ocio_gpu_processor_extract_gpu_shader_info(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v1(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCreator);
 void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);
+typedef const char* (*ocio_shader_assemble_callback)(void* context, const char* parameters,
+    const char* textures, const char* helpers, const char* header, const char* body, const char* footer);
+void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

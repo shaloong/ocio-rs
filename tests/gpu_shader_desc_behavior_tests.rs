@@ -26,6 +26,108 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_assembler_receives_sections_and_retains_dynamic_uniforms() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = ExposureContrastTransform::create().unwrap();
+    transform.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::Glsl4_0).unwrap();
+    template.set_function_name("customAssembly").unwrap();
+    let mut calls = 0;
+    let desc = gpu
+        .try_extract_with_assembler(&template, |parts| {
+            calls += 1;
+            Ok(format!(
+                "// rust assembler\n{}{}{}{}{}{}",
+                parts.parameters,
+                parts.textures,
+                parts.helpers,
+                parts.header,
+                parts.body,
+                parts.footer
+            ))
+        })
+        .unwrap();
+    assert_eq!(calls, 1);
+    let shader = desc.shader_text().unwrap();
+    assert!(shader.contains("// rust assembler"));
+    assert!(shader.contains("customAssembly"));
+    let property = desc
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    let index = (0..desc.num_uniforms())
+        .find(|&i| {
+            desc.uniform(i)
+                .is_some_and(|u| u.uniform_type == GpuUniformType::Double)
+        })
+        .unwrap();
+    let mut before = [0.0];
+    assert!(desc.try_copy_uniform_f32_into(index, &mut before).unwrap());
+    property.set_double_value(1.0).unwrap();
+    let mut after = [0.0];
+    assert!(desc.try_copy_uniform_f32_into(index, &mut after).unwrap());
+    assert_ne!(before, after);
+    assert!(gpu
+        .try_extract_with_assembler(&template, |_| Err(ocio_rs::OcioError::InvalidInput(
+            "rejected".into()
+        )))
+        .is_err());
+    assert!(gpu
+        .try_extract_with_assembler(&template, |_| -> ocio_rs::Result<String> {
+            panic!("callback panic")
+        })
+        .is_err());
+    assert!(gpu
+        .try_extract_with_assembler(&template, |_| Ok("bad\0shader".into()))
+        .is_err());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_shader_assembler_preserves_lut_resources_and_binding_indices() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    template.try_set_descriptor_set_index(2, 7).unwrap();
+    template.set_allow_texture_1d(false).unwrap();
+    let mut desc = gpu
+        .try_extract_with_assembler(&template, |p| {
+            Ok(format!(
+                "{}{}{}{}{}{}",
+                p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+            ))
+        })
+        .unwrap();
+    assert!(desc.num_textures() > 0);
+    let texture = desc.texture_2d(0).unwrap();
+    assert_eq!(texture.dimensions, GpuTextureDimensions::Texture2D);
+    assert_eq!(texture.binding_index, Some(7));
+    assert_eq!(desc.texture_values_ref(0).unwrap(), texture.values);
+    assert_eq!(desc.descriptor_set_index(), 2);
+    assert_eq!(desc.texture_binding_start(), 7);
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn native_shader_creator_interop_borrows_without_taking_ownership() {

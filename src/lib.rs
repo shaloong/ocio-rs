@@ -127,6 +127,8 @@ pub use file_rules::FileRules;
 pub use format_metadata::FormatMetadata;
 pub use look::Look;
 pub use named_transform::NamedTransform;
+#[cfg(feature = "v2_5")]
+pub use processor::ShaderSections;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderDesc, GpuTexture2D, GpuTexture3D,
     GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformType, GpuUniformValue,
