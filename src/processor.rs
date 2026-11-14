@@ -170,6 +170,31 @@ pub struct Processor {
 unsafe impl Send for Processor {}
 
 impl Processor {
+    /// Build a native CPU processor for explicit input and output bit depths.
+    pub fn optimized_cpu_processor_bit_depth(
+        &self,
+        input: BitDepth,
+        output: BitDepth,
+        flags: u32,
+    ) -> Result<CPUProcessor> {
+        if input == BitDepth::Unknown || output == BitDepth::Unknown {
+            return Err(OcioError::InvalidInput(
+                "CPU processor bit depth cannot be unknown".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_optimized_cpu_processor_bit_depth(
+                self.handle.as_ptr(),
+                input as i32,
+                output as i32,
+                flags,
+            )
+        };
+        Ok(CPUProcessor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
     /// Return whether the processor is an identity/no-op pipeline.
     pub fn is_no_op(&self) -> bool {
         self.try_is_no_op().unwrap_or(false)
@@ -512,11 +537,97 @@ pub struct PlanarF32Layout {
     pub y_stride: usize,
 }
 
+/// Positive byte strides and native channel bit depth for a planar image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanarByteLayout {
+    /// Number of pixels per row.
+    pub width: usize,
+    /// Number of rows.
+    pub height: usize,
+    /// Byte distance between adjacent pixels.
+    pub x_stride: usize,
+    /// Byte distance between adjacent rows.
+    pub y_stride: usize,
+    /// Native storage and interpretation of each channel.
+    pub bit_depth: BitDepth,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Process planar byte buffers in place at the processor's native bit depth.
+    ///
+    /// All pointers and strides must be aligned for the selected storage type.
+    /// The binding validates the layout and passes the original buffers to OCIO.
+    pub fn try_apply_planar_bytes(
+        &self,
+        red: &mut [u8],
+        green: &mut [u8],
+        blue: &mut [u8],
+        alpha: Option<&mut [u8]>,
+        layout: PlanarByteLayout,
+    ) -> Result<()> {
+        let PlanarByteLayout {
+            width,
+            height,
+            x_stride,
+            y_stride,
+            bit_depth,
+        } = layout;
+        let size = bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_bytes", bit_depth)?;
+        let invalid =
+            || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
+        if width == 0
+            || height == 0
+            || x_stride < size
+            || !x_stride.is_multiple_of(size)
+            || !y_stride.is_multiple_of(size)
+        {
+            return Err(invalid());
+        }
+        let row_span = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|n| n.checked_add(size))
+            .ok_or_else(invalid)?;
+        if height > 1 && y_stride < row_span {
+            return Err(invalid());
+        }
+        let required = (height - 1)
+            .checked_mul(y_stride)
+            .and_then(|n| n.checked_add(row_span))
+            .ok_or_else(invalid)?;
+        for plane in [&*red, &*green, &*blue].into_iter().chain(alpha.as_deref()) {
+            if plane.len() < required || !(plane.as_ptr() as usize).is_multiple_of(size) {
+                return Err(invalid());
+            }
+        }
+        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] =
+            [width, height, x_stride, y_stride].map(i64::try_from)
+        else {
+            return Err(invalid());
+        };
+        if y_stride == 0 {
+            return Err(invalid());
+        }
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_bytes(
+                self.handle.as_ptr(),
+                red.as_mut_ptr().cast(),
+                green.as_mut_ptr().cast(),
+                blue.as_mut_ptr().cast(),
+                alpha.map_or(std::ptr::null_mut(), |p| p.as_mut_ptr().cast()),
+                width,
+                height,
+                x_stride,
+                y_stride,
+                bit_depth as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Process strided planar F32 channels in place without copying pixels.
     ///
     /// Strides are measured in F32 elements and must be positive. Each row

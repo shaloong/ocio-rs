@@ -296,3 +296,50 @@ fn planar_strides_preserve_padding_and_reject_overflow() {
         .try_apply_planar_strided_f32(&mut r[..7], &mut g, &mut b, None, layout)
         .is_err());
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn planar_u8_uses_explicit_native_cpu_bit_depth() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, PlanarByteLayout, TransformDirection,
+    };
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    let layout = PlanarByteLayout {
+        width: 2,
+        height: 2,
+        x_stride: 2,
+        y_stride: 5,
+        bit_depth: BitDepth::Uint8,
+    };
+    let mut red = [50, 255, 100, 255, 255, 25, 255, 60];
+    let mut green = [40, 255, 50, 255, 255, 60, 255, 70];
+    let mut blue = [100, 255, 200, 255, 255, 40, 255, 80];
+    cpu.try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, layout)
+        .unwrap();
+    assert_eq!(red, [100, 255, 200, 255, 255, 50, 255, 120]);
+    assert_eq!(green, [40, 255, 50, 255, 255, 60, 255, 70]);
+    assert_eq!(blue, [50, 255, 100, 255, 255, 20, 255, 40]);
+    let incorrect = PlanarByteLayout {
+        bit_depth: BitDepth::F32,
+        x_stride: 4,
+        y_stride: 8,
+        width: 1,
+        height: 1,
+    };
+    assert!(cpu
+        .try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, incorrect)
+        .is_err());
+    let f32_cpu = processor.default_cpu_processor().unwrap();
+    assert!(f32_cpu
+        .try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, layout)
+        .is_err());
+}

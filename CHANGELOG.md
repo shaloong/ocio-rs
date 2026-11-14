@@ -11,6 +11,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - Process planar F32 image channels in place through native OpenColorIO.
 - Support checked positive row and pixel strides for planar F32 processing.
+- Support planar native-depth byte channels and explicit CPU processor bit depths.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent

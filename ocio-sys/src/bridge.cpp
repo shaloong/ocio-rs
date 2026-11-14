@@ -7197,6 +7197,31 @@ void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float
 #endif
 }
 
+void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green, void* blue,
+    void* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride, int bit_depth) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)red; (void)green; (void)blue; (void)alpha;
+  (void)width; (void)height; (void)x_stride; (void)y_stride; (void)bit_depth;
+  ocio_rs_bridge::clear_last_error();
+#else
+  try {
+    const auto limit = std::numeric_limits<ptrdiff_t>::max();
+    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
+        height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
+        x_stride > limit || y_stride > limit || !red || !green || !blue)
+      throw std::invalid_argument("invalid planar image dimensions, strides or pointers");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    const auto depth = static_cast<ocio::BitDepth>(bit_depth);
+    if (cpu->getInputBitDepth() != depth || cpu->getOutputBitDepth() != depth)
+      throw std::invalid_argument("planar bit depth must match processor input and output");
+    ocio::PlanarImageDesc image(red, green, blue, alpha, static_cast<long>(width),
+        static_cast<long>(height), depth, static_cast<ptrdiff_t>(x_stride),
+        static_cast<ptrdiff_t>(y_stride));
+    cpu->apply(image);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)numPixels; (void)stride;
@@ -16918,4 +16943,22 @@ void ocio_dynamic_property_grading_hue_curve_object_set(void* h, void* value) {
 }
 #endif
 
+void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int input_depth, int output_depth, uint32_t flags) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)input_depth; (void)output_depth; (void)flags;
+  ocio_rs_bridge::capture_error_message("Bit-depth CPU processing requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    auto value = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(
+        static_cast<ocio::BitDepth>(input_depth), static_cast<ocio::BitDepth>(output_depth),
+        static_cast<ocio::OptimizationFlags>(flags));
+    if (!value) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::CPUProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealCPUProcessor>(
+        ocio_rs_bridge::RealCPUProcessor{std::const_pointer_cast<ocio::CPUProcessor>(value)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 }  // extern "C"
