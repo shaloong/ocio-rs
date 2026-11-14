@@ -2173,6 +2173,7 @@ unsafe extern "C" {
 
     // --- Lut1DTransform ---
     pub fn ocio_lut1d_transform_create() -> *mut c_void;
+    pub fn ocio_lut1d_transform_create_with_length(length: u64, half_domain: bool) -> *mut c_void;
     pub fn ocio_lut1d_transform_destroy(handle: *mut c_void);
     pub fn ocio_lut1d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut1d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)
@@ -2213,6 +2214,7 @@ unsafe extern "C" {
 
     // --- Lut3DTransform ---
     pub fn ocio_lut3d_transform_create() -> *mut c_void;
+    pub fn ocio_lut3d_transform_create_with_grid_size(grid_size: u64) -> *mut c_void;
     pub fn ocio_lut3d_transform_destroy(handle: *mut c_void);
     pub fn ocio_lut3d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut3d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)

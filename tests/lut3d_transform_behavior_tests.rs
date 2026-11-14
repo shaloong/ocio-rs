@@ -163,3 +163,18 @@ fn lut3d_transform_processor_behavior() {
     assert_close(restored[2] as f64, original[2] as f64, 5e-5);
     assert_close(restored[3] as f64, original[3] as f64, 5e-5);
 }
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn sized_identity_constructor_preserves_grid_values() {
+    let lut = ocio_rs::transform::Lut3DTransform::create_with_grid_size(3).unwrap();
+    assert_eq!(lut.grid_size(), 3);
+    assert_eq!(lut.value(0, 1, 2), Some([0.0, 0.5, 1.0]));
+    assert!(ocio_rs::transform::Lut3DTransform::create_with_grid_size(130).is_err());
+    assert!(ocio_rs::transform::Lut3DTransform::create_with_grid_size(u64::MAX).is_err());
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn sized_constructor_reports_missing_native_backend() {
+    assert!(ocio_rs::transform::Lut3DTransform::create_with_grid_size(3).is_err());
+}

@@ -1234,6 +1234,7 @@ void ocio_look_transform_set_skip_color_space_conversion(void* handle, bool skip
 
 // --- Lut1DTransform ---
 void* ocio_lut1d_transform_create(void);
+void* ocio_lut1d_transform_create_with_length(uint64_t length, bool half_domain);
 void ocio_lut1d_transform_destroy(void* handle);
 
 int ocio_lut1d_transform_get_file_output_bit_depth(void* handle);
@@ -1263,6 +1264,7 @@ void ocio_lut1d_transform_set_values(void* handle, const double* data);
 
 // --- Lut3DTransform ---
 void* ocio_lut3d_transform_create(void);
+void* ocio_lut3d_transform_create_with_grid_size(uint64_t grid_size);
 void ocio_lut3d_transform_destroy(void* handle);
 
 int ocio_lut3d_transform_get_file_output_bit_depth(void* handle);

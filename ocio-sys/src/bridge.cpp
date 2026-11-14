@@ -13103,6 +13103,22 @@ void* ocio_lut1d_transform_create(void) {
 #endif
 }
 
+void* ocio_lut1d_transform_create_with_length(uint64_t length, bool half_domain) {
+#ifdef OCIO_RS_STUB
+  (void)length; (void)half_domain;
+  ocio_rs_bridge::capture_error_message("LUT construction requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (length > std::numeric_limits<unsigned long>::max()) throw std::invalid_argument("LUT length exceeds native range");
+    auto transform = ocio::Lut1DTransform::Create(static_cast<unsigned long>(length), half_domain);
+    auto handle = std::make_unique<ocio_rs_bridge::Lut1DTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{transform});
+    return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_lut1d_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::Lut1DTransformHandle*>(handle);
 }
@@ -13322,6 +13338,22 @@ void* ocio_lut3d_transform_create(void) {
   try {
     auto handle = ocio_rs_bridge::make_real_lut3d_transform();
     if (!handle) return nullptr;
+    return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_lut3d_transform_create_with_grid_size(uint64_t grid_size) {
+#ifdef OCIO_RS_STUB
+  (void)grid_size;
+  ocio_rs_bridge::capture_error_message("LUT construction requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (grid_size > std::numeric_limits<unsigned long>::max()) throw std::invalid_argument("LUT grid size exceeds native range");
+    auto transform = ocio::Lut3DTransform::Create(static_cast<unsigned long>(grid_size));
+    auto handle = std::make_unique<ocio_rs_bridge::Lut3DTransformHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{transform});
     return handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
