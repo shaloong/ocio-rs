@@ -4,12 +4,13 @@ This independent, unpublished tool compares Rust-generated OCIO 2.6 Vulkan
 GLSL running on a physical GPU with the OCIO CPU processor. It checks four
 RGBA pixels for a matrix transform and for two dynamically updated exposure
 values on the same compiled pipeline, including native uniform-buffer offsets.
-It rejects software and
-virtual adapters. This is a targeted integration test, not comprehensive GPU,
-texture, language, driver, or color-pipeline coverage.
+It also uploads and linearly samples a non-identity 2×2×2 3D LUT. It rejects
+software and virtual adapters. This is a targeted integration test, not
+comprehensive GPU, texture, language, driver, or color-pipeline coverage.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
-and OCIO 2.6 source usable by the `bundled` feature. It uses a separate Cargo
+and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
+filtering 32-bit float textures. It uses a separate Cargo
 workspace and lockfile so its GPU dependencies do not enter the library's
 production dependency graph. Run from the repository root:
 
@@ -27,5 +28,10 @@ cargo run --locked --manifest-path tools/gpu-validation/Cargo.toml
 
 The emitted GLSL is parsed and validated by wgpu/Naga before execution through
 Vulkan; a Naga rejection is not by itself proof that an OCIO shader is invalid
-for other GLSL compilers. The program exits nonzero on missing hardware, shader
-or GPU errors, unexpected resource layouts, or CPU/GPU differences above 1e-5.
+for other GLSL compilers. For the 3D LUT case only, the tool adapts OCIO's
+combined sampler to separate texture/sampler bindings required by wgpu, adds
+explicit LOD 0 for the compute stage, and expands RGB texels to RGBA. It does
+not change OCIO's coordinates or color calculation. The program exits nonzero
+on missing hardware, shader or GPU errors, unexpected resource layouts, or
+CPU/GPU differences above 1e-5 for analytic cases or 5e-3 for the filtered LUT.
+It reports the measured maximum error for each case.
