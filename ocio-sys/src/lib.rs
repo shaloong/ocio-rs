@@ -12,6 +12,8 @@ mod v2_6;
 pub use v2_6::*;
 
 use std::ffi::c_void;
+mod app_helpers;
+pub use app_helpers::*;
 
 #[repr(C)]
 pub struct OcioGpuTexture2DInfo {

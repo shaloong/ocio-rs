@@ -200,7 +200,8 @@ jobs:
           export OCIO_RS_LINK=dynamic
           export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:$build/ext/dist/lib:$build/ext/dist/lib64"
           cargo test --locked --no-default-features --features system,v2_6 \
-            --test ocio_2_6_behavior_tests --test runtime_helpers_behavior_tests -- --test-threads=1
+            --test app_helpers_behavior_tests --test ocio_2_6_behavior_tests \
+            --test runtime_helpers_behavior_tests -- --test-threads=1
 
   bundled-zlib-ng:
     name: Bundled with system zlib-ng (Arch Linux)

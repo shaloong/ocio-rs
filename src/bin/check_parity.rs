@@ -73,6 +73,10 @@ fn c_prefix_to_rust(prefix: &str) -> Option<&'static str> {
         "file_rules" => Some("FileRules"),
         "color_space" => Some("ColorSpace"),
         "color_space_set" => Some("ColorSpaceSet"),
+        "color_space_menu_parameters" => Some("ColorSpaceMenuParameters"),
+        "color_space_menu_helper" => Some("ColorSpaceMenuHelper"),
+        "mixing_color_space_manager" => Some("MixingColorSpaceManager"),
+        "mixing_slider" => Some("MixingSlider"),
         "look" => Some("Look"),
         "named_transform" => Some("NamedTransform"),
         "view_transform" => Some("ViewTransform"),
@@ -134,6 +138,10 @@ fn known_c_prefixes() -> Vec<&'static str> {
         "builtin_config_registry",
         "builtin_transform_registry",
         "color_space_set",
+        "color_space_menu_parameters",
+        "color_space_menu_helper",
+        "mixing_color_space_manager",
+        "mixing_slider",
         "allocation_transform",
         "look_transform",
         "lut1d_transform",
@@ -447,6 +455,10 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
     }
 
     let cpp_classes = [
+        "ColorSpaceMenuParameters",
+        "ColorSpaceMenuHelper",
+        "MixingColorSpaceManager",
+        "MixingSlider",
         "Config",
         "FileRules",
         "ColorSpace",
@@ -495,9 +507,7 @@ fn parse_ocio_cpp_headers(include_dir: &Path) -> HashMap<String, Vec<(String, St
         .filter_map(|e| e.ok())
         .filter(|e| {
             e.path().extension().is_some_and(|ext| ext == "h")
-                && e.path()
-                    .file_name()
-                    .is_some_and(|n| n != "OpenColorABI.h" && n != "OpenColorAppHelpers.h")
+                && e.path().file_name().is_some_and(|n| n != "OpenColorABI.h")
         })
         .collect();
 
@@ -807,6 +817,10 @@ fn run_l3(
         ("FileRules", "FileRules"),
         ("ColorSpace", "ColorSpace"),
         ("ColorSpaceSet", "ColorSpaceSet"),
+        ("ColorSpaceMenuParameters", "ColorSpaceMenuParameters"),
+        ("ColorSpaceMenuHelper", "ColorSpaceMenuHelper"),
+        ("MixingColorSpaceManager", "MixingColorSpaceManager"),
+        ("MixingSlider", "MixingSlider"),
         ("Look", "Look"),
         ("NamedTransform", "NamedTransform"),
         ("ViewTransform", "ViewTransform"),
@@ -1062,6 +1076,7 @@ fn main() {
     let bridge_funcs = parse_bridge_hpp(&root.join(BRIDGE_HPP));
     let mut lib_funcs = parse_lib_rs(&root.join(LIB_RS));
     lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/v2_6.rs")));
+    lib_funcs.extend(parse_lib_rs(&root.join("ocio-sys/src/app_helpers.rs")));
     let rust_methods = parse_rust_wrappers(&root.join(SRC_DIR));
 
     // Compare

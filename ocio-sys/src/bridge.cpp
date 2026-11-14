@@ -14444,4 +14444,620 @@ const char* ocio_metadata_id_element(void) {
 }
 #endif
 
+#ifndef OCIO_RS_STUB
+using MenuParameters = ocio::ColorSpaceMenuParametersRcPtr;
+using MenuHelper = ocio::ColorSpaceMenuHelperRcPtr;
+static const MenuParameters& menu_parameters(void* handle) {
+  return *static_cast<MenuParameters*>(handle);
+}
+static const MenuHelper& menu_helper(void* handle) {
+  return *static_cast<MenuHelper*>(handle);
+}
+#endif
+
+void* ocio_color_space_menu_parameters_create(void* config) {
+#if defined(OCIO_RS_STUB)
+  (void)config;
+  ocio_rs_bridge::capture_error_message("Color-space menus require a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    return new MenuParameters(ocio::ColorSpaceMenuParameters::Create(ocio_rs_bridge::get_real_config(config)));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_color_space_menu_parameters_destroy(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return;
+#else
+  delete static_cast<MenuParameters*>(handle);
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_config(void* handle, void* config) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)config;
+  return;
+#else
+  menu_parameters(handle)->setConfig(ocio_rs_bridge::get_real_config(config));
+#endif
+}
+
+void* ocio_color_space_menu_parameters_get_config(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto config = menu_parameters(handle)->getConfig();
+    if (!config) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{config->createEditableCopy()});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_color_space_menu_parameters_get_role(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return nullptr;
+#else
+  return menu_parameters(handle)->getRole();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_role(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setRole(value);
+#endif
+}
+
+bool ocio_color_space_menu_parameters_get_include_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return false;
+#else
+  return menu_parameters(handle)->getIncludeColorSpaces();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_include_color_spaces(void* handle, bool value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setIncludeColorSpaces(value);
+#endif
+}
+
+bool ocio_color_space_menu_parameters_get_include_named_transforms(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return false;
+#else
+  return menu_parameters(handle)->getIncludeNamedTransforms();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_include_named_transforms(void* handle, bool value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setIncludeNamedTransforms(value);
+#endif
+}
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+bool ocio_color_space_menu_parameters_get_treat_no_category_as_any(void* handle) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050000
+  (void)handle;
+  return false;
+#else
+  return menu_parameters(handle)->getTreatNoCategoryAsAny();
+#endif
+}
+#endif
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+void ocio_color_space_menu_parameters_set_treat_no_category_as_any(void* handle, bool value) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050000
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setTreatNoCategoryAsAny(value);
+#endif
+}
+#endif
+
+const char* ocio_color_space_menu_parameters_get_app_categories(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return nullptr;
+#else
+  return menu_parameters(handle)->getAppCategories();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_app_categories(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setAppCategories(value);
+#endif
+}
+
+const char* ocio_color_space_menu_parameters_get_encodings(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return nullptr;
+#else
+  return menu_parameters(handle)->getEncodings();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_encodings(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setEncodings(value);
+#endif
+}
+
+const char* ocio_color_space_menu_parameters_get_user_categories(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return nullptr;
+#else
+  return menu_parameters(handle)->getUserCategories();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_user_categories(void* handle, const char* value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setUserCategories(value);
+#endif
+}
+
+bool ocio_color_space_menu_parameters_get_include_roles(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return false;
+#else
+  return menu_parameters(handle)->getIncludeRoles();
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_include_roles(void* handle, bool value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setIncludeRoles(value);
+#endif
+}
+
+int ocio_color_space_menu_parameters_get_search_reference_space_type(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return 0;
+#else
+  return static_cast<int>(menu_parameters(handle)->getSearchReferenceSpaceType());
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_search_reference_space_type(void* handle, int value) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)value;
+  return;
+#else
+  menu_parameters(handle)->setSearchReferenceSpaceType(static_cast<ocio::SearchReferenceSpaceType>(value));
+#endif
+}
+
+void ocio_color_space_menu_parameters_add_color_space(void* handle, const char* name) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)name;
+  return;
+#else
+  menu_parameters(handle)->addColorSpace(name);
+#endif
+}
+
+size_t ocio_color_space_menu_parameters_get_num_added_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return 0;
+#else
+  return menu_parameters(handle)->getNumAddedColorSpaces();
+#endif
+}
+
+const char* ocio_color_space_menu_parameters_get_added_color_space(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  return menu_parameters(handle)->getAddedColorSpace(index);
+#endif
+}
+
+void ocio_color_space_menu_parameters_clear_added_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return;
+#else
+  menu_parameters(handle)->clearAddedColorSpaces();
+#endif
+}
+
+void* ocio_color_space_menu_helper_create(void* parameters) {
+#if defined(OCIO_RS_STUB)
+  (void)parameters;
+  ocio_rs_bridge::capture_error_message("Color-space menus require a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    return new MenuHelper(ocio::ColorSpaceMenuHelper::Create(menu_parameters(parameters)));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_color_space_menu_helper_destroy(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return;
+#else
+  delete static_cast<MenuHelper*>(handle);
+#endif
+}
+
+size_t ocio_color_space_menu_helper_get_num_color_spaces(void* handle) {
+#if defined(OCIO_RS_STUB)
+  (void)handle;
+  return 0;
+#else
+  return menu_helper(handle)->getNumColorSpaces();
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_name(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  return menu_helper(handle)->getName(index);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_ui_name(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  return menu_helper(handle)->getUIName(index);
+#endif
+}
+
+size_t ocio_color_space_menu_helper_get_index_from_name(void* handle, const char* name) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)name;
+  return SIZE_MAX;
+#else
+  return menu_helper(handle)->getIndexFromName(name);
+#endif
+}
+
+size_t ocio_color_space_menu_helper_get_index_from_ui_name(void* handle, const char* name) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)name;
+  return SIZE_MAX;
+#else
+  return menu_helper(handle)->getIndexFromUIName(name);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_description(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  return menu_helper(handle)->getDescription(index);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_family(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  return menu_helper(handle)->getFamily(index);
+#endif
+}
+
+size_t ocio_color_space_menu_helper_get_num_hierarchy_levels(void* handle, size_t index) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index;
+  return 0;
+#else
+  return menu_helper(handle)->getNumHierarchyLevels(index);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_hierarchy_level(void* handle, size_t index, size_t level) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)index; (void)level;
+  return nullptr;
+#else
+  return menu_helper(handle)->getHierarchyLevel(index, level);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_name_from_ui_name(void* handle, const char* name) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)name;
+  return nullptr;
+#else
+  return menu_helper(handle)->getNameFromUIName(name);
+#endif
+}
+
+const char* ocio_color_space_menu_helper_get_ui_name_from_name(void* handle, const char* name) {
+#if defined(OCIO_RS_STUB)
+  (void)handle; (void)name;
+  return nullptr;
+#else
+  return menu_helper(handle)->getUINameFromName(name);
+#endif
+}
+
+#ifndef OCIO_RS_STUB
+using MixingManager = ocio::MixingColorSpaceManagerRcPtr;
+static const MixingManager& mixing_manager(void* handle) {
+  return *static_cast<MixingManager*>(handle);
+}
+#endif
+
+void* ocio_mixing_color_space_manager_create(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  ocio_rs_bridge::capture_error_message("Mixing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    ocio::ConstConfigRcPtr native = ocio_rs_bridge::get_real_config(config);
+    return new MixingManager(ocio::MixingColorSpaceManager::Create(native));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_mixing_color_space_manager_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return;
+#else
+  delete static_cast<MixingManager*>(handle);
+#endif
+}
+
+size_t ocio_mixing_color_space_manager_get_num_mixing_spaces(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  return mixing_manager(handle)->getNumMixingSpaces();
+#endif
+}
+
+const char* ocio_mixing_color_space_manager_get_mixing_space_ui_name(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    return mixing_manager(handle)->getMixingSpaceUIName(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+size_t ocio_mixing_color_space_manager_get_selected_mixing_space_idx(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  return mixing_manager(handle)->getSelectedMixingSpaceIdx();
+#endif
+}
+
+void ocio_mixing_color_space_manager_set_selected_mixing_space_idx(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return;
+#else
+  try {
+    mixing_manager(handle)->setSelectedMixingSpaceIdx(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_mixing_color_space_manager_set_selected_mixing_space(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+  return;
+#else
+  try {
+    mixing_manager(handle)->setSelectedMixingSpace(name);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_mixing_color_space_manager_is_perceptually_uniform(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return false;
+#else
+  return mixing_manager(handle)->isPerceptuallyUniform();
+#endif
+}
+
+size_t ocio_mixing_color_space_manager_get_num_mixing_encodings(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  return mixing_manager(handle)->getNumMixingEncodings();
+#endif
+}
+
+const char* ocio_mixing_color_space_manager_get_mixing_encoding_name(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return nullptr;
+#else
+  try {
+    return mixing_manager(handle)->getMixingEncodingName(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+size_t ocio_mixing_color_space_manager_get_selected_mixing_encoding_idx(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0;
+#else
+  return mixing_manager(handle)->getSelectedMixingEncodingIdx();
+#endif
+}
+
+void ocio_mixing_color_space_manager_set_selected_mixing_encoding_idx(void* handle, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  return;
+#else
+  try {
+    mixing_manager(handle)->setSelectedMixingEncodingIdx(index);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_mixing_color_space_manager_set_selected_mixing_encoding(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+  return;
+#else
+  try {
+    mixing_manager(handle)->setSelectedMixingEncoding(name);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_mixing_color_space_manager_refresh(void* handle, void* config) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config;
+  return;
+#else
+  try {
+    mixing_manager(handle)->refresh(ocio_rs_bridge::get_real_config(config));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void* ocio_mixing_color_space_manager_get_processor(void* handle, const char* working, const char* display, const char* view, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)working; (void)display; (void)view; (void)direction;
+  return nullptr;
+#else
+  try {
+    auto processor = mixing_manager(handle)->getProcessor(working, display, view, static_cast<ocio::TransformDirection>(direction));
+    if (!processor) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_mixing_color_space_manager_get_slider(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  return &mixing_manager(handle)->getSlider();
+#endif
+}
+
+void* ocio_mixing_color_space_manager_get_slider_with_edges(void* handle, float min, float max) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)min; (void)max;
+  return nullptr;
+#else
+  return &mixing_manager(handle)->getSlider(min, max);
+#endif
+}
+
+void ocio_mixing_slider_set_slider_min_edge(void* handle, float value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+  return;
+#else
+  static_cast<ocio::MixingSlider*>(handle)->setSliderMinEdge(value);
+#endif
+}
+
+void ocio_mixing_slider_set_slider_max_edge(void* handle, float value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+  return;
+#else
+  static_cast<ocio::MixingSlider*>(handle)->setSliderMaxEdge(value);
+#endif
+}
+
+float ocio_mixing_slider_get_slider_min_edge(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0.0f;
+#else
+  return static_cast<ocio::MixingSlider*>(handle)->getSliderMinEdge();
+#endif
+}
+
+float ocio_mixing_slider_get_slider_max_edge(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return 0.0f;
+#else
+  return static_cast<ocio::MixingSlider*>(handle)->getSliderMaxEdge();
+#endif
+}
+
+float ocio_mixing_slider_slider_to_mixing(void* handle, float value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+  return 0.0f;
+#else
+  return static_cast<ocio::MixingSlider*>(handle)->sliderToMixing(value);
+#endif
+}
+
+float ocio_mixing_slider_mixing_to_slider(void* handle, float value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+  return 0.0f;
+#else
+  return static_cast<ocio::MixingSlider*>(handle)->mixingToSlider(value);
+#endif
+}
+
 }  // extern "C"

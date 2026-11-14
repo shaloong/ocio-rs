@@ -78,7 +78,11 @@
     clippy::unnecessary_cast
 )]
 
+mod app_helpers;
 mod baker;
+pub use app_helpers::{
+    ColorSpaceMenuHelper, ColorSpaceMenuParameters, MixingColorSpaceManager, MixingSlider,
+};
 mod builtin_config_registry;
 mod builtin_transform_registry;
 mod color_space_set;

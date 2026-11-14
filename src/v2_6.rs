@@ -186,10 +186,8 @@ impl Config {
     /// Set use display aliases.
     pub fn set_use_display_aliases(&self, enabled: bool) -> Result<()> {
         crate::clear_last_error();
-        let value =
-            unsafe { ocio_sys::ocio_config_set_use_display_aliases(self.handle.as_ptr(), enabled) };
-        crate::ocio_call_status()?;
-        Ok(value)
+        unsafe { ocio_sys::ocio_config_set_use_display_aliases(self.handle.as_ptr(), enabled) };
+        crate::ocio_call_status()
     }
 
     /// Check the native HDR display compatibility requirement defined by OCIO 2.6.

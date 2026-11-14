@@ -42,8 +42,12 @@ test infrastructure, not additional application-facing binding APIs.
 
 This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
-Audit and bind the pre-existing color-space menu, config editing/merging,
-legacy viewing, and mixing helper APIs separately. Track overloads and
+The color-space menu parameters and immutable menu are now bound at their
+native version floors. The menu borrows native strings without allocating.
+The mixing manager also delegates selection and conversions to OCIO; its
+slider is an exclusive borrow with no allocation or shared-pointer increment.
+Config editing/merging and legacy viewing helper APIs remain.
+Track overloads and
 namespace functions by signature rather than inferring their coverage from
 method-name matches. Hardware GPU execution and comparison against a
 direct-C++ performance baseline remain separate validation gates.
