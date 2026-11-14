@@ -1238,6 +1238,7 @@ int ocio_group_transform_get_direction(void* handle);
 void ocio_group_transform_set_direction(void* handle, int dir);
 void* ocio_group_transform_get_transform(void* handle, int index);
 void* ocio_group_transform_get_transform_v1(void* handle, int index);
+void ocio_group_transform_set_transform(void* handle, int index, void* transform);
 int ocio_group_transform_get_num_transforms(void* handle);
 void ocio_group_transform_append_transform(void* handle, void* transform);
 void ocio_group_transform_prepend_transform(void* handle, void* transform);

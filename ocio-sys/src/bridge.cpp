@@ -13583,6 +13583,18 @@ void* ocio_group_transform_get_transform_v1(void* handle, int index) {
 #endif
 }
 
+void ocio_group_transform_set_transform(void* handle, int index, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)transform;
+#else
+  try {
+    auto* child = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+    auto replacement = child->get_ocio_transform();
+    ocio_rs_bridge::get_real_group_transform(handle)->getTransform(index) = std::move(replacement);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 int ocio_group_transform_get_num_transforms(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 

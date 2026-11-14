@@ -2280,6 +2280,11 @@ unsafe extern "C" {
     pub fn ocio_group_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_transform(handle: *mut c_void, index: i32) -> *mut c_void;
     pub fn ocio_group_transform_get_transform_v1(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_group_transform_set_transform(
+        handle: *mut c_void,
+        index: i32,
+        transform: *mut c_void,
+    );
     pub fn ocio_group_transform_get_num_transforms(handle: *mut c_void) -> i32;
     pub fn ocio_group_transform_append_transform(handle: *mut c_void, transform: *mut c_void)
         -> ();
