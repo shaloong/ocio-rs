@@ -1,5 +1,20 @@
 use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config};
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn system_monitors_checks_bounds_and_keeps_snapshot() {
+    let monitors = ocio_rs::SystemMonitors::get().unwrap();
+    let count = monitors.num_monitors();
+    assert!(monitors.monitor_name(count).is_err());
+    assert!(monitors.profile_filepath(count).is_err());
+    if count > 0 {
+        assert!(!monitors.monitor_name(0).unwrap().is_empty());
+        let _ = monitors.profile_filepath(0).unwrap();
+    }
+    #[cfg(target_os = "linux")]
+    assert!(!monitors.is_supported());
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
@@ -28,6 +43,21 @@ fn ociom_controller_round_trip_and_execute() {
     );
     let serialized = merger.serialize().unwrap();
     assert!(serialized.contains("base.ocio"));
+    let temp = std::env::temp_dir().join(format!("ocio-rs-ociom-{}.ociom", std::process::id()));
+    std::fs::write(&temp, &serialized).unwrap();
+    let path = std::ffi::CString::new(temp.to_str().unwrap()).unwrap();
+    let parsed = ConfigMerger::from_file(&path).unwrap();
+    std::fs::remove_file(&temp).unwrap();
+    assert_eq!(parsed.num_params().unwrap(), 1);
+    assert_eq!(
+        parsed
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .input_config_name()
+            .unwrap(),
+        c"input.ocio"
+    );
     assert!(merger.merged_config(-1).unwrap().is_none());
     let output = merger.merge_configs().unwrap();
     assert_eq!(output.num_merged_configs().unwrap(), 1);

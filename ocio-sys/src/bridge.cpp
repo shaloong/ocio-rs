@@ -16265,4 +16265,62 @@ unsigned int ocio_config_merger_minor_version(void* h) {
 }
 #endif
 
+#ifndef OCIO_RS_STUB
+using MonitorHandle = ocio::ConstSystemMonitorsRcPtr;
+static const MonitorHandle& monitors(void* h) { return *static_cast<MonitorHandle*>(h); }
+#endif
+void* ocio_system_monitors_get(void) {
+#ifdef OCIO_RS_STUB
+  ocio_rs_bridge::capture_error_message("SystemMonitors requires native OpenColorIO");
+  return nullptr;
+#else
+  try { return new MonitorHandle(ocio::SystemMonitors::Get()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_system_monitors_destroy(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  return;
+#else
+  try { delete static_cast<MonitorHandle*>(h); } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+bool ocio_system_monitors_is_supported(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  return false;
+#else
+  try { return monitors(h)->isSupported(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+size_t ocio_system_monitors_get_num_monitors(void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h;
+  return 0;
+#else
+  try { return monitors(h)->getNumMonitors(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+const char* ocio_system_monitors_get_monitor_name(void* h, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)index;
+  return nullptr;
+#else
+  try { return monitors(h)->getMonitorName(index); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)index;
+  return nullptr;
+#else
+  try { return monitors(h)->getProfileFilepath(index); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 }  // extern "C"

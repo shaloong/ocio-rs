@@ -79,6 +79,8 @@
 )]
 
 mod app_helpers;
+mod system_monitors;
+pub use system_monitors::SystemMonitors;
 mod baker;
 pub use app_helpers::{
     ColorSpaceMenuHelper, ColorSpaceMenuParameters, DisplayViewFromFile, LegacyViewingPipeline,

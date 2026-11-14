@@ -1501,4 +1501,11 @@ void ocio_config_merger_set_version(void* h, unsigned int major, unsigned int mi
 unsigned int ocio_config_merger_major_version(void* h);
 unsigned int ocio_config_merger_minor_version(void* h);
 
+void* ocio_system_monitors_get(void);
+void ocio_system_monitors_destroy(void* h);
+bool ocio_system_monitors_is_supported(void* h);
+size_t ocio_system_monitors_get_num_monitors(void* h);
+const char* ocio_system_monitors_get_monitor_name(void* h, size_t index);
+const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index);
+
 }  // extern "C"

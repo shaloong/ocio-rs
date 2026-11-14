@@ -245,4 +245,11 @@ unsafe extern "C" {
         categories: *const c_char,
         connection: *const c_char,
     );
+    pub fn ocio_system_monitors_get() -> *mut c_void;
+    pub fn ocio_system_monitors_destroy(h: *mut c_void);
+    pub fn ocio_system_monitors_is_supported(h: *mut c_void) -> bool;
+    pub fn ocio_system_monitors_get_num_monitors(h: *mut c_void) -> usize;
+    pub fn ocio_system_monitors_get_monitor_name(h: *mut c_void, index: usize) -> *const c_char;
+    pub fn ocio_system_monitors_get_profile_filepath(h: *mut c_void, index: usize)
+        -> *const c_char;
 }
