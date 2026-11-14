@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share immutable processor format-metadata trees with borrowed strings and
+  independently owned child views.
 - Share read-only processor metadata with borrowed file and look names.
 - Access the process-global current config as a shared immutable native object,
   including direct processor, color-space and context queries.
@@ -81,6 +83,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Processor format-metadata getters now return independent editable deep copies
+  instead of mutable aliases to native const data. This changes prior mutation
+  behavior; use shared const metadata for no-copy inspection.
 - Processor metadata getters now return editable copies rather than exposing
   writable aliases to native const processor state. This changes code that
   relied on mutating metadata through a processor-returned object.

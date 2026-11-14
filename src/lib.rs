@@ -128,7 +128,7 @@ pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
 pub use const_rules::{ConstFileRules, ConstViewingRules};
 pub use context::{ConstContext, Context};
 pub use file_rules::FileRules;
-pub use format_metadata::FormatMetadata;
+pub use format_metadata::{ConstFormatMetadata, FormatMetadata};
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{

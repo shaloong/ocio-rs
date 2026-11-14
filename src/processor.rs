@@ -170,6 +170,27 @@ pub struct Processor {
 unsafe impl Send for Processor {}
 
 impl Processor {
+    /// Share the immutable top-level native format metadata without copying.
+    pub fn try_const_format_metadata(&self) -> Result<Option<crate::ConstFormatMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_const_format_metadata(self.handle.as_ptr(), false, 0)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstFormatMetadata { handle }))
+    }
+    /// Share immutable format metadata for an individual processor transform.
+    pub fn try_const_transform_format_metadata(
+        &self,
+        index: i32,
+    ) -> Result<Option<crate::ConstFormatMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_processor_get_const_format_metadata(self.handle.as_ptr(), true, index)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstFormatMetadata { handle }))
+    }
     /// Build a native CPU processor for explicit input and output bit depths.
     pub fn optimized_cpu_processor_bit_depth(
         &self,
@@ -403,12 +424,12 @@ impl Processor {
     }
 
     // ── v2.5.1 ──
-    /// Return the top-level format metadata attached to the processor.
+    /// Return an independent editable copy of the processor's top-level metadata.
     pub fn format_metadata(&self) -> Option<FormatMetadata> {
         self.try_format_metadata().ok()
     }
 
-    /// Return the top-level format metadata attached to the processor.
+    /// Copy the processor's top-level metadata, preserving native errors.
     pub fn try_format_metadata(&self) -> Result<FormatMetadata> {
         crate::clear_last_error();
         let h = unsafe {
@@ -417,12 +438,12 @@ impl Processor {
         crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
-    /// Return format metadata for the transform at `index`, when exposed by OCIO.
+    /// Return an editable metadata copy for the transform at `index`.
     pub fn transform_format_metadata(&self, index: i32) -> Option<FormatMetadata> {
         self.try_transform_format_metadata(index).ok()
     }
 
-    /// Return format metadata for the transform at `index`.
+    /// Copy format metadata for the transform at `index`.
     pub fn try_transform_format_metadata(&self, index: i32) -> Result<FormatMetadata> {
         crate::clear_last_error();
         let h = unsafe {

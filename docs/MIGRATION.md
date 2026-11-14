@@ -126,6 +126,11 @@ Metadata obtained from `Processor::processor_metadata` is now an independent
 editable copy. Use `try_const_processor_metadata` to share the native immutable
 metadata without copying its entries.
 
+Processor format-metadata getters now return independent editable trees. Use
+`try_const_format_metadata` or `try_const_transform_format_metadata` to inspect
+shared native metadata without copying; const child handles keep the processor
+alive independently.
+
 ### Config processors and file rules
 
 Color-space lookup on `Config` and `ColorSpaceSet` returns an independent

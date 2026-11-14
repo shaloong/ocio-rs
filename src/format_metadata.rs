@@ -9,6 +9,100 @@ pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared read-only metadata owned by an OCIO processor.
+///
+/// Child handles keep the processor alive independently. Borrowed text stays
+/// valid while this handle is alive, absent external native mutation.
+pub struct ConstFormatMetadata {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstFormatMetadata {
+    fn text(
+        &self,
+        field: i32,
+        index: i32,
+        name: Option<&std::ffi::CStr>,
+    ) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_format_metadata_text(
+                self.handle.as_ptr(),
+                field,
+                index,
+                name.map_or(std::ptr::null(), |v| v.as_ptr()),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    fn count(&self, children: bool) -> Result<i32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_format_metadata_count(self.handle.as_ptr(), children) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Borrow the element name.
+    pub fn element_name(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(0, 0, None)
+    }
+    /// Borrow the element value.
+    pub fn element_value(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(1, 0, None)
+    }
+    /// Borrow the name attribute.
+    pub fn name(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(2, 0, None)
+    }
+    /// Borrow the ID attribute.
+    pub fn id(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(3, 0, None)
+    }
+    /// Number of attributes.
+    pub fn num_attributes(&self) -> Result<i32> {
+        self.count(false)
+    }
+    /// Borrow an attribute name by index.
+    pub fn attribute_name(&self, index: i32) -> Result<Option<&std::ffi::CStr>> {
+        self.text(4, index, None)
+    }
+    /// Borrow an attribute value by index.
+    pub fn attribute_value_by_index(&self, index: i32) -> Result<Option<&std::ffi::CStr>> {
+        self.text(5, index, None)
+    }
+    /// Borrow an attribute value by name.
+    pub fn attribute_value(&self, name: &std::ffi::CStr) -> Result<Option<&std::ffi::CStr>> {
+        self.text(6, 0, Some(name))
+    }
+    /// Number of child elements.
+    pub fn num_children(&self) -> Result<i32> {
+        self.count(true)
+    }
+    /// Share a child; invalid indices preserve native errors.
+    pub fn child(&self, index: i32) -> Result<Option<Self>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_format_metadata_child(self.handle.as_ptr(), index) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| Self { handle }))
+    }
+    /// Create a deep, independently editable metadata copy.
+    pub fn create_editable_copy(&self) -> Result<FormatMetadata> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_const_format_metadata_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| FormatMetadata { handle })
+    }
+}
+impl Drop for ConstFormatMetadata {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_format_metadata_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl FormatMetadata {
     /// Get the element name.
     pub fn element_name(&self) -> Option<String> {

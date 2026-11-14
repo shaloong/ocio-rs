@@ -673,6 +673,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ),
         ("get_const_current_context", "try_const_current_context"),
         ("get_const_metadata", "try_const_processor_metadata"),
+        ("get_const_format_metadata", "try_const_format_metadata"),
         ("get_const_rules", "try_const_file_rules"),
         (
             "get_processor_with_const_context",

@@ -7493,6 +7493,84 @@ void ocio_transform_destroy(void* handle) {
 
 // --- Processor ---
 
+#ifndef OCIO_RS_STUB
+struct ConstProcessorFormatMetadata {
+  ocio::ConstProcessorRcPtr owner;
+  const ocio::FormatMetadata* metadata;
+};
+extern "C++" {
+static void* ocio_rs_copy_format_metadata(const ocio::FormatMetadata& source) {
+  auto group = ocio::GroupTransform::Create();
+  group->getFormatMetadata() = source;
+  return ocio_rs_bridge::make_format_metadata_handle(std::make_shared<ocio::GroupTransformRcPtr>(group), &group->getFormatMetadata());
+}
+}
+#endif
+
+void* ocio_processor_get_const_format_metadata(void* handle, bool per_transform, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)per_transform; (void)index; return nullptr;
+#else
+  try {
+    ocio::ConstProcessorRcPtr owner = ocio_rs_bridge::get_real_processor(handle);
+    auto* metadata = per_transform ? &owner->getTransformFormatMetadata(index) : &owner->getFormatMetadata();
+    return new ConstProcessorFormatMetadata{std::move(owner), metadata};
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_format_metadata_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  delete static_cast<ConstProcessorFormatMetadata*>(handle);
+#endif
+}
+const char* ocio_const_format_metadata_text(void* handle, int field, int index, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)index; (void)name; return nullptr;
+#else
+  try {
+    auto* m = static_cast<ConstProcessorFormatMetadata*>(handle)->metadata;
+    switch (field) {
+      case 0: return m->getElementName();
+      case 1: return m->getElementValue();
+      case 2: return m->getName();
+      case 3: return m->getID();
+      case 4: return m->getAttributeName(index);
+      case 5: return m->getAttributeValue(index);
+      case 6: return m->getAttributeValue(name);
+      default: throw std::invalid_argument("invalid metadata text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+int ocio_const_format_metadata_count(void* handle, bool children) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)children; return 0;
+#else
+  try { auto* m = static_cast<ConstProcessorFormatMetadata*>(handle)->metadata; return children ? m->getNumChildrenElements() : m->getNumAttributes(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+void* ocio_const_format_metadata_child(void* handle, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; return nullptr;
+#else
+  try {
+    auto* parent = static_cast<ConstProcessorFormatMetadata*>(handle);
+    return new ConstProcessorFormatMetadata{parent->owner, &parent->metadata->getChildElement(index)};
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_format_metadata_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native metadata required"); return nullptr;
+#else
+  try { return ocio_rs_copy_format_metadata(*static_cast<ConstProcessorFormatMetadata*>(handle)->metadata); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_processor_get_const_metadata(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; return nullptr;
@@ -7604,8 +7682,7 @@ void* ocio_processor_get_format_metadata(void* handle) {
 #else
   try {
     auto processor = ocio_rs_bridge::get_real_processor(handle);
-    auto owner = std::make_shared<ocio::ProcessorRcPtr>(processor);
-    return ocio_rs_bridge::make_format_metadata_handle(owner, &((*owner)->getFormatMetadata()));
+    return ocio_rs_copy_format_metadata(processor->getFormatMetadata());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -7628,10 +7705,7 @@ void* ocio_processor_get_transform_format_metadata(void* handle, int index) {
 #else
   try {
     auto processor = ocio_rs_bridge::get_real_processor(handle);
-    auto owner = std::make_shared<ocio::ProcessorRcPtr>(processor);
-    return ocio_rs_bridge::make_format_metadata_handle(
-      owner,
-      &((*owner)->getTransformFormatMetadata(index)));
+    return ocio_rs_copy_format_metadata(processor->getTransformFormatMetadata(index));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
