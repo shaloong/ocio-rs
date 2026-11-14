@@ -7493,6 +7493,55 @@ void ocio_transform_destroy(void* handle) {
 
 // --- Processor ---
 
+void* ocio_processor_get_const_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; return nullptr;
+#else
+  try {
+    auto metadata = ocio_rs_bridge::get_real_processor(handle)->getProcessorMetadata();
+    return metadata ? new ocio::ConstProcessorMetadataRcPtr(std::move(metadata)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_const_processor_metadata_destroy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+#else
+  delete static_cast<ocio::ConstProcessorMetadataRcPtr*>(handle);
+#endif
+}
+int ocio_const_processor_metadata_count(void* handle, bool looks) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)looks; return 0;
+#else
+  try { auto& m = *static_cast<ocio::ConstProcessorMetadataRcPtr*>(handle); return looks ? m->getNumLooks() : m->getNumFiles(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+const char* ocio_const_processor_metadata_entry(void* handle, bool looks, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)looks; (void)index; return nullptr;
+#else
+  try { auto& m = *static_cast<ocio::ConstProcessorMetadataRcPtr*>(handle); return looks ? m->getLook(index) : m->getFile(index); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_processor_metadata_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native metadata required"); return nullptr;
+#else
+  try {
+    auto& original = *static_cast<ocio::ConstProcessorMetadataRcPtr*>(handle);
+    auto copy = ocio::ProcessorMetadata::Create();
+    for (int i = 0; i < original->getNumFiles(); ++i) copy->addFile(original->getFile(i));
+    for (int i = 0; i < original->getNumLooks(); ++i) copy->addLook(original->getLook(i));
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorMetadataHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{copy});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_processor_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ProcessorHandle*>(handle);
 }
@@ -7539,8 +7588,10 @@ void* ocio_processor_get_processor_metadata(void* handle) {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getProcessorMetadata();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorMetadataHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::ProcessorMetadata>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{result_unconst});
+    auto copy = ocio::ProcessorMetadata::Create();
+    for (int i = 0; i < result->getNumFiles(); ++i) copy->addFile(result->getFile(i));
+    for (int i = 0; i < result->getNumLooks(); ++i) copy->addLook(result->getLook(i));
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealProcessorMetadata>(ocio_rs_bridge::RealProcessorMetadata{copy});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif

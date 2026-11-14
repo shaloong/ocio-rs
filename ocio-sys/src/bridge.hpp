@@ -131,6 +131,11 @@ bool ocio_is_env_variable_present(const char* name);
 // --- Global config ---
 void* ocio_get_current_config(void);
 void* ocio_get_const_current_config(void);
+void* ocio_processor_get_const_metadata(void* handle);
+void ocio_const_processor_metadata_destroy(void* handle);
+int ocio_const_processor_metadata_count(void* handle, bool looks);
+const char* ocio_const_processor_metadata_entry(void* handle, bool looks, int index);
+void* ocio_const_processor_metadata_copy(void* handle);
 void ocio_const_config_destroy(void* handle);
 void* ocio_const_config_editable_copy(void* handle);
 const char* ocio_const_config_text(void* handle, int field);

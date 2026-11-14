@@ -139,7 +139,7 @@ pub use processor::{
     TextureInfo,
 };
 pub use processor::{ShaderSections, ShaderTexture};
-pub use processor_metadata::ProcessorMetadata;
+pub use processor_metadata::{ConstProcessorMetadata, ProcessorMetadata};
 pub use types::*;
 #[cfg(feature = "v2_6")]
 mod v2_6;

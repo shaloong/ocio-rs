@@ -9,6 +9,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share read-only processor metadata with borrowed file and look names.
 - Access the process-global current config as a shared immutable native object,
   including direct processor, color-space and context queries.
 - Inspect shared look, named-transform and view-transform metadata without
@@ -80,6 +81,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Processor metadata getters now return editable copies rather than exposing
+  writable aliases to native const processor state. This changes code that
+  relied on mutating metadata through a processor-returned object.
 - `current_config` now returns an independent editable copy rather than a
   mutable alias of OCIO's process-global const config. Install edited copies
   explicitly; this changes the prior mutation behavior.

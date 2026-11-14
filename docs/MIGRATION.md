@@ -122,6 +122,10 @@ being conflated with `FormatMetadata`. Use `Processor::processor_metadata()`
 to obtain it; bundled coverage validates standalone file/look mutation plus
 metadata extraction from a real processor.
 
+Metadata obtained from `Processor::processor_metadata` is now an independent
+editable copy. Use `try_const_processor_metadata` to share the native immutable
+metadata without copying its entries.
+
 ### Config processors and file rules
 
 Color-space lookup on `Config` and `ColorSpaceSet` returns an independent

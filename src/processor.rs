@@ -431,18 +431,26 @@ impl Processor {
         crate::handle_result(h).map(|handle| FormatMetadata { handle })
     }
 
-    /// Return technical processor metadata such as contributing files and looks.
+    /// Return an independent editable copy of processor metadata.
     pub fn processor_metadata(&self) -> Option<ProcessorMetadata> {
         self.try_processor_metadata().ok()
     }
 
-    /// Return technical processor metadata such as contributing files and looks.
+    /// Copy technical processor metadata, preserving native errors.
     pub fn try_processor_metadata(&self) -> Result<ProcessorMetadata> {
         crate::clear_last_error();
         let h = unsafe {
             ocio_sys::ocio_processor_get_processor_metadata(self.handle.as_ptr() as *mut c_void)
         };
         crate::handle_result(h).map(|handle| ProcessorMetadata { handle })
+    }
+
+    /// Share immutable native processor metadata without copying its entries.
+    pub fn try_const_processor_metadata(&self) -> Result<Option<crate::ConstProcessorMetadata>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_processor_get_const_metadata(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstProcessorMetadata { handle }))
     }
 
     /// Return whether the processor exposes a dynamic property of `prop_type`.
