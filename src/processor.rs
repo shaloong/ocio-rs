@@ -552,11 +552,98 @@ pub struct PlanarByteLayout {
     pub bit_depth: BitDepth,
 }
 
+/// Packed source and destination layout for native-depth conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedConversionLayout {
+    /// Number of RGB or RGBA pixels.
+    pub pixels: i64,
+    /// Three for RGB, four for RGBA.
+    pub channels: u8,
+    /// Input sample bit depth.
+    pub input_depth: BitDepth,
+    /// Output sample bit depth.
+    pub output_depth: BitDepth,
+    /// Distance between input pixels in samples.
+    pub input_stride: i64,
+    /// Distance between output pixels in samples.
+    pub output_stride: i64,
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Convert separate packed buffers with the processor's input/output depths.
+    ///
+    /// RGB and RGBA are supported. Strides are measured in samples. Input and
+    /// output slices are checked independently and must meet native alignment.
+    pub fn try_apply_packed_convert(
+        &self,
+        input: &[u8],
+        output: &mut [u8],
+        layout: PackedConversionLayout,
+    ) -> Result<()> {
+        let PackedConversionLayout {
+            pixels,
+            channels,
+            input_depth,
+            output_depth,
+            input_stride,
+            output_stride,
+        } = layout;
+        if pixels <= 0
+            || !matches!(channels, 3 | 4)
+            || input_stride < i64::from(channels)
+            || output_stride < i64::from(channels)
+        {
+            return Err(OcioError::InvalidInput(
+                "invalid packed conversion layout".into(),
+            ));
+        }
+        let api = "CPUProcessor::try_apply_packed_convert";
+        validate_packed_buffer_len(
+            api,
+            input.len(),
+            input_depth,
+            pixels,
+            input_stride,
+            channels as usize,
+        )?;
+        validate_packed_buffer_len(
+            api,
+            output.len(),
+            output_depth,
+            pixels,
+            output_stride,
+            channels as usize,
+        )?;
+        validate_packed_buffer_alignment(api, input.as_ptr(), input_depth, pixels)?;
+        validate_packed_buffer_alignment(api, output.as_ptr(), output_depth, pixels)?;
+        let in_size = bit_depth_bytes_per_channel(api, input_depth)? as i64;
+        let out_size = bit_depth_bytes_per_channel(api, output_depth)? as i64;
+        let in_bytes = input_stride
+            .checked_mul(in_size)
+            .ok_or_else(|| OcioError::InvalidInput("input stride overflow".into()))?;
+        let out_bytes = output_stride
+            .checked_mul(out_size)
+            .ok_or_else(|| OcioError::InvalidInput("output stride overflow".into()))?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_packed_convert(
+                self.handle.as_ptr(),
+                input.as_ptr().cast(),
+                output.as_mut_ptr().cast(),
+                pixels,
+                channels.into(),
+                input_depth as i32,
+                output_depth as i32,
+                in_bytes,
+                out_bytes,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Process planar byte buffers in place at the processor's native bit depth.
     ///
     /// All pointers and strides must be aligned for the selected storage type.

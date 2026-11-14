@@ -573,6 +573,7 @@ void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPi
 void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green, float* blue, float* alpha, int64_t width, int64_t height);
 void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float* green, float* blue, float* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride);
 void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green, void* blue, void* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride, int bit_depth);
+void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void* dst, int64_t count, int channels, int input_depth, int output_depth, int64_t input_stride, int64_t output_stride);
 void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int input_depth, int output_depth, uint32_t flags);
 void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride);

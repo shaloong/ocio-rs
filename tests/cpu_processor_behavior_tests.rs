@@ -343,3 +343,49 @@ fn planar_u8_uses_explicit_native_cpu_bit_depth() {
         .try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, layout)
         .is_err());
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_conversion_changes_bit_depth_without_touching_padding() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, PackedConversionLayout, TransformDirection,
+    };
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[1.0, 1.0, 1.0, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    let input = [0u8, 128, 255, 77, 255, 64, 0, 77];
+    let mut words = [0xaaaau16; 8];
+    let output =
+        unsafe { std::slice::from_raw_parts_mut(words.as_mut_ptr().cast::<u8>(), words.len() * 2) };
+    let layout = PackedConversionLayout {
+        pixels: 2,
+        channels: 3,
+        input_depth: BitDepth::Uint8,
+        output_depth: BitDepth::Uint16,
+        input_stride: 4,
+        output_stride: 4,
+    };
+    cpu.try_apply_packed_convert(&input, output, layout)
+        .unwrap();
+    assert_eq!(words, [0, 32896, 65535, 0xaaaa, 65535, 16448, 0, 0xaaaa]);
+    let mut short = [0u8; 5];
+    assert!(cpu
+        .try_apply_packed_convert(&input, &mut short, layout)
+        .is_err());
+    let mut unaligned = [0u8; 24];
+    let offset = if (unaligned.as_ptr() as usize).is_multiple_of(2) {
+        1
+    } else {
+        0
+    };
+    assert!(cpu
+        .try_apply_packed_convert(&input, &mut unaligned[offset..], layout)
+        .is_err());
+}

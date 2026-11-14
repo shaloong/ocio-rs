@@ -7222,6 +7222,45 @@ void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green,
 #endif
 }
 
+void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void* dst,
+    int64_t count, int channels, int input_depth, int output_depth,
+    int64_t input_stride, int64_t output_stride) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)src; (void)dst; (void)count; (void)channels;
+  (void)input_depth; (void)output_depth; (void)input_stride; (void)output_stride;
+  ocio_rs_bridge::capture_error_message("Bit-depth conversion requires native OpenColorIO");
+#else
+  try {
+    if (!src || !dst || count <= 0 || count > std::numeric_limits<long>::max() ||
+        (channels != 3 && channels != 4) || input_stride <= 0 || output_stride <= 0 ||
+        input_stride > std::numeric_limits<ptrdiff_t>::max() / count ||
+        output_stride > std::numeric_limits<ptrdiff_t>::max() / count)
+      throw std::invalid_argument("invalid packed conversion layout");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    auto in_depth = static_cast<ocio::BitDepth>(input_depth);
+    auto out_depth = static_cast<ocio::BitDepth>(output_depth);
+    if (cpu->getInputBitDepth() != in_depth || cpu->getOutputBitDepth() != out_depth)
+      throw std::invalid_argument("image bit depths must match processor input and output");
+    auto bytes = [](ocio::BitDepth depth) -> ptrdiff_t {
+      switch (depth) {
+        case ocio::BIT_DEPTH_UINT8: return 1;
+        case ocio::BIT_DEPTH_UINT10: case ocio::BIT_DEPTH_UINT12:
+        case ocio::BIT_DEPTH_UINT14: case ocio::BIT_DEPTH_UINT16: case ocio::BIT_DEPTH_F16: return 2;
+        case ocio::BIT_DEPTH_UINT32: case ocio::BIT_DEPTH_F32: return 4;
+        default: throw std::invalid_argument("unsupported image bit depth");
+      }
+    };
+    auto in_bytes = bytes(in_depth), out_bytes = bytes(out_depth);
+    const auto order = channels == 4 ? ocio::CHANNEL_ORDERING_RGBA : ocio::CHANNEL_ORDERING_RGB;
+    ocio::PackedImageDesc input(const_cast<void*>(src), static_cast<long>(count), 1, order,
+        in_depth, in_bytes, static_cast<ptrdiff_t>(input_stride), static_cast<ptrdiff_t>(input_stride * count));
+    ocio::PackedImageDesc output(dst, static_cast<long>(count), 1, order,
+        out_depth, out_bytes, static_cast<ptrdiff_t>(output_stride), static_cast<ptrdiff_t>(output_stride * count));
+    cpu->apply(input, output);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)rgb; (void)numPixels; (void)stride;

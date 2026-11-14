@@ -64,6 +64,17 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_cpu_processor_apply_packed_convert(
+        handle: *mut c_void,
+        src: *const c_void,
+        dst: *mut c_void,
+        count: i64,
+        channels: i32,
+        input_depth: i32,
+        output_depth: i32,
+        input_stride: i64,
+        output_stride: i64,
+    );
     pub fn ocio_processor_get_optimized_cpu_processor_bit_depth(
         handle: *mut c_void,
         input_depth: i32,
