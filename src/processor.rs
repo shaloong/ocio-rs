@@ -2754,6 +2754,91 @@ pub struct GpuShaderDesc {
     handle: NonNull<c_void>,
 }
 
+/// Result of copying a cached live uniform into caller-owned storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuUniformCopy {
+    Written(usize),
+    BufferTooSmall { required: usize },
+    WrongType,
+}
+
+/// Cached OCIO uniform getters for repeated sampling without bridge allocations.
+///
+/// The descriptor remains exclusively borrowed because native getters may
+/// reference properties owned by it. Values remain live; only the getters,
+/// not their results, are cached. This type cannot be sent to another thread.
+/// Getter implementations may themselves allocate or perform other work.
+pub struct GpuUniformCache<'a> {
+    handle: NonNull<c_void>,
+    _desc: std::marker::PhantomData<&'a mut GpuShaderDesc>,
+}
+
+impl GpuUniformCache<'_> {
+    fn copy_result(status: i32, actual: usize) -> Result<GpuUniformCopy> {
+        crate::ocio_call_status()?;
+        match status {
+            0 => Ok(GpuUniformCopy::WrongType),
+            1 => Ok(GpuUniformCopy::Written(actual)),
+            2 => Ok(GpuUniformCopy::BufferTooSmall { required: actual }),
+            _ => Err(OcioError::Ocio("uniform cache operation failed".into())),
+        }
+    }
+
+    /// Copies a double, boolean, float3, or float array as `f32` values.
+    /// An undersized buffer is left untouched.
+    pub fn copy_f32_into(&mut self, index: u32, values: &mut [f32]) -> Result<GpuUniformCopy> {
+        let mut actual = 0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_copy_f32(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+                &mut actual,
+            )
+        };
+        Self::copy_result(status, actual)
+    }
+
+    /// Copies an integer array. An undersized buffer is left untouched.
+    pub fn copy_i32_into(&mut self, index: u32, values: &mut [i32]) -> Result<GpuUniformCopy> {
+        let mut actual = 0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_copy_i32(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+                &mut actual,
+            )
+        };
+        Self::copy_result(status, actual)
+    }
+
+    /// Reads a double without narrowing to `f32`; returns `None` for other types.
+    pub fn double(&mut self, index: u32) -> Result<Option<f64>> {
+        let mut value = 0.0;
+        crate::clear_last_error();
+        let status = unsafe {
+            ocio_sys::ocio_gpu_uniform_cache_double(self.handle.as_ptr(), index, &mut value)
+        };
+        crate::ocio_call_status()?;
+        match status {
+            0 => Ok(None),
+            1 => Ok(Some(value)),
+            _ => Err(OcioError::Ocio("uniform cache operation failed".into())),
+        }
+    }
+}
+
+impl Drop for GpuUniformCache<'_> {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_gpu_uniform_cache_destroy(self.handle.as_ptr()) }
+    }
+}
+
 // SAFETY: The bridge owns this handle through a shared_ptr, so transferring
 // exclusive Rust ownership to another thread does not invalidate it.
 unsafe impl Send for GpuShaderDesc {}
@@ -2932,6 +3017,28 @@ pub struct GpuUniform {
 }
 
 impl GpuShaderDesc {
+    /// Captures the current uniform getters for repeated reads without bridge allocations.
+    ///
+    /// Extract shader information before calling this method. Drop the cache
+    /// before changing the descriptor or extracting shader information again.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(mut desc: GpuShaderDesc) -> ocio_rs::Result<()> {
+    /// let mut cache = desc.uniform_cache()?;
+    /// desc.set_function_name("other")?;
+    /// let _ = cache.double(0)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn uniform_cache(&mut self) -> Result<GpuUniformCache<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_uniform_cache_create(self.handle.as_ptr()) };
+        crate::handle_result(ptr).map(|handle| GpuUniformCache {
+            handle,
+            _desc: std::marker::PhantomData,
+        })
+    }
     /// Borrow this descriptor as a native `OCIO::GpuShaderCreator*` for C++ interop.
     ///
     /// The pointer is invalid after this descriptor is dropped. Native code

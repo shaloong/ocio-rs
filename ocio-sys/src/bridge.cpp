@@ -90,6 +90,14 @@ struct FormatMetadataHandle {
 struct CPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GpuShaderDescHandle { std::shared_ptr<void> inner; };
+#ifndef OCIO_RS_STUB
+struct GpuUniformCache {
+  // Keep the entire bridge owner alive: Rust-supplied getter callbacks may be
+  // owned by the bridge rather than by the native descriptor alone.
+  std::shared_ptr<void> owner;
+  std::vector<ocio::GpuShaderDesc::UniformData> uniforms;
+};
+#endif
 
 struct TransformHandleBase {
   virtual ~TransformHandleBase() = default;
@@ -8910,6 +8918,108 @@ unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle) {
   try {
     return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getNumUniforms();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void* ocio_gpu_uniform_cache_create(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("uniform caching requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null shader descriptor");
+    auto cache = std::make_unique<ocio_rs_bridge::GpuUniformCache>();
+    cache->owner = static_cast<ocio_rs_bridge::GpuShaderDescHandle*>(handle)->inner;
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    const auto count = desc->getNumUniforms();
+    cache->uniforms.reserve(count);
+    for (unsigned i = 0; i < count; ++i) {
+      ocio::GpuShaderDesc::UniformData data;
+      if (!desc->getUniform(i, data)) throw ocio::Exception("Missing uniform");
+      cache->uniforms.push_back(std::move(data));
+    }
+    return cache.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_gpu_uniform_cache_destroy(void* handle) {
+#ifndef OCIO_RS_STUB
+  delete static_cast<ocio_rs_bridge::GpuUniformCache*>(handle);
+#else
+  (void)handle;
+#endif
+}
+
+// Status: -1 error, 0 wrong type, 1 copied, 2 insufficient capacity.
+int ocio_gpu_uniform_cache_copy_f32(void* handle, unsigned index, float* values, size_t len, size_t* actual) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len; (void)actual; return -1;
+#else
+  try {
+    if (!handle || !actual || (!values && len)) throw std::invalid_argument("invalid uniform cache arguments");
+    auto& data = static_cast<ocio_rs_bridge::GpuUniformCache*>(handle)->uniforms.at(index);
+    switch (data.m_type) {
+      case ocio::UNIFORM_DOUBLE:
+        if (!data.m_getDouble) return 0;
+        *actual = 1; if (len < 1) return 2;
+        values[0] = static_cast<float>(data.m_getDouble()); return 1;
+      case ocio::UNIFORM_BOOL:
+        if (!data.m_getBool) return 0;
+        *actual = 1; if (len < 1) return 2;
+        values[0] = data.m_getBool() ? 1.f : 0.f; return 1;
+      case ocio::UNIFORM_FLOAT3: {
+        if (!data.m_getFloat3) return 0;
+        *actual = 3; if (len < 3) return 2;
+        const auto& src = data.m_getFloat3();
+        values[0] = src[0]; values[1] = src[1]; values[2] = src[2]; return 1;
+      }
+      case ocio::UNIFORM_VECTOR_FLOAT: {
+        if (!data.m_vectorFloat.m_getSize || !data.m_vectorFloat.m_getVector) return 0;
+        const int count = data.m_vectorFloat.m_getSize();
+        if (count < 0) throw ocio::Exception("Negative uniform array length");
+        *actual = static_cast<size_t>(count); if (len < *actual) return 2;
+        const float* src = data.m_vectorFloat.m_getVector();
+        if (!src && count) throw ocio::Exception("Null uniform array");
+        if (count) std::copy_n(src, count, values);
+        return 1;
+      }
+      default: return 0;
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
+#endif
+}
+
+int ocio_gpu_uniform_cache_copy_i32(void* handle, unsigned index, int* values, size_t len, size_t* actual) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)values; (void)len; (void)actual; return -1;
+#else
+  try {
+    if (!handle || !actual || (!values && len)) throw std::invalid_argument("invalid uniform cache arguments");
+    auto& data = static_cast<ocio_rs_bridge::GpuUniformCache*>(handle)->uniforms.at(index);
+    if (data.m_type != ocio::UNIFORM_VECTOR_INT || !data.m_vectorInt.m_getSize || !data.m_vectorInt.m_getVector) return 0;
+    const int count = data.m_vectorInt.m_getSize();
+    if (count < 0) throw ocio::Exception("Negative uniform array length");
+    *actual = static_cast<size_t>(count); if (len < *actual) return 2;
+    const int* src = data.m_vectorInt.m_getVector();
+    if (!src && count) throw ocio::Exception("Null uniform array");
+    if (count) std::copy_n(src, count, values);
+    return 1;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
+#endif
+}
+
+int ocio_gpu_uniform_cache_double(void* handle, unsigned index, double* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)value; return -1;
+#else
+  try {
+    if (!handle || !value) throw std::invalid_argument("invalid uniform cache arguments");
+    auto& data = static_cast<ocio_rs_bridge::GpuUniformCache*>(handle)->uniforms.at(index);
+    if (data.m_type != ocio::UNIFORM_DOUBLE || !data.m_getDouble) return 0;
+    *value = data.m_getDouble(); return 1;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
 #endif
 }
 

@@ -1745,6 +1745,118 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cached_uniforms_are_live_and_validate_buffers() {
+    use ocio_rs::GpuUniformCopy;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let value = Arc::new(AtomicUsize::new(2));
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let getter_value = Arc::clone(&value);
+    desc.add_uniform_f64_getter("live", move || {
+        getter_value.load(Ordering::SeqCst) as f64 + 0.25
+    })
+    .unwrap();
+    desc.add_uniform_bool("enabled", true).unwrap();
+    desc.add_uniform_float3("color", [0.1, 0.2, 0.3]).unwrap();
+    desc.add_uniform_f32_array("curve", &[1.0, 2.0, 3.0], 4)
+        .unwrap();
+    desc.add_uniform_i32_array("indices", &[4, 5], 4).unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    assert_eq!(cache.double(0).unwrap(), Some(2.25));
+    value.store(7, Ordering::SeqCst);
+    assert_eq!(cache.double(0).unwrap(), Some(7.25));
+    assert_eq!(cache.double(1).unwrap(), None);
+    let mut floats = [9.0; 3];
+    assert_eq!(
+        cache.copy_f32_into(1, &mut floats).unwrap(),
+        GpuUniformCopy::Written(1)
+    );
+    assert_eq!(floats, [1.0, 9.0, 9.0]);
+    assert_eq!(
+        cache.copy_f32_into(2, &mut floats).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(floats, [0.1, 0.2, 0.3]);
+    assert_eq!(
+        cache.copy_f32_into(3, &mut floats[..2]).unwrap(),
+        GpuUniformCopy::BufferTooSmall { required: 3 }
+    );
+    assert_eq!(floats, [0.1, 0.2, 0.3]);
+    assert_eq!(
+        cache.copy_f32_into(3, &mut floats).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(floats, [1.0, 2.0, 3.0]);
+    assert_eq!(
+        cache.copy_f32_into(4, &mut floats).unwrap(),
+        GpuUniformCopy::WrongType
+    );
+    let mut ints = [9; 2];
+    assert_eq!(
+        cache.copy_i32_into(4, &mut ints[..1]).unwrap(),
+        GpuUniformCopy::BufferTooSmall { required: 2 }
+    );
+    assert_eq!(ints, [9, 9]);
+    assert_eq!(
+        cache.copy_i32_into(4, &mut ints).unwrap(),
+        GpuUniformCopy::Written(2)
+    );
+    assert_eq!(ints, [4, 5]);
+    assert!(cache.copy_i32_into(99, &mut ints).is_err());
+    assert_eq!(cache.double(0).unwrap(), Some(7.25));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cached_uniform_getter_panic_is_reported_and_recoverable() {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let fail = Arc::new(AtomicBool::new(true));
+    let getter_fail = Arc::clone(&fail);
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.add_uniform_f64_getter("possibly_failing", move || {
+        assert!(
+            !getter_fail.load(Ordering::SeqCst),
+            "intentional getter panic"
+        );
+        3.5
+    })
+    .unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    assert!(cache.double(0).is_err());
+    fail.store(false, Ordering::SeqCst);
+    assert_eq!(cache.double(0).unwrap(), Some(3.5));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cached_native_dynamic_uniform_tracks_property() {
+    let _guard = gpu_shader_desc_test_lock();
+    let (_processor, mut desc) = extracted_dynamic_gpu_shader_desc().unwrap();
+    let prop = desc
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap();
+    let index = (0..desc.num_uniforms())
+        .find(|&index| {
+            desc.uniform(index)
+                .is_some_and(|u| u.uniform_type == GpuUniformType::Double)
+        })
+        .unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    let before = cache.double(index).unwrap().unwrap();
+    prop.set_double_value(-1.0).unwrap();
+    let after = cache.double(index).unwrap().unwrap();
+    assert_ne!(before, after);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_uniform_array_getters_refresh_and_validate_snapshots() {
     use std::sync::{
         atomic::{AtomicUsize, Ordering},

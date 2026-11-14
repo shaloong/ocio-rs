@@ -1620,6 +1620,23 @@ unsafe extern "C" {
         out: *mut OcioGpuUniformInfo,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_uniform_value_count(handle: *mut c_void, index: u32) -> usize;
+    pub fn ocio_gpu_uniform_cache_create(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_uniform_cache_destroy(handle: *mut c_void);
+    pub fn ocio_gpu_uniform_cache_copy_f32(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut f32,
+        len: usize,
+        actual: *mut usize,
+    ) -> i32;
+    pub fn ocio_gpu_uniform_cache_copy_i32(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut i32,
+        len: usize,
+        actual: *mut usize,
+    ) -> i32;
+    pub fn ocio_gpu_uniform_cache_double(handle: *mut c_void, index: u32, value: *mut f64) -> i32;
     pub fn ocio_gpu_shader_desc_get_uniform_double_value(
         handle: *mut c_void,
         index: u32,
