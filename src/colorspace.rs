@@ -48,6 +48,13 @@ impl ColorSpaceRef<'_> {
 }
 
 impl ConstColorSpace {
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ColorSpaceDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 1, direction as i32)
+    }
     /// Copy the native transform in `direction` into an independent editable transform.
     pub fn copy_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
@@ -246,6 +253,13 @@ impl Drop for ConstColorSpace {
 }
 
 impl ColorSpace {
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ColorSpaceDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 0, direction as i32)
+    }
     /// Create a new default color space.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -519,12 +533,12 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
-    /// Get the transform for the given direction.
+    /// Get an independent editable copy of the transform for the given direction.
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {

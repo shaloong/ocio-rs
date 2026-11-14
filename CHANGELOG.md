@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Share immutable child transforms and use them directly to create processors,
+  with explicit copying when editing is required.
 - Construct processors directly from editable or shared read-only color-space
   objects, with optional explicit context, and copy transforms for editing.
 - Expose native color-space set union, intersection, difference and name-based
@@ -68,6 +70,10 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Editable transform getters on color spaces, looks, named transforms and view
+  transforms now return independent copies instead of writable aliases to OCIO
+  const objects. Reassign a modified copy to update its parent; this changes
+  code that relied on mutating the previously returned alias.
 - Return independent editable color-space copies from config and set lookups.
   Previously these exposed OCIO-owned const objects as mutable, allowing edits
   that bypassed parent configuration or set invariants. To apply an edit,

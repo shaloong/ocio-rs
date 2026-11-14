@@ -43,6 +43,11 @@ const char* ocio_const_color_space_interchange_attribute(void* handle, const cha
 void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t count);
 void* ocio_const_color_space_create_editable_copy(void* handle);
 void* ocio_const_color_space_copy_transform(void* handle, int direction);
+void* ocio_get_const_child_transform(void* parent, int parent_kind, int direction);
+void ocio_const_transform_destroy(void* handle);
+int ocio_const_transform_get_type(void* handle);
+void* ocio_const_transform_create_editable_copy(void* handle);
+void* ocio_config_get_processor_from_const_transform(void* config, void* context, void* transform, int direction);
 
 typedef struct OcioPackedBuffer {
   void* data;

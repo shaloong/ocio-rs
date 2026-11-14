@@ -130,6 +130,11 @@ shared read-only access without copying the native object, use
 `try_const_color_space`; its `name` and `description` borrow native text, and
 `create_editable_copy` creates an editable object on demand.
 
+Transform getters on color spaces, looks, named transforms and view transforms
+now return editable copies. Use the corresponding `try_const_transform` (or
+`try_const_inverse_transform` on a look) for shared read-only access and direct
+processor creation. Reassign editable copies to their parent to apply changes.
+
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
 `Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.

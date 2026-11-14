@@ -1376,6 +1376,25 @@ impl Config {
         self.processor_display(src, display, view, direction)
     }
 
+    /// Create a processor from a shared read-only transform and optional context.
+    pub fn processor_from_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: TransformDirection,
+        context: Option<&Context>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_processor_from_const_transform(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Self::processor_handle_result(handle)
+    }
+
     /// Create a processor from a transform with an explicit direction.
     pub fn processor_from_transform(
         &self,

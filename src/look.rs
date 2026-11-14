@@ -12,6 +12,14 @@ pub struct Look {
 }
 
 impl Look {
+    /// Share the native forward transform without an editable copy.
+    pub fn try_const_transform(&self) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 2, 0)
+    }
+    /// Share the native inverse transform without an editable copy.
+    pub fn try_const_inverse_transform(&self) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 3, 0)
+    }
     /// Create a new default look.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -152,12 +160,12 @@ impl Look {
         attrs
     }
 
-    /// Get the forward transform for this look.
+    /// Get an independent editable copy of the forward transform.
     pub fn transform(&self) -> Option<Transform> {
         self.try_transform().ok().flatten()
     }
 
-    /// Get the forward transform for this look, preserving OCIO query failures.
+    /// Copy the forward transform, preserving OCIO query failures.
     pub fn try_transform(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle =
@@ -184,12 +192,12 @@ impl Look {
         crate::ocio_call_status()
     }
 
-    /// Get the inverse transform for this look.
+    /// Get an independent editable copy of the inverse transform.
     pub fn inverse_transform(&self) -> Option<Transform> {
         self.try_inverse_transform().ok().flatten()
     }
 
-    /// Get the inverse transform for this look, preserving OCIO query failures.
+    /// Copy the inverse transform, preserving OCIO query failures.
     pub fn try_inverse_transform(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {

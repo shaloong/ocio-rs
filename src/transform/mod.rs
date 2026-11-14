@@ -45,6 +45,44 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 
+/// Shared immutable native transform, which can be processed without copying.
+pub struct ConstTransform {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl ConstTransform {
+    pub(crate) fn from_parent(
+        parent: *mut c_void,
+        kind: i32,
+        direction: i32,
+    ) -> crate::Result<Option<Self>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_get_const_child_transform(parent, kind, direction) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| Self { handle }))
+    }
+    /// Version-independent discriminant corresponding to [`crate::TransformType`].
+    pub fn type_tag(&self) -> crate::Result<i32> {
+        crate::clear_last_error();
+        let result = unsafe { ocio_sys::ocio_const_transform_get_type(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(result)
+    }
+    /// Create an independently editable transform.
+    pub fn create_editable_copy(&self) -> crate::Result<Transform> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_transform_create_editable_copy(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        transform_from_raw_handle(handle)
+            .ok_or_else(|| crate::OcioError::Ocio("unsupported or null transform copy".into()))
+    }
+}
+impl Drop for ConstTransform {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_transform_destroy(self.handle.as_ptr()) }
+    }
+}
+
 pub use allocation::AllocationTransform;
 pub use builtin::BuiltinTransform;
 pub use cdl::CDLTransform;
