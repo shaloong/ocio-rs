@@ -3222,6 +3222,39 @@ impl GpuShaderDesc {
         Self::bool_call_result(ok)
     }
 
+    /// Adds a live boolean uniform; see [`Self::add_uniform_f64_getter`] for
+    /// callback ownership, thread-safety, and panic behavior.
+    pub fn add_uniform_bool_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> bool + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> bool>(context: *mut c_void, out: *mut bool) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                unsafe { *out = getter() };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_bool_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
     /// Adds a three-component floating-point uniform and returns `false` when the name already exists.
     pub fn add_uniform_float3(&self, name: impl AsRef<str>, value: [f32; 3]) -> Result<bool> {
         let name = cstring(name)?;
@@ -3233,6 +3266,45 @@ impl GpuShaderDesc {
                 value[0],
                 value[1],
                 value[2],
+            )
+        };
+        Self::bool_call_result(ok)
+    }
+
+    /// Adds a live three-component uniform; see [`Self::add_uniform_f64_getter`]
+    /// for callback ownership and panic behavior. Native callers must not sample
+    /// the same descriptor concurrently or retain a returned native reference
+    /// across another sample of this uniform.
+    pub fn add_uniform_float3_getter<F>(&self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> [f32; 3] + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> [f32; 3]>(
+            context: *mut c_void,
+            out: *mut f32,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let value = getter();
+                unsafe { std::ptr::copy_nonoverlapping(value.as_ptr(), out, 3) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_float3_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                context,
+                invoke::<F>,
+                release::<F>,
             )
         };
         Self::bool_call_result(ok)

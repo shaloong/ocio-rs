@@ -18,7 +18,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
 - Read current GPU uniform values into caller-provided buffers without Rust
   allocations, including live dynamic-property updates.
-- Register live, thread-safe Rust double uniform getters with native shader descriptors.
+- Register live, thread-safe Rust double, boolean, and float3 uniform getters
+  with native shader descriptors.
 - Borrow GPU LUT texture values directly from OCIO for upload without copying.
 - Customize GPU shader assembly in a synchronous Rust callback while
   preserving OCIO-owned textures and dynamic uniforms on OCIO 2.4 and newer.

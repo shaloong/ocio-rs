@@ -1368,6 +1368,52 @@ fn rust_uniform_double_getter_contains_panic() {
     assert!(desc.try_copy_uniform_f32_into(0, &mut [0.0]).is_err());
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rust_uniform_bool_and_float3_getters_are_live_and_contain_panics() {
+    use std::sync::{
+        atomic::{AtomicBool, AtomicU32, Ordering},
+        Arc,
+    };
+
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    let enabled = Arc::new(AtomicBool::new(false));
+    let component = Arc::new(AtomicU32::new(1.0f32.to_bits()));
+    let flag = enabled.clone();
+    let part = component.clone();
+    assert!(desc
+        .add_uniform_bool_getter("flag", move || flag.load(Ordering::Relaxed))
+        .unwrap());
+    assert!(desc
+        .add_uniform_float3_getter("rgb", move || {
+            [f32::from_bits(part.load(Ordering::Relaxed)), 2.0, 3.0]
+        })
+        .unwrap());
+    let mut out = [0.0; 3];
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out[0], 0.0);
+    assert!(desc.try_copy_uniform_f32_into(1, &mut out).unwrap());
+    assert_eq!(out, [1.0, 2.0, 3.0]);
+    enabled.store(true, Ordering::Relaxed);
+    component.store(4.0f32.to_bits(), Ordering::Relaxed);
+    assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
+    assert_eq!(out[0], 1.0);
+    assert!(desc.try_copy_uniform_f32_into(1, &mut out).unwrap());
+    assert_eq!(out, [4.0, 2.0, 3.0]);
+    assert!(desc
+        .add_uniform_bool_getter("bad_bool", || panic!("bool panic"))
+        .unwrap());
+    assert!(desc
+        .add_uniform_float3_getter("bad_rgb", || panic!("float3 panic"))
+        .unwrap());
+    assert!(desc.try_copy_uniform_f32_into(2, &mut out).is_err());
+    assert!(desc.try_copy_uniform_f32_into(3, &mut out).is_err());
+    drop(desc);
+    assert_eq!(Arc::strong_count(&enabled), 1);
+    assert_eq!(Arc::strong_count(&component), 1);
+}
+
 #[cfg(ocio_stub)]
 #[test]
 fn rust_uniform_double_getter_stub_releases_closure() {
@@ -1378,6 +1424,22 @@ fn rust_uniform_double_getter_stub_releases_closure() {
         .add_uniform_f64_getter("dynamic", move || {
             let _ = &captured;
             1.0
+        })
+        .is_err());
+    assert_eq!(std::sync::Arc::strong_count(&value), 1);
+    let captured = value.clone();
+    assert!(desc
+        .add_uniform_bool_getter("flag", move || {
+            let _ = &captured;
+            true
+        })
+        .is_err());
+    assert_eq!(std::sync::Arc::strong_count(&value), 1);
+    let captured = value.clone();
+    assert!(desc
+        .add_uniform_float3_getter("rgb", move || {
+            let _ = &captured;
+            [0.0; 3]
         })
         .is_err());
     assert_eq!(std::sync::Arc::strong_count(&value), 1);

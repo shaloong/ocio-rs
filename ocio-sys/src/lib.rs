@@ -1338,6 +1338,20 @@ unsafe extern "C" {
         getter: unsafe extern "C" fn(*mut c_void, *mut f64) -> bool,
         release: unsafe extern "C" fn(*mut c_void),
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_bool_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut bool) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_float3_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f32) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_add_uniform_bool(
         handle: *mut c_void,
         name: *const i8,

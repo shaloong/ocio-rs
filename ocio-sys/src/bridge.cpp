@@ -7859,6 +7859,50 @@ bool ocio_gpu_shader_desc_add_uniform_double_getter(void* handle, const char* na
 #endif
 }
 
+bool ocio_gpu_shader_desc_add_uniform_bool_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, bool*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO");
+  return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !getter || !release) throw std::invalid_argument("invalid uniform getter");
+    ocio::GpuShaderCreator::BoolGetter native = [owner, getter]() {
+      bool value = false;
+      if (!getter(owner.get(), &value)) throw ocio::Exception("Rust uniform getter failed");
+      return value;
+    };
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name, native);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_float3_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, float*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO");
+  return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!context || !getter || !release) throw std::invalid_argument("invalid uniform getter");
+    auto value = std::make_shared<ocio::Float3>();
+    ocio::GpuShaderCreator::Float3Getter native = [owner, getter, value]() -> const ocio::Float3& {
+      float result[3];
+      if (!getter(owner.get(), result)) throw ocio::Exception("Rust uniform getter failed");
+      for (size_t i = 0; i < 3; ++i) (*value)[i] = result[i];
+      return *value;
+    };
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addUniform(name, native);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name; (void)value;
