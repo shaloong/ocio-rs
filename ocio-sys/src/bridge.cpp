@@ -19117,4 +19117,30 @@ void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int inp
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+const char* ocio_app_helper_serialize(void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind;
+  ocio_rs_bridge::capture_error_message("App helper serialization requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null app helper");
+    std::ostringstream output;
+    switch (kind) {
+      case 0: output << *menu_parameters(handle); break;
+      case 1: output << *menu_helper(handle); break;
+      case 2: output << *mixing_manager(handle); break;
+      case 3: output << *static_cast<ocio::MixingSlider*>(handle); break;
+      case 4: output << *viewing_pipeline(handle); break;
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+      case 5: output << *merge_params(handle); break;
+#endif
+      default: throw std::invalid_argument("unknown app helper kind");
+    }
+    static thread_local std::string result;
+    result = output.str();
+    return result.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 }  // extern "C"

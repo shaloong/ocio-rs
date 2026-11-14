@@ -19,12 +19,30 @@ unsafe fn text<'a>(ptr: *const c_char) -> &'a CStr {
     }
 }
 
+pub(crate) fn serialize_app_helper(handle: NonNull<c_void>, kind: i32) -> Result<String> {
+    crate::clear_last_error();
+    let ptr = unsafe { ocio_sys::ocio_app_helper_serialize(handle.as_ptr(), kind) };
+    crate::ocio_call_status()?;
+    if ptr.is_null() {
+        return Err(crate::OcioError::Ocio(
+            "null app helper serialization".into(),
+        ));
+    }
+    Ok(unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned())
+}
+
 /// Mutable native options used to construct a color-space menu.
 pub struct ColorSpaceMenuParameters {
     handle: NonNull<c_void>,
 }
 
 impl ColorSpaceMenuParameters {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_app_helper(self.handle, 0)
+    }
     /// Create options for a configuration. The native parameters retain the config.
     pub fn create(config: &Config) -> Result<Self> {
         crate::clear_last_error();
@@ -285,6 +303,10 @@ pub struct ColorSpaceMenuHelper {
 }
 
 impl ColorSpaceMenuHelper {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_app_helper(self.handle, 1)
+    }
     /// Build a native menu. Upstream evaluates filtering and hierarchy once.
     pub fn create(parameters: &ColorSpaceMenuParameters) -> Result<Self> {
         crate::clear_last_error();
@@ -420,6 +442,10 @@ pub struct MixingColorSpaceManager {
 }
 
 impl MixingColorSpaceManager {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_app_helper(self.handle, 2)
+    }
     /// Create using the native implementation.
     pub fn create(config: &Config) -> Result<Self> {
         crate::clear_last_error();
@@ -628,6 +654,10 @@ pub struct MixingSlider<'a> {
 }
 
 impl MixingSlider<'_> {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_app_helper(self.handle, 3)
+    }
     /// Set slider min edge using the native implementation.
     pub fn set_slider_min_edge(&mut self, value: f32) {
         unsafe { ocio_sys::ocio_mixing_slider_set_slider_min_edge(self.handle.as_ptr(), value) }
@@ -665,6 +695,10 @@ pub struct LegacyViewingPipeline {
 }
 
 impl LegacyViewingPipeline {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_app_helper(self.handle, 4)
+    }
     /// Create a native pipeline with no correction stages.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();

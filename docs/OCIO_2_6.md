@@ -70,6 +70,9 @@ This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
 The color-space menu parameters and immutable menu are now bound at their
 native version floors. The menu borrows native strings without allocating.
+Menu parameters, menus, mixing managers, sliders, legacy viewing pipelines,
+and merging parameters expose OCIO's diagnostic stream representations as
+owned strings; these are not stable interchange or round-trip formats.
 The mixing manager also delegates selection and conversions to OCIO; its
 slider is an exclusive borrow with no allocation or shared-pointer increment.
 The legacy viewing pipeline includes all correction stages, looks overrides,

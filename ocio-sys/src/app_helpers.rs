@@ -2,6 +2,10 @@ use std::ffi::{c_char, c_void};
 
 unsafe extern "C" {
     pub fn ocio_color_space_menu_parameters_create(config: *mut c_void) -> *mut c_void;
+    /// `handle` must be the live native handle corresponding to `kind` as
+    /// documented in `bridge.hpp`. The result is thread-local and invalidated
+    /// by the next call on this thread.
+    pub fn ocio_app_helper_serialize(handle: *mut c_void, kind: i32) -> *const i8;
     pub fn ocio_color_space_menu_parameters_destroy(handle: *mut c_void);
     pub fn ocio_color_space_menu_parameters_set_config(handle: *mut c_void, config: *mut c_void);
     pub fn ocio_color_space_menu_parameters_get_config(handle: *mut c_void) -> *mut c_void;

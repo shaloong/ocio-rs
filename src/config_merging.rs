@@ -43,6 +43,10 @@ pub struct ConfigMergingParameters {
     handle: NonNull<c_void>,
 }
 impl ConfigMergingParameters {
+    /// Serialize using OCIO's diagnostic stream operator.
+    pub fn serialize(&self) -> Result<String> {
+        crate::app_helpers::serialize_app_helper(self.handle, 5)
+    }
     /// Create via the native merge API.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();

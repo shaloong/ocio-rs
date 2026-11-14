@@ -25,6 +25,9 @@ fn ociom_controller_round_trip_and_execute() {
     let mut params = ConfigMergingParameters::create().unwrap();
     params.set_base_config_name(c"base.ocio").unwrap();
     params.set_input_config_name(c"input.ocio").unwrap();
+    let params_text = params.serialize().unwrap();
+    assert!(params_text.contains("base.ocio"));
+    assert!(params_text.contains("input.ocio"));
     params.set_adjust_input_reference_space(false).unwrap();
     let mut merger = ConfigMerger::create().unwrap();
     merger.set_working_dir(&dir).unwrap();
@@ -202,6 +205,10 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
     display.set_display("Monitor").unwrap();
     display.set_view("Raw").unwrap();
     pipeline.set_display_view_transform(Some(&display));
+    assert!(pipeline
+        .serialize()
+        .unwrap()
+        .contains("DisplayViewTransform"));
     display.set_display("changed").unwrap();
     assert_eq!(
         pipeline
@@ -267,6 +274,8 @@ fn mixing_manager_retains_config_and_slider_round_trips() {
     let mut manager = ocio_rs::MixingColorSpaceManager::create(&config).unwrap();
     manager.refresh(&config).unwrap();
     drop(config);
+    let manager_text = manager.serialize().unwrap();
+    assert!(manager_text.contains("slider"));
     assert!(manager.num_mixing_spaces() > 0);
     assert!(manager.num_mixing_encodings() > 0);
     assert!(manager.set_selected_mixing_space_idx(usize::MAX).is_err());
@@ -291,6 +300,10 @@ fn mixing_manager_retains_config_and_slider_round_trips() {
     manager.set_selected_mixing_encoding_idx(0).unwrap();
 
     let slider = manager.slider_with_edges(0.1, 0.9);
+    let slider_text = slider.serialize().unwrap();
+    assert!(slider_text.contains("minEdge"));
+    assert!(slider_text.contains("maxEdge"));
+    assert!(manager_text.contains("slider"));
     // Native getters report perceptual edges for non-uniform spaces.
     assert!((slider.slider_to_mixing(0.0) - 0.1).abs() < 1e-5);
     assert!((slider.slider_to_mixing(1.0) - 0.9).abs() < 1e-5);
@@ -311,6 +324,8 @@ fn native_menu_filters_and_borrows_immutable_entries() {
 
     let mut parameters = ColorSpaceMenuParameters::create(&config).unwrap();
     parameters.set_app_categories(c"ocio_rs_camera_test");
+    let parameters_text = parameters.serialize().unwrap();
+    assert!(parameters_text.contains("ocio_rs_camera_test"));
     assert_eq!(parameters.app_categories(), c"ocio_rs_camera_test");
     #[cfg(feature = "v2_5")]
     {
@@ -321,6 +336,9 @@ fn native_menu_filters_and_borrows_immutable_entries() {
     assert_eq!(parameters.num_added_color_spaces(), 1);
     assert_eq!(parameters.added_color_space(0), c"raw");
     let menu = ColorSpaceMenuHelper::create(&parameters).unwrap();
+    let menu_text = menu.serialize().unwrap();
+    assert!(menu_text.contains("Menu Input"));
+    assert!(parameters_text.contains("ocio_rs_camera_test"));
     parameters.clear_added_color_spaces();
     drop(parameters);
     drop(config);

@@ -43,6 +43,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose OCIO's diagnostic stream output for application helpers and merging
+  parameters as owned Rust strings.
 - Detect direct reentrant logging operations from OCIO logging callbacks and
   expose `try_logging_level` to report the error instead of deadlocking.
 
