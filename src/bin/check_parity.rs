@@ -1096,78 +1096,6 @@ fn run_l3(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn l3_skips_forward_declarations_and_reads_real_classes() {
-        let dir = std::env::temp_dir().join(format!(
-            "ocio-rs-parity-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&dir).unwrap();
-        let header = dir.join("fixture.h");
-        fs::write(&header, "class OCIOEXPORT ViewingRules;\nclass Other { public: void wrong(); };\nclass OCIOEXPORT ViewingRules { public:\nvoid correct();\n};\nclass OCIOEXPORT ProcessorMetadata { public:\nvoid actual();\n};\n").unwrap();
-        let parsed = parse_ocio_cpp_headers(&dir);
-        fs::remove_file(&header).unwrap();
-        fs::remove_dir(&dir).unwrap();
-        assert_eq!(parsed["ViewingRules"][0].0, "correct");
-        assert_eq!(parsed["ProcessorMetadata"][0].0, "actual");
-        assert_eq!(parsed["ViewingRules"].len(), 1);
-    }
-
-    #[test]
-    fn l3_does_not_credit_missing_create() {
-        let classes = HashMap::from([(
-            "ViewingRules".to_owned(),
-            vec![("Create".to_owned(), "static Create()".to_owned())],
-        )]);
-        let result = run_l3(&[], &classes, Path::new("."));
-        assert_eq!(result.matched, 0);
-        assert_eq!(result.missing["ViewingRules"][0].cpp_name, "Create");
-    }
-
-    #[test]
-    fn l3_recognizes_config_create_empty() {
-        let classes = HashMap::from([(
-            "Config".to_owned(),
-            vec![("Create".to_owned(), "static Create()".to_owned())],
-        )]);
-        let funcs = [CFunc {
-            name: "ocio_config_create_empty".to_owned(),
-            return_type: "void*".to_owned(),
-            params: "void".to_owned(),
-            class_prefix: "config".to_owned(),
-            method_name: "create_empty".to_owned(),
-        }];
-        let result = run_l3(&funcs, &classes, Path::new("."));
-        assert_eq!(result.matched, 1);
-        assert!(result.missing.is_empty());
-    }
-
-    #[test]
-    fn l3_requires_the_documented_default_config_replacement() {
-        let classes = HashMap::from([(
-            "BuiltinConfigRegistry".to_owned(),
-            vec![("getDefaultBuiltinConfigName".to_owned(), String::new())],
-        )]);
-        assert_eq!(run_l3(&[], &classes, Path::new(".")).matched, 0);
-        let funcs = [CFunc {
-            name: "ocio_resolve_config_path".to_owned(),
-            return_type: "const char*".to_owned(),
-            params: "const char*".to_owned(),
-            class_prefix: String::new(),
-            method_name: String::new(),
-        }];
-        assert_eq!(run_l3(&funcs, &classes, Path::new(".")).matched, 1);
-    }
-}
-
 // ─── Report ───
 
 fn print_report(l1: &L1Result, l2: &L2Result, l3: Option<&L3Result>) -> bool {
@@ -1391,5 +1319,77 @@ fn main() {
 
     if has_gaps {
         process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn l3_skips_forward_declarations_and_reads_real_classes() {
+        let dir = std::env::temp_dir().join(format!(
+            "ocio-rs-parity-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let header = dir.join("fixture.h");
+        fs::write(&header, "class OCIOEXPORT ViewingRules;\nclass Other { public: void wrong(); };\nclass OCIOEXPORT ViewingRules { public:\nvoid correct();\n};\nclass OCIOEXPORT ProcessorMetadata { public:\nvoid actual();\n};\n").unwrap();
+        let parsed = parse_ocio_cpp_headers(&dir);
+        fs::remove_file(&header).unwrap();
+        fs::remove_dir(&dir).unwrap();
+        assert_eq!(parsed["ViewingRules"][0].0, "correct");
+        assert_eq!(parsed["ProcessorMetadata"][0].0, "actual");
+        assert_eq!(parsed["ViewingRules"].len(), 1);
+    }
+
+    #[test]
+    fn l3_does_not_credit_missing_create() {
+        let classes = HashMap::from([(
+            "ViewingRules".to_owned(),
+            vec![("Create".to_owned(), "static Create()".to_owned())],
+        )]);
+        let result = run_l3(&[], &classes, Path::new("."));
+        assert_eq!(result.matched, 0);
+        assert_eq!(result.missing["ViewingRules"][0].cpp_name, "Create");
+    }
+
+    #[test]
+    fn l3_recognizes_config_create_empty() {
+        let classes = HashMap::from([(
+            "Config".to_owned(),
+            vec![("Create".to_owned(), "static Create()".to_owned())],
+        )]);
+        let funcs = [CFunc {
+            name: "ocio_config_create_empty".to_owned(),
+            return_type: "void*".to_owned(),
+            params: "void".to_owned(),
+            class_prefix: "config".to_owned(),
+            method_name: "create_empty".to_owned(),
+        }];
+        let result = run_l3(&funcs, &classes, Path::new("."));
+        assert_eq!(result.matched, 1);
+        assert!(result.missing.is_empty());
+    }
+
+    #[test]
+    fn l3_requires_the_documented_default_config_replacement() {
+        let classes = HashMap::from([(
+            "BuiltinConfigRegistry".to_owned(),
+            vec![("getDefaultBuiltinConfigName".to_owned(), String::new())],
+        )]);
+        assert_eq!(run_l3(&[], &classes, Path::new(".")).matched, 0);
+        let funcs = [CFunc {
+            name: "ocio_resolve_config_path".to_owned(),
+            return_type: "const char*".to_owned(),
+            params: "const char*".to_owned(),
+            class_prefix: String::new(),
+            method_name: String::new(),
+        }];
+        assert_eq!(run_l3(&funcs, &classes, Path::new(".")).matched, 1);
     }
 }
