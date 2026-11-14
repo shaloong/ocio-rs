@@ -448,3 +448,19 @@ pub struct GradingHueCurveValue {
     pub hue_lum: Vec<GradingCurvePoint>,
     pub lum_sat: Vec<GradingCurvePoint>,
 }
+
+/// Complete snapshot of all eight native hue, saturation, and luma curves.
+#[cfg(feature = "v2_5")]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CompleteGradingHueCurveValue {
+    /// Original four curves exposed by the legacy snapshot.
+    pub base: GradingHueCurveValue,
+    /// Saturation as a function of saturation.
+    pub sat_sat: Vec<GradingCurvePoint>,
+    /// Luma as a function of luma.
+    pub lum_lum: Vec<GradingCurvePoint>,
+    /// Luma as a function of saturation.
+    pub sat_lum: Vec<GradingCurvePoint>,
+    /// Hue offset as a function of hue.
+    pub hue_fx: Vec<GradingCurvePoint>,
+}

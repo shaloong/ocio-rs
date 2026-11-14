@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Add complete eight-curve hue grading snapshots while preserving the legacy
+  four-curve snapshot API.
 - Bind native monitor profile enumeration and add OCIOM parsing coverage.
 - Bind the native color-space menu and mixing helpers. Menu text borrows
   native storage and mixing sliders borrow their manager.

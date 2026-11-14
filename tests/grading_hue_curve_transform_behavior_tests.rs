@@ -16,6 +16,24 @@ use ocio_rs::grading::{GradingCurvePoint, GradingHueCurveValue};
 use ocio_rs::transform::GradingHueCurveTransform;
 use ocio_rs::{GradingStyle, HSYTransformStyle, HueCurveType, TransformDirection};
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn complete_snapshot_round_trips_all_eight_curves() {
+    let source = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
+    for curve in [
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ] {
+        source.set_slope(curve, 0, 0.37).unwrap();
+    }
+    let snapshot = source.complete_value().unwrap();
+    let target = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
+    target.set_complete_value(&snapshot).unwrap();
+    assert_eq!(target.complete_value().unwrap(), snapshot);
+}
+
 fn grading_hue_curve_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
