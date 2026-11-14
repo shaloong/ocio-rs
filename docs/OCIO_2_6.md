@@ -106,6 +106,7 @@ not enumerate the streamed textures. `ShaderUniformControl` can retain native
 getters and control registration results, including alongside streamed textures;
 externally managed uniforms are not included in descriptor buffer offsets.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
-an external dynamic uniform. These hooks do not
+an external dynamic uniform, including combined uniform-plus-LUT pipelines.
+These hooks do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers
 cannot yet implement every virtual method or control all resource storage.

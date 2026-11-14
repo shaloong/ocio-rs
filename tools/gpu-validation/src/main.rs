@@ -1,12 +1,12 @@
 use ocio_rs::transform::{
-    ExposureContrastTransform, FixedFunctionTransform, Lut1DTransform, Lut3DTransform,
-    MatrixTransform,
+    ExposureContrastTransform, FixedFunctionTransform, GroupTransform, Lut1DTransform,
+    Lut3DTransform, MatrixTransform,
 };
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderExtractionHooks, ShaderSections, ShaderUniformAction, ShaderUniformControl,
-    ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
+    ShaderExtractionHooks, ShaderSections, ShaderTexture, ShaderUniformAction,
+    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -119,37 +119,44 @@ fn validate_case(
             external_uniform: None,
             capture_uniform: expect_uniform,
         };
-        desc = if expect_uniform {
+        let mut texture_sink = |texture: ShaderTexture<'_>| {
+            if streamed_lut.is_some() {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "multiple streamed LUTs".into(),
+                ));
+            }
+            let kind = match texture.dimensions {
+                Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
+                Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
+                None => TextureKind::ThreeD,
+            };
+            streamed_lut = Some(LutTexture {
+                sampler: texture.sampler_name.to_owned(),
+                binding: texture.suggested_binding.ok_or_else(|| {
+                    ocio_rs::OcioError::InvalidInput("missing texture binding".into())
+                })?,
+                width: texture.width,
+                height: texture.height,
+                depth: texture.depth,
+                kind,
+                channel: texture.channel,
+                interpolation: texture.interpolation,
+                values: texture.values.to_vec(),
+            });
+            Ok(None)
+        };
+        desc = if expect_uniform && expected_texture != TextureKind::None {
+            gpu.try_extract_with_uniform_control_and_streamed_textures(
+                &desc,
+                &mut hooks,
+                &mut texture_sink,
+            )?
+        } else if expect_uniform {
             gpu.try_extract_with_uniform_control(&desc, &mut hooks)?
         } else if expected_texture == TextureKind::None {
             gpu.try_extract_with_hooks(&desc, &mut hooks)?
         } else {
-            gpu.try_extract_with_streamed_textures(&desc, &mut hooks, |texture| {
-                if streamed_lut.is_some() {
-                    return Err(ocio_rs::OcioError::InvalidInput(
-                        "multiple streamed LUTs".into(),
-                    ));
-                }
-                let kind = match texture.dimensions {
-                    Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
-                    Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
-                    None => TextureKind::ThreeD,
-                };
-                streamed_lut = Some(LutTexture {
-                    sampler: texture.sampler_name.to_owned(),
-                    binding: texture.suggested_binding.ok_or_else(|| {
-                        ocio_rs::OcioError::InvalidInput("missing texture binding".into())
-                    })?,
-                    width: texture.width,
-                    height: texture.height,
-                    depth: texture.depth,
-                    kind,
-                    channel: texture.channel,
-                    interpolation: texture.interpolation,
-                    values: texture.values.to_vec(),
-                });
-                Ok(None)
-            })?
+            gpu.try_extract_with_streamed_textures(&desc, &mut hooks, &mut texture_sink)?
         };
         external_uniform = hooks.external_uniform.take();
         if !hooks.seen
@@ -180,9 +187,7 @@ fn validate_case(
     } else {
         expected_counts
     };
-    if (desc.num_textures(), desc.num_3d_textures()) != descriptor_counts
-        || (expect_uniform && expected_texture != TextureKind::None)
-    {
+    if (desc.num_textures(), desc.num_3d_textures()) != descriptor_counts {
         return Err(format!("{name}: unexpected or unsupported texture resources").into());
     }
     if (desc.num_uniforms() != 0 || external_uniform.is_some()) != expect_uniform {
@@ -373,16 +378,6 @@ fn validate_case(
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         })
     });
-    let uniform_bindings = uniform_buffer.as_ref().map(|buffer| {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("OCIO uniform bindings"),
-            layout: &pipeline.get_bind_group_layout(0),
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-        })
-    });
     let mut lut_resources = None;
     if let Some(lut) = &lut {
         let filter = match lut.interpolation {
@@ -443,23 +438,34 @@ fn validate_case(
             min_filter: filter,
             ..Default::default()
         });
-        let binding = lut.binding;
-        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("OCIO 3D LUT bindings"),
-            layout: &pipeline.get_bind_group_layout(0),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: binding + 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-            ],
-        });
-        lut_resources = Some((texture, view, sampler, group));
+        lut_resources = Some((texture, view, sampler));
     }
+    let resource_bindings = if uniform_buffer.is_some() || lut_resources.is_some() {
+        let mut entries = Vec::new();
+        if let Some(buffer) = &uniform_buffer {
+            entries.push(wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            });
+        }
+        if let (Some(lut), Some((_, view, sampler))) = (&lut, &lut_resources) {
+            entries.push(wgpu::BindGroupEntry {
+                binding: lut.binding,
+                resource: wgpu::BindingResource::TextureView(view),
+            });
+            entries.push(wgpu::BindGroupEntry {
+                binding: lut.binding + 1,
+                resource: wgpu::BindingResource::Sampler(sampler),
+            });
+        }
+        Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("OCIO resource bindings"),
+            layout: &pipeline.get_bind_group_layout(0),
+            entries: &entries,
+        }))
+    } else {
+        None
+    };
     for pass_number in 0..if expect_uniform { 2 } else { 1 } {
         if pass_number == 1 {
             let value = -0.75;
@@ -500,11 +506,8 @@ fn validate_case(
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor::default());
             pass.set_pipeline(&pipeline);
-            if let Some(uniforms) = &uniform_bindings {
-                pass.set_bind_group(0, uniforms, &[]);
-            }
-            if let Some((_, _, _, group)) = &lut_resources {
-                pass.set_bind_group(0, group, &[]);
+            if let Some(resources) = &resource_bindings {
+                pass.set_bind_group(0, resources, &[]);
             }
             pass.set_bind_group(pixel_group as u32, &bindings, &[]);
             pass.dispatch_workgroups(input.len() as u32, 1, 1);
@@ -692,6 +695,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(&tetra_pixels),
         true,
     )?;
+    let mixed_3d = GroupTransform::create()?;
+    mixed_3d.append_transform(&exposure)?;
+    mixed_3d.append_transform(&lut)?;
+    let mixed_3d_processor =
+        config.processor_from_transform(&mixed_3d, TransformDirection::Forward)?;
+    validate_case(
+        &device,
+        &queue,
+        "external dynamic uniform and streamed 3D LUT",
+        &mixed_3d_processor,
+        Some(1.1),
+        TextureKind::ThreeD,
+        5e-3,
+        Some(&tetra_pixels),
+        true,
+    )?;
     let lut = Lut1DTransform::create()?;
     lut.set_length(3)?;
     lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])?;
@@ -736,6 +755,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &processor,
         None,
         TextureKind::OneD,
+        5e-3,
+        None,
+        true,
+    )?;
+    let mixed = GroupTransform::create()?;
+    mixed.append_transform(&exposure)?;
+    mixed.append_transform(&lut)?;
+    let processor = config.processor_from_transform(&mixed, TransformDirection::Forward)?;
+    validate_case(
+        &device,
+        &queue,
+        "external dynamic uniform and streamed LUT",
+        &processor,
+        Some(1.1),
+        TextureKind::TwoD,
         5e-3,
         None,
         true,
