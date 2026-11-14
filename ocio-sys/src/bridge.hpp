@@ -745,6 +745,11 @@ void* ocio_gpu_processor_extract_with_uniform_control(void* handle, void* templa
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
     bool stream_textures, void* context);
+void* ocio_gpu_processor_extract_with_creator_options(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    bool stream_textures, const char* cache_id_override, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

@@ -712,8 +712,8 @@ fn custom_uniform_control_honors_duplicate_result_and_scalar_types() {
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_uniform_control_can_stream_textures_in_same_extraction() {
     use ocio_rs::{
-        ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
-        ShaderUniformRegistration,
+        ShaderCreatorOptions, ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl,
+        ShaderUniformGetter, ShaderUniformRegistration,
     };
     struct Hooks {
         getter: Option<ShaderUniformGetter>,
@@ -758,6 +758,112 @@ fn custom_uniform_control_can_stream_textures_in_same_extraction() {
     assert_eq!(desc.num_textures() + desc.num_3d_textures(), 0);
     assert_eq!(desc.num_uniforms(), 0);
     assert!(hooks.getter.as_mut().unwrap().double().unwrap().is_some());
+    let mut hooks = Hooks { getter: None };
+    let mut textures = 0;
+    let desc = gpu
+        .try_extract_with_creator_options(
+            &template,
+            &mut hooks,
+            ShaderCreatorOptions {
+                cache_id_override: Some(c"combined-resource-test"),
+                stream_textures: true,
+            },
+            |texture| {
+                assert!(!texture.values.is_empty());
+                textures += 1;
+                Ok(None)
+            },
+        )
+        .unwrap();
+    assert!(textures > 0);
+    assert_eq!(desc.num_textures() + desc.num_3d_textures(), 0);
+    assert_eq!(desc.num_uniforms(), 0);
+    assert_eq!(
+        desc.try_cache_id().unwrap().as_deref(),
+        Some("combined-resource-test")
+    );
+    assert!(hooks.getter.as_mut().unwrap().double().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
+    use ocio_rs::{
+        ShaderCreatorOptions, ShaderExtractionHooks, ShaderLifecycle, ShaderUniformAction,
+        ShaderUniformControl, ShaderUniformRegistration,
+    };
+    #[derive(Default)]
+    struct Hooks {
+        key: String,
+    }
+    impl ShaderExtractionHooks for Hooks {
+        fn lifecycle(&mut self, event: ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+            if let ShaderLifecycle::Begin { unique_id } = event {
+                self.key = unique_id.to_owned();
+            }
+            Ok(())
+        }
+    }
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let matrix = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).unwrap();
+    let gpu = config
+        .processor_from_transform(&matrix, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut first = Hooks::default();
+    let first_desc = {
+        let id = CString::new("custom-cache-first").unwrap();
+        gpu.try_extract_with_creator_options(
+            &template,
+            &mut first,
+            ShaderCreatorOptions {
+                cache_id_override: Some(id.as_c_str()),
+                stream_textures: false,
+            },
+            |_| Ok(None),
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        first_desc.try_cache_id().unwrap().as_deref(),
+        Some("custom-cache-first")
+    );
+    let mut second = Hooks::default();
+    let second_desc = gpu
+        .try_extract_with_creator_options(
+            &template,
+            &mut second,
+            ShaderCreatorOptions {
+                cache_id_override: Some(c"custom-cache-second"),
+                stream_textures: true,
+            },
+            |_| Ok(None),
+        )
+        .unwrap();
+    assert_eq!(
+        second_desc.try_cache_id().unwrap().as_deref(),
+        Some("custom-cache-second")
+    );
+    assert!(!first.key.is_empty());
+    assert!(!second.key.is_empty());
+    assert_ne!(first.key, second.key);
+    first_desc.set_function_name("changed").unwrap();
+    // Custom IDs are supplied by the caller and are not auto-invalidated.
+    assert_eq!(
+        first_desc.try_cache_id().unwrap().as_deref(),
+        Some("custom-cache-first")
+    );
 }
 
 #[test]

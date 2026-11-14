@@ -2187,6 +2187,20 @@ pub enum ShaderUniformAction {
     ExternalDuplicate,
 }
 
+/// Options for extracting with custom creator resource handling.
+#[derive(Default, Clone, Copy)]
+pub struct ShaderCreatorOptions<'a> {
+    /// Replace the creator's native cache ID with this value.
+    ///
+    /// OCIO uses this ID when deriving resource keys. The caller must ensure
+    /// the ID changes whenever creator configuration or output changes,
+    /// including after mutating the returned descriptor. The string is copied
+    /// once into native ownership. `None` retains OCIO's default behavior.
+    pub cache_id_override: Option<&'a std::ffi::CStr>,
+    /// Deliver textures to the supplied sink without retaining descriptor copies.
+    pub stream_textures: bool,
+}
+
 /// Custom control over native uniform registration during shader extraction.
 ///
 /// ```no_run
@@ -2331,6 +2345,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
@@ -2379,6 +2394,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
@@ -2428,6 +2444,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
@@ -2480,6 +2497,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             assemble,
@@ -2508,6 +2526,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| hooks.borrow_mut().assemble(parts),
@@ -2558,6 +2577,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             true,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| hooks.borrow_mut().assemble(parts),
@@ -2589,6 +2609,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             &mut registration,
             true,
             |parts| hooks.borrow_mut().assemble(parts),
@@ -2625,6 +2646,46 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             true,
+            None,
+            &mut registration,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            texture,
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
+    /// Extract with custom registration, texture handling and creator options.
+    ///
+    /// The texture callback receives each LUT synchronously whether or not
+    /// streaming is selected. In streaming mode it must copy or upload the
+    /// borrowed data before returning. A custom cache ID remains in effect on
+    /// the returned descriptor; see [`ShaderCreatorOptions`] for invalidation
+    /// responsibility. Callback and external resource cleanup rules are the same
+    /// as [`Self::try_extract_with_uniform_control_and_streamed_textures`].
+    pub fn try_extract_with_creator_options<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        options: ShaderCreatorOptions<'_>,
+        texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderUniformControl,
+        T: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        self.try_extract_with_callbacks(
+            template,
+            options.stream_textures,
+            options.cache_id_override,
             &mut registration,
             true,
             |parts| hooks.borrow_mut().assemble(parts),
@@ -2644,6 +2705,7 @@ impl GPUProcessor {
         &self,
         template: &GpuShaderDesc,
         stream_textures: bool,
+        cache_id_override: Option<&std::ffi::CStr>,
         registration: &mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
         has_registration: bool,
         mut assemble: F,
@@ -3052,7 +3114,22 @@ impl GPUProcessor {
             } else {
                 ocio_sys::ocio_gpu_processor_extract_with_hooks
             };
-            if has_registration {
+            if let Some(cache_id) = cache_id_override {
+                debug_assert!(has_registration);
+                ocio_sys::ocio_gpu_processor_extract_with_creator_options(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    notify_texture.then_some(texture_callback::<F, G>),
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    Some(registration_callback::<F, G>),
+                    stream_textures,
+                    cache_id.as_ptr(),
+                    context,
+                )
+            } else if has_registration {
                 ocio_sys::ocio_gpu_processor_extract_with_uniform_control(
                     self.handle.as_ptr(),
                     template.handle.as_ptr(),

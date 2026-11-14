@@ -13,7 +13,7 @@ the bridge selects the native ABI separately.
 | `clone() const -> GpuShaderCreatorRcPtr` | `GpuShaderDesc::clone_desc` | Native base cloning does not reproduce every subclass resource; Rust cannot supply its own clone implementation. |
 | Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters | Concrete descriptor access only; no custom creator implementation. |
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
-| `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id` | Custom cache-ID implementation is not exposed. |
+| `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id`; fixed custom ID via `ShaderCreatorOptions` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override. |
 | `begin(uid)`, `finalize()`, `end()` | Descriptor methods; synchronous `ShaderExtractionHooks::lifecycle` notifications | Hooks observe lifecycle but do not replace native methods. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Descriptor getters/setters and extraction template | Cannot implement these virtual methods independently in Rust. |
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |

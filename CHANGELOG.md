@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Allow custom GPU creator cache IDs without invoking Rust from OCIO's
+  `noexcept` cache-ID getter.
 - Customize GPU uniform registration, retain thread-confined native getters,
   and optionally combine external uniform management with streamed textures.
 - Register existing native dynamic properties on GPU descriptors and connect

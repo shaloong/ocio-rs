@@ -5,8 +5,9 @@ use ocio_rs::transform::{
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderExtractionHooks, ShaderSections, ShaderTexture, ShaderUniformAction,
-    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
+    ShaderCreatorOptions, ShaderExtractionHooks, ShaderSections, ShaderTexture,
+    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -146,9 +147,13 @@ fn validate_case(
             Ok(None)
         };
         desc = if expect_uniform && expected_texture != TextureKind::None {
-            gpu.try_extract_with_uniform_control_and_streamed_textures(
+            gpu.try_extract_with_creator_options(
                 &desc,
                 &mut hooks,
+                ShaderCreatorOptions {
+                    cache_id_override: Some(c"gpu-validation-custom-creator"),
+                    stream_textures: true,
+                },
                 &mut texture_sink,
             )?
         } else if expect_uniform {
