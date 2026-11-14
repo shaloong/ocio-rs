@@ -784,6 +784,8 @@ bool ocio_gpu_shader_desc_add_uniform_vector_int(
     const int* values,
     size_t len,
     uint32_t maxSize);
+void ocio_gpu_shader_desc_add_dynamic_property(void* handle, void* property);
+bool ocio_gpu_shader_desc_add_uniform_dynamic_double(void* handle, const char* name, int property_type);
 unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
 void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
 void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);

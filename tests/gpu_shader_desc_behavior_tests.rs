@@ -1621,6 +1621,58 @@ fn gpu_shader_desc_dynamic_property_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn manually_added_dynamic_property_shares_ownership_and_rejects_duplicates() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let processor = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap();
+    let cpu = processor.default_cpu_processor().unwrap();
+    let property = cpu.dynamic_property(DynamicPropertyType::Exposure).unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.add_dynamic_property(&property).unwrap();
+    assert!(desc.add_dynamic_property(&property).is_err());
+    assert_eq!(desc.try_num_dynamic_properties().unwrap(), 1);
+    assert!(desc
+        .add_uniform_dynamic_double("live_exposure", DynamicPropertyType::Exposure)
+        .unwrap());
+    assert!(!desc
+        .add_uniform_dynamic_double("live_exposure", DynamicPropertyType::Exposure)
+        .unwrap());
+    assert!(desc
+        .add_uniform_dynamic_double("missing", DynamicPropertyType::Gamma)
+        .is_err());
+    assert!(desc
+        .add_uniform_dynamic_double("wrong_type", DynamicPropertyType::GradingTone)
+        .is_err());
+    let retrieved = desc
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    property.set_double_value(1.25).unwrap();
+    assert_eq!(retrieved.double_value().unwrap(), 1.25);
+    retrieved.set_double_value(-0.75).unwrap();
+    assert_eq!(property.double_value().unwrap(), -0.75);
+    assert_eq!(desc.try_uniform_f64_value(0).unwrap(), Some(-0.75));
+    drop(property);
+    drop(retrieved);
+    drop(cpu);
+    drop(processor);
+    let retained = desc.try_dynamic_property_by_index(0).unwrap().unwrap();
+    assert_eq!(retained.double_value().unwrap(), -0.75);
+    retained.set_double_value(2.5).unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    assert_eq!(cache.double(0).unwrap(), Some(2.5));
+    drop(cache);
+    drop(desc);
+    assert_eq!(retained.double_value().unwrap(), 2.5);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn combined_declarations_work_on_all_supported_native_versions() {
     let _guard = gpu_shader_desc_test_lock();
     let desc = GpuShaderDesc::create().unwrap();

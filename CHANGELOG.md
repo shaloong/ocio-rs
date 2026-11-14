@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Register existing native dynamic properties on GPU descriptors and connect
+  exposure, contrast, or gamma directly to live native double uniforms.
 - Expose the OCIO 2.4 combined shader-declaration API, with a non-Vulkan
   compatibility mapping for newer native versions.
 - Convert between packed and planar image layouts without copying pixels,

@@ -4059,6 +4059,58 @@ impl GpuShaderDesc {
         self.clone_desc()
     }
 
+    /// Adds an existing dynamic property to this shader creator's native store.
+    ///
+    /// OCIO retains shared ownership; changes through either handle affect the
+    /// same property, even after the original owner is dropped. Only one
+    /// property of a given type can be added; duplicates return an OCIO error.
+    /// This does not itself add a uniform or shader code. Like the descriptor,
+    /// the property is thread-confined; native aliases must not be accessed
+    /// concurrently or reentrantly.
+    pub fn add_dynamic_property(&mut self, property: &DynamicProperty) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_dynamic_property(
+                self.handle.as_ptr(),
+                property.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Registers a live double uniform backed by a property already in this
+    /// descriptor. Supports exposure, contrast, and gamma properties.
+    ///
+    /// The getter owns the native property reference and does not invoke Rust
+    /// when sampled. Returns `false` if the uniform name already exists.
+    /// This does not emit a shader declaration; custom creators must emit it.
+    pub fn add_uniform_dynamic_double(
+        &mut self,
+        name: impl AsRef<str>,
+        property_type: DynamicPropertyType,
+    ) -> Result<bool> {
+        if !matches!(
+            property_type,
+            DynamicPropertyType::Exposure
+                | DynamicPropertyType::Contrast
+                | DynamicPropertyType::Gamma
+        ) {
+            return Err(OcioError::InvalidInput(
+                "a double dynamic property is required".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let added = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_add_uniform_dynamic_double(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                property_type as i32,
+            )
+        };
+        Self::bool_call_result(added)
+    }
+
     /// Returns the number of reported uniforms.
     pub fn num_uniforms(&self) -> u32 {
         self.try_num_uniforms().unwrap_or(0)

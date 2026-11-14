@@ -1776,6 +1776,12 @@ unsafe extern "C" {
         len: usize,
         max_size: u32,
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_dynamic_property(handle: *mut c_void, property: *mut c_void);
+    pub fn ocio_gpu_shader_desc_add_uniform_dynamic_double(
+        handle: *mut c_void,
+        name: *const i8,
+        property_type: i32,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_dynamic_properties_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_dynamic_property_by_index(
         handle: *mut c_void,

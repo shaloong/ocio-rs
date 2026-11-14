@@ -9505,6 +9505,37 @@ bool ocio_gpu_shader_desc_add_uniform_vector_int(
 #endif
 }
 
+void ocio_gpu_shader_desc_add_dynamic_property(void* handle, void* property) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)property;
+  ocio_rs_bridge::capture_error_message("GPU dynamic properties require native OpenColorIO");
+#else
+  try {
+    if (!handle || !property) throw std::invalid_argument("null GPU descriptor or dynamic property");
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(property);
+    if (!prop) throw std::invalid_argument("null native dynamic property");
+    ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addDynamicProperty(prop);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+bool ocio_gpu_shader_desc_add_uniform_dynamic_double(void* handle, const char* name, int property_type) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)property_type;
+  ocio_rs_bridge::capture_error_message("GPU dynamic uniforms require native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!handle || !name) throw std::invalid_argument("null GPU descriptor or uniform name");
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    auto property = desc->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(property_type));
+    auto value = ocio::DynamicPropertyValue::AsDouble(property);
+    ocio::GpuShaderCreator::DoubleGetter getter = [value]() { return value->getValue(); };
+    return desc->addUniform(name, getter);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
