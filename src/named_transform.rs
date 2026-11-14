@@ -11,6 +11,14 @@ pub struct NamedTransform {
 }
 
 impl NamedTransform {
+    /// Resolve a native transform, synthesizing it from the opposite direction if needed.
+    /// Returns an error if neither direction is defined.
+    pub fn resolve_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 11, direction as i32)
+    }
     /// Share the native transform without an editable copy.
     pub fn try_const_transform(
         &self,

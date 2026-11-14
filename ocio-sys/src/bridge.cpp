@@ -5836,6 +5836,81 @@ const char* ocio_const_named_item_name(void* handle, int kind) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+const char* ocio_const_named_item_text(void* handle, int kind, int field, size_t index, const char* argument) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)field; (void)index; (void)argument; return nullptr;
+#else
+  try {
+    if (kind == 0) {
+      auto& p = *static_cast<ocio::ConstLookRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getName();
+        case 1: return p->getDescription();
+        case 2: return p->getProcessSpace();
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+        case 7: return p->getInterchangeAttribute(argument);
+#endif
+      }
+    } else if (kind == 1) {
+      auto& p = *static_cast<ocio::ConstNamedTransformRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getName();
+        case 1: return p->getDescription();
+        case 3: return p->getFamily();
+        case 4: return p->getEncoding();
+        case 5: return index < p->getNumAliases() ? p->getAlias(index) : nullptr;
+        case 6: return index <= static_cast<size_t>(std::numeric_limits<int>::max()) ? p->getCategory(static_cast<int>(index)) : nullptr;
+      }
+    } else if (kind == 2) {
+      auto& p = *static_cast<ocio::ConstViewTransformRcPtr*>(handle);
+      switch (field) {
+        case 0: return p->getName();
+        case 1: return p->getDescription();
+        case 3: return p->getFamily();
+        case 6: return index <= static_cast<size_t>(std::numeric_limits<int>::max()) ? p->getCategory(static_cast<int>(index)) : nullptr;
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+        case 7: return p->getInterchangeAttribute(argument);
+#endif
+      }
+    }
+    throw std::invalid_argument("invalid const item text field");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+size_t ocio_const_named_item_number(void* handle, int kind, int field) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)field; return 0;
+#else
+  try {
+    if (kind == 1) {
+      auto& p = *static_cast<ocio::ConstNamedTransformRcPtr*>(handle);
+      if (field == 0) return p->getNumAliases();
+      if (field == 1) return static_cast<size_t>(p->getNumCategories());
+    } else if (kind == 2) {
+      auto& p = *static_cast<ocio::ConstViewTransformRcPtr*>(handle);
+      if (field == 1) return static_cast<size_t>(p->getNumCategories());
+      if (field == 2) return static_cast<size_t>(p->getReferenceSpaceType());
+    }
+    throw std::invalid_argument("invalid const item numeric field");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+bool ocio_const_named_item_contains(void* handle, int kind, int field, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)field; (void)value; return false;
+#else
+  try {
+    if (kind == 1) {
+      auto& p = *static_cast<ocio::ConstNamedTransformRcPtr*>(handle);
+      if (field == 0) return p->hasAlias(value);
+      if (field == 1) return p->hasCategory(value);
+    } else if (kind == 2 && field == 1) {
+      return (*static_cast<ocio::ConstViewTransformRcPtr*>(handle))->hasCategory(value);
+    }
+    throw std::invalid_argument("invalid const item membership field");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
 void* ocio_const_named_item_editable_copy(void* handle, int kind) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)kind; ocio_rs_bridge::capture_error_message("Native item required"); return nullptr;
@@ -5963,6 +6038,18 @@ void* ocio_get_const_child_transform(void* parent, int parent_kind, int directio
       case 7: value = (*static_cast<ocio::ConstLookRcPtr*>(parent))->getInverseTransform(); break;
       case 8: value = (*static_cast<ocio::ConstNamedTransformRcPtr*>(parent))->getTransform(static_cast<ocio::TransformDirection>(direction)); break;
       case 9: value = (*static_cast<ocio::ConstViewTransformRcPtr*>(parent))->getTransform(static_cast<ocio::ViewTransformDirection>(direction)); break;
+      case 10: {
+        auto& nt = *static_cast<ocio::ConstNamedTransformRcPtr*>(parent);
+        if (!nt->getTransform(ocio::TRANSFORM_DIR_FORWARD) && !nt->getTransform(ocio::TRANSFORM_DIR_INVERSE))
+          throw std::invalid_argument("named transform has no forward or inverse transform");
+        value = ocio::NamedTransform::GetTransform(nt, static_cast<ocio::TransformDirection>(direction)); break;
+      }
+      case 11: {
+        auto nt = ocio_rs_bridge::get_real_named_transform(parent);
+        if (!nt->getTransform(ocio::TRANSFORM_DIR_FORWARD) && !nt->getTransform(ocio::TRANSFORM_DIR_INVERSE))
+          throw std::invalid_argument("named transform has no forward or inverse transform");
+        value = ocio::NamedTransform::GetTransform(nt, static_cast<ocio::TransformDirection>(direction)); break;
+      }
       default: throw std::invalid_argument("invalid transform parent kind");
     }
     return value ? new ocio::ConstTransformRcPtr(std::move(value)) : nullptr;

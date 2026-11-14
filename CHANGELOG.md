@@ -9,6 +9,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Inspect shared look, named-transform and view-transform metadata without
+  cloning the object; resolve named transforms using native inverse fallback.
 - Share and query native file rules and viewing rules without cloning them;
   rule strings borrow their immutable native owner.
 - Share read-only looks, named transforms and view transforms from a config,

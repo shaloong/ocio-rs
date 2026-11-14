@@ -10,6 +10,45 @@ struct Item {
     kind: i32,
 }
 impl Item {
+    fn text(&self, field: i32, index: usize, argument: Option<&CStr>) -> Result<Option<&CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_named_item_text(
+                self.handle.as_ptr(),
+                self.kind,
+                field,
+                index,
+                argument.map_or(std::ptr::null(), CStr::as_ptr),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr) })
+        })
+    }
+    fn number(&self, field: i32) -> Result<usize> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_const_named_item_number(self.handle.as_ptr(), self.kind, field)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn contains(&self, field: i32, value: &CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_const_named_item_contains(
+                self.handle.as_ptr(),
+                self.kind,
+                field,
+                value.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found)
+    }
     fn name(&self) -> Result<Option<String>> {
         crate::clear_last_error();
         let ptr = unsafe { ocio_sys::ocio_const_named_item_name(self.handle.as_ptr(), self.kind) };
@@ -34,11 +73,14 @@ impl Drop for Item {
     }
 }
 
-/// Shared read-only native look.
+/// Shared read-only native look. Borrowed text remains valid while this object
+/// is alive, provided external native code does not mutate the same object.
 pub struct ConstLook(Item);
-/// Shared read-only native named transform.
+/// Shared read-only native named transform. Borrowed text remains valid while
+/// this object is alive, provided external native code does not mutate it.
 pub struct ConstNamedTransform(Item);
-/// Shared read-only native view transform.
+/// Shared read-only native view transform. Borrowed text remains valid while
+/// this object is alive, provided external native code does not mutate it.
 pub struct ConstViewTransform(Item);
 
 macro_rules! accessors {
@@ -47,6 +89,14 @@ macro_rules! accessors {
             /// Copy the native name as owned text.
             pub fn name(&self) -> Result<Option<String>> {
                 self.0.name()
+            }
+            /// Borrow the native name without allocating.
+            pub fn name_ref(&self) -> Result<Option<&CStr>> {
+                self.0.text(0, 0, None)
+            }
+            /// Borrow the native description without allocating.
+            pub fn description(&self) -> Result<Option<&CStr>> {
+                self.0.text(1, 0, None)
             }
             /// Create an independently editable copy.
             pub fn create_editable_copy(&self) -> Result<$editable> {
@@ -62,6 +112,15 @@ accessors!(ConstNamedTransform, NamedTransform);
 accessors!(ConstViewTransform, ViewTransform);
 
 impl ConstLook {
+    /// Borrow the process-space name.
+    pub fn process_space(&self) -> Result<Option<&CStr>> {
+        self.0.text(2, 0, None)
+    }
+    /// Borrow an interchange attribute; invalid attribute names return an error.
+    #[cfg(feature = "v2_5")]
+    pub fn interchange_attribute(&self, name: &CStr) -> Result<Option<&CStr>> {
+        self.0.text(7, 0, Some(name))
+    }
     /// Share the forward transform without copying it.
     pub fn try_const_transform(&self) -> Result<Option<ConstTransform>> {
         self.0.transform(6, 0)
@@ -72,6 +131,46 @@ impl ConstLook {
     }
 }
 impl ConstNamedTransform {
+    /// Borrow the family string.
+    pub fn family(&self) -> Result<Option<&CStr>> {
+        self.0.text(3, 0, None)
+    }
+    /// Borrow the encoding string.
+    pub fn encoding(&self) -> Result<Option<&CStr>> {
+        self.0.text(4, 0, None)
+    }
+    /// Number of aliases.
+    pub fn num_aliases(&self) -> Result<usize> {
+        self.0.number(0)
+    }
+    /// Borrow an alias; an out-of-range index returns `None`.
+    pub fn alias(&self, index: usize) -> Result<Option<&CStr>> {
+        self.0.text(5, index, None)
+    }
+    /// Check an alias without allocating a C string.
+    pub fn has_alias(&self, value: &CStr) -> Result<bool> {
+        self.0.contains(0, value)
+    }
+    /// Number of categories.
+    pub fn num_categories(&self) -> Result<usize> {
+        self.0.number(1)
+    }
+    /// Borrow a category; an out-of-range index returns `None`.
+    pub fn category(&self, index: usize) -> Result<Option<&CStr>> {
+        self.0.text(6, index, None)
+    }
+    /// Check a category without allocating a C string.
+    pub fn has_category(&self, value: &CStr) -> Result<bool> {
+        self.0.contains(1, value)
+    }
+    /// Resolve a transform, synthesizing it from the opposite direction if needed.
+    /// Returns an error if neither direction is defined.
+    pub fn resolve_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<ConstTransform>> {
+        self.0.transform(10, direction as i32)
+    }
     pub(crate) fn raw(&self) -> *mut c_void {
         self.0.handle.as_ptr()
     }
@@ -84,6 +183,37 @@ impl ConstNamedTransform {
     }
 }
 impl ConstViewTransform {
+    /// Borrow the family string.
+    pub fn family(&self) -> Result<Option<&CStr>> {
+        self.0.text(3, 0, None)
+    }
+    /// Number of categories.
+    pub fn num_categories(&self) -> Result<usize> {
+        self.0.number(1)
+    }
+    /// Borrow a category; an out-of-range index returns `None`.
+    pub fn category(&self, index: usize) -> Result<Option<&CStr>> {
+        self.0.text(6, index, None)
+    }
+    /// Check a category without allocating a C string.
+    pub fn has_category(&self, value: &CStr) -> Result<bool> {
+        self.0.contains(1, value)
+    }
+    /// Return the native reference-space type.
+    pub fn reference_space_type(&self) -> Result<crate::ReferenceSpaceType> {
+        match self.0.number(2)? {
+            0 => Ok(crate::ReferenceSpaceType::Scene),
+            1 => Ok(crate::ReferenceSpaceType::Display),
+            _ => Err(crate::OcioError::Ocio(
+                "unknown reference space type".into(),
+            )),
+        }
+    }
+    /// Borrow an interchange attribute; invalid attribute names return an error.
+    #[cfg(feature = "v2_5")]
+    pub fn interchange_attribute(&self, name: &CStr) -> Result<Option<&CStr>> {
+        self.0.text(7, 0, Some(name))
+    }
     /// Share the transform in the requested direction.
     pub fn try_const_transform(
         &self,
