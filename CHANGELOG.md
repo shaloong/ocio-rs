@@ -7,6 +7,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ## [Unreleased]
 
+- Borrow generated GPU shader text directly from OCIO without allocating.
+
 - Allow replacing a group transform's child in place using the native mutable child slot.
 
 - Expose OCIO's standard roles, environment-variable names, metadata keys and config path identifiers as allocation-free Rust constants.

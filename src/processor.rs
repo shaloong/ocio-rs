@@ -2575,6 +2575,34 @@ impl GpuShaderDesc {
         Ok(shader_text)
     }
 
+    /// Borrow OCIO's shader text without allocating or converting its bytes.
+    ///
+    /// The exclusive borrow prevents mutation or re-extraction into this
+    /// descriptor while the returned native string is in use. Raw native users
+    /// must also avoid concurrent or reentrant mutation of the descriptor.
+    /// The empty string is returned as `Some`; stub builds return `None`.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(desc: &mut GpuShaderDesc) {
+    /// let text = desc.shader_text_ref().unwrap().unwrap();
+    /// desc.set_function_name("changed").unwrap();
+    /// println!("{:?}", text);
+    /// # }
+    /// ```
+    pub fn shader_text_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_shader_desc_get_shader_text(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            Ok(None)
+        } else {
+            // SAFETY: OCIO owns a NUL-terminated string until the descriptor is
+            // mutated or dropped; the exclusive borrow prevents both in safe Rust.
+            Ok(Some(unsafe { std::ffi::CStr::from_ptr(ptr.cast()) }))
+        }
+    }
+
     /// Returns the number of reported 1D/2D texture resources.
     pub fn num_textures(&self) -> u32 {
         self.try_num_textures().unwrap_or(0)

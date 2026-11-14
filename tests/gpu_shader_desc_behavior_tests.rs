@@ -27,6 +27,38 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg(ocio_stub)]
+fn shader_text_borrow_is_absent_in_stub_mode() {
+    let mut desc = GpuShaderDesc::create().expect("stub descriptor");
+    assert!(desc.shader_text_ref().unwrap().is_none());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn shader_text_borrow_matches_native_storage_and_owned_text() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().expect("descriptor");
+    assert_eq!(desc.shader_text_ref().unwrap().unwrap().to_bytes(), b"");
+    desc.create_shader_text("", "", "", "void f() {\n", "  // borrowed\n", "}\n")
+        .expect("shader text");
+    let owned = desc.try_shader_text().unwrap().unwrap();
+    let borrowed = desc.shader_text_ref().unwrap().unwrap();
+    assert_eq!(borrowed.to_str().unwrap(), owned);
+    assert!(borrowed.to_str().unwrap().contains("borrowed"));
+    let first = borrowed.as_ptr();
+    assert_eq!(desc.shader_text_ref().unwrap().unwrap().as_ptr(), first);
+    desc.create_shader_text("", "", "", "void g() {\n", "  // changed\n", "}\n")
+        .expect("replace shader text");
+    assert!(desc
+        .shader_text_ref()
+        .unwrap()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .contains("changed"));
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_shader_assembler_receives_sections_and_retains_dynamic_uniforms() {
     let _guard = gpu_shader_desc_test_lock();
