@@ -196,6 +196,76 @@ fn const_color_spaces_survive_parent_drop_and_copy_independently() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_color_space_reads_native_metadata_and_allocation() {
+    use ocio_rs::{Allocation, BitDepth, ReferenceSpaceType};
+    let config = Config::raw().unwrap();
+    let space = named_color_space("ReadOnly", &["working-space"]);
+    space.add_alias("alias").unwrap();
+    space.set_family("ACES/Input").unwrap();
+    space.set_equality_group("same").unwrap();
+    space.set_encoding("scene-linear").unwrap();
+    space.try_set_bit_depth(BitDepth::F32).unwrap();
+    space.try_set_is_data(true).unwrap();
+    space.try_set_allocation(Allocation::Lg2).unwrap();
+    space.set_allocation_vars(&[-8.0, 6.0, 0.1]).unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        space.set_interop_id("aces:cg").unwrap();
+        space
+            .set_interchange_attribute("icc_profile_name", "Example")
+            .unwrap();
+    }
+    config.try_add_color_space(&space).unwrap();
+    let view = config.try_const_color_space("ReadOnly").unwrap().unwrap();
+    assert_eq!(
+        view.family().unwrap().unwrap().to_str().unwrap(),
+        "ACES/Input"
+    );
+    assert_eq!(
+        view.equality_group().unwrap().unwrap().to_str().unwrap(),
+        "same"
+    );
+    assert_eq!(
+        view.encoding().unwrap().unwrap().to_str().unwrap(),
+        "scene-linear"
+    );
+    assert_eq!(view.num_aliases().unwrap(), 1);
+    assert_eq!(view.alias(0).unwrap().unwrap().to_str().unwrap(), "alias");
+    assert!(view.alias(usize::MAX).unwrap().is_none());
+    assert!(view.has_alias("alias").unwrap());
+    assert!(view.has_alias_cstr(c"alias").unwrap());
+    assert_eq!(view.num_categories().unwrap(), 1);
+    assert!(view.has_category("working-space").unwrap());
+    assert!(view.has_category_cstr(c"working-space").unwrap());
+    assert!(view.category(usize::MAX).unwrap().is_none());
+    assert_eq!(view.bit_depth().unwrap(), BitDepth::F32);
+    assert_eq!(
+        view.reference_space_type().unwrap(),
+        ReferenceSpaceType::Scene
+    );
+    assert!(view.is_data().unwrap());
+    assert_eq!(view.allocation().unwrap(), Allocation::Lg2);
+    assert_eq!(view.num_allocation_vars().unwrap(), 3);
+    let mut vars = [0.0; 3];
+    view.allocation_vars_into(&mut vars).unwrap();
+    assert_eq!(vars, [-8.0, 6.0, 0.1]);
+    assert!(view.allocation_vars_into(&mut [0.0; 2]).is_err());
+    assert!(view.has_alias("bad\0alias").is_err());
+    #[cfg(feature = "v2_5")]
+    {
+        assert_eq!(view.interop_id().unwrap().unwrap(), c"aces:cg");
+        assert_eq!(
+            view.interchange_attribute(c"icc_profile_name")
+                .unwrap()
+                .unwrap(),
+            c"Example"
+        );
+        assert!(view.interchange_attribute(c"invalid").is_err());
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_mutation_and_copy_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {

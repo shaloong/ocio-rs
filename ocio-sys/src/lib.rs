@@ -115,6 +115,19 @@ unsafe extern "C" {
     pub fn ocio_const_color_space_destroy(handle: *mut c_void);
     pub fn ocio_const_color_space_get_name(handle: *mut c_void) -> *const i8;
     pub fn ocio_const_color_space_get_description(handle: *mut c_void) -> *const i8;
+    pub fn ocio_const_color_space_text(handle: *mut c_void, field: i32, index: usize) -> *const i8;
+    pub fn ocio_const_color_space_number(handle: *mut c_void, field: i32) -> i64;
+    pub fn ocio_const_color_space_contains(
+        handle: *mut c_void,
+        field: i32,
+        value: *const i8,
+    ) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_const_color_space_interchange_attribute(
+        handle: *mut c_void,
+        name: *const i8,
+    ) -> *const i8;
+    pub fn ocio_const_color_space_allocation_vars(handle: *mut c_void, out: *mut f32, count: usize);
     pub fn ocio_const_color_space_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_cpu_processor_apply_packed_image(
         handle: *mut c_void,

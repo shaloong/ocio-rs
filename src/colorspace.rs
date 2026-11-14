@@ -23,6 +23,160 @@ pub struct ConstColorSpace {
 }
 
 impl ConstColorSpace {
+    fn text(&self, field: i32, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_const_color_space_text(self.handle.as_ptr(), field, index) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    fn number(&self, field: i32) -> Result<i64> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_const_color_space_number(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn contains(&self, field: i32, value: impl AsRef<str>) -> Result<bool> {
+        let value = cstring(value)?;
+        self.contains_cstr(field, &value)
+    }
+    fn contains_cstr(&self, field: i32, value: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let present = unsafe {
+            ocio_sys::ocio_const_color_space_contains(self.handle.as_ptr(), field, value.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(present)
+    }
+    /// Borrow the family without copying.
+    pub fn family(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(0, 0)
+    }
+    /// Borrow the equality group without copying.
+    pub fn equality_group(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(1, 0)
+    }
+    /// Borrow the encoding without copying.
+    pub fn encoding(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(2, 0)
+    }
+    /// Borrow a named alias; out-of-range indices return `None`.
+    pub fn alias(&self, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        self.text(3, index)
+    }
+    /// Borrow a category; out-of-range indices return `None`.
+    pub fn category(&self, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        self.text(4, index)
+    }
+    /// Borrow the interchange identifier without copying.
+    #[cfg(feature = "v2_5")]
+    pub fn interop_id(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(5, 0)
+    }
+    /// Borrow a native interchange attribute. Unknown attribute names report an error.
+    #[cfg(feature = "v2_5")]
+    pub fn interchange_attribute(&self, name: &std::ffi::CStr) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_color_space_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    /// Number of aliases.
+    pub fn num_aliases(&self) -> Result<usize> {
+        usize::try_from(self.number(0)?).map_err(|_| OcioError::Ocio("invalid alias count".into()))
+    }
+    /// Number of categories.
+    pub fn num_categories(&self) -> Result<usize> {
+        usize::try_from(self.number(1)?)
+            .map_err(|_| OcioError::Ocio("invalid category count".into()))
+    }
+    /// Whether OCIO recognizes an alias.
+    pub fn has_alias(&self, value: impl AsRef<str>) -> Result<bool> {
+        self.contains(0, value)
+    }
+    /// Check an alias without constructing a C string.
+    pub fn has_alias_cstr(&self, value: &std::ffi::CStr) -> Result<bool> {
+        self.contains_cstr(0, value)
+    }
+    /// Whether OCIO recognizes a category.
+    pub fn has_category(&self, value: impl AsRef<str>) -> Result<bool> {
+        self.contains(1, value)
+    }
+    /// Check a category without constructing a C string.
+    pub fn has_category_cstr(&self, value: &std::ffi::CStr) -> Result<bool> {
+        self.contains_cstr(1, value)
+    }
+    /// Native bit depth.
+    pub fn bit_depth(&self) -> Result<BitDepth> {
+        Ok(match self.number(2)? {
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
+        })
+    }
+    /// Reference space used by this color space.
+    pub fn reference_space_type(&self) -> Result<ReferenceSpaceType> {
+        match self.number(3)? {
+            0 => Ok(ReferenceSpaceType::Scene),
+            1 => Ok(ReferenceSpaceType::Display),
+            _ => Err(OcioError::Ocio("unknown reference space type".into())),
+        }
+    }
+    /// Whether this color space represents non-color data.
+    pub fn is_data(&self) -> Result<bool> {
+        Ok(self.number(4)? != 0)
+    }
+    /// Native allocation mode.
+    pub fn allocation(&self) -> Result<Allocation> {
+        Ok(match self.number(5)? {
+            1 => Allocation::Uniform,
+            2 => Allocation::Lg2,
+            _ => Allocation::Unknown,
+        })
+    }
+    /// Copy allocation parameters into a caller-provided buffer without allocation.
+    pub fn allocation_vars_into(&self, output: &mut [f32]) -> Result<()> {
+        let count = usize::try_from(self.number(6)?)
+            .map_err(|_| OcioError::Ocio("invalid allocation parameter count".into()))?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "allocation parameter buffer length mismatch".into(),
+            ));
+        }
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_const_color_space_allocation_vars(
+                self.handle.as_ptr(),
+                output.as_mut_ptr(),
+                output.len(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+    /// Number of allocation parameters.
+    pub fn num_allocation_vars(&self) -> Result<usize> {
+        usize::try_from(self.number(6)?)
+            .map_err(|_| OcioError::Ocio("invalid allocation parameter count".into()))
+    }
     /// Borrow the native name without allocating.
     pub fn name(&self) -> Result<&std::ffi::CStr> {
         crate::clear_last_error();

@@ -5745,6 +5745,82 @@ const char* ocio_const_color_space_get_description(void* handle) {
   catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+const char* ocio_const_color_space_text(void* handle, int field, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)index; return nullptr;
+#else
+  try {
+    const auto& space = *static_cast<ocio::ConstColorSpaceRcPtr*>(handle);
+    switch (field) {
+      case 0: return space->getFamily();
+      case 1: return space->getEqualityGroup();
+      case 2: return space->getEncoding();
+      case 3: return index < space->getNumAliases() ? space->getAlias(index) : nullptr;
+      case 4: return index <= static_cast<size_t>(std::numeric_limits<int>::max()) ? space->getCategory(static_cast<int>(index)) : nullptr;
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+      case 5: return space->getInteropID();
+#endif
+      default: throw std::invalid_argument("invalid color-space text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+int64_t ocio_const_color_space_number(void* handle, int field) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; return 0;
+#else
+  try {
+    const auto& space = *static_cast<ocio::ConstColorSpaceRcPtr*>(handle);
+    switch (field) {
+      case 0: return static_cast<int64_t>(space->getNumAliases());
+      case 1: return space->getNumCategories();
+      case 2: return space->getBitDepth();
+      case 3: return space->getReferenceSpaceType();
+      case 4: return space->isData();
+      case 5: return space->getAllocation();
+      case 6: return space->getAllocationNumVars();
+      default: throw std::invalid_argument("invalid color-space numeric field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+bool ocio_const_color_space_contains(void* handle, int field, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)value; return false;
+#else
+  try {
+    const auto& space = *static_cast<ocio::ConstColorSpaceRcPtr*>(handle);
+    switch (field) {
+      case 0: return space->hasAlias(value);
+      case 1: return space->hasCategory(value);
+      default: throw std::invalid_argument("invalid color-space membership field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t count) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)out; (void)count;
+  ocio_rs_bridge::capture_error_message("Native color space required");
+#else
+  try {
+    const auto& space = *static_cast<ocio::ConstColorSpaceRcPtr*>(handle);
+    if (count != static_cast<size_t>(space->getAllocationNumVars()) || (count && !out))
+      throw std::invalid_argument("allocation variable buffer length mismatch");
+    if (count) space->getAllocationVars(out);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+const char* ocio_const_color_space_interchange_attribute(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; return nullptr;
+#else
+  try { return (*static_cast<ocio::ConstColorSpaceRcPtr*>(handle))->getInterchangeAttribute(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#endif
 void* ocio_const_color_space_create_editable_copy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; ocio_rs_bridge::capture_error_message("Native color space required"); return nullptr;

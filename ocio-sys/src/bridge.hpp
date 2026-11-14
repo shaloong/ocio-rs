@@ -32,6 +32,13 @@ void* ocio_color_space_set_get_const_color_space(void* set, const char* name);
 void ocio_const_color_space_destroy(void* handle);
 const char* ocio_const_color_space_get_name(void* handle);
 const char* ocio_const_color_space_get_description(void* handle);
+const char* ocio_const_color_space_text(void* handle, int field, size_t index);
+int64_t ocio_const_color_space_number(void* handle, int field);
+bool ocio_const_color_space_contains(void* handle, int field, const char* value);
+#ifdef OCIO_RS_FEATURE_V2_5
+const char* ocio_const_color_space_interchange_attribute(void* handle, const char* name);
+#endif
+void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t count);
 void* ocio_const_color_space_create_editable_copy(void* handle);
 
 typedef struct OcioPackedBuffer {

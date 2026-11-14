@@ -13,6 +13,8 @@ Versioning as closely as practical for a still-maturing binding crate.
   equality, retaining read-only operation results without an extra copy.
 - Look up shared read-only color spaces from configurations and sets without
   copying the native object; borrow names and descriptions without allocation.
+- Inspect read-only color-space metadata, aliases, categories, bit depth and
+  allocation settings, with borrowed strings and caller-owned parameter buffers.
 - Process and convert packed images in native RGB, BGR, RGBA, BGRA, and ABGR
   order with checked channel spacing and signed pixel and row strides.
 - Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers
