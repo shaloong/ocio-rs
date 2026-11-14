@@ -3082,9 +3082,18 @@ impl GpuShaderDesc {
 
     /// Returns the scalar value count for a uniform, or `0` when absent.
     pub fn uniform_value_count(&self, index: u32) -> usize {
-        self.uniform(index)
-            .map(|uniform| uniform.value_count)
-            .unwrap_or(0)
+        self.try_uniform_value_count(index).unwrap_or(0)
+    }
+
+    /// Return the current scalar count without allocating or copying the payload.
+    /// An invalid index or a native error is returned as an error.
+    pub fn try_uniform_value_count(&self, index: u32) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_value_count(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -3099,6 +3108,29 @@ impl GpuShaderDesc {
             Some(GpuUniformValue::F32(values)) => values,
             _ => Vec::new(),
         }
+    }
+
+    /// Read the current floating-point uniform payload into caller-owned storage.
+    ///
+    /// Returns `Ok(false)` if the uniform is not representable as floats or
+    /// `values` is too short. Double uniforms are converted to `f32`, and bool
+    /// uniforms are represented as 0.0 or 1.0, matching OCIO GPU conventions.
+    /// An invalid index or native failure is returned as an error. No Rust
+    /// allocation is performed; the native getter is called on every invocation
+    /// so updates to dynamic properties are observed.
+    pub fn try_copy_uniform_f32_into(&self, index: u32, values: &mut [f32]) -> Result<bool> {
+        crate::clear_last_error();
+        // SAFETY: The bridge writes at most values.len() floats into the slice.
+        let copied = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy_uniform_f32_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(copied)
     }
 
     #[doc(hidden)]
@@ -3116,6 +3148,24 @@ impl GpuShaderDesc {
             Some(GpuUniformValue::I32(values)) => values,
             _ => Vec::new(),
         }
+    }
+
+    /// Read an integer-vector uniform into caller-owned storage without a Rust
+    /// allocation. Returns `Ok(false)` for a different type or a short buffer;
+    /// invalid indices and native failures are returned as errors.
+    pub fn try_copy_uniform_i32_into(&self, index: u32, values: &mut [i32]) -> Result<bool> {
+        crate::clear_last_error();
+        // SAFETY: The bridge writes at most values.len() integers into the slice.
+        let copied = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_copy_uniform_i32_values(
+                self.handle.as_ptr(),
+                index,
+                values.as_mut_ptr(),
+                values.len(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(copied)
     }
 
     #[doc(hidden)]

@@ -594,6 +594,16 @@ fn gpu_shader_desc_dynamic_property_behavior() {
         0.0,
         1e-8,
     );
+    let uniform_index = (0..desc.num_uniforms())
+        .find(|&index| {
+            desc.uniform(index)
+                .is_some_and(|u| u.uniform_type == GpuUniformType::Double)
+        })
+        .expect("dynamic exposure uniform");
+    let mut initial = [0.0f32];
+    assert!(desc
+        .try_copy_uniform_f32_into(uniform_index, &mut initial)
+        .unwrap());
 
     let indexed_types: Vec<_> = (0..dynamic_property_count)
         .filter_map(|index| {
@@ -627,6 +637,11 @@ fn gpu_shader_desc_dynamic_property_behavior() {
     desc_prop
         .set_double_value(-1.0)
         .expect("set desc prop double value");
+    let mut updated = [0.0f32];
+    assert!(desc
+        .try_copy_uniform_f32_into(uniform_index, &mut updated)
+        .unwrap());
+    assert_ne!(initial, updated);
     assert_close(
         processor_prop
             .double_value()
@@ -883,6 +898,8 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     assert_eq!(curve.name, "uCurve");
     assert_eq!(curve.uniform_type, GpuUniformType::VectorFloat);
     assert_eq!(curve.value_count, 3);
+    assert_eq!(desc.try_uniform_value_count(3).unwrap(), 3);
+    assert!(desc.try_uniform_value_count(99).is_err());
     assert_eq!(desc.uniform_values_f32(3), vec![0.0, 0.5, 1.0]);
 
     let indices = desc.uniform(4).expect("uniform 4");
@@ -890,6 +907,17 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
     assert_eq!(indices.uniform_type, GpuUniformType::VectorInt);
     assert_eq!(indices.value_count, 3);
     assert_eq!(desc.uniform_values_i32(4), vec![1, 3, 5]);
+    let mut floats = [9.0f32; 4];
+    assert!(desc.try_copy_uniform_f32_into(3, &mut floats).unwrap());
+    assert_eq!(floats, [0.0, 0.5, 1.0, 9.0]);
+    assert!(!desc.try_copy_uniform_f32_into(3, &mut floats[..2]).unwrap());
+    assert!(!desc.try_copy_uniform_f32_into(4, &mut floats).unwrap());
+    let mut ints = [9i32; 4];
+    assert!(desc.try_copy_uniform_i32_into(4, &mut ints).unwrap());
+    assert_eq!(ints, [1, 3, 5, 9]);
+    assert!(!desc.try_copy_uniform_i32_into(4, &mut ints[..2]).unwrap());
+    assert!(!desc.try_copy_uniform_i32_into(0, &mut ints).unwrap());
+    assert!(desc.try_copy_uniform_f32_into(99, &mut floats).is_err());
 }
 
 #[test]

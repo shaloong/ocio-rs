@@ -16,6 +16,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Convert separate planar RGB/RGBA buffers between native input and output bit depths.
 - Process and convert planar RGB/RGBA buffers with checked signed byte strides.
 - Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
+- Read current GPU uniform values into caller-provided buffers without Rust
+  allocations, including live dynamic-property updates.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent
