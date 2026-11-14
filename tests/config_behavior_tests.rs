@@ -128,6 +128,64 @@ fn cross_config_processors_apply_explicit_interchange_and_contexts() {
             assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
         }
     }
+    dst.add_display("Screen", "View", "output", "").unwrap();
+    for direction in [
+        ocio_rs::TransformDirection::Forward,
+        ocio_rs::TransformDirection::Inverse,
+    ] {
+        let processors = [
+            src.processor_from_configs_to_display(&src, "input", &dst, "Screen", "View", direction)
+                .unwrap(),
+            src.processor_from_configs_to_display_with_contexts(
+                &src_ctx, &src, "input", &dst_ctx, &dst, "Screen", "View", direction,
+            )
+            .unwrap(),
+            src.processor_from_configs_to_display_with_interchange(
+                &src,
+                "input",
+                "src_reference",
+                &dst,
+                "Screen",
+                "View",
+                "dst_reference",
+                direction,
+            )
+            .unwrap(),
+            src.processor_from_configs_to_display_with_contexts_and_interchange(
+                &src_ctx,
+                &src,
+                "input",
+                "src_reference",
+                &dst_ctx,
+                &dst,
+                "Screen",
+                "View",
+                "dst_reference",
+                direction,
+            )
+            .unwrap(),
+        ];
+        for processor in processors {
+            let mut pixel = if direction == ocio_rs::TransformDirection::Forward {
+                [0.1, 0.2, 0.3, 1.0]
+            } else {
+                [0.6, 1.2, 1.8, 1.0]
+            };
+            let expected = if direction == ocio_rs::TransformDirection::Forward {
+                [0.6, 1.2, 1.8, 1.0]
+            } else {
+                [0.1, 0.2, 0.3, 1.0]
+            };
+            processor
+                .optimized_cpu_processor(0)
+                .unwrap()
+                .try_apply_rgba(&mut pixel)
+                .unwrap();
+            for (actual, expected) in pixel.into_iter().zip(expected) {
+                assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+            }
+        }
+    }
 }
 
 #[test]
