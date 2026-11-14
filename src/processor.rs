@@ -504,6 +504,51 @@ pub struct CPUProcessor {
 unsafe impl Send for CPUProcessor {}
 
 impl CPUProcessor {
+    /// Process contiguous row-major planar float channels in place.
+    ///
+    /// Each channel must contain exactly `width * height` samples. Alpha is
+    /// optional. The native descriptor borrows these slices for this call and
+    /// no pixel buffer is allocated or copied by the binding.
+    pub fn try_apply_planar_f32(
+        &self,
+        red: &mut [f32],
+        green: &mut [f32],
+        blue: &mut [f32],
+        alpha: Option<&mut [f32]>,
+        width: usize,
+        height: usize,
+    ) -> Result<()> {
+        let count = width
+            .checked_mul(height)
+            .ok_or_else(|| OcioError::InvalidInput("planar dimensions overflow".into()))?;
+        if count == 0
+            || [red.len(), green.len(), blue.len()]
+                .iter()
+                .any(|&len| len != count)
+            || alpha.as_ref().is_some_and(|plane| plane.len() != count)
+        {
+            return Err(OcioError::InvalidInput(
+                "planar channel lengths must match nonzero dimensions".into(),
+            ));
+        }
+        let width = i64::try_from(width)
+            .map_err(|_| OcioError::InvalidInput("planar width exceeds i64".into()))?;
+        let height = i64::try_from(height)
+            .map_err(|_| OcioError::InvalidInput("planar height exceeds i64".into()))?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_cpu_processor_apply_planar_f32(
+                self.handle.as_ptr(),
+                red.as_mut_ptr(),
+                green.as_mut_ptr(),
+                blue.as_mut_ptr(),
+                alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr()),
+                width,
+                height,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor for the active
     /// ABI. The pixel buffers referenced by the descriptor must remain

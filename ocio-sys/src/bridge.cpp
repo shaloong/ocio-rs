@@ -1,6 +1,7 @@
 #include "bridge.hpp"
 
 #include <cstring>
+#include <limits>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -7148,6 +7149,26 @@ void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t num
     ocio_rs_bridge::capture_current_exception();
     return;
   }
+#endif
+}
+
+void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green, float* blue,
+                                        float* alpha, int64_t width, int64_t height) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)red; (void)green; (void)blue; (void)alpha; (void)width; (void)height;
+  ocio_rs_bridge::clear_last_error();
+#else
+  try {
+    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
+        height > std::numeric_limits<long>::max() || !red || !green || !blue)
+      throw std::invalid_argument("invalid planar image dimensions or channel pointers");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    if (cpu->getInputBitDepth() != ocio::BIT_DEPTH_F32 || cpu->getOutputBitDepth() != ocio::BIT_DEPTH_F32)
+      throw std::invalid_argument("planar float channels require an F32 input and output processor");
+    ocio::PlanarImageDesc image(red, green, blue, alpha,
+                                static_cast<long>(width), static_cast<long>(height));
+    cpu->apply(image);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 

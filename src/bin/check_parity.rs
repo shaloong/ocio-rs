@@ -646,6 +646,7 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
 // L2: Only the truly irregular mappings that can't be derived by get_/set_ stripping.
 fn l2_overrides() -> HashMap<&'static str, &'static str> {
     [
+        ("apply_planar_f32", "try_apply_planar_f32"),
         ("grading_rgb_curve_object_get", "grading_rgb_curve_object"),
         (
             "grading_rgb_curve_object_set",

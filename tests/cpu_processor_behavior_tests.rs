@@ -212,3 +212,31 @@ fn processor_rgba_pixels_short_buffer_panics() {
     let mut rgba = vec![0.0f32; 7];
     cpu.apply_rgba_pixels(&mut rgba, 2, 4);
 }
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn planar_float_channels_are_processed_in_place() {
+    use ocio_rs::{transform::MatrixTransform, Config, TransformDirection};
+    let transform = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap();
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut red = [0.25, 0.5, 1.0, 0.1];
+    let mut green = [0.5; 4];
+    let mut blue = [0.75; 4];
+    let mut alpha = [0.25, 0.5, 0.75, 1.0];
+    cpu.try_apply_planar_f32(&mut red, &mut green, &mut blue, Some(&mut alpha), 2, 2)
+        .unwrap();
+    assert_eq!(red, [0.5, 1.0, 2.0, 0.2]);
+    assert_eq!(green, [0.5; 4]);
+    assert_eq!(blue, [0.375; 4]);
+    assert_eq!(alpha, [0.25, 0.5, 0.75, 1.0]);
+    assert!(cpu
+        .try_apply_planar_f32(&mut red, &mut green[..3], &mut blue, None, 2, 2)
+        .is_err());
+    cpu.try_apply_planar_f32(&mut red, &mut green, &mut blue, None, 4, 1)
+        .unwrap();
+    assert_eq!(red, [1.0, 2.0, 4.0, 0.4]);
+}

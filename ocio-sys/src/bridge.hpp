@@ -570,6 +570,7 @@ void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride);
+void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green, float* blue, float* alpha, int64_t width, int64_t height);
 void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride);
 
