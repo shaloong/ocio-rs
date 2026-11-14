@@ -27,6 +27,12 @@ const char* ocio_error_get_last(void);
 // 0: ordinary error or no error; 1: OCIO ExceptionMissingFile.
 int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
+void* ocio_config_get_const_color_space(void* config, const char* name);
+void* ocio_color_space_set_get_const_color_space(void* set, const char* name);
+void ocio_const_color_space_destroy(void* handle);
+const char* ocio_const_color_space_get_name(void* handle);
+const char* ocio_const_color_space_get_description(void* handle);
+void* ocio_const_color_space_create_editable_copy(void* handle);
 
 typedef struct OcioPackedBuffer {
   void* data;

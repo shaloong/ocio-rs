@@ -2141,12 +2141,29 @@ impl Config {
         )
     }
 
-    /// Look up a color space by authored name.
+    /// Look up an independent editable copy by name, role, or alias.
+    ///
+    /// Mutating the copy does not update this config. Register it with
+    /// [`Self::try_add_color_space`] to apply changes to the config.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.try_color_space(name).ok().flatten()
     }
 
-    /// Look up a color space by authored name while preserving bridge failures.
+    /// Look up a shared read-only color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_config_get_const_color_space(self.handle.as_ptr(), name.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+
+    /// Look up an independent editable color-space copy, preserving failures.
     pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
         let n = cstring(name)?;
         crate::clear_last_error();

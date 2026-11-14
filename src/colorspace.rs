@@ -14,6 +14,49 @@ pub struct ColorSpace {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// An owned, read-only reference to a native OCIO color space.
+///
+/// The native object is shared rather than copied. Text is borrowed from it;
+/// coordinate external native mutations that could invalidate the text.
+pub struct ConstColorSpace {
+    pub(crate) handle: NonNull<c_void>,
+}
+
+impl ConstColorSpace {
+    /// Borrow the native name without allocating.
+    pub fn name(&self) -> Result<&std::ffi::CStr> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_color_space_get_name(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            return Err(OcioError::Ocio("null color-space name".into()));
+        }
+        Ok(unsafe { std::ffi::CStr::from_ptr(ptr) })
+    }
+    /// Borrow the native description without allocating.
+    pub fn description(&self) -> Result<&std::ffi::CStr> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_color_space_get_description(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            return Err(OcioError::Ocio("null color-space description".into()));
+        }
+        Ok(unsafe { std::ffi::CStr::from_ptr(ptr) })
+    }
+    /// Create an independently editable color space.
+    pub fn create_editable_copy(&self) -> Result<ColorSpace> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_color_space_create_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| ColorSpace { handle })
+    }
+}
+impl Drop for ConstColorSpace {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_color_space_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl ColorSpace {
     /// Create a new default color space.
     pub fn create() -> Result<Self> {

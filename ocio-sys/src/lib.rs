@@ -107,6 +107,15 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_config_get_const_color_space(config: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_color_space_set_get_const_color_space(
+        set: *mut c_void,
+        name: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_color_space_destroy(handle: *mut c_void);
+    pub fn ocio_const_color_space_get_name(handle: *mut c_void) -> *const i8;
+    pub fn ocio_const_color_space_get_description(handle: *mut c_void) -> *const i8;
+    pub fn ocio_const_color_space_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_cpu_processor_apply_packed_image(
         handle: *mut c_void,
         image: *const OcioPackedBuffer,

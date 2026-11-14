@@ -120,6 +120,82 @@ fn native_set_operations_preserve_results_and_name_equality() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn set_color_space_lookups_return_independent_editable_copies() {
+    let set = ColorSpaceSet::create().unwrap();
+    set.add_color_space(&named_color_space("Original", &[]));
+    let by_name = set.color_space("Original").unwrap();
+    let by_index = set.color_space_by_index(0).unwrap();
+    by_name.set_name("Changed").unwrap();
+    by_index.set_description("changed copy").unwrap();
+    assert!(set.has_color_space("Original"));
+    assert!(!set.has_color_space("Changed"));
+    assert_ne!(
+        set.color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("changed copy")
+    );
+    set.add_color_space(&by_index);
+    assert_eq!(
+        set.color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("changed copy")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_color_space_lookup_requires_explicit_registration_for_edits() {
+    let config = Config::raw().unwrap();
+    let original = named_color_space("Original", &[]);
+    config.try_add_color_space(&original).unwrap();
+    let copy = config.color_space("Original").unwrap();
+    copy.set_description("edited copy").unwrap();
+    assert_ne!(
+        config
+            .color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("edited copy")
+    );
+    config.try_add_color_space(&copy).unwrap();
+    assert_eq!(
+        config
+            .color_space("Original")
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("edited copy")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_color_spaces_survive_parent_drop_and_copy_independently() {
+    let config = Config::raw().unwrap();
+    config
+        .try_add_color_space(&named_color_space("Stable", &[]))
+        .unwrap();
+    let view = config.try_const_color_space("Stable").unwrap().unwrap();
+    let set = ColorSpaceSet::create().unwrap();
+    set.add_color_space(&named_color_space("Other", &[]));
+    let set_view = set.try_const_color_space("Other").unwrap().unwrap();
+    drop(config);
+    drop(set);
+    assert_eq!(view.name().unwrap().to_str().unwrap(), "Stable");
+    assert_eq!(set_view.name().unwrap().to_str().unwrap(), "Other");
+    assert!(!view.description().unwrap().to_bytes().is_empty());
+    let editable = view.create_editable_copy().unwrap();
+    editable.set_name("Changed").unwrap();
+    assert_eq!(view.name().unwrap().to_str().unwrap(), "Stable");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_set_mutation_and_copy_behavior() {
     let _guard = color_space_set_test_lock();
     if is_stub() {

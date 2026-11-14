@@ -226,12 +226,12 @@ impl ColorSpaceSet {
         Ok(name)
     }
 
-    /// Return one color-space handle by index.
+    /// Return an independent editable copy of a color space by index.
     pub fn color_space_by_index(&self, index: i32) -> Option<ColorSpace> {
         self.try_color_space_by_index(index).ok().flatten()
     }
 
-    /// Return a color-space handle by index while preserving bridge failures.
+    /// Copy a color space by index while preserving bridge failures.
     pub fn try_color_space_by_index(&self, index: i32) -> Result<Option<ColorSpace>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -241,12 +241,29 @@ impl ColorSpaceSet {
         Ok(NonNull::new(handle).map(|h| ColorSpace { handle: h }))
     }
 
-    /// Look up a color-space handle by name.
+    /// Look up an independent editable color-space copy by name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.try_color_space(name).ok().flatten()
     }
 
-    /// Look up a color-space by name while preserving bridge failures.
+    /// Look up a shared read-only color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_set_get_const_color_space(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+
+    /// Copy a color space by name while preserving bridge failures.
     pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
         let n = cstring(name)?;
         crate::clear_last_error();

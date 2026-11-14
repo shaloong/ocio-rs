@@ -11,6 +11,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 - Expose native color-space set union, intersection, difference and name-based
   equality, retaining read-only operation results without an extra copy.
+- Look up shared read-only color spaces from configurations and sets without
+  copying the native object; borrow names and descriptions without allocation.
 - Process and convert packed images in native RGB, BGR, RGBA, BGRA, and ABGR
   order with checked channel spacing and signed pixel and row strides.
 - Preserve OCIO's missing-file exception as `OcioError::MissingFile`, so callers
@@ -62,6 +64,11 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Return independent editable color-space copies from config and set lookups.
+  Previously these exposed OCIO-owned const objects as mutable, allowing edits
+  that bypassed parent configuration or set invariants. To apply an edit,
+  add the modified copy back to the parent. Each lookup now allocates a copy;
+  this changes the behavior of code that relied on mutating the returned object.
 - Accept the documented native `GpuShaderCreator*` in raw GPU extraction without
   treating it as an internal bridge handle or taking ownership.
 - Match OCIO's default processor-cache flags and reject the unsupported trace

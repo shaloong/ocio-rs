@@ -124,6 +124,12 @@ metadata extraction from a real processor.
 
 ### Config processors and file rules
 
+Color-space lookup on `Config` and `ColorSpaceSet` returns an independent
+editable copy. To apply edits, register that copy back with the parent. For
+shared read-only access without copying the native object, use
+`try_const_color_space`; its `name` and `description` borrow native text, and
+`create_editable_copy` creates an editable object on demand.
+
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
 `Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.
