@@ -101,9 +101,42 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
     let _guard = config_io_proxy_test_lock();
     for panic in [false, true] {
         let proxy = ConfigIOProxy::from_provider(Failing(panic)).unwrap();
-        assert!(proxy.try_config_data().is_err());
-        assert!(Config::from_config_io_proxy(&proxy).is_err());
+        let expected = if panic {
+            "provider panicked"
+        } else {
+            "provider error"
+        };
+        assert!(proxy
+            .try_config_data()
+            .unwrap_err()
+            .to_string()
+            .contains(expected));
+        assert!(Config::from_config_io_proxy(&proxy)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains(expected));
     }
+    struct LutFailure;
+    impl ConfigIOProvider for LutFailure {
+        fn config_data(&self) -> ocio_rs::Result<String> {
+            Ok(String::new())
+        }
+        fn lut_data(&self, _: &std::ffi::CStr) -> ocio_rs::Result<Vec<u8>> {
+            Err(ocio_rs::OcioError::InvalidInput(
+                "LUT backend unavailable".into(),
+            ))
+        }
+        fn fast_lut_file_hash(&self, _: &std::ffi::CStr) -> ocio_rs::Result<String> {
+            Ok("known".into())
+        }
+    }
+    let proxy = ConfigIOProxy::from_provider(LutFailure).unwrap();
+    assert!(proxy
+        .try_lut_data("test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("LUT backend unavailable"));
 }
 
 #[test]

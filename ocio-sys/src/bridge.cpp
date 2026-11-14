@@ -783,8 +783,14 @@ class CallbackConfigIOProxy final : public ocio::ConfigIOProxy {
   }
   std::vector<uint8_t> invoke(int kind, const char* path) const {
     Output out;
-    if (!read(context.get(), kind, path, &out, write) || out.failed)
-      throw ocio::Exception("Rust config IO provider failed");
+    if (!read(context.get(), kind, path, &out, write) || out.failed) {
+      std::string message = "Rust config IO provider failed";
+      if (!out.failed && !out.bytes.empty()) {
+        message += ": ";
+        message.append(out.bytes.begin(), out.bytes.end());
+      }
+      throw ocio::Exception(message.c_str());
+    }
     return std::move(out.bytes);
   }
 public:

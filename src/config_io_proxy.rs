@@ -30,7 +30,8 @@ pub struct ConfigIOProxy {
 impl ConfigIOProxy {
     /// Create an on-demand provider whose lifetime is retained by OCIO.
     /// Provider errors and panics become OCIO errors without unwinding across
-    /// the native boundary. The in-memory `set_*` methods do not apply to it.
+    /// the native boundary. Error messages include the provider's error text;
+    /// do not include secrets in it. The in-memory `set_*` methods do not apply.
     pub fn from_provider<P: ConfigIOProvider>(provider: P) -> Result<Self> {
         type Write = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool;
         unsafe extern "C" fn read<P: ConfigIOProvider>(
@@ -40,27 +41,39 @@ impl ConfigIOProxy {
             destination: *mut c_void,
             write: Write,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<bool> {
-                let provider = unsafe { &*context.cast::<P>() };
-                let bytes = match kind {
-                    0 => provider.config_data()?.into_bytes(),
-                    1 | 2 => {
-                        if path.is_null() {
-                            return Ok(false);
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<bool> {
+                    let provider = unsafe { &*context.cast::<P>() };
+                    let bytes = match kind {
+                        0 => provider.config_data()?.into_bytes(),
+                        1 | 2 => {
+                            if path.is_null() {
+                                return Ok(false);
+                            }
+                            let path = unsafe { CStr::from_ptr(path) };
+                            if kind == 1 {
+                                provider.lut_data(path)?
+                            } else {
+                                provider.fast_lut_file_hash(path)?.into_bytes()
+                            }
                         }
-                        let path = unsafe { CStr::from_ptr(path) };
-                        if kind == 1 {
-                            provider.lut_data(path)?
-                        } else {
-                            provider.fast_lut_file_hash(path)?.into_bytes()
-                        }
-                    }
-                    _ => return Ok(false),
-                };
-                Ok(unsafe { write(destination, bytes.as_ptr(), bytes.len()) })
-            }))
-            .unwrap_or(Ok(false))
-            .unwrap_or(false)
+                        _ => return Ok(false),
+                    };
+                    Ok(unsafe { write(destination, bytes.as_ptr(), bytes.len()) })
+                }));
+            match result {
+                Ok(Ok(ok)) => ok,
+                Ok(Err(error)) => {
+                    let message = error.to_string();
+                    unsafe { write(destination, message.as_ptr(), message.len()) };
+                    false
+                }
+                Err(_) => {
+                    let message = b"Rust config IO provider panicked";
+                    unsafe { write(destination, message.as_ptr(), message.len()) };
+                    false
+                }
+            }
         }
         unsafe extern "C" fn release<P>(context: *mut c_void) {
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
