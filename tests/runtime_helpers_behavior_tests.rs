@@ -15,8 +15,8 @@ use ocio_rs::{
     extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
     reset_compute_hash_callback, reset_logging_callback, resolve_config_path,
     set_compute_hash_callback, set_env_variable, set_logging_callback, try_clear_all_caches,
-    try_log_message, try_set_logging_level, unset_env_variable, version, version_hex, Config,
-    LoggingLevel,
+    try_log_message, try_logging_level, try_set_logging_level, unset_env_variable, version,
+    version_hex, Config, LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -129,6 +129,30 @@ fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
         .expect("emit logging callback message");
     reset_logging_callback().expect("reset logging callback");
     assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn logging_callback_reentrant_helpers_return_without_deadlock() {
+    let _guard = runtime_helpers_test_lock();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let callback_calls = Arc::clone(&calls);
+    set_logging_callback(move |_| {
+        assert_eq!(logging_level(), LoggingLevel::Unknown);
+        assert!(try_logging_level().is_err());
+        assert!(try_set_logging_level(LoggingLevel::Warning).is_err());
+        assert!(try_log_message(LoggingLevel::Warning, "nested").is_err());
+        assert!(set_logging_callback(|_| {}).is_err());
+        assert!(reset_logging_callback().is_err());
+        callback_calls.fetch_add(1, Ordering::SeqCst);
+        panic!("intentional logging callback panic");
+    })
+    .expect("install logging callback");
+    try_log_message(LoggingLevel::Warning, "test reentrant logging")
+        .expect("emit logging callback message");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(try_logging_level().is_ok());
+    reset_logging_callback().expect("reset logging callback");
 }
 
 #[test]

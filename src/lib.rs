@@ -193,6 +193,16 @@ type ComputeHashCallback = dyn Fn(&[u8]) -> Vec<u8> + Send + Sync + 'static;
 
 thread_local! {
     static COMPUTE_HASH_OUTPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+    static IN_LOGGING_CALLBACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn check_logging_reentrancy() -> Result<()> {
+    if IN_LOGGING_CALLBACK.with(std::cell::Cell::get) {
+        return Err(OcioError::InvalidInput(
+            "OCIO logging APIs cannot be called from an OCIO logging callback".into(),
+        ));
+    }
+    Ok(())
 }
 
 fn logging_callback_slot() -> &'static Mutex<Option<Arc<LoggingCallback>>> {
@@ -226,7 +236,17 @@ unsafe extern "C" fn rust_logging_callback(message: *const i8) {
         .clone();
     if let Some(callback) = callback {
         let message = unsafe { CStr::from_ptr(message).to_string_lossy() };
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
+        IN_LOGGING_CALLBACK.with(|active| {
+            struct Reset<'a>(&'a std::cell::Cell<bool>);
+            impl Drop for Reset<'_> {
+                fn drop(&mut self) {
+                    self.0.set(false);
+                }
+            }
+            active.set(true);
+            let _reset = Reset(active);
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
+        });
     }
 }
 
@@ -363,16 +383,24 @@ pub fn version_hex() -> i32 {
     unsafe { ocio_sys::ocio_get_version_hex() }
 }
 
-/// Returns the current OCIO global logging level.
+/// Returns the current OCIO global logging level, or `Unknown` when called
+/// reentrantly from a logging callback. Use [`try_logging_level`] to distinguish
+/// that case.
 pub fn logging_level() -> crate::LoggingLevel {
+    try_logging_level().unwrap_or(crate::LoggingLevel::Unknown)
+}
+
+/// Get the global logging level, reporting attempts to reenter from a callback.
+pub fn try_logging_level() -> Result<crate::LoggingLevel> {
+    check_logging_reentrancy()?;
     let l = unsafe { ocio_sys::ocio_get_logging_level() };
-    match l {
+    Ok(match l {
         0 => crate::LoggingLevel::None,
         1 => crate::LoggingLevel::Warning,
         2 => crate::LoggingLevel::Info,
         3 => crate::LoggingLevel::Debug,
         _ => crate::LoggingLevel::Unknown,
-    }
+    })
 }
 
 /// Sets the OCIO global logging level.
@@ -389,6 +417,7 @@ pub fn set_logging_level(level: crate::LoggingLevel) {
 
 /// Try to set the OCIO global logging level.
 pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
+    check_logging_reentrancy()?;
     if level as i32 == 4 {
         return Err(OcioError::InvalidInput(
             "OpenColorIO does not support trace logging".into(),
@@ -404,6 +433,7 @@ pub fn try_set_logging_level(level: crate::LoggingLevel) -> Result<()> {
 /// OCIO's logging mechanism is thread-safe. This only invokes the current
 /// OCIO logger; use `try_set_logging_level` to control filtering.
 pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> Result<()> {
+    check_logging_reentrancy()?;
     if level as i32 == 4 {
         return Err(OcioError::InvalidInput(
             "OpenColorIO does not support trace logging".into(),
@@ -424,7 +454,14 @@ pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> 
 ///
 /// Installing or resetting the callback serializes updates made through this
 /// crate. Coordinate with other native code that changes OCIO's global logger.
+///
+/// OCIO invokes the callback while holding a non-recursive global logging lock.
+/// Do not call OCIO from the callback (or wait for another thread that may do
+/// so): even operations unrelated to logging can emit log messages and deadlock.
+/// Direct calls to this crate's logging helpers on the callback thread return an
+/// error; [`logging_level`] returns `Unknown` there for compatibility.
 pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> Result<()> {
+    check_logging_reentrancy()?;
     let _update = logging_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -453,6 +490,7 @@ pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> 
 /// Any callback previously installed through [`set_logging_callback`] is
 /// dropped after OCIO accepts the reset.
 pub fn reset_logging_callback() -> Result<()> {
+    check_logging_reentrancy()?;
     let _update = logging_callback_update_lock()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
