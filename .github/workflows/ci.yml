@@ -164,7 +164,9 @@ jobs:
 
   ocio-2-6:
     name: OpenColorIO 2.6.0 compatibility
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    # Changes to the bridge must be tested against the newest supported native
+    # API before merging, not only in the scheduled/dispatch matrix.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
