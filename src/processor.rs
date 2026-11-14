@@ -546,7 +546,8 @@ pub struct PlanarByteLayout {
     pub height: usize,
     /// Byte distance between adjacent pixels.
     pub x_stride: usize,
-    /// Byte distance between adjacent rows.
+    /// Byte distance between adjacent rows; at least `width * x_stride`,
+    /// including when the image has only one row.
     pub y_stride: usize,
     /// Native storage and interpretation of each channel.
     pub bit_depth: BitDepth,
@@ -611,7 +612,7 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
         .checked_mul(x_stride)
         .and_then(|n| n.checked_add(size))
         .ok_or_else(invalid)?;
-    if height > 1 && y_stride < row_span {
+    if x_stride > y_stride / width {
         return Err(invalid());
     }
     let required = (height - 1)
@@ -803,7 +804,7 @@ impl CPUProcessor {
             .checked_mul(x_stride)
             .and_then(|n| n.checked_add(size))
             .ok_or_else(invalid)?;
-        if height > 1 && y_stride < row_span {
+        if x_stride > y_stride / width {
             return Err(invalid());
         }
         let required = (height - 1)
@@ -842,9 +843,9 @@ impl CPUProcessor {
     }
     /// Process strided planar F32 channels in place without copying pixels.
     ///
-    /// Strides are measured in F32 elements and must be positive. Each row
-    /// must start after the preceding row's final pixel, preventing overlapping
-    /// writes. Alpha may be omitted.
+    /// Strides are measured in F32 elements and must be positive. As required
+    /// by OCIO, the row stride must be at least the pixel stride times the
+    /// width, even for a single row. Alpha may be omitted.
     pub fn try_apply_planar_strided_f32(
         &self,
         red: &mut [f32],
@@ -867,7 +868,7 @@ impl CPUProcessor {
             .checked_mul(x_stride)
             .and_then(|v| v.checked_add(1))
             .ok_or_else(invalid)?;
-        if height > 1 && y_stride < row_span {
+        if x_stride > y_stride / width {
             return Err(invalid());
         }
         let required = (height - 1)
@@ -3799,6 +3800,37 @@ impl Drop for DynamicProperty {
 mod tests {
     use super::*;
     use crate::Config;
+
+    #[test]
+    fn planar_layout_requires_native_row_stride_even_for_one_row() {
+        let plane = [0u8; 3];
+        let layout = PlanarByteLayout {
+            width: 2,
+            height: 1,
+            x_stride: 2,
+            y_stride: 3,
+            bit_depth: BitDepth::Uint8,
+        };
+        assert!(validate_planar_buffer(layout, &[&plane]).is_err());
+        assert!(validate_planar_buffer(
+            PlanarByteLayout {
+                y_stride: 4,
+                ..layout
+            },
+            &[&plane]
+        )
+        .is_ok());
+        assert!(validate_planar_buffer(
+            PlanarByteLayout {
+                width: 2,
+                x_stride: usize::MAX,
+                y_stride: usize::MAX,
+                ..layout
+            },
+            &[&plane]
+        )
+        .is_err());
+    }
 
     #[test]
     fn processor_metadata() {

@@ -36,6 +36,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Reject planar row strides that violate native descriptor requirements before
+  OpenColorIO can overflow its stride arithmetic.
 - Compile dynamic hue curve updates with OpenColorIO 2.5's reference signature.
 
 - Preserve the HSY fixed-function style mapping when built with OpenColorIO 2.6.

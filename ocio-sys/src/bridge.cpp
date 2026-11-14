@@ -7183,7 +7183,8 @@ void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float
     constexpr auto limit = std::numeric_limits<ptrdiff_t>::max() / sizeof(float);
     if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
         height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
-        x_stride > limit || y_stride > limit || !red || !green || !blue)
+        x_stride > limit || y_stride > limit || x_stride > y_stride / width ||
+        !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions, strides or pointers");
     auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
     if (cpu->getInputBitDepth() != ocio::BIT_DEPTH_F32 || cpu->getOutputBitDepth() != ocio::BIT_DEPTH_F32)
@@ -7208,7 +7209,8 @@ void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green,
     const auto limit = std::numeric_limits<ptrdiff_t>::max();
     if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
         height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
-        x_stride > limit || y_stride > limit || !red || !green || !blue)
+        x_stride > limit || y_stride > limit || x_stride > y_stride / width ||
+        !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions, strides or pointers");
     auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
     const auto depth = static_cast<ocio::BitDepth>(bit_depth);
@@ -7274,7 +7276,8 @@ void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buf
           d.width > std::numeric_limits<long>::max() || d.height > std::numeric_limits<long>::max() ||
           d.x_stride <= 0 || d.y_stride <= 0 ||
           d.x_stride > std::numeric_limits<ptrdiff_t>::max() ||
-          d.y_stride > std::numeric_limits<ptrdiff_t>::max())
+          d.y_stride > std::numeric_limits<ptrdiff_t>::max() ||
+          d.x_stride > d.y_stride / d.width)
         throw std::invalid_argument("invalid planar descriptor");
     };
     check(*source);
