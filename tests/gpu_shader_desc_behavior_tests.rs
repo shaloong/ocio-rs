@@ -28,6 +28,31 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_shader_creator_interop_borrows_without_taking_ownership() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).unwrap();
+    let processor = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap();
+    let gpu = processor.default_gpu_processor().unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.set_function_name("customCreatorTest").unwrap();
+    let creator = desc.borrow_native_creator().unwrap();
+    // SAFETY: The descriptor owns this native creator and remains alive and
+    // exclusively unused throughout the synchronous extraction.
+    unsafe {
+        gpu.try_extract_shader_info_raw(creator.as_ptr()).unwrap();
+    }
+    drop(gpu);
+    assert!(desc.shader_text().unwrap().contains("customCreatorTest"));
+    // A null native object is rejected without entering C++.
+    let gpu = processor.default_gpu_processor().unwrap();
+    assert!(unsafe { gpu.try_extract_shader_info_raw(std::ptr::null_mut()) }.is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn native_texture_bridge_rejects_overflow_before_reading_values() {
     let _guard = gpu_shader_desc_test_lock();
     unsafe {

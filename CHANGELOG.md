@@ -15,6 +15,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Convert separate packed RGB/RGBA buffers between native input and output bit depths.
 - Convert separate planar RGB/RGBA buffers between native input and output bit depths.
 - Process and convert planar RGB/RGBA buffers with checked signed byte strides.
+- Borrow a native GPU shader creator from a Rust descriptor for C++ interop.
 - Expose independently owned native grading B-spline curves, including
   2.5 spline-type constructors and editing.
 - Expose native RGB and hue grading curve sets, their editable constituent
@@ -37,6 +38,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Accept the documented native `GpuShaderCreator*` in raw GPU extraction without
+  treating it as an internal bridge handle or taking ownership.
 - Match OCIO's default processor-cache flags and reject the unsupported trace
   logging level instead of silently passing it to native code.
 - Reject overflowing GPU texture dimensions before calculating buffer sizes or

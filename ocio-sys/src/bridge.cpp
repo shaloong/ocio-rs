@@ -248,7 +248,6 @@ struct TransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
 };
 struct ConfigIOProxyHandle { std::shared_ptr<void> inner; };
 struct ViewingRulesHandle { std::shared_ptr<void> inner; };
-struct GpuShaderCreatorHandle { std::shared_ptr<void> inner; };
 struct GradingPrimaryValueHandle { std::shared_ptr<void> inner; };
 struct GradingRGBCurveHandle { std::shared_ptr<void> inner; };
 struct GradingHueCurveHandle { std::shared_ptr<void> inner; };
@@ -699,9 +698,6 @@ struct RealViewingRules {
 };
 struct RealProcessorMetadata {
   ocio::ProcessorMetadataRcPtr metadata;
-};
-struct RealGpuShaderCreator {
-  ocio::GpuShaderCreatorRcPtr shader;
 };
 struct RealGradingRGBCurve {
   ocio::GradingRGBCurveRcPtr curve;
@@ -7462,10 +7458,26 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
   return;
 #else
   try {
-    auto* _shaderCreator_h = static_cast<ocio_rs_bridge::GpuShaderCreatorHandle*>(shaderCreator);
-    auto shaderCreator_ptr = std::static_pointer_cast<ocio_rs_bridge::RealGpuShaderCreator>(_shaderCreator_h->inner)->shader;
+    if (!shaderCreator) throw std::invalid_argument("null native shader creator");
+    // The caller owns the native object and guarantees it lives through this
+    // synchronous extraction. Do not delete it when the temporary shared_ptr dies.
+    ocio::GpuShaderCreatorRcPtr shaderCreator_ptr(
+        static_cast<ocio::GpuShaderCreator*>(shaderCreator), [](ocio::GpuShaderCreator*) {});
     ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(shaderCreator_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
+#endif
+}
+
+void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("native shader creator requires OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null shader descriptor");
+    return static_cast<ocio::GpuShaderCreator*>(ocio_rs_bridge::get_real_gpu_shader_desc(handle).get());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

@@ -1248,6 +1248,7 @@ unsafe extern "C" {
         handle: *mut c_void,
         shaderCreator: *mut c_void,
     ) -> ();
+    pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;
 
     // --- GpuShaderDesc ---
     pub fn ocio_gpu_shader_desc_create_shader_desc() -> *mut c_void;

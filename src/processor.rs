@@ -1815,9 +1815,11 @@ impl GPUProcessor {
 
     /// # Safety
     /// `shader_creator` must point to a valid mutable OCIO shader creator object
-    /// for the active ABI and remain alive for the duration of the call. OCIO
-    /// writes generated resources through that object, but neither this method
-    /// nor the Rust binding takes ownership of or destroys it. Prefer
+    /// for the active ABI and remain alive and exclusively accessible for the
+    /// duration of the call. OCIO receives a temporary non-owning shared pointer;
+    /// the object and its callbacks must not retain that shared pointer or depend
+    /// on it sharing ownership with another control block. Neither this method
+    /// nor the Rust binding destroys the object. Prefer
     /// [`Self::try_extract_shader_info`] with [`GpuShaderDesc`] for a typed,
     /// Rust-owned descriptor.
     #[doc(hidden)]
@@ -1829,13 +1831,18 @@ impl GPUProcessor {
         let _ = unsafe { self.try_extract_shader_info_raw(shader_creator) };
     }
 
-    /// Extract shader information through a raw OCIO shader-creator pointer.
+    /// Extract shader information through a raw `OCIO::GpuShaderCreator*`.
     ///
     /// # Safety
-    /// `shader_creator` must meet the same ABI, lifetime, and ownership
+    /// `shader_creator` must meet the same ABI, exclusivity, lifetime, and ownership
     /// requirements as [`Self::extract_gpu_shader_info_v2`].
     #[doc(hidden)]
     pub unsafe fn try_extract_shader_info_raw(&self, shader_creator: *mut c_void) -> Result<()> {
+        if shader_creator.is_null() {
+            return Err(OcioError::InvalidInput(
+                "native shader creator cannot be null".into(),
+            ));
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_processor_extract_gpu_shader_info_v2(
@@ -2057,6 +2064,19 @@ pub struct GpuUniform {
 }
 
 impl GpuShaderDesc {
+    /// Borrow this descriptor as a native `OCIO::GpuShaderCreator*` for C++ interop.
+    ///
+    /// The pointer is invalid after this descriptor is dropped. Native code
+    /// must not delete it, retain it beyond that lifetime, or access the object
+    /// concurrently or reentrantly with Rust operations on this descriptor.
+    /// The returned raw pointer is only usable with a compatible OCIO ABI.
+    pub fn borrow_native_creator(&mut self) -> Result<NonNull<c_void>> {
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_borrow_native_creator(self.handle.as_ptr()) };
+        crate::handle_result(ptr)
+    }
+
     /// Creates an empty OCIO GPU shader descriptor that can be configured and
     /// passed to `GPUProcessor::extract_shader_info`.
     pub fn create() -> Result<Self> {
