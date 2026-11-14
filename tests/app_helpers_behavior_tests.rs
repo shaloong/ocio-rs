@@ -19,6 +19,16 @@ fn mixing_manager_retains_config_and_slider_round_trips() {
     let encoding = manager.mixing_encoding_name(0).unwrap().to_owned();
     manager.set_selected_mixing_encoding(&encoding).unwrap();
     assert_eq!(manager.selected_mixing_encoding_idx(), 0);
+    manager.set_selected_mixing_encoding_idx(1).unwrap();
+    let cpu = manager
+        .processor(c"raw", c"", c"", ocio_rs::TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut red = [1.0, 0.0, 0.0, 0.5];
+    cpu.try_apply_rgba(&mut red).unwrap();
+    assert_eq!(red, [0.0, 1.0, 1.0, 0.5]);
+    manager.set_selected_mixing_encoding_idx(0).unwrap();
 
     let slider = manager.slider_with_edges(0.1, 0.9);
     // Native getters report perceptual edges for non-uniform spaces.

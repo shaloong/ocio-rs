@@ -608,6 +608,16 @@ impl Drop for MixingColorSpaceManager {
 }
 
 /// An exclusive borrow of the native manager's slider, without an allocation.
+///
+/// The manager cannot be mutated or dropped while the slider is in use:
+///
+/// ```compile_fail
+/// use ocio_rs::{Config, MixingColorSpaceManager};
+/// let mut manager = MixingColorSpaceManager::create(&Config::raw().unwrap()).unwrap();
+/// let slider = manager.slider();
+/// drop(manager);
+/// let _ = slider.slider_to_mixing(0.5);
+/// ```
 pub struct MixingSlider<'a> {
     handle: NonNull<c_void>,
     owner: std::marker::PhantomData<&'a mut MixingColorSpaceManager>,
