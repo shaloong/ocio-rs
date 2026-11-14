@@ -1546,12 +1546,16 @@ fn rust_uniform_bool_and_float3_getters_are_live_and_contain_panics() {
     let mut out = [0.0; 3];
     assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
     assert_eq!(out[0], 0.0);
+    assert_eq!(desc.try_uniform_bool_value(0).unwrap(), Some(false));
+    assert_eq!(desc.try_uniform_bool_value(1).unwrap(), None);
+    assert!(desc.try_uniform_bool_value(99).is_err());
     assert!(desc.try_copy_uniform_f32_into(1, &mut out).unwrap());
     assert_eq!(out, [1.0, 2.0, 3.0]);
     enabled.store(true, Ordering::Relaxed);
     component.store(4.0f32.to_bits(), Ordering::Relaxed);
     assert!(desc.try_copy_uniform_f32_into(0, &mut out).unwrap());
     assert_eq!(out[0], 1.0);
+    assert_eq!(desc.try_uniform_bool_value(0).unwrap(), Some(true));
     assert!(desc.try_copy_uniform_f32_into(1, &mut out).unwrap());
     assert_eq!(out, [4.0, 2.0, 3.0]);
     assert!(desc
@@ -1561,6 +1565,7 @@ fn rust_uniform_bool_and_float3_getters_are_live_and_contain_panics() {
         .add_uniform_float3_getter("bad_rgb", || panic!("float3 panic"))
         .unwrap());
     assert!(desc.try_copy_uniform_f32_into(2, &mut out).is_err());
+    assert!(desc.try_uniform_bool_value(2).is_err());
     assert!(desc.try_copy_uniform_f32_into(3, &mut out).is_err());
     drop(desc);
     assert_eq!(Arc::strong_count(&enabled), 1);

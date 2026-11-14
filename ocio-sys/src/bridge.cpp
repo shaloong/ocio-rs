@@ -7928,6 +7928,23 @@ bool ocio_gpu_shader_desc_get_uniform_double_value(void* handle, unsigned index,
 #endif
 }
 
+bool ocio_gpu_shader_desc_get_uniform_bool_value(void* handle, unsigned index, bool* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index; (void)value;
+  ocio_rs_bridge::capture_error_message("uniform values require native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!value) throw std::invalid_argument("null uniform value output");
+    ocio::GpuShaderDesc::UniformData data;
+    const char* name = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
+    if (!name || data.m_type != ocio::UNIFORM_BOOL || !data.m_getBool) return false;
+    *value = data.m_getBool();
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 bool ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(void* handle, unsigned index, float* values, size_t len, size_t* actual) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index; (void)values; (void)len; (void)actual;

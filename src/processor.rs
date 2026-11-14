@@ -3737,6 +3737,23 @@ impl GpuShaderDesc {
         Ok(found.then_some(value))
     }
 
+    /// Read a native boolean uniform without converting it to a float.
+    /// Returns `Ok(None)` for another uniform type; invalid indices and getter
+    /// failures are returned as errors. `Some(false)` is a valid value.
+    pub fn try_uniform_bool_value(&self, index: u32) -> Result<Option<bool>> {
+        let mut value = false;
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_uniform_bool_value(
+                self.handle.as_ptr(),
+                index,
+                &mut value,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found.then_some(value))
+    }
+
     /// Read the current floating-point uniform payload into caller-owned storage.
     ///
     /// Returns `Ok(false)` if the uniform is not representable as floats or

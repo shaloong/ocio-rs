@@ -641,6 +641,7 @@ size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index
 bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len);
 bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
 bool ocio_gpu_shader_desc_get_uniform_double_value(void* handle, unsigned index, double* value);
+bool ocio_gpu_shader_desc_get_uniform_bool_value(void* handle, unsigned index, bool* value);
 bool ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(void* handle, unsigned index, float* values, size_t len, size_t* actual);
 bool ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(void* handle, unsigned index, int* values, size_t len, size_t* actual);
 size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);

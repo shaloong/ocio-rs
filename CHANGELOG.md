@@ -23,6 +23,7 @@ Versioning as closely as practical for a still-maturing binding crate.
 - Read current GPU uniform values into caller-provided buffers without Rust
   allocations, including live dynamic-property updates.
 - Read native double uniform values without reducing precision to GPU `f32`.
+- Read native boolean uniform values without converting them to floats.
 - Register live, thread-safe Rust scalar, float3, and array uniform getters
   with native shader descriptors.
 - Borrow GPU LUT texture values directly from OCIO for upload without copying.
