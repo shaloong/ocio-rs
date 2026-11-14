@@ -160,6 +160,192 @@ fn packed_images_convert_channel_order_and_bit_depth() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn mixed_packed_planar_conversion_and_independent_alpha() {
+    use ocio_rs::{
+        ChannelOrdering, PackedImageLayout, SignedPlanarByteLayout, SignedPlanarBytes,
+        SignedPlanarBytesMut,
+    };
+    let _guard = cpu_processor_test_lock();
+    let cpu = scaled_processor([0.5, 1.0, 1.0, 1.0])
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    let packed_layout = PackedImageLayout {
+        width: 2,
+        height: 1,
+        origin: 0,
+        channel_stride: 1,
+        x_stride: 4,
+        y_stride: 8,
+        bit_depth: BitDepth::Uint8,
+        channel_order: ChannelOrdering::Rgba,
+    };
+    let planar_layout = SignedPlanarByteLayout {
+        width: 2,
+        height: 1,
+        origin: 0,
+        x_stride: 1,
+        y_stride: 2,
+        bit_depth: BitDepth::Uint8,
+    };
+    let input = [100, 50, 25, 128, 200, 80, 40, 64];
+    let (mut red, mut green, mut blue) = ([0; 2], [0; 2], [0; 2]);
+    cpu.try_convert_packed_to_planar(
+        &input,
+        packed_layout,
+        SignedPlanarBytesMut {
+            red: &mut red,
+            green: &mut green,
+            blue: &mut blue,
+            alpha: None,
+            layout: planar_layout,
+        },
+    )
+    .unwrap();
+    assert_eq!(red, [50, 100]);
+    assert_eq!(green, [50, 80]);
+    assert_eq!(blue, [25, 40]);
+
+    let mut output = [0; 8];
+    cpu.try_convert_planar_to_packed(
+        SignedPlanarBytes {
+            red: &red,
+            green: &green,
+            blue: &blue,
+            alpha: None,
+            layout: planar_layout,
+        },
+        &mut output,
+        packed_layout,
+    )
+    .unwrap();
+    let missing_alpha = if ocio_rs::version_hex() >= 0x02060000 {
+        255
+    } else {
+        0
+    };
+    assert_eq!(
+        output,
+        [25, 50, 25, missing_alpha, 50, 80, 40, missing_alpha]
+    );
+
+    let mut alpha = [0; 2];
+    let mut r = [0; 2];
+    let mut g = [0; 2];
+    let mut b = [0; 2];
+    cpu.try_apply_planar_signed_convert(
+        SignedPlanarBytes {
+            red: &red,
+            green: &green,
+            blue: &blue,
+            alpha: None,
+            layout: planar_layout,
+        },
+        SignedPlanarBytesMut {
+            red: &mut r,
+            green: &mut g,
+            blue: &mut b,
+            alpha: Some(&mut alpha),
+            layout: planar_layout,
+        },
+    )
+    .unwrap();
+    assert_eq!(alpha, [missing_alpha, missing_alpha]);
+    let mut tiny_alpha = [0; 1];
+    assert!(cpu
+        .try_convert_packed_to_planar(
+            &input,
+            packed_layout,
+            SignedPlanarBytesMut {
+                red: &mut r,
+                green: &mut g,
+                blue: &mut b,
+                alpha: Some(&mut tiny_alpha),
+                layout: planar_layout,
+            }
+        )
+        .is_err());
+    assert!(cpu
+        .try_convert_planar_to_packed(
+            SignedPlanarBytes {
+                red: &red,
+                green: &green,
+                blue: &blue,
+                alpha: None,
+                layout: planar_layout,
+            },
+            &mut output[..4],
+            packed_layout
+        )
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn mixed_conversion_handles_negative_stride_and_bit_depth_change() {
+    use ocio_rs::{ChannelOrdering, PackedImageLayout, SignedPlanarByteLayout, SignedPlanarBytes};
+    let _guard = cpu_processor_test_lock();
+    let cpu = scaled_processor([1.0; 4])
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    let layout = SignedPlanarByteLayout {
+        width: 2,
+        height: 1,
+        origin: 2,
+        x_stride: -1,
+        y_stride: 2,
+        bit_depth: BitDepth::Uint8,
+    };
+    let output_layout = PackedImageLayout {
+        width: 2,
+        height: 1,
+        origin: 0,
+        channel_stride: 2,
+        x_stride: 8,
+        y_stride: 16,
+        bit_depth: BitDepth::Uint16,
+        channel_order: ChannelOrdering::Abgr,
+    };
+    let mut output = [0u16; 8];
+    // SAFETY: the byte slice spans exactly the exclusively borrowed words.
+    let output_bytes = unsafe {
+        std::slice::from_raw_parts_mut(output.as_mut_ptr().cast(), std::mem::size_of_val(&output))
+    };
+    cpu.try_convert_planar_to_packed(
+        SignedPlanarBytes {
+            red: &[99, 10, 20],
+            green: &[99, 30, 40],
+            blue: &[99, 3, 4],
+            alpha: None,
+            layout,
+        },
+        output_bytes,
+        output_layout,
+    )
+    .unwrap();
+    let missing_alpha = if ocio_rs::version_hex() >= 0x02060000 {
+        65535
+    } else {
+        0
+    };
+    assert_eq!(
+        output,
+        [
+            missing_alpha,
+            4 * 257,
+            40 * 257,
+            20 * 257,
+            missing_alpha,
+            3 * 257,
+            30 * 257,
+            10 * 257
+        ]
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn packed_abgr_negative_pixel_stride_keeps_padding() {
     use ocio_rs::{ChannelOrdering, PackedImageLayout};
     let processor = scaled_processor([0.5, 1.0, 1.0, 1.0]).unwrap();
@@ -592,10 +778,54 @@ fn planar_conversion_changes_bit_depth_without_touching_padding() {
         },
     )
     .unwrap();
+    assert_eq!(a, [65535, 32896, 0xaaaa, 16448, 0]);
+    cpu.try_apply_planar_convert(
+        PlanarBytes {
+            alpha: None,
+            ..source()
+        },
+        PlanarBytesMut {
+            red: bytes(&mut r),
+            green: bytes(&mut g),
+            blue: bytes(&mut b),
+            alpha: Some(bytes(&mut a)),
+            layout: output_layout,
+        },
+    )
+    .unwrap();
+    let missing_alpha = if ocio_rs::version_hex() >= 0x02060000 {
+        65535
+    } else {
+        0
+    };
+    assert_eq!(
+        a,
+        [
+            missing_alpha,
+            missing_alpha,
+            0xaaaa,
+            missing_alpha,
+            missing_alpha
+        ]
+    );
+    assert!(cpu
+        .try_apply_planar_convert(
+            PlanarBytes {
+                alpha: Some(&alpha[..1]),
+                ..source()
+            },
+            PlanarBytesMut {
+                red: bytes(&mut r),
+                green: bytes(&mut g),
+                blue: bytes(&mut b),
+                alpha: None,
+                layout: output_layout,
+            },
+        )
+        .is_err());
     assert_eq!(r, [0, 32896, 0xaaaa, 65535, 16448]);
     assert_eq!(g, [65535, 0, 0xaaaa, 32896, 16448]);
     assert_eq!(b, [16448, 65535, 0xaaaa, 0, 32896]);
-    assert_eq!(a, [65535, 32896, 0xaaaa, 16448, 0]);
     cpu.try_apply_planar_convert(
         PlanarBytes {
             alpha: None,
@@ -626,18 +856,17 @@ fn planar_conversion_changes_bit_depth_without_touching_padding() {
             },
         )
         .is_err());
-    assert!(cpu
-        .try_apply_planar_convert(
-            source(),
-            PlanarBytesMut {
-                red: bytes(&mut r),
-                green: bytes(&mut g),
-                blue: bytes(&mut b),
-                alpha: None,
-                layout: output_layout
-            }
-        )
-        .is_err());
+    cpu.try_apply_planar_convert(
+        source(),
+        PlanarBytesMut {
+            red: bytes(&mut r),
+            green: bytes(&mut g),
+            blue: bytes(&mut b),
+            alpha: None,
+            layout: output_layout,
+        },
+    )
+    .unwrap();
     assert!(cpu
         .try_apply_planar_convert(
             source(),

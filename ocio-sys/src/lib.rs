@@ -279,6 +279,12 @@ unsafe extern "C" {
         source: *const OcioPlanarBuffer,
         destination: *const OcioPlanarBuffer,
     );
+    pub fn ocio_cpu_processor_convert_mixed_image(
+        handle: *mut c_void,
+        packed: *const OcioPackedBuffer,
+        planar: *const OcioPlanarBuffer,
+        packed_is_source: bool,
+    );
     pub fn ocio_cpu_processor_apply_packed_convert(
         handle: *mut c_void,
         src: *const c_void,

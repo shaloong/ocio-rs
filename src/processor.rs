@@ -915,6 +915,55 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     Ok([w, h, x, y])
 }
 
+fn signed_planar_source(image: &SignedPlanarBytes<'_>) -> Result<ocio_sys::OcioPlanarBuffer> {
+    let [width, height, x_stride, y_stride] =
+        validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+    if let Some(alpha) = image.alpha {
+        validate_signed_planar(image.layout, &[alpha])?;
+    }
+    let origin = image.layout.origin;
+    Ok(ocio_sys::OcioPlanarBuffer {
+        red: image.red.as_ptr().wrapping_add(origin).cast_mut().cast(),
+        green: image.green.as_ptr().wrapping_add(origin).cast_mut().cast(),
+        blue: image.blue.as_ptr().wrapping_add(origin).cast_mut().cast(),
+        alpha: image.alpha.map_or(std::ptr::null_mut(), |p| {
+            p.as_ptr().wrapping_add(origin).cast_mut().cast()
+        }),
+        width,
+        height,
+        x_stride,
+        y_stride,
+        bit_depth: image.layout.bit_depth as i32,
+    })
+}
+
+fn signed_planar_destination(
+    image: &mut SignedPlanarBytesMut<'_>,
+) -> Result<ocio_sys::OcioPlanarBuffer> {
+    let [width, height, x_stride, y_stride] =
+        validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+    if let Some(alpha) = image.alpha.as_deref() {
+        validate_signed_planar(image.layout, &[alpha])?;
+    }
+    let origin = image.layout.origin;
+    Ok(ocio_sys::OcioPlanarBuffer {
+        red: image.red.as_mut_ptr().wrapping_add(origin).cast(),
+        green: image.green.as_mut_ptr().wrapping_add(origin).cast(),
+        blue: image.blue.as_mut_ptr().wrapping_add(origin).cast(),
+        alpha: image
+            .alpha
+            .as_deref_mut()
+            .map_or(std::ptr::null_mut(), |p| {
+                p.as_mut_ptr().wrapping_add(origin).cast()
+            }),
+        width,
+        height,
+        x_stride,
+        y_stride,
+        bit_depth: image.layout.bit_depth as i32,
+    })
+}
+
 impl CPUProcessor {
     /// Converts a non-dynamic processor into a thread-shareable processor.
     ///
@@ -969,6 +1018,76 @@ impl CPUProcessor {
         };
         crate::ocio_call_status()
     }
+
+    /// Convert a packed source into separate signed-stride destination planes.
+    ///
+    /// The images must have matching dimensions and processor-compatible bit
+    /// depths. Alpha may be present independently on either side. OCIO fills
+    /// missing input alpha with zero in 2.4/2.5 and one in 2.6; it discards
+    /// alpha if the output lacks it.
+    /// Buffers are borrowed without copying; layout padding rules apply.
+    pub fn try_convert_packed_to_planar(
+        &self,
+        source: &[u8],
+        source_layout: PackedImageLayout,
+        mut destination: SignedPlanarBytesMut<'_>,
+    ) -> Result<()> {
+        if source_layout.width != destination.layout.width
+            || source_layout.height != destination.layout.height
+        {
+            return Err(OcioError::InvalidInput("image dimensions differ".into()));
+        }
+        let packed = packed_image_descriptor(source_layout, source)?;
+        let planar = signed_planar_destination(&mut destination)?;
+        crate::clear_last_error();
+        // SAFETY: Both descriptors are validated and destination planes are
+        // exclusively borrowed for the duration of the synchronous call.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_convert_mixed_image(
+                self.handle.as_ptr(),
+                &packed,
+                &planar,
+                true,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Convert signed-stride source planes into a packed destination.
+    ///
+    /// See [`Self::try_convert_packed_to_planar`] for dimensions, alpha,
+    /// bit-depth and borrowed-buffer requirements.
+    pub fn try_convert_planar_to_packed(
+        &self,
+        source: SignedPlanarBytes<'_>,
+        destination: &mut [u8],
+        destination_layout: PackedImageLayout,
+    ) -> Result<()> {
+        if source.layout.width != destination_layout.width
+            || source.layout.height != destination_layout.height
+        {
+            return Err(OcioError::InvalidInput("image dimensions differ".into()));
+        }
+        let planar = signed_planar_source(&source)?;
+        let mut packed = packed_image_descriptor(destination_layout, destination)?;
+        packed.data = unsafe {
+            destination
+                .as_mut_ptr()
+                .add(destination_layout.origin)
+                .cast()
+        };
+        crate::clear_last_error();
+        // SAFETY: Both descriptors are validated, and destination is exclusive.
+        unsafe {
+            ocio_sys::ocio_cpu_processor_convert_mixed_image(
+                self.handle.as_ptr(),
+                &packed,
+                &planar,
+                false,
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Process a planar image in place with signed byte strides without copying.
     ///
     /// OCIO advances pointers after the last pixel of each row. Therefore the
@@ -1006,8 +1125,10 @@ impl CPUProcessor {
 
     /// Convert separate signed-stride planar images without copying pixel data.
     ///
-    /// Source and destination must have equal dimensions and matching alpha
-    /// presence. Their layouts and bit depths may otherwise differ. As with
+    /// Source and destination must have equal dimensions. Alpha may be present
+    /// independently on either side. Missing input alpha follows the native
+    /// version's behavior, described by [`Self::try_convert_packed_to_planar`].
+    /// Their layouts and bit depths may differ. As with
     /// [`Self::try_apply_planar_signed`], pointer-step padding is required.
     pub fn try_apply_planar_signed_convert(
         &self,
@@ -1016,53 +1137,13 @@ impl CPUProcessor {
     ) -> Result<()> {
         if source.layout.width != destination.layout.width
             || source.layout.height != destination.layout.height
-            || source.alpha.is_some() != destination.alpha.is_some()
         {
             return Err(OcioError::InvalidInput(
-                "planar dimensions and alpha presence must match".into(),
+                "planar dimensions must match".into(),
             ));
         }
-        let [iw, ih, ix, iy] =
-            validate_signed_planar(source.layout, &[source.red, source.green, source.blue])?;
-        let [ow, oh, ox, oy] = validate_signed_planar(
-            destination.layout,
-            &[destination.red, destination.green, destination.blue],
-        )?;
-        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
-            validate_signed_planar(source.layout, &[input])?;
-            validate_signed_planar(destination.layout, &[output])?;
-        }
-        let i = source.layout.origin;
-        let o = destination.layout.origin;
-        let input = ocio_sys::OcioPlanarBuffer {
-            red: source.red.as_ptr().wrapping_add(i).cast_mut().cast(),
-            green: source.green.as_ptr().wrapping_add(i).cast_mut().cast(),
-            blue: source.blue.as_ptr().wrapping_add(i).cast_mut().cast(),
-            alpha: source.alpha.map_or(std::ptr::null_mut(), |p| {
-                p.as_ptr().wrapping_add(i).cast_mut().cast()
-            }),
-            width: iw,
-            height: ih,
-            x_stride: ix,
-            y_stride: iy,
-            bit_depth: source.layout.bit_depth as i32,
-        };
-        let output = ocio_sys::OcioPlanarBuffer {
-            red: destination.red.as_mut_ptr().wrapping_add(o).cast(),
-            green: destination.green.as_mut_ptr().wrapping_add(o).cast(),
-            blue: destination.blue.as_mut_ptr().wrapping_add(o).cast(),
-            alpha: destination
-                .alpha
-                .as_deref_mut()
-                .map_or(std::ptr::null_mut(), |p| {
-                    p.as_mut_ptr().wrapping_add(o).cast()
-                }),
-            width: ow,
-            height: oh,
-            x_stride: ox,
-            y_stride: oy,
-            bit_depth: destination.layout.bit_depth as i32,
-        };
+        let input = signed_planar_source(&source)?;
+        let output = signed_planar_destination(&mut destination)?;
         crate::clear_last_error();
         // SAFETY: Bounds and alignment have been checked, the source is only
         // read, and Rust exclusively borrows all destination planes.
@@ -1075,7 +1156,8 @@ impl CPUProcessor {
     /// Convert separate planar buffers using the processor's input and output depths.
     ///
     /// Layouts may have different strides and bit depths, but must have identical
-    /// dimensions and either both contain alpha or both omit it. Buffers are borrowed
+    /// dimensions. Alpha may be present independently on either side; see
+    /// [`Self::try_convert_packed_to_planar`] for missing-alpha behavior. Buffers are borrowed
     /// directly without copying; strides are in bytes and must be positive and aligned.
     pub fn try_apply_planar_convert(
         &self,
@@ -1084,10 +1166,9 @@ impl CPUProcessor {
     ) -> Result<()> {
         if source.layout.width != destination.layout.width
             || source.layout.height != destination.layout.height
-            || source.alpha.is_some() != destination.alpha.is_some()
         {
             return Err(OcioError::InvalidInput(
-                "planar dimensions and alpha presence must match".into(),
+                "planar dimensions must match".into(),
             ));
         }
         let [iw, ih, ix, iy] =
@@ -1096,8 +1177,10 @@ impl CPUProcessor {
             destination.layout,
             &[destination.red, destination.green, destination.blue],
         )?;
-        if let (Some(input), Some(output)) = (source.alpha, destination.alpha.as_deref()) {
+        if let Some(input) = source.alpha {
             validate_planar_buffer(source.layout, &[input])?;
+        }
+        if let Some(output) = destination.alpha.as_deref() {
             validate_planar_buffer(destination.layout, &[output])?;
         }
         let input = ocio_sys::OcioPlanarBuffer {

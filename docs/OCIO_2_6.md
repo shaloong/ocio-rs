@@ -33,6 +33,9 @@ and `try_convert_packed_image` pass validated borrowed buffers directly to
 native packed image descriptors. `PackedImageLayout` supports OCIO's RGB,
 BGR, RGBA, BGRA and ABGR orderings, channel spacing, and signed pixel and row
 strides; its documented pointer-step padding requirements must be met.
+`CPUProcessor::try_convert_packed_to_planar` and `try_convert_planar_to_packed`
+also pass borrowed, validated buffers directly to OCIO. Missing source alpha is
+interpreted according to the native library: zero in 2.4/2.5 and one in 2.6.
 
 The HMJ benchmark compares batch and per-pixel calls using the same native
 processor. The separate `tools/cpu-benchmark` tool compares the safe Rust

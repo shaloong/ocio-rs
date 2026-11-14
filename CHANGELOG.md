@@ -35,6 +35,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Convert between packed and planar image layouts without copying pixels,
+  including signed strides, bit-depth changes, and independently optional alpha.
 - Share non-dynamic CPU processors across threads through the once-validated
   `StaticCPUProcessor`, with no additional per-pixel synchronization.
 - Expose native OCIO enum/string conversions and direction and bit-depth

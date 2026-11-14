@@ -684,6 +684,8 @@ typedef struct ocio_planar_buffer {
     int bit_depth;
 } ocio_planar_buffer;
 void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buffer* source, const ocio_planar_buffer* destination);
+void ocio_cpu_processor_convert_mixed_image(void* handle, const OcioPackedBuffer* packed,
+    const ocio_planar_buffer* planar, bool packed_is_source);
 void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int input_depth, int output_depth, uint32_t flags);
 void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride);

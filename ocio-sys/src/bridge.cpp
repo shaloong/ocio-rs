@@ -8436,6 +8436,20 @@ void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+static void ocio_rs_check_planar_image(const ocio_planar_buffer& d) {
+  if (!d.red || !d.green || !d.blue ||
+      !ocio_rs_valid_planar_strides(d.width, d.height, d.x_stride, d.y_stride))
+    throw std::invalid_argument("invalid planar descriptor");
+}
+static ocio::PlanarImageDesc ocio_rs_planar_image(const ocio_planar_buffer& d) {
+  return ocio::PlanarImageDesc(d.red, d.green, d.blue, d.alpha,
+      static_cast<long>(d.width), static_cast<long>(d.height),
+      static_cast<ocio::BitDepth>(d.bit_depth), static_cast<ptrdiff_t>(d.x_stride),
+      static_cast<ptrdiff_t>(d.y_stride));
+}
+#endif
+
 void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buffer* source,
                                             const ocio_planar_buffer* destination) {
 #ifdef OCIO_RS_STUB
@@ -8444,13 +8458,8 @@ void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buf
 #else
   try {
     if (!source || !destination) throw std::invalid_argument("null planar descriptor");
-    auto check = [](const ocio_planar_buffer& d) {
-      if (!d.red || !d.green || !d.blue ||
-          !ocio_rs_valid_planar_strides(d.width, d.height, d.x_stride, d.y_stride))
-        throw std::invalid_argument("invalid planar descriptor");
-    };
-    check(*source);
-    check(*destination);
+    ocio_rs_check_planar_image(*source);
+    ocio_rs_check_planar_image(*destination);
     if (source->width != destination->width || source->height != destination->height)
       throw std::invalid_argument("planar source and destination dimensions differ");
     auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
@@ -8458,13 +8467,34 @@ void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buf
     const auto output_depth = static_cast<ocio::BitDepth>(destination->bit_depth);
     if (cpu->getInputBitDepth() != input_depth || cpu->getOutputBitDepth() != output_depth)
       throw std::invalid_argument("image bit depths must match processor input and output");
-    ocio::PlanarImageDesc input(source->red, source->green, source->blue, source->alpha,
-        static_cast<long>(source->width), static_cast<long>(source->height), input_depth,
-        static_cast<ptrdiff_t>(source->x_stride), static_cast<ptrdiff_t>(source->y_stride));
-    ocio::PlanarImageDesc output(destination->red, destination->green, destination->blue, destination->alpha,
-        static_cast<long>(destination->width), static_cast<long>(destination->height), output_depth,
-        static_cast<ptrdiff_t>(destination->x_stride), static_cast<ptrdiff_t>(destination->y_stride));
+    auto input = ocio_rs_planar_image(*source);
+    auto output = ocio_rs_planar_image(*destination);
     cpu->apply(input, output);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_cpu_processor_convert_mixed_image(void* handle, const OcioPackedBuffer* packed,
+    const ocio_planar_buffer* planar, bool packed_is_source) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)packed; (void)planar; (void)packed_is_source;
+  ocio_rs_bridge::capture_error_message("Mixed image conversion requires native OpenColorIO");
+#else
+  try {
+    if (!packed || !planar) throw std::invalid_argument("null image descriptor");
+    ocio_rs_check_packed_image(*packed);
+    ocio_rs_check_planar_image(*planar);
+    if (packed->width != planar->width || packed->height != planar->height)
+      throw std::invalid_argument("source and destination dimensions differ");
+    auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
+    const auto input_depth = static_cast<ocio::BitDepth>(packed_is_source ? packed->bit_depth : planar->bit_depth);
+    const auto output_depth = static_cast<ocio::BitDepth>(packed_is_source ? planar->bit_depth : packed->bit_depth);
+    if (cpu->getInputBitDepth() != input_depth || cpu->getOutputBitDepth() != output_depth)
+      throw std::invalid_argument("image bit depths must match processor input and output");
+    auto packed_desc = ocio_rs_packed_image(*packed);
+    auto planar_desc = ocio_rs_planar_image(*planar);
+    if (packed_is_source) cpu->apply(packed_desc, planar_desc);
+    else cpu->apply(planar_desc, packed_desc);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
