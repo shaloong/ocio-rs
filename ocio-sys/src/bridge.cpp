@@ -9110,10 +9110,12 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   void checkNextDefaultBinding() const {
     // The generic OCIO descriptor assigns bindings in insertion order across
     // both texture kinds, starting at its configured texture binding offset.
+    const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart())
+                        + resources->getNumTextures() + resources->getNum3DTextures();
+    if (next > std::numeric_limits<unsigned>::max())
+      throw ocio::Exception("Texture binding index overflow");
     if (!texture_callback) {
-      const auto next = resources->getTextureBindingStart() + resources->getNumTextures()
-                      + resources->getNum3DTextures();
-      if (std::find(used_bindings.begin(), used_bindings.end(), next) != used_bindings.end())
+      if (std::find(used_bindings.begin(), used_bindings.end(), static_cast<unsigned>(next)) != used_bindings.end())
         throw ocio::Exception("Duplicate custom texture binding");
     }
   }

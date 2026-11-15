@@ -2492,8 +2492,36 @@ fn rust_shader_texture_callback_checks_bindings_across_texture_types() {
     assert_eq!(desc.texture_shader_binding_index(0), Some(a));
     assert_eq!(desc.texture_3d_shader_binding_index(0), Some(b));
     assert_eq!(desc.texture_shader_binding_index(1), Some(added));
+    desc.try_set_descriptor_set_index(3, u32::MAX).unwrap();
+    assert!(desc
+        .add_texture_2d(
+            "overflow_texture",
+            "overflow_sampler",
+            1,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .is_err());
+    assert!(desc
+        .add_texture_3d(
+            "overflow_cube",
+            "overflow_cube_sampler",
+            1,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .is_err());
+    assert_eq!(desc.num_textures(), 2);
+    assert_eq!(desc.num_3d_textures(), 1);
     assert!(gpu
         .try_extract_with_texture_callback(&template, |_| Ok(String::new()), |_| Ok(Some(42)))
+        .is_err());
+    template.try_set_descriptor_set_index(3, u32::MAX).unwrap();
+    assert!(gpu
+        .try_extract_with_assembler(&template, |_| Ok(String::new()))
         .is_err());
 }
 

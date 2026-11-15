@@ -95,6 +95,13 @@ Windows; this does not establish hardware execution or full creator parity.
 
 ## Per-texture storage design
 
+For the library's custom descriptor, default binding calculation is checked
+before inserting a texture: an offset plus resource count that exceeds the
+native unsigned range returns an error instead of wrapping. This protection
+also applies when adding resources after extraction. It does not modify OCIO's
+generic native descriptor or arbitrary native creators; applications using
+those paths must choose binding ranges that cannot overflow.
+
 `try_extract_with_texture_control` chooses native descriptor storage or external
 storage independently for each registration, without copying external textures.
 It is opt-in; existing hooks keep their original callback timing and return
