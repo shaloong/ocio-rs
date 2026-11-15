@@ -1610,6 +1610,8 @@ fn texture_control_mixes_native_and_external_resources() {
         let seen = &creator.policy_mut().seen;
         assert_eq!(seen.len(), 2);
         let stored = seen[usize::from(external_first)].clone();
+        #[cfg(feature = "v2_5")]
+        let first_binding = seen[0].1.unwrap();
         let desc = creator.finish().unwrap();
         assert_eq!(desc.shader_text(), reference.shader_text());
         assert_eq!(desc.num_textures() + desc.num_3d_textures(), 1);
@@ -1631,6 +1633,32 @@ fn texture_control_mixes_native_and_external_resources() {
                 },
                 Some(binding)
             );
+        }
+        #[cfg(feature = "v2_5")]
+        {
+            let binding = desc
+                .add_texture_2d(
+                    "afterDetach",
+                    "afterDetachSampler",
+                    2,
+                    1,
+                    GpuTextureChannel::Rgb,
+                    GpuTextureDimensions::Texture2D,
+                    Interpolation::Linear,
+                    &[0., 0., 0., 1., 1., 1.],
+                )
+                .unwrap();
+            assert_eq!(binding, Some(first_binding + 2));
+            let binding = desc
+                .add_texture_3d(
+                    "afterDetach3d",
+                    "afterDetach3dSampler",
+                    2,
+                    Interpolation::Linear,
+                    &[0.0; 24],
+                )
+                .unwrap();
+            assert_eq!(binding, Some(first_binding + 3));
         }
     }
     for fail in [1, 2] {
@@ -1702,6 +1730,67 @@ fn texture_control_mixes_native_and_external_resources() {
             desc.texture_3d_shader_binding_index(0)
         };
         assert_eq!(binding, Some(43));
+        let policy = PersistentControl {
+            external_first: true,
+            seen: Vec::new(),
+            fail: 0,
+            binding_base: Some(3),
+        };
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &vk_template,
+            policy,
+            c"persistent-override-collision",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        let desc = creator.finish().unwrap();
+        let added = desc
+            .add_texture_3d(
+                "later3d",
+                "later3dSampler",
+                2,
+                Interpolation::Linear,
+                &[0.0; 24],
+            )
+            .unwrap();
+        assert_eq!(added, Some(5));
+        assert_eq!(
+            desc.texture_3d_shader_binding_index(desc.num_3d_textures() - 1),
+            Some(5)
+        );
+
+        let overflow_template = GpuShaderDesc::create().unwrap();
+        overflow_template
+            .set_language(GpuLanguage::GlslVk4_6)
+            .unwrap();
+        overflow_template
+            .try_set_descriptor_set_index(0, u32::MAX - 1)
+            .unwrap();
+        let policy = PersistentControl {
+            external_first: true,
+            seen: Vec::new(),
+            fail: 0,
+            binding_base: None,
+        };
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &overflow_template,
+            policy,
+            c"persistent-binding-overflow",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        let desc = creator.finish().unwrap();
+        let counts = (desc.num_textures(), desc.num_3d_textures());
+        assert!(desc
+            .add_texture_3d(
+                "overflow3d",
+                "overflow3dSampler",
+                2,
+                Interpolation::Linear,
+                &[0.0; 24]
+            )
+            .is_err());
+        assert_eq!((desc.num_textures(), desc.num_3d_textures()), counts);
     }
     for external_first in [false, true] {
         let mut seen = Vec::new();

@@ -9333,6 +9333,7 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   std::vector<unsigned> texture3d_bindings;
   std::vector<unsigned> used_bindings;
   uint64_t streamed_texture_count = 0;
+  bool has_external_texture = false;
 #endif
   unsigned controlTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
                           TextureType channel, int dimensions, ocio::Interpolation interpolation,
@@ -9379,17 +9380,19 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
     used_bindings.push_back(binding);
     return binding;
   }
-  void checkNextDefaultBinding() const {
-    // The generic OCIO descriptor assigns bindings in insertion order across
-    // both texture kinds, starting at its configured texture binding offset.
-    const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart())
-                        + resources->getNumTextures() + resources->getNum3DTextures();
-    if (next > std::numeric_limits<unsigned>::max())
-      throw ocio::Exception("Texture binding index overflow");
-    if (!texture_callback) {
-      if (std::find(used_bindings.begin(), used_bindings.end(), static_cast<unsigned>(next)) != used_bindings.end())
-        throw ocio::Exception("Duplicate custom texture binding");
+  unsigned nextDefaultBinding() const {
+    // External registrations consume binding slots even though the inner
+    // generic descriptor does not store them. Once callbacks are detached,
+    // continue from the larger count and avoid any explicit overrides.
+    const uint64_t stored = static_cast<uint64_t>(resources->getNumTextures()) + resources->getNum3DTextures();
+    uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + std::max(stored, streamed_texture_count);
+    while (next <= std::numeric_limits<unsigned>::max() &&
+           std::find(used_bindings.begin(), used_bindings.end(), static_cast<unsigned>(next)) != used_bindings.end()) {
+      if (!has_external_texture && !texture_callback) throw ocio::Exception("Duplicate custom texture binding");
+      ++next;
     }
+    if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
+    return static_cast<unsigned>(next);
   }
 #endif
 public:
@@ -9506,19 +9509,21 @@ public:
       bool store = true;
       const auto binding = recordBinding(controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, static_cast<unsigned>(next), store));
       if (store) { resources->addTexture(n, s, w, h, c, d, i, v); texture_bindings.push_back(binding); }
+      else has_external_texture = true;
       ++streamed_texture_count;
       return binding;
     }
     if (stream_textures) {
+      has_external_texture = true;
       const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
       if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
       const auto binding = recordBinding(notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, static_cast<unsigned>(next)));
       ++streamed_texture_count;
       return binding;
     }
-    checkNextDefaultBinding();
+    const auto next = nextDefaultBinding();
     const auto proposed = resources->addTexture(n, s, w, h, c, d, i, v);
-    const auto binding = recordBinding(notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, proposed));
+    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, proposed) : next);
     texture_bindings.push_back(binding);
     return binding;
   }
@@ -9531,19 +9536,21 @@ public:
       bool store = true;
       const auto binding = recordBinding(controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, static_cast<unsigned>(next), store));
       if (store) { resources->add3DTexture(n, s, e, i, v); texture3d_bindings.push_back(binding); }
+      else has_external_texture = true;
       ++streamed_texture_count;
       return binding;
     }
     if (stream_textures) {
+      has_external_texture = true;
       const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
       if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
       const auto binding = recordBinding(notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, static_cast<unsigned>(next)));
       ++streamed_texture_count;
       return binding;
     }
-    checkNextDefaultBinding();
+    const auto next = nextDefaultBinding();
     const auto proposed = resources->add3DTexture(n, s, e, i, v);
-    const auto binding = recordBinding(notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, proposed));
+    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, proposed) : next);
     texture3d_bindings.push_back(binding);
     return binding;
   }

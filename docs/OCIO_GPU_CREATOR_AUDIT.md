@@ -47,6 +47,8 @@ Windows; this does not establish hardware execution or full creator parity.
   controller in the same policy state. It may upload borrowed texels directly,
   select descriptor or external storage, and choose bindings where supported.
   External uploads are not rolled back on failure; the caller owns cleanup.
+  On OCIO 2.5+, later descriptor insertions account for external binding slots
+  and avoid previously assigned bindings; overflow is rejected before mutation.
   The manual Vulkan validation covers mixed external/retained 2D and 3D LUTs
   in both registration orders, including dynamic uniforms and explicit bindings.
 
