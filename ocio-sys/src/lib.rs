@@ -1653,6 +1653,10 @@ unsafe extern "C" {
         handle: *mut c_void,
         shaderCreator: *mut c_void,
     ) -> ();
+    pub fn ocio_gpu_shader_creator_from_desc(shader_desc: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_clone(creator: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_destroy(creator: *mut c_void);
+    pub fn ocio_gpu_processor_extract_owned_creator(processor: *mut c_void, creator: *mut c_void);
     pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_processor_extract_with_assembler(
         handle: *mut c_void,

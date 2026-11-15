@@ -672,6 +672,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("apply_planar_bytes", "try_apply_planar_bytes"),
         ("borrow_texture_values", "texture_values_ref"),
         ("extract_with_assembler", "try_extract_with_assembler"),
+        ("extract_owned_creator", "try_extract_to_creator"),
         ("extract_with_hooks", "try_extract_with_hooks"),
         (
             "extract_with_texture_policy",

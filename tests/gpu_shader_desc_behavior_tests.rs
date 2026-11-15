@@ -8,6 +8,35 @@
 mod common;
 use common::*;
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_creator_borrow_clone_and_extraction_preserve_ownership() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let transform = ocio_rs::transform::MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
+    let gpu = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.set_language(GpuLanguage::Glsl4_0).unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    let mut cloned = creator.try_clone_creator().unwrap();
+    gpu.try_extract_to_creator(&mut creator).unwrap();
+    drop(creator);
+    assert!(!desc.shader_text().unwrap().is_empty());
+    drop(desc);
+    gpu.try_extract_to_creator(&mut cloned).unwrap();
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn native_creator_borrow_reports_stub_unavailability() {
+    let mut desc = GpuShaderDesc::create().unwrap();
+    assert!(desc.try_borrow_creator().is_err());
+}
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
 use std::sync::{Mutex, MutexGuard, OnceLock};

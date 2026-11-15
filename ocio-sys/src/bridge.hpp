@@ -735,6 +735,10 @@ void* ocio_gpu_processor_get_cache_id(void* handle);
 void ocio_gpu_processor_extract_gpu_shader_info(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v1(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCreator);
+void* ocio_gpu_shader_creator_from_desc(void* shaderDesc);
+void* ocio_gpu_shader_creator_clone(void* creator);
+void ocio_gpu_shader_creator_destroy(void* creator);
+void ocio_gpu_processor_extract_owned_creator(void* processor, void* creator);
 void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);
 typedef bool (*ocio_shader_assemble_callback)(void* context, const char* parameters,
     const char* textures, const char* helpers, const char* header, const char* body, const char* footer,

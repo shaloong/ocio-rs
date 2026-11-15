@@ -9134,6 +9134,53 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
 #endif
 }
 
+void* ocio_gpu_shader_creator_from_desc(void* shaderDesc) {
+#ifdef OCIO_RS_STUB
+  (void)shaderDesc; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!shaderDesc) throw std::invalid_argument("null shader descriptor");
+    ocio::GpuShaderCreatorRcPtr creator = ocio_rs_bridge::get_real_gpu_shader_desc(shaderDesc);
+    if (!creator) throw std::invalid_argument("null native shader creator");
+    return new ocio::GpuShaderCreatorRcPtr(std::move(creator));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_gpu_shader_creator_clone(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto result = (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->clone();
+    if (!result) throw std::runtime_error("shader creator clone returned null");
+    return new ocio::GpuShaderCreatorRcPtr(std::move(result));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_creator_destroy(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator;
+#else
+  delete static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+#endif
+}
+
+void ocio_gpu_processor_extract_owned_creator(void* processor, void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!processor || !creator) throw std::invalid_argument("null processor or shader creator");
+    auto& native_creator = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    if (!native_creator) throw std::invalid_argument("null native shader creator");
+    ocio_rs_bridge::get_real_gpu_processor(processor)->extractGpuShaderInfo(native_creator);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

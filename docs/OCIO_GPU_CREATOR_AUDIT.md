@@ -11,8 +11,8 @@ Windows; this does not establish hardware execution or full creator parity.
 | Native operation | Current Rust surface | Remaining issue |
 | --- | --- | --- |
 | `GPUProcessor::extractGpuShaderInfo(GpuShaderDescRcPtr&)` | `GPUProcessor::try_extract_shader_info` | Behavioral tests cover representative transforms, not the full transform matrix. |
-| `GPUProcessor::extractGpuShaderInfo(GpuShaderCreatorRcPtr&)` | `try_extract_with_hooks`, `try_extract_with_streamed_textures`; unsafe native-creator interop | Hooks are backed by the library's own C++ subclass, not an arbitrary Rust implementation. |
-| `clone() const -> GpuShaderCreatorRcPtr` | `GpuShaderDesc::clone_desc` | Native base cloning does not reproduce every subclass resource; Rust cannot supply its own clone implementation. |
+| `GPUProcessor::extractGpuShaderInfo(GpuShaderCreatorRcPtr&)` | `GpuShaderDesc::try_borrow_creator`, `GPUProcessor::try_extract_to_creator`, extraction hooks and unsafe native interop | The typed handle retains OCIO shared ownership and exclusively borrows its descriptor. Hooks are not an arbitrary Rust implementation. |
+| `clone() const -> GpuShaderCreatorRcPtr` | `GpuShaderCreator::try_clone_creator`, `GpuShaderDesc::clone_desc` | This invokes the native virtual clone. OCIO's descriptor clone returns a generic descriptor and does not reproduce every subclass resource; Rust cannot yet supply its own clone implementation. |
 | Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters | Concrete descriptor access only; no custom creator implementation. |
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
 | `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |

@@ -2047,6 +2047,51 @@ pub struct GPUProcessor {
     handle: NonNull<c_void>,
 }
 
+/// A native OCIO shader creator with its real shared-ownership control block.
+///
+/// A creator borrowed from a descriptor holds an exclusive Rust borrow until
+/// dropped. Clones own their independently returned native creator. The type
+/// is thread-confined and does not yet implement Rust-defined subclasses.
+///
+/// ```compile_fail
+/// # use ocio_rs::GpuShaderDesc;
+/// # fn example(desc: &mut GpuShaderDesc) -> ocio_rs::Result<()> {
+/// let creator = desc.try_borrow_creator()?;
+/// let _text = desc.shader_text(); // descriptor remains exclusively borrowed
+/// drop(creator);
+/// # Ok(()) }
+/// ```
+///
+/// ```compile_fail
+/// # use ocio_rs::GpuShaderCreator;
+/// fn require_send<T: Send>() {}
+/// require_send::<GpuShaderCreator<'static>>();
+/// ```
+pub struct GpuShaderCreator<'a> {
+    handle: NonNull<c_void>,
+    _descriptor: std::marker::PhantomData<&'a mut GpuShaderDesc>,
+}
+
+impl GpuShaderCreator<'_> {
+    /// Invoke the native virtual `clone`. OCIO determines which state is copied;
+    /// in particular, cloning its descriptor implementation creates a generic
+    /// descriptor and may not preserve custom subclass resources or behavior.
+    pub fn try_clone_creator(&self) -> Result<GpuShaderCreator<'static>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_gpu_shader_creator_clone(self.handle.as_ptr()) };
+        Ok(GpuShaderCreator {
+            handle: crate::handle_result(handle)?,
+            _descriptor: std::marker::PhantomData,
+        })
+    }
+}
+
+impl Drop for GpuShaderCreator<'_> {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_gpu_shader_creator_destroy(self.handle.as_ptr()) }
+    }
+}
+
 /// Shader sections supplied by OCIO to a custom assembler during extraction.
 pub struct ShaderSections<'a> {
     /// Parameter declarations (or all declarations on OCIO 2.4), without a Vulkan uniform-block wrapper.
@@ -2371,6 +2416,18 @@ pub trait ShaderExtractionHooks {
 }
 
 impl GPUProcessor {
+    /// Extract through the native creator overload using shared ownership.
+    /// OCIO may leave partially generated state on failure.
+    pub fn try_extract_to_creator(&self, creator: &mut GpuShaderCreator<'_>) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_processor_extract_owned_creator(
+                self.handle.as_ptr(),
+                creator.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Extract a fresh descriptor while assembling its shader text in Rust.
     ///
     /// The template supplies language, resource names, binding settings and
@@ -4257,6 +4314,16 @@ pub struct GpuUniform {
 }
 
 impl GpuShaderDesc {
+    /// Borrow this descriptor as a native shader creator using OCIO shared ownership.
+    /// The descriptor cannot be accessed until the returned creator is dropped.
+    pub fn try_borrow_creator(&mut self) -> Result<GpuShaderCreator<'_>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_gpu_shader_creator_from_desc(self.handle.as_ptr()) };
+        Ok(GpuShaderCreator {
+            handle: crate::handle_result(handle)?,
+            _descriptor: std::marker::PhantomData,
+        })
+    }
     /// Captures the current uniform getters for repeated reads without bridge allocations.
     ///
     /// Extract shader information before calling this method. Drop the cache
