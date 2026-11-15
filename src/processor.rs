@@ -2241,6 +2241,17 @@ pub trait ShaderUniformControl: ShaderExtractionHooks {
     ) -> Result<ShaderUniformAction>;
 }
 
+/// Optional synchronous replacement for OCIO's native shader finalization stage.
+///
+/// Callbacks are detached when extraction returns; later descriptor operations
+/// use the native implementation and do not call this object.
+pub trait ShaderFinalizeControl: ShaderUniformControl {
+    /// Return complete shader text to bypass OCIO's language wrapping and
+    /// finalization, or `None` to delegate to OCIO. The implementation may
+    /// collect the raw fragments delivered by [`ShaderExtractionHooks::code`].
+    fn finalize_shader(&mut self) -> Result<Option<String>>;
+}
+
 /// Lifecycle stages of a native shader-creator extraction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShaderLifecycle<'a> {
@@ -2367,6 +2378,7 @@ impl GPUProcessor {
             false,
             &mut |_, _| Ok(None),
             false,
+            None,
         )
     }
 
@@ -2417,6 +2429,7 @@ impl GPUProcessor {
             false,
             &mut |_, _| Ok(None),
             false,
+            None,
         )
     }
 
@@ -2468,6 +2481,7 @@ impl GPUProcessor {
             false,
             &mut |_, _| Ok(None),
             false,
+            None,
         )
     }
 
@@ -2522,6 +2536,7 @@ impl GPUProcessor {
             true,
             &mut |_, _| Ok(None),
             false,
+            None,
         )
     }
 
@@ -2552,6 +2567,7 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
         )
     }
 
@@ -2604,6 +2620,7 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
         )
     }
 
@@ -2637,6 +2654,7 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
         )
     }
 
@@ -2675,6 +2693,7 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
         )
     }
 
@@ -2715,6 +2734,7 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
         )
     }
 
@@ -2765,6 +2785,61 @@ impl GPUProcessor {
             true,
             &mut |section, code| hooks.borrow_mut().code(section, code),
             true,
+            None,
+        )
+    }
+
+    /// Extract with independent texture/uniform storage and optional custom finalization.
+    ///
+    /// A custom finalizer receives control before OCIO performs its language
+    /// wrapping. It must return a complete shader, including any required
+    /// declarations and language-specific wrappers. Returning `None` delegates
+    /// finalization and assembly to the ordinary native path. This control is
+    /// scoped to the extraction and is not retained by the returned descriptor.
+    /// Finalizer errors
+    /// and panics abort extraction; already-created external resources remain
+    /// the caller's responsibility. Do not reenter extraction from callbacks.
+    pub fn try_extract_with_finalize_control<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        cache_id_override: Option<&std::ffi::CStr>,
+        mut texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderFinalizeControl,
+        T: FnMut(ShaderTexture<'_>) -> Result<ShaderTextureAction>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        let storage = std::cell::Cell::new(true);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        let mut finalizer = || hooks.borrow_mut().finalize_shader();
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            Some(&storage),
+            cache_id_override,
+            &mut registration,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |event| match texture(event)? {
+                ShaderTextureAction::StoreInDescriptor { binding } => {
+                    storage.set(true);
+                    Ok(binding)
+                }
+                ShaderTextureAction::External { binding } => {
+                    storage.set(false);
+                    Ok(binding)
+                }
+            },
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+            Some(&mut finalizer),
         )
     }
 
@@ -2786,6 +2861,7 @@ impl GPUProcessor {
         notify_lifecycle: bool,
         code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
         notify_code: bool,
+        mut finalizer: Option<&mut dyn FnMut() -> Result<Option<String>>>,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -2800,9 +2876,58 @@ impl GPUProcessor {
             code: &'a mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
             registration:
                 &'a mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
+            finalizer: Option<&'a mut dyn FnMut() -> Result<Option<String>>>,
             output: Option<std::ffi::CString>,
             code_output: Option<std::ffi::CString>,
+            finalizer_output: Option<std::ffi::CString>,
             error: Option<OcioError>,
+        }
+        unsafe extern "C" fn finalize_callback<F, G>(
+            context: *mut c_void,
+            output: *mut *const i8,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || -> Result<Option<std::ffi::CString>> {
+                    if output.is_null() {
+                        return Err(OcioError::InvalidInput(
+                            "null shader finalizer output".into(),
+                        ));
+                    }
+                    state.finalizer.as_mut().ok_or_else(|| {
+                        OcioError::InvalidInput("missing shader finalizer".into())
+                    })?()?
+                    .map(std::ffi::CString::new)
+                    .transpose()
+                    .map_err(|_| OcioError::InteriorNul)
+                },
+            ));
+            match result {
+                Ok(Ok(value)) => {
+                    state.finalizer_output = value;
+                    unsafe {
+                        *output = state
+                            .finalizer_output
+                            .as_ref()
+                            .map_or(std::ptr::null(), |s| s.as_ptr());
+                    }
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("shader finalizer panicked".into())
+                    });
+                    false
+                }
+            }
         }
         unsafe extern "C" fn code_callback<F, G>(
             context: *mut c_void,
@@ -3199,6 +3324,7 @@ impl GPUProcessor {
                 }
             }
         }
+        let has_finalizer = finalizer.is_some();
         let mut state = State {
             function: &mut assemble,
             texture: &mut texture,
@@ -3207,8 +3333,12 @@ impl GPUProcessor {
             lifecycle,
             code,
             registration,
+            finalizer: finalizer
+                .as_mut()
+                .map(|f| &mut **f as &mut dyn FnMut() -> Result<Option<String>>),
             output: None,
             code_output: None,
+            finalizer_output: None,
             error: None,
         };
         crate::clear_last_error();
@@ -3220,7 +3350,21 @@ impl GPUProcessor {
             } else {
                 ocio_sys::ocio_gpu_processor_extract_with_hooks
             };
-            if texture_storage.is_some() {
+            if has_finalizer {
+                ocio_sys::ocio_gpu_processor_extract_with_finalize_control(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    texture_control_callback::<F, G>,
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    has_registration.then_some(registration_callback::<F, G>),
+                    finalize_callback::<F, G>,
+                    cache_id_override.map_or(std::ptr::null(), |id| id.as_ptr()),
+                    context,
+                )
+            } else if texture_storage.is_some() {
                 ocio_sys::ocio_gpu_processor_extract_with_texture_control(
                     self.handle.as_ptr(),
                     template.handle.as_ptr(),

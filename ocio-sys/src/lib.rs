@@ -1672,6 +1672,46 @@ unsafe extern "C" {
         stream_textures: bool,
         context: *mut c_void,
     ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_finalize_control(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        finalize: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+        cache_id_override: *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
     pub fn ocio_gpu_processor_extract_with_texture_control(
         handle: *mut c_void,
         template_desc: *mut c_void,

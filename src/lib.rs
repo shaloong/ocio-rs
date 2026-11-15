@@ -145,9 +145,9 @@ pub use processor::{
     SignedPlanarBytes, SignedPlanarBytesMut, StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
-    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderLifecycle,
-    ShaderSections, ShaderTexture, ShaderTextureAction, ShaderUniform, ShaderUniformAction,
-    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
+    ShaderLifecycle, ShaderSections, ShaderTexture, ShaderTextureAction, ShaderUniform,
+    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
 };
 pub use processor_metadata::{ConstProcessorMetadata, ProcessorMetadata};
 pub use types::*;

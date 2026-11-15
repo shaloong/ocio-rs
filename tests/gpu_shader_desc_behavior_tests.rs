@@ -28,6 +28,158 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_finalize_can_replace_native_stage_or_delegate_and_cleans_up() {
+    use ocio_rs::{
+        OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,
+        ShaderTextureAction, ShaderUniformAction, ShaderUniformControl, ShaderUniformRegistration,
+    };
+    struct Hooks {
+        mode: u8,
+        events: Vec<&'static str>,
+        assembled: bool,
+    }
+    impl ShaderExtractionHooks for Hooks {
+        fn lifecycle(&mut self, event: ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+            self.events.push(match event {
+                ShaderLifecycle::Begin { .. } => "begin",
+                ShaderLifecycle::Finalized => "finalized",
+                ShaderLifecycle::End => "end",
+            });
+            Ok(())
+        }
+        fn assemble(&mut self, _: ocio_rs::ShaderSections<'_>) -> ocio_rs::Result<Option<String>> {
+            self.assembled = true;
+            Ok(None)
+        }
+    }
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    impl ShaderFinalizeControl for Hooks {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            self.events.push("custom-finalize");
+            match self.mode {
+                0 => Ok(None),
+                1 => Ok(Some("// complete custom shader\n".into())),
+                2 => Err(OcioError::InvalidInput("finalizer rejected".into())),
+                3 => panic!("intentional finalizer panic"),
+                _ => Ok(Some("bad\0shader".into())),
+            }
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let matrix = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&matrix, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut reference = GpuShaderDesc::create().unwrap();
+    gpu.try_extract_shader_info(&mut reference).unwrap();
+    for mode in 0..=4 {
+        let mut hooks = Hooks {
+            mode,
+            events: Vec::new(),
+            assembled: false,
+        };
+        let result = gpu.try_extract_with_finalize_control(&template, &mut hooks, None, |_| {
+            Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+        });
+        match mode {
+            0 => {
+                let desc = result.unwrap();
+                assert_eq!(desc.shader_text(), reference.shader_text());
+                assert!(hooks.assembled);
+                assert_eq!(
+                    hooks.events,
+                    ["begin", "custom-finalize", "finalized", "end"]
+                );
+            }
+            1 => {
+                let desc = result.unwrap();
+                assert_eq!(
+                    desc.shader_text().as_deref(),
+                    Some("// complete custom shader\n")
+                );
+                desc.finalize().unwrap();
+                assert_ne!(
+                    desc.shader_text().as_deref(),
+                    Some("// complete custom shader\n")
+                );
+                assert!(!hooks.assembled);
+                assert_eq!(
+                    hooks.events,
+                    ["begin", "custom-finalize", "finalized", "end"]
+                );
+            }
+            2 => assert!(
+                matches!(result, Err(OcioError::InvalidInput(ref e)) if e == "finalizer rejected")
+            ),
+            3 => assert!(
+                matches!(result, Err(OcioError::InvalidInput(ref e)) if e.contains("panicked"))
+            ),
+            _ => assert!(matches!(result, Err(OcioError::InteriorNul))),
+        }
+        if mode >= 2 {
+            assert_eq!(hooks.events, ["begin", "custom-finalize", "end"]);
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn failed_custom_finalize_keeps_transferred_uniform_getter_alive() {
+    use ocio_rs::{
+        OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderTextureAction,
+        ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    };
+    #[derive(Default)]
+    struct Hooks(Option<ShaderUniformGetter>);
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            value: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.0 = Some(value.getter);
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    impl ShaderFinalizeControl for Hooks {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            Err(OcioError::InvalidInput("finalize failed".into()))
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut hooks = Hooks::default();
+    let result = gpu.try_extract_with_finalize_control(&template, &mut hooks, None, |_| {
+        Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+    });
+    assert!(matches!(result, Err(OcioError::InvalidInput(ref e)) if e == "finalize failed"));
+    drop(gpu);
+    drop(template);
+    assert_eq!(hooks.0.as_mut().unwrap().double().unwrap(), Some(0.5));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn texture_control_mixes_native_and_external_resources() {
     use ocio_rs::{
         ShaderExtractionHooks, ShaderTextureAction, ShaderUniformAction, ShaderUniformControl,

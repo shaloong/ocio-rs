@@ -14,7 +14,7 @@ the bridge selects the native ABI separately.
 | Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters | Concrete descriptor access only; no custom creator implementation. |
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
 | `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id`; fixed custom ID via `ShaderCreatorOptions` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override. |
-| `begin(uid)`, `finalize()`, `end()` | Descriptor methods; synchronous `ShaderExtractionHooks::lifecycle` notifications | Hooks observe lifecycle but do not replace native methods. |
+| `begin(uid)`, `finalize()`, `end()` | Lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization | Begin/end remain notifications; this is not full native subclassing. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Descriptor getters/setters and extraction template | Cannot implement these virtual methods independently in Rust. |
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
@@ -39,6 +39,11 @@ the bridge selects the native ABI separately.
   creator. Native `end` is called after a successful `begin` even when extraction
   fails with an OCIO exception; a failing `begin` does not receive `end`.
   Do not reenter extraction on the same processor from a callback.
+- A custom finalizer sees control before OCIO's language-specific wrapper is
+  applied. It must assemble any required declarations and wrapper itself; `None`
+  retains native finalization. Its callback is synchronous and is detached on
+  success and failure, including when an external uniform getter outlives the
+  returned descriptor or a failed extraction.
 - The 2.4 and 2.5+ virtual method ABIs differ. Test both actual native versions,
   not only a feature flag against one build, and compare generated shader and
   resources with OCIO's native descriptor. Cover failure, duplicate resources,

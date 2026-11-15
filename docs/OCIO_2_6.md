@@ -122,6 +122,10 @@ Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
 registration notifications, and creator lifecycle notifications are supported.
 Default hook assembly delegates to OCIO, including its Vulkan uniform block.
 An overridden assembler must supply its own required language-specific wrapping.
+`ShaderFinalizeControl` can instead replace the earlier native finalization
+stage; implementations returning custom text are responsible for complete
+language-specific declarations and wrappers, and returning `None` delegates to
+OCIO. It does not provide a complete native creator subclass.
 `GPUProcessor::try_extract_with_streamed_textures` permits uploading native
 LUT data during extraction without retaining a descriptor-owned copy. Its sink
 must own or upload the data before returning; the resulting descriptor does
