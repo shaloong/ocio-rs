@@ -10615,10 +10615,32 @@ void* ocio_baker_get_config(void* handle) {
     auto result = ocio_rs_bridge::get_real_baker(handle)->getConfig();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::Config>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{result_unconst});
+    out_handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{result->createEditableCopy()});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_baker_get_const_config(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  return nullptr;
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_baker(handle)->getConfig();
+    return result ? new ocio::ConstConfigRcPtr(std::move(result)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_baker_set_const_config(void* handle, void* config) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config;
+#else
+  try {
+    if (!handle || !config) throw std::invalid_argument("null baker or config");
+    ocio_rs_bridge::get_real_baker(handle)->setConfig(*static_cast<ocio::ConstConfigRcPtr*>(config));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 

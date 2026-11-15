@@ -66,6 +66,33 @@ fn baker_property_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_configuration_isolation_and_shared_const_lifetime() {
+    let _guard = baker_test_lock();
+    let source = Config::raw().unwrap().create_editable_copy().unwrap();
+    source.set_name("original").unwrap();
+    let baker = Baker::create().unwrap();
+    assert!(baker.const_config().unwrap().is_none());
+    baker.set_config(&source).unwrap();
+    source.set_name("source changed").unwrap();
+
+    let shared = baker.const_config().unwrap().unwrap();
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    let editable = baker.config().unwrap();
+    editable.set_name("editable changed").unwrap();
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    assert_eq!(baker.config().unwrap().name().as_deref(), Some("original"));
+
+    let other = Baker::create().unwrap();
+    other.set_const_config(&shared).unwrap();
+    assert_eq!(other.config().unwrap().name().as_deref(), Some("original"));
+    baker.set_config(&source).unwrap();
+    drop(baker);
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    assert_eq!(other.config().unwrap().name().as_deref(), Some("original"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_static_format_registry_contains_resolve_cube_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {

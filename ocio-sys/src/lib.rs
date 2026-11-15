@@ -2006,6 +2006,8 @@ unsafe extern "C" {
     pub fn ocio_baker_create() -> *mut c_void;
     pub fn ocio_baker_destroy(handle: *mut c_void);
     pub fn ocio_baker_get_config(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_get_const_config(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_set_const_config(handle: *mut c_void, config: *mut c_void);
     pub fn ocio_baker_set_config(handle: *mut c_void, config: *mut c_void) -> ();
     pub fn ocio_baker_get_format(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_baker_set_format(handle: *mut c_void, formatName: *const i8) -> ();

@@ -919,6 +919,8 @@ void* ocio_baker_create_editable_copy(void* handle);
 void ocio_baker_destroy(void* handle);
 
 void* ocio_baker_get_config(void* handle);
+void* ocio_baker_get_const_config(void* handle);
+void ocio_baker_set_const_config(void* handle, void* config);
 void ocio_baker_set_config(void* handle, void* config);
 void* ocio_baker_get_format(void* handle);
 void ocio_baker_set_format(void* handle, const char* formatName);

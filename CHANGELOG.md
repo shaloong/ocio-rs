@@ -9,6 +9,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Breaking safety changes
 
+- `Baker::config` now returns an independent editable copy instead of a
+  mutable alias to OCIO's read-only internal config. `Baker::const_config`
+  shares the read-only native configuration without that copy.
 - Installing or resetting the process-global compute-hash callback is now
   `unsafe`: OCIO does not synchronize hash function replacement with file hashing,
   so callers must ensure process-wide exclusion during updates.

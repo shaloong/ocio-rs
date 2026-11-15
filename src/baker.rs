@@ -4,7 +4,8 @@ use std::io::Write;
 use std::ptr::NonNull;
 
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, Config, FormatMetadata, OcioError, Result,
+    cstr_from_mut, cstr_to_opt_string, cstring, Config, ConstConfig, FormatMetadata, OcioError,
+    Result,
 };
 use ocio_sys;
 
@@ -37,11 +38,30 @@ impl Baker {
         crate::ocio_call_status()
     }
 
-    /// Get the config currently attached to this baker.
+    /// Get an independent editable copy of the config attached to this baker.
+    /// Use [`Self::const_config`] to share the native read-only config instead.
     pub fn config(&self) -> Result<Config> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_baker_get_config(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Config { handle })
+    }
+
+    /// Share the native read-only configuration without an editable deep copy.
+    /// The returned configuration remains alive if the baker is changed or dropped.
+    pub fn const_config(&self) -> Result<Option<ConstConfig>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_baker_get_const_config(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConstConfig { handle }))
+    }
+
+    /// Attach a shared read-only configuration. OCIO stores an editable copy.
+    pub fn set_const_config(&self, config: &ConstConfig) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_baker_set_const_config(self.handle.as_ptr(), config.handle.as_ptr())
+        };
+        crate::ocio_call_status()
     }
 
     /// Get the output format name (e.g. `"resolve_cube"`).
