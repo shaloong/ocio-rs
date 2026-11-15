@@ -6,6 +6,8 @@ The [GPU creator signature-family audit](OCIO_GPU_CREATOR_AUDIT.md) records
 the current mappings and the gaps in custom creator ownership and callbacks.
 The [grading curve signature-family audit](OCIO_GRADING_CURVE_AUDIT.md) tracks
 its overloads, ownership, and outstanding read-only access.
+The [global API audit](OCIO_GLOBAL_API_AUDIT.md) maps the global declarations
+and records remaining validation limitations.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the
@@ -96,6 +98,8 @@ transform, display/view, color-space objects, or named transforms (by name or
 object). Static processors retain OCIO
 caching; dynamic processors are rebuilt from an independent config copy to
 avoid sharing mutable properties.
+They may also be installed as the current configuration directly; OCIO makes
+its own independent copy when installing either editable or read-only inputs.
 An individual context variable can be removed without clearing the others;
 config and context IO proxies can also be detached while separately retained
 proxy handles remain usable.

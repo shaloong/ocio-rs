@@ -356,6 +356,17 @@ pub fn try_set_current_config(config: &Config) -> Result<()> {
     ocio_call_status()
 }
 
+/// Install a shared read-only config as the process-global current config.
+///
+/// This passes the existing native handle directly; OCIO itself creates an
+/// independent editable copy when installing it. See [`current_config`] for
+/// the process-global threading considerations.
+pub fn try_set_const_current_config(config: &ConstConfig) -> Result<()> {
+    clear_last_error();
+    unsafe { ocio_sys::ocio_set_const_current_config(config.handle.as_ptr()) };
+    ocio_call_status()
+}
+
 /// Clears OCIO's process-global caches.
 ///
 /// This is mainly useful in tests and tooling that intentionally mutate config

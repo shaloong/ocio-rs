@@ -169,6 +169,7 @@ void* ocio_const_config_get_processor_named(void* handle, void* context, const c
 void* ocio_const_config_get_processor_spaces(void* handle, void* context, void* source, void* destination);
 void* ocio_const_config_get_processor_named_object(void* handle, void* context, void* named, int direction);
 void ocio_set_current_config(void* config);
+void ocio_set_const_current_config(void* config);
 void ocio_clear_all_caches(void);
 
 // --- BuiltinConfigRegistry ---

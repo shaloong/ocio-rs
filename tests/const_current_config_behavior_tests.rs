@@ -1,4 +1,7 @@
-use ocio_rs::{try_const_current_config, try_current_config, try_set_current_config, Config};
+use ocio_rs::{
+    try_const_current_config, try_current_config, try_set_const_current_config,
+    try_set_current_config, Config,
+};
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
@@ -124,6 +127,27 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
             .unwrap()
             .as_deref(),
         Some("second-global")
+    );
+    try_set_const_current_config(&shared).unwrap();
+    assert_eq!(
+        try_const_current_config()
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first-global")
+    );
+    second.set_name("modified-second").unwrap();
+    assert_eq!(shared.name().unwrap().as_deref(), Some("first-global"));
+    assert_eq!(
+        try_const_current_config()
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first-global")
     );
 
     // A shared global config may be queried independently by other threads.

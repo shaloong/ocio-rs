@@ -1985,6 +1985,17 @@ void ocio_set_current_config(void* config) {
 #endif
 }
 
+void ocio_set_const_current_config(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+#else
+  try {
+    if (!config) throw std::invalid_argument("invalid const current config");
+    ocio::SetCurrentConfig(*static_cast<ocio::ConstConfigRcPtr*>(config));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_clear_all_caches(void) {
 #ifdef OCIO_RS_STUB
 #else

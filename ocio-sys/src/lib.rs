@@ -416,6 +416,7 @@ unsafe extern "C" {
     // --- Global config ---
     pub fn ocio_get_current_config() -> *mut c_void;
     pub fn ocio_set_current_config(config: *mut c_void);
+    pub fn ocio_set_const_current_config(config: *mut c_void);
     pub fn ocio_clear_all_caches();
 
     // --- BuiltinConfigRegistry ---
