@@ -55,6 +55,67 @@ fn invalid_texture_max_width_is_rejected_without_changing_descriptor() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn lut_texture_layout_preflight_detects_native_padding_underflow() {
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    for width in [2, 3, 4, 16, 64, 4096] {
+        desc.set_texture_max_width(width).unwrap();
+        assert!(desc
+            .validate_lut_texture_layout((2 * width - 1) as usize)
+            .is_err());
+        assert!(desc
+            .validate_lut_texture_layout((width - 1).max(2) as usize)
+            .is_ok());
+    }
+    assert!(desc.validate_lut_texture_layout(0).is_err());
+    assert!(desc.validate_lut_texture_layout(1).is_err());
+    let _ = desc.validate_lut_texture_layout(usize::MAX);
+
+    // Compare the closed-form check against the native padding loop for
+    // small inputs, without invoking its potentially unbounded allocation.
+    for width in 2..=32usize {
+        desc.set_texture_max_width(width as u32).unwrap();
+        for length in 2..=128usize {
+            let texture_width = length.min(width);
+            let height = length / width + 1;
+            let mut produced = length;
+            if height > 1 {
+                let mut i = 0;
+                while i < length - (texture_width - 1) {
+                    produced += 1;
+                    i += texture_width - 1;
+                }
+            }
+            assert_eq!(
+                desc.validate_lut_texture_layout(length).is_ok(),
+                produced <= texture_width * height,
+                "width={width}, length={length}"
+            );
+        }
+    }
+
+    // A safe packed layout still extracts normally.
+    desc.set_texture_max_width(4).unwrap();
+    desc.validate_lut_texture_layout(5).unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(5).unwrap();
+    lut.set_values(&[
+        0., 0., 0., 0.1, 0.2, 0.3, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1., 1., 1.,
+    ])
+    .unwrap();
+    let config = ocio_rs::Config::raw().unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = desc;
+    gpu.try_extract_shader_info(&mut desc).unwrap();
+    assert!(desc.num_textures() > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_finalize_can_replace_native_stage_or_delegate_and_cleans_up() {
     use ocio_rs::{
         OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,

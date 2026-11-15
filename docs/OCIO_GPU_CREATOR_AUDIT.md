@@ -35,6 +35,10 @@ the bridge selects the native ABI separately.
   the calculated storage size is smaller than the padded data, so an unsigned
   subtraction underflows. Prefer a maximum width at least as large as the LUT;
   that workaround does not establish safety for arbitrary generated LUTs.
+  `GpuShaderDesc::validate_lut_texture_layout` checks a known LUT length against
+  the native padding calculation and native arithmetic limits, without generating
+  the shader. It is not automatic: optimization may create or change LUTs, and
+  the public GPU processor API does not expose the resulting operation list.
   Fixing or safely preflighting all packed LUTs requires further work.
 
 - `ShaderUniformControl` can decide registration results and own or delegate

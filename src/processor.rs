@@ -4319,6 +4319,50 @@ impl GpuShaderDesc {
         crate::ocio_call_status()
     }
 
+    /// Check whether a known 1D LUT length fits OCIO's packed texture layout.
+    ///
+    /// OCIO 2.4–2.6 may underflow its padding count for some combinations of
+    /// LUT length and maximum width. This check detects those combinations
+    /// before extraction. It only checks the supplied length: optimization or
+    /// other operations can introduce LUTs with different lengths, so success
+    /// does not establish that an arbitrary GPU processor is safe to extract.
+    /// A caller must validate every LUT length that reaches native extraction.
+    pub fn validate_lut_texture_layout(&self, length: usize) -> Result<()> {
+        if length < 2 {
+            return Err(OcioError::InvalidInput(
+                "LUT length must be at least 2".into(),
+            ));
+        }
+        let maximum = u128::from(self.try_texture_max_width()?);
+        if maximum < 2 {
+            return Err(OcioError::InvalidInput(
+                "texture maximum width must be at least 2".into(),
+            ));
+        }
+        let length = length as u128;
+        let width = length.min(maximum);
+        let height = length / maximum + 1;
+        // OCIO uses unsigned long for dimensions and RGB indexing, which is
+        // only 32 bits on Windows even in a 64-bit process.
+        let native_limit = std::os::raw::c_ulong::MAX as u128;
+        if length > native_limit / 3 || width * height > native_limit / 3 {
+            return Err(OcioError::InvalidInput(
+                "LUT texture layout exceeds native arithmetic limits".into(),
+            ));
+        }
+        let padded = if height > 1 {
+            length + (length - 1) / (width - 1)
+        } else {
+            length
+        };
+        if padded > width * height {
+            return Err(OcioError::InvalidInput(
+                "OpenColorIO LUT texture padding exceeds its allocated layout".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Controls whether OCIO may use native 1D textures instead of always promoting to 2D.
     pub fn set_allow_texture_1d(&self, allowed: bool) -> Result<()> {
         crate::clear_last_error();
