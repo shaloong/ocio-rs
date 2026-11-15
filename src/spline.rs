@@ -76,6 +76,20 @@ pub struct SharedGradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl SharedGradingRGBCurve {
+    /// Read a child slope in one bridge call without allocating a spline handle.
+    pub fn slope(&self, kind: crate::RGBCurveType, index: usize) -> Result<f32> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_slope(
+                self.handle.as_ptr(),
+                kind as i32,
+                index,
+                false,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
     /// Compare using OCIO's native equality semantics without deep copying.
     pub fn equals(&self, other: &Self) -> Result<bool> {
         crate::clear_last_error();
@@ -182,6 +196,20 @@ pub struct SharedGradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl SharedGradingHueCurve {
+    /// Read a child slope in one bridge call without allocating a spline handle.
+    pub fn slope(&self, kind: crate::HueCurveType, index: usize) -> Result<f32> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_slope(
+                self.handle.as_ptr(),
+                kind as i32,
+                index,
+                true,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
     /// Compare using OCIO's native equality semantics without deep copying.
     pub fn equals(&self, other: &Self) -> Result<bool> {
         crate::clear_last_error();
