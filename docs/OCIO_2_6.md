@@ -8,6 +8,8 @@ The [grading curve signature-family audit](OCIO_GRADING_CURVE_AUDIT.md) tracks
 its overloads, ownership, and outstanding read-only access.
 The [global API audit](OCIO_GLOBAL_API_AUDIT.md) maps the global declarations
 and records remaining validation limitations.
+The [config IO proxy audit](OCIO_CONFIG_IO_PROXY_AUDIT.md) maps its virtual
+signatures, ownership, and byte-oriented access.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the
