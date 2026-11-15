@@ -637,14 +637,17 @@ fn planar_strides_preserve_padding_and_reject_overflow() {
         x_stride: 2,
         y_stride: 5,
     };
-    let mut r = [1., 99., 2., 99., 99., 3., 99., 4.];
-    let mut g = [1., 99., 2., 99., 99., 3., 99., 4.];
-    let mut b = [1., 99., 2., 99., 99., 3., 99., 4.];
+    let mut r = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
+    let mut g = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
+    let mut b = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
+    assert!(cpu
+        .try_apply_planar_strided_f32(&mut r[..8], &mut g, &mut b, None, layout)
+        .is_err());
     cpu.try_apply_planar_strided_f32(&mut r, &mut g, &mut b, None, layout)
         .unwrap();
-    assert_eq!(r, [2., 99., 4., 99., 99., 6., 99., 8.]);
-    assert_eq!(g, [1., 99., 2., 99., 99., 3., 99., 4.]);
-    assert_eq!(b, [0.5, 99., 1., 99., 99., 1.5, 99., 2.]);
+    assert_eq!(r, [2., 99., 4., 99., 99., 6., 99., 8., 99.]);
+    assert_eq!(g, [1., 99., 2., 99., 99., 3., 99., 4., 99.]);
+    assert_eq!(b, [0.5, 99., 1., 99., 99., 1.5, 99., 2., 99.]);
     assert!(cpu
         .try_apply_planar_strided_f32(
             &mut r,
@@ -697,14 +700,17 @@ fn planar_u8_uses_explicit_native_cpu_bit_depth() {
         y_stride: 5,
         bit_depth: BitDepth::Uint8,
     };
-    let mut red = [50, 255, 100, 255, 255, 25, 255, 60];
-    let mut green = [40, 255, 50, 255, 255, 60, 255, 70];
-    let mut blue = [100, 255, 200, 255, 255, 40, 255, 80];
+    let mut red = [50, 255, 100, 255, 255, 25, 255, 60, 255];
+    let mut green = [40, 255, 50, 255, 255, 60, 255, 70, 255];
+    let mut blue = [100, 255, 200, 255, 255, 40, 255, 80, 255];
+    assert!(cpu
+        .try_apply_planar_bytes(&mut red[..8], &mut green, &mut blue, None, layout)
+        .is_err());
     cpu.try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, layout)
         .unwrap();
-    assert_eq!(red, [100, 255, 200, 255, 255, 50, 255, 120]);
-    assert_eq!(green, [40, 255, 50, 255, 255, 60, 255, 70]);
-    assert_eq!(blue, [50, 255, 100, 255, 255, 20, 255, 40]);
+    assert_eq!(red, [100, 255, 200, 255, 255, 50, 255, 120, 255]);
+    assert_eq!(green, [40, 255, 50, 255, 255, 60, 255, 70, 255]);
+    assert_eq!(blue, [50, 255, 100, 255, 255, 20, 255, 40, 255]);
     let incorrect = PlanarByteLayout {
         bit_depth: BitDepth::F32,
         x_stride: 4,

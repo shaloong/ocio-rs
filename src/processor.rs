@@ -639,6 +639,9 @@ pub struct PlanarF32Layout {
 }
 
 /// Positive byte strides and native channel bit depth for a planar image.
+///
+/// Each plane must include the full final pixel stride, even when the last
+/// sample itself occupies fewer bytes than `x_stride`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanarByteLayout {
     /// Number of pixels per row.
@@ -904,10 +907,8 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     {
         return Err(invalid());
     }
-    let row_span = (width - 1)
-        .checked_mul(x_stride)
-        .and_then(|n| n.checked_add(size))
-        .ok_or_else(invalid)?;
+    // Generic OCIO packing advances the pointer after the final sample.
+    let row_span = width.checked_mul(x_stride).ok_or_else(invalid)?;
     if x_stride > y_stride / width {
         return Err(invalid());
     }
@@ -1305,6 +1306,8 @@ impl CPUProcessor {
     ///
     /// All pointers and strides must be aligned for the selected storage type.
     /// The binding validates the layout and passes the original buffers to OCIO.
+    /// Each plane must include a full pixel stride after the last sample so
+    /// OCIO's final pointer increment stays within or one past the slice.
     pub fn try_apply_planar_bytes(
         &self,
         red: &mut [u8],
@@ -1313,47 +1316,10 @@ impl CPUProcessor {
         alpha: Option<&mut [u8]>,
         layout: PlanarByteLayout,
     ) -> Result<()> {
-        let PlanarByteLayout {
-            width,
-            height,
-            x_stride,
-            y_stride,
-            bit_depth,
-        } = layout;
-        let size = bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_bytes", bit_depth)?;
-        let invalid =
-            || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
-        if width == 0
-            || height == 0
-            || x_stride < size
-            || !x_stride.is_multiple_of(size)
-            || !y_stride.is_multiple_of(size)
-        {
-            return Err(invalid());
-        }
-        let row_span = (width - 1)
-            .checked_mul(x_stride)
-            .and_then(|n| n.checked_add(size))
-            .ok_or_else(invalid)?;
-        if x_stride > y_stride / width {
-            return Err(invalid());
-        }
-        let required = (height - 1)
-            .checked_mul(y_stride)
-            .and_then(|n| n.checked_add(row_span))
-            .ok_or_else(invalid)?;
-        for plane in [&*red, &*green, &*blue].into_iter().chain(alpha.as_deref()) {
-            if plane.len() < required || !(plane.as_ptr() as usize).is_multiple_of(size) {
-                return Err(invalid());
-            }
-        }
-        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] =
-            [width, height, x_stride, y_stride].map(i64::try_from)
-        else {
-            return Err(invalid());
-        };
-        if y_stride == 0 {
-            return Err(invalid());
+        let [width, height, x_stride, y_stride] =
+            validate_planar_buffer(layout, &[red, green, blue])?;
+        if let Some(alpha) = alpha.as_deref() {
+            validate_planar_buffer(layout, &[alpha])?;
         }
         crate::clear_last_error();
         unsafe {
@@ -1367,7 +1333,7 @@ impl CPUProcessor {
                 height,
                 x_stride,
                 y_stride,
-                bit_depth as i32,
+                layout.bit_depth as i32,
             )
         };
         crate::ocio_call_status()
@@ -1376,7 +1342,8 @@ impl CPUProcessor {
     ///
     /// Strides are measured in F32 elements and must be positive. As required
     /// by OCIO, the row stride must be at least the pixel stride times the
-    /// width, even for a single row. Alpha may be omitted.
+    /// width, even for a single row. Each plane must include a full pixel
+    /// stride after its last sample for OCIO's pointer increment. Alpha may be omitted.
     pub fn try_apply_planar_strided_f32(
         &self,
         red: &mut [f32],
@@ -1395,10 +1362,7 @@ impl CPUProcessor {
         if width == 0 || height == 0 || x_stride == 0 || y_stride == 0 {
             return Err(invalid());
         }
-        let row_span = (width - 1)
-            .checked_mul(x_stride)
-            .and_then(|v| v.checked_add(1))
-            .ok_or_else(invalid)?;
+        let row_span = width.checked_mul(x_stride).ok_or_else(invalid)?;
         if x_stride > y_stride / width {
             return Err(invalid());
         }
@@ -8146,7 +8110,7 @@ mod tests {
 
     #[test]
     fn planar_layout_requires_native_row_stride_even_for_one_row() {
-        let plane = [0u8; 3];
+        let plane = [0u8; 4];
         let layout = PlanarByteLayout {
             width: 2,
             height: 1,
@@ -8163,6 +8127,14 @@ mod tests {
             &[&plane]
         )
         .is_ok());
+        assert!(validate_planar_buffer(
+            PlanarByteLayout {
+                y_stride: 4,
+                ..layout
+            },
+            &[&plane[..3]]
+        )
+        .is_err());
         assert!(validate_planar_buffer(
             PlanarByteLayout {
                 width: 2,
