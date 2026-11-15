@@ -426,6 +426,130 @@ fn persistent_resource_control_retains_uniform_getters_and_contains_failures() {
     }
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_hooks_rewrite_code_and_preserve_first_error() {
+    use ocio_rs::{
+        PersistentPolicyCreator, ShaderCodeSection, ShaderExtractionHooks, ShaderLifecycle,
+        ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
+        ShaderUniformAction, ShaderUniformControl, ShaderUniformRegistration,
+    };
+    struct Policy {
+        events: Vec<&'static str>,
+        mode: u8,
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(4096)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    impl ShaderTextureControl for Policy {
+        fn register_texture(
+            &mut self,
+            _: ShaderTexture<'_>,
+        ) -> ocio_rs::Result<ShaderTextureAction> {
+            Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+        }
+    }
+    impl ShaderUniformControl for Policy {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    impl ShaderExtractionHooks for Policy {
+        fn lifecycle(&mut self, event: ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+            self.events.push(match event {
+                ShaderLifecycle::Begin { .. } => "begin",
+                ShaderLifecycle::Finalized => "finalized",
+                ShaderLifecycle::End => "end",
+            });
+            if self.mode == 5 && matches!(event, ShaderLifecycle::Begin { .. }) {
+                return Err(ocio_rs::OcioError::InvalidInput("begin rejected".into()));
+            }
+            if self.mode == 2 && matches!(event, ShaderLifecycle::End) {
+                return Err(ocio_rs::OcioError::InvalidInput("end rejected".into()));
+            }
+            Ok(())
+        }
+        fn code(
+            &mut self,
+            section: ShaderCodeSection,
+            code: &str,
+        ) -> ocio_rs::Result<Option<String>> {
+            if section == ShaderCodeSection::Body {
+                if self.mode == 1 || self.mode == 2 {
+                    return Err(ocio_rs::OcioError::InvalidInput("code rejected".into()));
+                }
+                if self.mode == 3 {
+                    panic!("code panic");
+                }
+                if self.mode == 4 {
+                    return Ok(Some("invalid\0code".into()));
+                }
+                return Ok(Some(format!("// persistent hook\n{code}")));
+            }
+            Ok(None)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let transform = MatrixTransform::scale(&[0.8, 0.7, 0.6, 1.]).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    for mode in 0..=5 {
+        let mut creator = PersistentPolicyCreator::create_with_hooks(
+            &template,
+            Policy {
+                events: Vec::new(),
+                mode,
+            },
+            c"persistent-hooks",
+        )
+        .unwrap();
+        let result = creator.try_extract(&gpu);
+        if mode == 0 {
+            result.unwrap();
+            assert!(creator
+                .try_shader_text()
+                .unwrap()
+                .unwrap()
+                .contains("// persistent hook"));
+            assert_eq!(creator.policy_mut().events, ["begin", "finalized", "end"]);
+        } else {
+            let error = result.unwrap_err();
+            if mode == 4 {
+                assert!(matches!(error, ocio_rs::OcioError::InteriorNul));
+            } else {
+                let expected = if mode == 5 {
+                    "begin rejected"
+                } else if mode == 3 {
+                    "shader code callback panicked"
+                } else {
+                    "code rejected"
+                };
+                assert!(
+                    matches!(error, ocio_rs::OcioError::InvalidInput(ref message) if message == expected)
+                );
+            }
+            if mode == 5 {
+                assert_eq!(creator.policy_mut().events, ["begin"]);
+            } else {
+                assert_eq!(creator.policy_mut().events, ["begin", "end"]);
+            }
+        }
+    }
+}
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
 use std::sync::{Mutex, MutexGuard, OnceLock};

@@ -9404,6 +9404,7 @@ public:
   }
   void setTextureControl(ocio_shader_texture_control_callback cb) { texture_control_callback = cb; }
   void setUniformControl(ocio_shader_uniform_registration_callback cb) { registration_callback = cb; }
+  void setPersistentHooks(ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code) { lifecycle_callback = lifecycle; code_callback = code; }
   void setFinalizeControl(ocio_shader_finalize_callback cb) { finalize_callback = cb; }
   void setTexturePolicy(ocio_shader_texture_policy_callback cb) { policy_callback = cb; }
   bool texturePolicyFailed() const noexcept { return policy_failed; }
@@ -9685,6 +9686,19 @@ void ocio_gpu_shader_creator_set_persistent_uniform_control(void* creator, ocio_
     auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
     if (!desc) throw std::invalid_argument("not a persistent policy creator");
     desc->setUniformControl(uniform);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_gpu_shader_creator_set_persistent_hooks(void* creator, ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)lifecycle; (void)code; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !lifecycle || !code) throw std::invalid_argument("invalid persistent shader hooks");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    desc->setPersistentHooks(lifecycle, code);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }

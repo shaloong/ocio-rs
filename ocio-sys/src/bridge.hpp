@@ -778,6 +778,7 @@ typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, in
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
 typedef bool (*ocio_shader_code_callback)(void* context, int section, const char* code, const char** replacement);
+void ocio_gpu_shader_creator_set_persistent_hooks(void* creator, ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code);
 // Ownership of getter transfers to the callback. It must be destroyed with
 // ocio_gpu_uniform_cache_destroy, even if the callback reports failure.
 typedef bool (*ocio_shader_uniform_registration_callback)(void* context, const char* name,

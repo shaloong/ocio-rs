@@ -2515,6 +2515,7 @@ pub trait ShaderTexturePolicy {
 struct PersistentPolicyState<P> {
     policy: P,
     error: Option<OcioError>,
+    code_output: Option<std::ffi::CString>,
 }
 
 unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
@@ -2582,9 +2583,9 @@ unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
 /// repeated extraction may append resources. The policy must avoid OCIO's
 /// documented LUT-packing bug; this API does not automatically probe layouts.
 /// Do not reenter the same GPU processor or creator from a policy callback.
-/// Optional [`ShaderTextureControl`] also controls texture registration. This
-/// does not provide arbitrary
-/// Rust implementations of every `GpuShaderCreator` virtual method or clone.
+/// Optional resource controls and hooks also cover texture and uniform
+/// registration, lifecycle notifications, and shader code fragments. They do
+/// not provide arbitrary implementations of every creator virtual or clone.
 ///
 /// ```no_run
 /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, PersistentPolicyCreator, ShaderTexturePolicy, Result};
@@ -2624,6 +2625,32 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
+    /// Retain resource controls and lifecycle/code hooks across extractions.
+    ///
+    /// Only `lifecycle` and `code` hooks are installed. Texture and uniform
+    /// registration use their respective control traits; `assemble` is not
+    /// installed. Replacement fragments are copied into temporary native-safe
+    /// storage, while unmodified fragments are forwarded without a copy.
+    pub fn create_with_hooks(
+        template: &GpuShaderDesc,
+        policy: P,
+        cache_id: &std::ffi::CStr,
+    ) -> Result<Self>
+    where
+        P: ShaderTextureControl + ShaderUniformControl,
+    {
+        let creator = Self::create_with_resource_control(template, policy, cache_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_persistent_hooks(
+                creator.creator.handle.as_ptr(),
+                persistent_lifecycle_callback::<P>,
+                persistent_code_callback::<P>,
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(creator)
+    }
     /// Retain both texture and uniform registration controllers between calls.
     ///
     /// External uniform getters retain the native creator and remain live after
@@ -2681,6 +2708,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
         let mut state = Box::new(PersistentPolicyState {
             policy,
             error: None,
+            code_output: None,
         });
         crate::clear_last_error();
         let raw = unsafe {
@@ -2980,6 +3008,122 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
         Ok(GpuShaderDesc {
             handle: crate::handle_result(raw)?,
         })
+    }
+}
+
+unsafe extern "C" fn persistent_lifecycle_callback<
+    P: ShaderTexturePolicy + ShaderExtractionHooks,
+>(
+    context: *mut c_void,
+    event: i32,
+    uid: *const i8,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    // End is still delivered after a failed callback; preserve the first error.
+    if state.error.is_some() && event != 2 {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+        let event = match event {
+            0 if !uid.is_null() => ShaderLifecycle::Begin {
+                unique_id: unsafe { std::ffi::CStr::from_ptr(uid) }
+                    .to_str()
+                    .map_err(|_| {
+                        OcioError::InvalidInput("shader identifier is not UTF-8".into())
+                    })?,
+            },
+            1 => ShaderLifecycle::Finalized,
+            2 => ShaderLifecycle::End,
+            _ => {
+                return Err(OcioError::InvalidInput(
+                    "invalid shader lifecycle event".into(),
+                ))
+            }
+        };
+        state.policy.lifecycle(event)
+    }));
+    match result {
+        Ok(Ok(())) => true,
+        Ok(Err(error)) => {
+            state.error.get_or_insert(error);
+            false
+        }
+        Err(_) => {
+            state.error.get_or_insert(OcioError::InvalidInput(
+                "shader lifecycle callback panicked".into(),
+            ));
+            false
+        }
+    }
+}
+
+unsafe extern "C" fn persistent_code_callback<P: ShaderTexturePolicy + ShaderExtractionHooks>(
+    context: *mut c_void,
+    section: i32,
+    code: *const i8,
+    replacement: *mut *const i8,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<Option<std::ffi::CString>> {
+            let section = match section {
+                0 => ShaderCodeSection::Declarations,
+                1 => ShaderCodeSection::Parameters,
+                2 => ShaderCodeSection::Textures,
+                3 => ShaderCodeSection::Helpers,
+                4 => ShaderCodeSection::Header,
+                5 => ShaderCodeSection::Body,
+                6 => ShaderCodeSection::Footer,
+                _ => {
+                    return Err(OcioError::InvalidInput(
+                        "invalid shader code section".into(),
+                    ))
+                }
+            };
+            if code.is_null() || replacement.is_null() {
+                return Err(OcioError::InvalidInput("null shader code event".into()));
+            }
+            let code = unsafe { std::ffi::CStr::from_ptr(code) }
+                .to_str()
+                .map_err(|_| OcioError::InvalidInput("shader code is not UTF-8".into()))?;
+            state
+                .policy
+                .code(section, code)?
+                .map(std::ffi::CString::new)
+                .transpose()
+                .map_err(|_| OcioError::InteriorNul)
+        },
+    ));
+    match result {
+        Ok(Ok(output)) => {
+            state.code_output = output;
+            unsafe {
+                *replacement = state
+                    .code_output
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr())
+            };
+            true
+        }
+        Ok(Err(error)) => {
+            state.error.get_or_insert(error);
+            false
+        }
+        Err(_) => {
+            state.error.get_or_insert(OcioError::InvalidInput(
+                "shader code callback panicked".into(),
+            ));
+            false
+        }
     }
 }
 

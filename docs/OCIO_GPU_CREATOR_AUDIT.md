@@ -16,7 +16,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters | Concrete descriptor access only; no custom creator implementation. |
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
 | `getCacheID() const noexcept` | `GpuShaderCreator::try_cache_id`, `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |
-| `begin(uid)`, `finalize()`, `end()` | Lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization | Begin/end remain notifications; this is not full native subclassing. |
+| `begin(uid)`, `finalize()`, `end()` | Synchronous or persistent lifecycle notifications; `ShaderFinalizeControl` optionally replaces synchronous finalization | Begin/end remain notifications; this is not full native subclassing. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Creator virtual access, synchronous hooks and `PersistentPolicyCreator` with retained Rust policy | Arbitrary Rust subclassing and custom clone remain absent. Policy widths must avoid OCIO's known LUT packing bug. |
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; synchronous or persistent `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
@@ -24,7 +24,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; streaming sink; per-texture `ShaderTextureAction`; persistent `ShaderTextureControl` | 2.4 returns `void`, 2.5+ returns a binding. Other creator virtual methods remain non-customizable. |
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
-| Helper, function header/body/footer append methods | Descriptor methods and code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
+| Helper, function header/body/footer append methods | Descriptor methods and synchronous or persistent code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
 | Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache; `GpuShaderCreator::try_borrow_desc` gives scoped access when the creator is a descriptor | Descriptor semantics apply; streamed textures are intentionally not enumerated. The scoped view does not expose `DerefMut`, preventing the descriptor handle from being moved out. |
 
@@ -49,6 +49,12 @@ Windows; this does not establish hardware execution or full creator parity.
   External uploads are not rolled back on failure; the caller owns cleanup.
   The manual Vulkan validation covers mixed external/retained 2D and 3D LUTs
   in both registration orders, including dynamic uniforms and explicit bindings.
+
+- `create_with_hooks` retains lifecycle notifications and code-fragment hooks
+  alongside persistent resource controls. It does not install the synchronous
+  assembler hook or replace native finalization. Unmodified fragments are
+  forwarded; replacements are retained until native code consumes them. The
+  first callback error is retained even if the subsequent `End` hook also fails.
 
 - `ShaderTexturePolicy` can supply the two texture-policy virtual getters on
   each query during synchronous extraction, alongside texture/uniform storage

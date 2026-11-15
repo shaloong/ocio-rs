@@ -93,6 +93,9 @@ fn validate_case(
             seen: usize,
             external: Vec<LutTexture>,
             uniform: Option<ShaderUniformGetter>,
+            lifecycle: usize,
+            body_seen: bool,
+            footer_modified: bool,
         }
         impl ShaderTexturePolicy for Policy {
             fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -131,7 +134,30 @@ fn validate_case(
                 Ok(ShaderTextureAction::External { binding })
             }
         }
-        impl ShaderExtractionHooks for Policy {}
+        impl ShaderExtractionHooks for Policy {
+            fn lifecycle(&mut self, _: ocio_rs::ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
+                self.lifecycle += 1;
+                Ok(())
+            }
+            fn code(
+                &mut self,
+                section: ShaderCodeSection,
+                code: &str,
+            ) -> ocio_rs::Result<Option<String>> {
+                if section == ShaderCodeSection::Body {
+                    self.body_seen = true;
+                    return Ok(Some(format!("// persistent GPU hook\n{code}")));
+                }
+                if section == ShaderCodeSection::Footer && code.contains("return outColor;") {
+                    self.footer_modified = true;
+                    return Ok(Some(code.replace(
+                        "return outColor;",
+                        "outColor.rgb *= 0.5;\n  return outColor;",
+                    )));
+                }
+                Ok(None)
+            }
+        }
         impl ShaderUniformControl for Policy {
             fn register_uniform(
                 &mut self,
@@ -146,12 +172,15 @@ fn validate_case(
                 Ok(ShaderUniformAction::ExternalAdded)
             }
         }
-        let mut creator = PersistentPolicyCreator::create_with_resource_control(
+        let mut creator = PersistentPolicyCreator::create_with_hooks(
             &desc,
             Policy {
                 seen: 0,
                 external: Vec::new(),
                 uniform: None,
+                lifecycle: 0,
+                body_seen: false,
+                footer_modified: false,
             },
             c"persistent-control-gpu-validation",
         )?;
@@ -159,9 +188,21 @@ fn validate_case(
         if creator.policy_mut().seen != 2 {
             return Err("expected two persistent texture registrations".into());
         }
+        if creator.policy_mut().lifecycle != 3
+            || !creator.policy_mut().body_seen
+            || !creator.policy_mut().footer_modified
+        {
+            return Err("persistent shader hooks did not run".into());
+        }
         streamed_lut = std::mem::take(&mut creator.policy_mut().external);
         external_uniform = creator.policy_mut().uniform.take();
         desc = creator.finish()?;
+        if !desc
+            .try_shader_text()?
+            .is_some_and(|s| s.contains("// persistent GPU hook"))
+        {
+            return Err("persistent shader code was not applied".into());
+        }
     } else if use_hooks {
         if name != "dynamic texture policy" {
             gpu.validate_shader_texture_layout(&desc)?;
@@ -714,7 +755,7 @@ fn validate_case(
         let mut expected = input.to_vec();
         for pixel in &mut expected {
             cpu.apply_rgba(pixel);
-            if use_hooks {
+            if use_hooks || name.starts_with("persistent control") {
                 for channel in &mut pixel[..3] {
                     *channel *= 0.5;
                 }

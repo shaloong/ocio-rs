@@ -39,6 +39,8 @@ Persistent texture-control cases additionally use explicit bindings and mix
 external and descriptor-owned 2D/3D textures in both registration orders;
 each order is tested with and without an externally retained, updated dynamic
 exposure uniform using the persistent uniform controller.
+These cases also pass generated shader fragments through persistent lifecycle
+and code hooks before execution.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
