@@ -9168,6 +9168,21 @@ void ocio_gpu_shader_creator_destroy(void* creator) {
 #endif
 }
 
+void* ocio_gpu_shader_creator_borrow_desc(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) return nullptr;
+    auto result = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
+    result->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{std::move(desc)});
+    return result.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_gpu_processor_extract_owned_creator(void* processor, void* creator) {
 #ifdef OCIO_RS_STUB
   (void)processor; (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required");

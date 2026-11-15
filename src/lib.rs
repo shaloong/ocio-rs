@@ -139,12 +139,12 @@ pub use format_metadata::{ConstFormatMetadata, FormatMetadata};
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
-    CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderCreator, GpuShaderDesc, GpuTexture2D,
-    GpuTexture3D, GpuTextureChannel, GpuTextureDimensions, GpuUniform, GpuUniformCache,
-    GpuUniformCopy, GpuUniformType, GpuUniformValue, PackedConversionLayout, PackedImageLayout,
-    PlanarByteLayout, PlanarBytes, PlanarBytesMut, PlanarF32Layout, Processor,
-    SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut, StaticCPUProcessor,
-    TextureInfo,
+    CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderCreator, GpuShaderDesc,
+    GpuShaderDescView, GpuTexture2D, GpuTexture3D, GpuTextureChannel, GpuTextureDimensions,
+    GpuUniform, GpuUniformCache, GpuUniformCopy, GpuUniformType, GpuUniformValue,
+    PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut,
+    PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut,
+    StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
     ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,

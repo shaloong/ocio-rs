@@ -13,7 +13,11 @@ use common::*;
 fn native_creator_borrow_clone_and_extraction_preserve_ownership() {
     let _guard = gpu_shader_desc_test_lock();
     let config = ocio_rs::Config::raw().unwrap();
-    let transform = ocio_rs::transform::MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
+    let transform = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    transform.set_length(3).unwrap();
+    transform
+        .set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
     let gpu = config
         .processor_from_transform(&transform, TransformDirection::Forward)
         .unwrap()
@@ -28,6 +32,12 @@ fn native_creator_borrow_clone_and_extraction_preserve_ownership() {
     assert!(!desc.shader_text().unwrap().is_empty());
     drop(desc);
     gpu.try_extract_to_creator(&mut cloned).unwrap();
+    let mut cloned_desc = cloned.try_borrow_desc().unwrap().unwrap();
+    let text = cloned_desc.shader_text_ref().unwrap().unwrap();
+    assert!(!text.to_bytes().is_empty());
+    assert_eq!(cloned_desc.language(), GpuLanguage::Glsl4_0);
+    assert_eq!(cloned_desc.num_textures(), 1);
+    assert!(!cloned_desc.texture_values_ref(0).unwrap().is_empty());
 }
 
 #[test]

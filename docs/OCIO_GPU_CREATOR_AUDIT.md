@@ -26,7 +26,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | Helper, function header/body/footer append methods | Descriptor methods and code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
-| Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache | Descriptor semantics apply; streamed textures are intentionally not enumerated. |
+| Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache; `GpuShaderCreator::try_borrow_desc` gives scoped access when the creator is a descriptor | Descriptor semantics apply; streamed textures are intentionally not enumerated. The scoped view does not expose `DerefMut`, preventing the descriptor handle from being moved out. |
 
 ## Design constraints for closing the creator gap
 

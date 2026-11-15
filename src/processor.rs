@@ -2073,6 +2073,17 @@ pub struct GpuShaderCreator<'a> {
 }
 
 impl GpuShaderCreator<'_> {
+    /// Borrow the native descriptor when this creator is a `GpuShaderDesc`.
+    /// Returns `None` for creators implemented without that descriptor interface.
+    pub fn try_borrow_desc(&mut self) -> Result<Option<GpuShaderDescView<'_>>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_gpu_shader_creator_borrow_desc(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| GpuShaderDescView {
+            descriptor: GpuShaderDesc { handle },
+            _creator: std::marker::PhantomData,
+        }))
+    }
     /// Invoke the native virtual `clone`. OCIO determines which state is copied;
     /// in particular, cloning its descriptor implementation creates a generic
     /// descriptor and may not preserve custom subclass resources or behavior.
@@ -2083,6 +2094,62 @@ impl GpuShaderCreator<'_> {
             handle: crate::handle_result(handle)?,
             _descriptor: std::marker::PhantomData,
         })
+    }
+}
+
+/// Scoped access to a creator's native descriptor. It cannot be moved out or
+/// used after the creator borrow ends; shared references to its normal
+/// descriptor methods are available via `Deref`.
+///
+/// ```compile_fail
+/// # use ocio_rs::{GpuShaderCreator, GpuShaderDesc};
+/// # fn example(creator: &mut GpuShaderCreator<'_>) -> ocio_rs::Result<()> {
+/// let mut view = creator.try_borrow_desc()?.unwrap();
+/// let stolen = std::mem::replace(&mut *view, GpuShaderDesc::create()?);
+/// # Ok(()) }
+/// ```
+///
+/// ```compile_fail
+/// # use ocio_rs::{GpuShaderCreator, GPUProcessor};
+/// # fn example(creator: &mut GpuShaderCreator<'_>, gpu: &GPUProcessor) -> ocio_rs::Result<()> {
+/// let mut view = creator.try_borrow_desc()?.unwrap();
+/// let values = view.texture_values_ref(0)?;
+/// gpu.try_extract_to_creator(creator)?;
+/// println!("{}", values.len());
+/// # Ok(()) }
+/// ```
+pub struct GpuShaderDescView<'a> {
+    descriptor: GpuShaderDesc,
+    _creator: std::marker::PhantomData<&'a mut ()>,
+}
+
+impl std::ops::Deref for GpuShaderDescView<'_> {
+    type Target = GpuShaderDesc;
+    fn deref(&self) -> &Self::Target {
+        &self.descriptor
+    }
+}
+
+impl GpuShaderDescView<'_> {
+    /// Borrow generated shader text without allocating.
+    pub fn shader_text_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.descriptor.shader_text_ref()
+    }
+    /// Borrow the native 1D/2D texture payload without copying.
+    pub fn texture_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.descriptor.texture_values_ref(index)
+    }
+    /// Borrow the native 3D texture payload without copying.
+    pub fn texture_3d_values_ref(&mut self, index: u32) -> Result<&[f32]> {
+        self.descriptor.texture_3d_values_ref(index)
+    }
+    /// Borrow the native shader cache identifier without allocating.
+    pub fn cache_id_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.descriptor.cache_id_ref()
+    }
+    /// Cache native uniform getters while exclusively borrowing this view.
+    pub fn uniform_cache(&mut self) -> Result<GpuUniformCache<'_>> {
+        self.descriptor.uniform_cache()
     }
 }
 
