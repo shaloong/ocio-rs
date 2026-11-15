@@ -44,7 +44,9 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let mut value = GradingRGBCurve::create(GradingStyle::Lin).unwrap();
     let original = value.create_editable_copy().unwrap();
     let mut red = value.curve(RGBCurveType::Red).unwrap();
+    let red_alias = value.curve(RGBCurveType::Red).unwrap();
     red.set_slope(0, 0.37).unwrap();
+    assert_eq!(red_alias.slope(0).unwrap(), 0.37);
     let (x, y) = red.control_point(0).unwrap();
     red.set_control_point(0, x, y + 0.1).unwrap();
     assert!(!value.equals(&original).unwrap());
@@ -54,6 +56,8 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert!(copy.equals(&value).unwrap());
     drop(value);
     assert_eq!(red.slope(0).unwrap(), 0.37);
+    drop(red);
+    assert_eq!(red_alias.slope(0).unwrap(), 0.37);
     let mut spline = GradingBSplineCurve::create_from_points(&[[0.0, 0.0], [1.0, 1.0]]).unwrap();
     let set = GradingRGBCurve::create_from_curves([&spline, &spline, &spline, &spline]).unwrap();
     spline.set_slope(0, 0.2).unwrap();
