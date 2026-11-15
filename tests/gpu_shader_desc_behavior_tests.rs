@@ -615,6 +615,46 @@ fn checked_extraction_probes_optimized_lut_without_mutating_target_on_failure() 
     assert_eq!(inverse_desc.num_textures(), 0);
 }
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn checked_extraction_accounts_for_existing_texture_bindings() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.try_set_descriptor_set_index(2, u32::MAX).unwrap();
+    desc.add_texture_3d(
+        "existing",
+        "existing_sampler",
+        1,
+        Interpolation::Linear,
+        &[0.1, 0.2, 0.3],
+    )
+    .unwrap();
+    assert!(matches!(
+        gpu.try_extract_shader_info_checked(&mut desc),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(desc.num_textures(), 0);
+    assert_eq!(desc.num_3d_textures(), 1);
+    assert_eq!(desc.texture_binding_start(), u32::MAX);
+    assert_eq!(desc.texture_3d_shader_binding_index(0), Some(u32::MAX));
+
+    desc.try_set_descriptor_set_index(2, u32::MAX - 1).unwrap();
+    gpu.try_extract_shader_info_checked(&mut desc).unwrap();
+    assert_eq!(desc.num_textures(), 1);
+    assert_eq!(desc.texture_shader_binding_index(0), Some(u32::MAX));
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn optimized_layout_probe_can_guard_custom_texture_and_finalizer_hooks() {

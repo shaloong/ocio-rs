@@ -3011,7 +3011,7 @@ impl GPUProcessor {
                 "texture policy requires a nonempty cache ID".into(),
             ));
         }
-        let lengths = self.probe_shader_texture_lengths(template)?;
+        let (lengths, _) = self.probe_shader_texture_lengths(template)?;
         let mut checked = CheckedPolicy {
             policy,
             lengths: &lengths,
@@ -3817,13 +3817,36 @@ impl GPUProcessor {
     /// them, and checks their lengths against the requested width before the
     /// real extraction. The target descriptor is untouched if probing fails.
     ///
+    /// On OCIO 2.5+, it also checks the binding range needed by the probed
+    /// textures and the target's existing textures before modifying the target.
+    /// This assumes resource generation does not change between the probe and
+    /// extraction; custom descriptors with noncontiguous bindings may be rejected
+    /// conservatively. It does not validate arbitrary native creators.
+    ///
     /// This performs shader generation twice and allocates OCIO's temporary
     /// texture data. It conservatively checks all 1D/2D resources with height
     /// one, including non-LUT resources, so it can reject a safe processor.
     /// It relies on the 1,048,576-entry limit of supported OCIO 2.4–2.6 and
     /// must be re-audited before supporting a newer native version.
     pub fn try_extract_shader_info_checked(&self, shader_desc: &mut GpuShaderDesc) -> Result<()> {
-        self.validate_shader_texture_layout(shader_desc)?;
+        let (lengths, texture_count) = self.probe_shader_texture_lengths(shader_desc)?;
+        for length in lengths {
+            shader_desc.validate_lut_texture_layout(length)?;
+        }
+        #[cfg(feature = "v2_5")]
+        {
+            let start = u64::from(shader_desc.try_texture_binding_start()?);
+            let count = u64::from(shader_desc.try_num_textures()?)
+                + u64::from(shader_desc.try_num_3d_textures()?)
+                + texture_count;
+            if count > 0 && start + count - 1 > u64::from(u32::MAX) {
+                return Err(OcioError::InvalidInput(
+                    "texture binding index overflow".into(),
+                ));
+            }
+        }
+        #[cfg(not(feature = "v2_5"))]
+        let _ = texture_count;
         self.try_extract_shader_info(shader_desc)
     }
 
@@ -3846,27 +3869,32 @@ impl GPUProcessor {
     /// # Ok(()) }
     /// ```
     pub fn validate_shader_texture_layout(&self, shader_desc: &GpuShaderDesc) -> Result<()> {
-        let lengths = self.probe_shader_texture_lengths(shader_desc)?;
+        let (lengths, _) = self.probe_shader_texture_lengths(shader_desc)?;
         for length in lengths {
             shader_desc.validate_lut_texture_layout(length)?;
         }
         Ok(())
     }
 
-    fn probe_shader_texture_lengths(&self, shader_desc: &GpuShaderDesc) -> Result<Vec<usize>> {
+    fn probe_shader_texture_lengths(
+        &self,
+        shader_desc: &GpuShaderDesc,
+    ) -> Result<(Vec<usize>, u64)> {
         struct ProbeHooks;
         impl ShaderExtractionHooks for ProbeHooks {}
         let probe = shader_desc.try_clone_desc()?;
         probe.set_texture_max_width(1_048_577)?;
         probe.set_allow_texture_1d(shader_desc.try_allow_texture_1d()?)?;
         let mut lengths = Vec::new();
+        let mut texture_count = 0u64;
         self.try_extract_with_streamed_textures(&probe, &mut ProbeHooks, |texture| {
+            texture_count += 1;
             if texture.dimensions.is_some() && texture.height == 1 && texture.width >= 2 {
                 lengths.push(texture.width as usize);
             }
             Ok(None)
         })?;
-        Ok(lengths)
+        Ok((lengths, texture_count))
     }
 
     #[doc(hidden)]

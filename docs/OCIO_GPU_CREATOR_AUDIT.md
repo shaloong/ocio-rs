@@ -102,7 +102,11 @@ also applies when adding resources after extraction. For generic descriptors,
 the bridge checks explicit texture insertion and binding-start changes before
 mutation. This does not intercept texture insertion by OCIO during ordinary
 shader extraction or by arbitrary native creators; applications using those
-paths must choose binding ranges that cannot overflow.
+paths must choose binding ranges that cannot overflow. The opt-in
+`try_extract_shader_info_checked` also checks the range for existing and
+probed textures before extraction, provided resource generation is unchanged
+between the probe and the real extraction; it may conservatively reject custom
+descriptors using noncontiguous bindings.
 
 `try_extract_with_texture_control` chooses native descriptor storage or external
 storage independently for each registration, without copying external textures.
