@@ -19591,6 +19591,26 @@ size_t ocio_grading_spline_const_count(const void* h) {
   catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
+void ocio_grading_spline_copy_points(const void* h, bool borrowed, size_t start, float (*points)[3], size_t count) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)borrowed; (void)start; (void)points; (void)count;
+  ocio_rs_bridge::capture_error_message("spline access requires native OpenColorIO");
+#else
+  try {
+    if (!h || (count && !points)) throw std::invalid_argument("null spline or output");
+    const ocio::GradingBSplineCurve* curve = borrowed
+        ? static_cast<const ocio::GradingBSplineCurve*>(h)
+        : static_cast<const Spline*>(h)->get();
+    if (!curve) throw std::invalid_argument("null spline");
+    const auto size = curve->getNumControlPoints();
+    if (start > size || count > size - start) throw std::out_of_range("spline point range out of bounds");
+    for (size_t i = 0; i < count; ++i) {
+      const auto& point = curve->getControlPoint(start + i);
+      points[i][0] = point.m_x; points[i][1] = point.m_y; points[i][2] = curve->getSlope(start + i);
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
 void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y) {
 #ifdef OCIO_RS_STUB
   (void)h; (void)index; (void)x; (void)y; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO");

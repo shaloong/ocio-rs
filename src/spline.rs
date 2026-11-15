@@ -4,6 +4,25 @@ use std::{
     ptr::NonNull,
 };
 
+fn copy_spline_points(
+    handle: NonNull<c_void>,
+    borrowed: bool,
+    start: usize,
+    points: &mut [[f32; 3]],
+) -> Result<()> {
+    crate::clear_last_error();
+    unsafe {
+        ocio_sys::ocio_grading_spline_copy_points(
+            handle.as_ptr(),
+            borrowed,
+            start,
+            points.as_mut_ptr(),
+            points.len(),
+        )
+    };
+    crate::ocio_call_status()
+}
+
 fn serialize_curve(handle: NonNull<c_void>, kind: i32) -> Result<String> {
     crate::clear_last_error();
     let ptr = unsafe { ocio_sys::ocio_grading_curve_serialize(handle.as_ptr(), kind) };
@@ -312,6 +331,11 @@ impl Drop for SharedGradingBSplineCurve {
     }
 }
 impl ConstGradingBSplineCurve<'_> {
+    /// Copy a range of `[x, y, slope]` values into a caller-owned buffer in one
+    /// bridge call. An out-of-bounds range is rejected before writing anything.
+    pub fn copy_points_into(&self, start: usize, points: &mut [[f32; 3]]) -> Result<()> {
+        copy_spline_points(self.handle, true, start, points)
+    }
     /// Return OCIO's diagnostic stream representation, not a stable interchange format.
     pub fn serialize(&self) -> Result<String> {
         serialize_curve(self.handle, 1)
@@ -407,6 +431,11 @@ pub struct GradingBSplineCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingBSplineCurve {
+    /// Copy a range of `[x, y, slope]` values into a caller-owned buffer in one
+    /// bridge call. An out-of-bounds range is rejected before writing anything.
+    pub fn copy_points_into(&self, start: usize, points: &mut [[f32; 3]]) -> Result<()> {
+        copy_spline_points(self.handle, false, start, points)
+    }
     /// Return OCIO's diagnostic stream representation, not a stable interchange format.
     pub fn serialize(&self) -> Result<String> {
         serialize_curve(self.handle, 0)

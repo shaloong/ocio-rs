@@ -1,6 +1,13 @@
 use std::ffi::c_void;
 
 unsafe extern "C" {
+    pub fn ocio_grading_spline_copy_points(
+        value: *const c_void,
+        borrowed: bool,
+        start: usize,
+        points: *mut [f32; 3],
+        count: usize,
+    );
     pub fn ocio_grading_curve_value_shared(source: *mut c_void, kind: i32) -> *mut c_void;
     pub fn ocio_grading_curve_value_shared_destroy(value: *mut c_void, hue: bool);
     pub fn ocio_grading_curve_value_shared_spline(

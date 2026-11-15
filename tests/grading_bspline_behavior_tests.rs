@@ -18,6 +18,19 @@ fn spline_points_slopes_copy_and_errors() {
     assert_eq!(curve.num_control_points().unwrap(), 2);
     assert_eq!(curve.control_point(1).unwrap(), (1.0, 1.0));
     assert_eq!(curve.slope(0).unwrap(), 0.5);
+    let mut points = [[-7.0; 3]; 2];
+    curve.copy_points_into(0, &mut points).unwrap();
+    assert_eq!(points[0], [0.0, 0.0, 0.5]);
+    assert_eq!(points[1], [1.0, 1.0, curve.slope(1).unwrap()]);
+    let mut tail = [[-7.0; 3]; 1];
+    curve.copy_points_into(1, &mut tail).unwrap();
+    assert_eq!(tail[0], points[1]);
+    assert!(curve.copy_points_into(usize::MAX, &mut tail).is_err());
+    assert_eq!(tail[0], points[1]);
+    assert!(curve.copy_points_into(2, &mut tail).is_err());
+    assert_eq!(tail[0], points[1]);
+    curve.copy_points_into(2, &mut []).unwrap();
+    assert!(curve.copy_points_into(3, &mut []).is_err());
     assert!(curve.control_point(99).is_err());
     assert!(curve.set_slope(99, 0.5).is_err());
 }
@@ -109,6 +122,10 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let transform = GradingRGBCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
     let shared_value = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
+    let borrowed = shared_value.curve_ref(RGBCurveType::Red).unwrap();
+    let mut points = vec![[0.0; 3]; borrowed.num_control_points().unwrap()];
+    borrowed.copy_points_into(0, &mut points).unwrap();
+    assert_eq!(points[0][2], borrowed.slope(0).unwrap());
     assert_eq!(shared_value.slope(RGBCurveType::Red, 0).unwrap(), 0.37);
     assert!(shared_value.slope(RGBCurveType::Red, usize::MAX).is_err());
     let shared_equal = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
