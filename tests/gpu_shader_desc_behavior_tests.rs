@@ -28,6 +28,33 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn invalid_texture_max_width_is_rejected_without_changing_descriptor() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.25, 0.5, 0.75, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.set_texture_max_width(64).unwrap();
+    for invalid in [0, 1] {
+        assert!(matches!(
+            desc.set_texture_max_width(invalid),
+            Err(ocio_rs::OcioError::InvalidInput(_))
+        ));
+    }
+    assert_eq!(desc.try_texture_max_width().unwrap(), 64);
+    gpu.try_extract_shader_info(&mut desc).unwrap();
+    assert!(desc.num_textures() > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_finalize_can_replace_native_stage_or_delegate_and_cleans_up() {
     use ocio_rs::{
         OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,

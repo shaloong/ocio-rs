@@ -28,6 +28,15 @@ the bridge selects the native ABI separately.
 
 ## Design constraints for closing the creator gap
 
+- The native 2.4.1 and 2.6.0 LUT shader generator divides by the configured
+  texture width and uses `width - 1` as a loop step, without setter validation.
+  The safe setter rejects widths 0 and 1. A separate upstream padding-size bug
+  remains for some widths and LUT lengths (for example width 2, length 3):
+  the calculated storage size is smaller than the padded data, so an unsigned
+  subtraction underflows. Prefer a maximum width at least as large as the LUT;
+  that workaround does not establish safety for arbitrary generated LUTs.
+  Fixing or safely preflighting all packed LUTs requires further work.
+
 - `ShaderUniformControl` can decide registration results and own or delegate
   uniform storage for all scalar and array getter overloads. A complete Rust
   creator must still independently control the remaining native virtual methods.

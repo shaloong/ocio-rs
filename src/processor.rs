@@ -4298,7 +4298,17 @@ impl GpuShaderDesc {
     }
 
     /// Sets the maximum width OCIO may use when laying out extracted 1D textures.
+    ///
+    /// Values below 2 are rejected: native OCIO uses the width as a divisor,
+    /// and uses width minus one as a loop increment. For widths of 2 or more,
+    /// affected OCIO versions can still miscalculate padding for some LUT
+    /// lengths; choose a width at least as large as the LUT when possible.
     pub fn set_texture_max_width(&self, max_width: u32) -> Result<()> {
+        if max_width < 2 {
+            return Err(OcioError::InvalidInput(
+                "texture maximum width must be at least 2".into(),
+            ));
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_desc_set_texture_max_width_u32(
