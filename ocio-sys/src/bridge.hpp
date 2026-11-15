@@ -189,6 +189,8 @@ bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* d
 void ocio_config_io_proxy_destroy(void* handle);
 void ocio_config_io_proxy_set_config_data(void* handle, const char* data);
 const char* ocio_config_io_proxy_get_config_data(void* handle);
+bool ocio_config_io_proxy_set_config_data_bytes(void* handle, const unsigned char* data, size_t len);
+bool ocio_config_io_proxy_visit_config_data(void* handle, void* destination, ocio_proxy_write_callback write);
 bool ocio_config_io_proxy_set_lut_data(
   void* handle,
   const char* filepath,

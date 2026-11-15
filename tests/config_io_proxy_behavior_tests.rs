@@ -45,6 +45,57 @@ impl ConfigIOProvider for OnDemandProvider {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_payload_preserves_native_length_and_provider_errors() {
+    let _guard = config_io_proxy_test_lock();
+    let proxy = ConfigIOProxy::create().unwrap();
+    for data in [&b""[..], &b"before\0after\xff"[..]] {
+        proxy.set_config_data_bytes(data).unwrap();
+        assert_eq!(
+            proxy.try_config_data_bytes().unwrap().as_deref(),
+            Some(data)
+        );
+    }
+    assert_eq!(
+        proxy.try_config_data().unwrap().unwrap(),
+        "before\0after\u{fffd}"
+    );
+    proxy.set_config_data("a\0b").unwrap();
+    assert_eq!(proxy.try_config_data().unwrap().as_deref(), Some("a\0b"));
+
+    struct Provider {
+        fail: bool,
+    }
+    impl ConfigIOProvider for Provider {
+        fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
+            if self.fail {
+                Err(ocio_rs::OcioError::InvalidInput("config failure".into()))
+            } else {
+                Ok(Cow::Borrowed("provider\0payload"))
+            }
+        }
+        fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+    }
+    let provider = ConfigIOProxy::from_provider(Provider { fail: false }).unwrap();
+    assert_eq!(
+        provider.try_config_data_bytes().unwrap().as_deref(),
+        Some(&b"provider\0payload"[..])
+    );
+    assert!(provider.set_config_data_bytes(b"x").is_err());
+    let failure = ConfigIOProxy::from_provider(Provider { fail: true }).unwrap();
+    assert!(failure
+        .try_config_data_bytes()
+        .unwrap_err()
+        .to_string()
+        .contains("config failure"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
     let _guard = config_io_proxy_test_lock();
     let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));

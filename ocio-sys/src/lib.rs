@@ -421,6 +421,16 @@ unsafe extern "C" {
     pub fn ocio_config_io_proxy_destroy(handle: *mut c_void);
     pub fn ocio_config_io_proxy_set_config_data(handle: *mut c_void, data: *const i8) -> ();
     pub fn ocio_config_io_proxy_get_config_data(handle: *mut c_void) -> *const i8;
+    pub fn ocio_config_io_proxy_set_config_data_bytes(
+        handle: *mut c_void,
+        data: *const u8,
+        len: usize,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_visit_config_data(
+        handle: *mut c_void,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
     pub fn ocio_config_io_proxy_set_lut_data(
         handle: *mut c_void,
         filepath: *const i8,

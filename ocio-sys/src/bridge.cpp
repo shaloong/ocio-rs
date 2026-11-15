@@ -764,8 +764,7 @@ public:
     return nullptr;
   }
 
-  void setConfigData(const char* data) {
-    std::string next = data ? data : "";
+  void setConfigData(std::string next) {
     std::lock_guard<std::mutex> lock(mutex);
     configData = std::move(next);
   }
@@ -2107,7 +2106,7 @@ void ocio_config_io_proxy_set_config_data(void* handle, const char* data) {
     auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
     auto rustProxy = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
     if (!rustProxy) throw std::invalid_argument("cannot set config data on a custom provider");
-    rustProxy->setConfigData(data);
+    rustProxy->setConfigData(data ? data : "");
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -2122,6 +2121,41 @@ const char* ocio_config_io_proxy_get_config_data(void* handle) {
     ocio_rs_bridge::g_serialized_text = real->proxy->getConfigData();
     return ocio_rs_bridge::g_serialized_text.c_str();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+bool ocio_config_io_proxy_set_config_data_bytes(void* handle, const unsigned char* data, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)data; (void)len;
+  ocio_rs_bridge::capture_error_message("config IO requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!data && len) throw std::invalid_argument("null config data");
+    auto real = ocio_rs_bridge::get_real_config_io_proxy_handle(handle);
+    auto memory = std::dynamic_pointer_cast<ocio_rs_bridge::RustConfigIOProxy>(real->proxy);
+    if (!memory) throw std::invalid_argument("cannot set config data on a custom provider");
+    std::string value;
+    if (len) value.assign(reinterpret_cast<const char*>(data), len);
+    memory->setConfigData(std::move(value));
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_config_io_proxy_visit_config_data(void* handle, void* destination, ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)destination; (void)write;
+  ocio_rs_bridge::capture_error_message("config IO requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!write) throw std::invalid_argument("invalid config visitor");
+    const auto value = ocio_rs_bridge::get_real_config_io_proxy_handle(handle)->proxy->getConfigData();
+    if (!write(destination, reinterpret_cast<const unsigned char*>(value.data()), value.size()))
+      throw ocio::Exception("config visitor failed");
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

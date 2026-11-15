@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
-use crate::{cstr_to_opt_string, cstring, OcioError, Result};
+use crate::{cstring, OcioError, Result};
 use ocio_sys;
 
 /// On-demand provider for the OCIO config and its referenced LUTs.
@@ -133,12 +133,28 @@ impl ConfigIOProxy {
 
     /// Replace the primary OCIO config text payload.
     pub fn set_config_data(&self, data: impl AsRef<str>) -> Result<()> {
-        let data = cstring(data)?;
+        self.set_config_data_bytes(data.as_ref().as_bytes())
+    }
+
+    /// Replace the primary configuration payload with arbitrary native bytes.
+    /// OCIO may reject the payload later when parsing it as YAML.
+    pub fn set_config_data_bytes(&self, data: &[u8]) -> Result<()> {
         crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_config_io_proxy_set_config_data(self.handle.as_ptr(), data.as_ptr())
+        let success = unsafe {
+            ocio_sys::ocio_config_io_proxy_set_config_data_bytes(
+                self.handle.as_ptr(),
+                data.as_ptr(),
+                data.len(),
+            )
         };
-        crate::ocio_call_status()
+        crate::ocio_call_status()?;
+        if success {
+            Ok(())
+        } else {
+            Err(OcioError::InvalidInput(
+                "config data was not accepted".into(),
+            ))
+        }
     }
 
     /// Return the primary OCIO config text payload, if set.
@@ -146,16 +162,28 @@ impl ConfigIOProxy {
         self.try_config_data().ok().flatten()
     }
 
-    /// Return the primary config text payload while preserving bridge failures.
+    /// Return the primary config text payload, replacing invalid UTF-8.
+    /// Use [`Self::try_config_data_bytes`] for a lossless result.
     pub fn try_config_data(&self) -> Result<Option<String>> {
+        Ok(self.try_config_data_bytes()?.map(|data| {
+            String::from_utf8(data)
+                .unwrap_or_else(|error| String::from_utf8_lossy(error.as_bytes()).into_owned())
+        }))
+    }
+
+    /// Return the complete native config payload, including embedded NULs.
+    pub fn try_config_data_bytes(&self) -> Result<Option<Vec<u8>>> {
+        let mut bytes = Vec::new();
         crate::clear_last_error();
-        let data = unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_config_io_proxy_get_config_data(
+        let success = unsafe {
+            ocio_sys::ocio_config_io_proxy_visit_config_data(
                 self.handle.as_ptr(),
-            ))
+                (&mut bytes as *mut Vec<u8>).cast(),
+                append_bytes,
+            )
         };
         crate::ocio_call_status()?;
-        Ok(data)
+        Ok(success.then_some(bytes))
     }
 
     /// Register the byte payload for a LUT file path and its fast hash.
