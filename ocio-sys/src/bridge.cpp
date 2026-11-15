@@ -9356,6 +9356,19 @@ public:
 };
 #endif
 
+#if !defined(OCIO_RS_STUB) && OCIO_RS_NATIVE_API_HEX >= 0x02050000
+static void ocio_rs_check_generic_texture_binding_range(
+    const ocio::GpuShaderDescRcPtr& desc, unsigned start, uint64_t extra) {
+  // The custom descriptor may use independent per-texture bindings and
+  // validates them itself. OCIO's generic descriptor uses contiguous slots.
+  if (dynamic_cast<OcioRsAssemblingDesc*>(desc.get())) return;
+  const uint64_t count = static_cast<uint64_t>(desc->getNumTextures())
+                       + desc->getNum3DTextures() + extra;
+  if (count && static_cast<uint64_t>(start) + count - 1 > std::numeric_limits<unsigned>::max())
+    throw ocio::Exception("Texture binding index overflow");
+}
+#endif
+
 bool ocio_gpu_shader_desc_set_custom_cache_id(void* handle, const char* value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)value;
@@ -10182,7 +10195,9 @@ bool ocio_gpu_shader_desc_add_texture(
       throw std::invalid_argument("GPU texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-    const auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->addTexture(
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    ocio_rs_check_generic_texture_binding_range(desc, desc->getTextureBindingStart(), 1);
+    const auto result = desc->addTexture(
       textureName,
       samplerName,
       width,
@@ -10317,7 +10332,9 @@ bool ocio_gpu_shader_desc_add3d_texture(
       throw std::invalid_argument("GPU 3D texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-    const auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->add3DTexture(
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    ocio_rs_check_generic_texture_binding_range(desc, desc->getTextureBindingStart(), 1);
+    const auto result = desc->add3DTexture(
       textureName,
       samplerName,
       edgeLen,
@@ -10784,6 +10801,9 @@ void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index,
 #else
   try {
     auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    ocio_rs_check_generic_texture_binding_range(desc, textureBindingStart, 0);
+#endif
     desc->setDescriptorSetIndex(index, textureBindingStart);
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     if (auto custom = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(desc))

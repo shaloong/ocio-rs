@@ -2875,6 +2875,86 @@ fn gpu_shader_desc_invalid_descriptor_binding_reports_error_behavior() {
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn generic_descriptor_rejects_texture_binding_overflow_before_mutation() {
+    let _guard = gpu_shader_desc_test_lock();
+    let desc = GpuShaderDesc::create().unwrap();
+    desc.try_set_descriptor_set_index(2, u32::MAX).unwrap();
+    assert_eq!(
+        desc.add_texture_2d(
+            "first",
+            "first_sampler",
+            1,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .unwrap(),
+        Some(u32::MAX)
+    );
+    assert!(desc
+        .add_texture_3d(
+            "cube",
+            "cube_sampler",
+            1,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3]
+        )
+        .is_err());
+    assert_eq!(desc.num_textures(), 1);
+    assert_eq!(desc.num_3d_textures(), 0);
+    desc.try_set_descriptor_set_index(2, 1).unwrap();
+    assert_eq!(
+        desc.add_texture_3d(
+            "cube",
+            "cube_sampler",
+            1,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3]
+        )
+        .unwrap(),
+        Some(2)
+    );
+    assert!(desc.try_set_descriptor_set_index(3, u32::MAX).is_err());
+    assert_eq!(desc.descriptor_set_index(), 2);
+    assert_eq!(desc.texture_binding_start(), 1);
+    assert_eq!(desc.texture_shader_binding_index(0), Some(1));
+    assert_eq!(desc.texture_3d_shader_binding_index(0), Some(2));
+
+    let reverse = GpuShaderDesc::create().unwrap();
+    reverse.try_set_descriptor_set_index(2, u32::MAX).unwrap();
+    assert_eq!(
+        reverse
+            .add_texture_3d(
+                "first_cube",
+                "first_cube_sampler",
+                1,
+                Interpolation::Linear,
+                &[0.1, 0.2, 0.3]
+            )
+            .unwrap(),
+        Some(u32::MAX)
+    );
+    assert!(reverse
+        .add_texture_2d(
+            "second",
+            "second_sampler",
+            1,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.1, 0.2, 0.3],
+        )
+        .is_err());
+    assert_eq!(reverse.num_textures(), 0);
+    assert_eq!(reverse.num_3d_textures(), 1);
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn gpu_shader_desc_result_wrappers_clear_prior_error_behavior() {
     let _guard = gpu_shader_desc_test_lock();
     if is_stub() {
