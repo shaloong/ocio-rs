@@ -205,6 +205,19 @@ unsafe extern "C" {
         field: i32,
         argument: *const i8,
     ) -> *const i8;
+    pub fn ocio_const_context_get_int(handle: *mut c_void, field: i32) -> i32;
+    pub fn ocio_const_context_get_indexed_text(
+        handle: *mut c_void,
+        field: i32,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_const_context_get_config_io_proxy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_resolve_with_used(
+        handle: *mut c_void,
+        field: i32,
+        input: *const i8,
+        used: *mut c_void,
+    ) -> *const i8;
     pub fn ocio_config_get_processor_with_const_context(
         config: *mut c_void,
         context: *mut c_void,

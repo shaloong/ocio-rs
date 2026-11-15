@@ -15,6 +15,58 @@ pub struct ConstContext {
     pub(crate) handle: NonNull<c_void>,
 }
 impl ConstContext {
+    fn integer(&self, field: i32) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_const_context_get_int(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn indexed_text(&self, field: i32, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_get_indexed_text(self.handle.as_ptr(), field, index)
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Number of native search path entries.
+    pub fn num_search_paths(&self) -> Result<i32> {
+        self.integer(0)
+    }
+    /// Search path by index, using native out-of-range semantics.
+    pub fn search_path_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(0, index)
+    }
+    /// Number of native context variables.
+    pub fn num_string_vars(&self) -> Result<i32> {
+        self.integer(1)
+    }
+    /// Context variable name by index, using native out-of-range semantics.
+    pub fn string_var_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(1, index)
+    }
+    /// Context variable value by index, using native out-of-range semantics.
+    pub fn string_var_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(2, index)
+    }
+    /// Native environment-loading mode.
+    pub fn environment_mode(&self) -> Result<EnvironmentMode> {
+        Ok(match self.integer(2)? {
+            1 => EnvironmentMode::LoadPredefined,
+            2 => EnvironmentMode::LoadAll,
+            _ => EnvironmentMode::Unknown,
+        })
+    }
+    /// Retain the attached native proxy, if present, without copying its data.
+    /// The returned handle remains valid after this context is dropped.
+    pub fn config_io_proxy(&self) -> Result<Option<ConfigIOProxy>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_context_get_config_io_proxy(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConfigIOProxy { handle }))
+    }
     fn text(&self, field: i32, argument: Option<&std::ffi::CStr>) -> Result<Option<String>> {
         crate::clear_last_error();
         let ptr = unsafe {
@@ -51,6 +103,41 @@ impl ConstContext {
     /// Resolve a file location, preserving OCIO missing-file errors.
     pub fn resolve_file_location(&self, value: &std::ffi::CStr) -> Result<Option<String>> {
         self.text(5, Some(value))
+    }
+    fn resolve_with_used(
+        &self,
+        field: i32,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_resolve_with_used(
+                self.handle.as_ptr(),
+                field,
+                value.as_ptr(),
+                used.handle.as_ptr(),
+            )
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Resolve variables and update `used` with the context variables OCIO used.
+    pub fn resolve_string_var_with_used_context(
+        &self,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        self.resolve_with_used(0, value, used)
+    }
+    /// Resolve a file and update `used` with the context variables OCIO used.
+    pub fn resolve_file_location_with_used_context(
+        &self,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        self.resolve_with_used(1, value, used)
     }
     /// Create an independently editable context.
     pub fn create_editable_copy(&self) -> Result<Context> {

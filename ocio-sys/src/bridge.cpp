@@ -6188,6 +6188,71 @@ const char* ocio_const_context_get_text(void* handle, int field, const char* arg
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+int ocio_const_context_get_int(void* handle, int field) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; ocio_rs_bridge::capture_error_message("Native context required"); return 0;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const context");
+    const auto& value = *static_cast<ocio::ConstContextRcPtr*>(handle);
+    switch (field) {
+      case 0: return value->getNumSearchPaths();
+      case 1: return value->getNumStringVars();
+      case 2: return static_cast<int>(value->getEnvironmentMode());
+      default: throw std::invalid_argument("invalid context integer field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+const char* ocio_const_context_get_indexed_text(void* handle, int field, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)index; ocio_rs_bridge::capture_error_message("Native context required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const context");
+    const auto& value = *static_cast<ocio::ConstContextRcPtr*>(handle);
+    switch (field) {
+      case 0: return value->getSearchPath(index);
+      case 1: return value->getStringVarNameByIndex(index);
+      case 2: return value->getStringVarByIndex(index);
+      default: throw std::invalid_argument("invalid context indexed field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_context_get_config_io_proxy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native context required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const context");
+    auto context = *static_cast<ocio::ConstContextRcPtr*>(handle);
+    auto proxy = context->getConfigIOProxy();
+    if (!proxy) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
+    auto owner = std::make_shared<ocio::ConstContextRcPtr>(std::move(context));
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(ocio_rs_bridge::RealConfigIOProxy{proxy, owner});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+const char* ocio_const_context_resolve_with_used(void* handle, int field, const char* input, void* used) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)input; (void)used; ocio_rs_bridge::capture_error_message("Native context required"); return nullptr;
+#else
+  try {
+    if (!handle || !input || !used) throw std::invalid_argument("invalid context resolution arguments");
+    const auto& value = *static_cast<ocio::ConstContextRcPtr*>(handle);
+    auto* out = static_cast<ocio_rs_bridge::ContextHandle*>(used);
+    auto& used_context = std::static_pointer_cast<ocio_rs_bridge::RealContext>(out->inner)->context;
+    switch (field) {
+      case 0: return value->resolveStringVar(input, used_context);
+      case 1: return value->resolveFileLocation(input, used_context);
+      default: throw std::invalid_argument("invalid context resolution field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)context; (void)source; (void)destination;

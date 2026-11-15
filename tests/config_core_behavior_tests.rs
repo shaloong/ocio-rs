@@ -324,6 +324,95 @@ fn current_context_preserves_constness_and_supports_processors() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_context_exposes_native_enumeration_and_retained_proxy() {
+    let _guard = config_core_test_lock();
+    let empty_config = Config::raw().unwrap();
+    let empty_context = empty_config.try_const_current_context().unwrap().unwrap();
+    assert!(empty_context.config_io_proxy().unwrap().is_none());
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).unwrap();
+    config
+        .set_working_dir(config_path.parent().unwrap().to_string_lossy())
+        .unwrap();
+    config.set_search_path(".").unwrap();
+    let proxy = ocio_rs::ConfigIOProxy::create().unwrap();
+    proxy.set_config_data("retained config payload").unwrap();
+    proxy
+        .set_lut_data(
+            config_path
+                .parent()
+                .unwrap()
+                .join("shot4/lut1.clf")
+                .to_string_lossy(),
+            b"fixture",
+            "fixture-v1",
+        )
+        .unwrap();
+    config.set_config_io_proxy_object(&proxy).unwrap();
+    drop(proxy);
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    let editable = shared.create_editable_copy().unwrap();
+    assert_eq!(
+        shared.num_search_paths().unwrap(),
+        editable.try_num_search_paths().unwrap()
+    );
+    for index in -1..=shared.num_search_paths().unwrap() {
+        assert_eq!(
+            shared.search_path_by_index(index).unwrap(),
+            editable.try_search_path_by_index(index).unwrap()
+        );
+    }
+    assert_eq!(
+        shared.num_string_vars().unwrap(),
+        editable.try_num_string_vars().unwrap()
+    );
+    for index in -1..=shared.num_string_vars().unwrap() {
+        assert_eq!(
+            shared.string_var_name_by_index(index).unwrap(),
+            editable.try_string_var_name_by_index(index).unwrap()
+        );
+        assert_eq!(
+            shared.string_var_by_index(index).unwrap(),
+            editable.try_string_var_by_index(index).unwrap()
+        );
+    }
+    assert_eq!(
+        shared.environment_mode().unwrap(),
+        editable.environment_mode()
+    );
+    let mut used = ocio_rs::Context::create().unwrap();
+    assert_eq!(
+        shared
+            .resolve_string_var_with_used_context(c"${SHOT}/file.clf", &mut used)
+            .unwrap()
+            .as_deref(),
+        Some("shot4/file.clf")
+    );
+    assert_eq!(
+        used.try_string_var("SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
+    let found = shared
+        .resolve_file_location_with_used_context(c"${SHOT}/lut1.clf", &mut used)
+        .unwrap()
+        .unwrap();
+    assert!(found.ends_with("lut1.clf"));
+    assert!(matches!(
+        shared.resolve_file_location_with_used_context(c"definitely-missing-file.clf", &mut used),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    let retained = shared.config_io_proxy().unwrap().unwrap();
+    drop(editable);
+    drop(shared);
+    drop(config);
+    assert_eq!(
+        retained.try_config_data().unwrap().as_deref(),
+        Some("retained config payload")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_current_context_survives_parent_drop_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {

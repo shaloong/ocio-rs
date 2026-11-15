@@ -84,6 +84,10 @@ This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
 The color-space menu parameters and immutable menu are now bound at their
 native version floors. The menu borrows native strings without allocating.
+Read-only current contexts support indexed search paths and variables,
+environment mode, resolution with used-variable tracking, and retained IO
+proxies without making an editable context copy. Text results are owned because
+other native aliases may change the underlying context.
 Menu parameters, menus, mixing managers, sliders, legacy viewing pipelines,
 and merging parameters expose OCIO's diagnostic stream representations as
 owned strings; these are not stable interchange or round-trip formats.

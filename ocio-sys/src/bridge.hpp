@@ -45,6 +45,10 @@ void* ocio_config_get_processor_from_const_named_transform(void* config, void* c
 void ocio_const_context_destroy(void* handle);
 void* ocio_const_context_create_editable_copy(void* handle);
 const char* ocio_const_context_get_text(void* handle, int field, const char* argument);
+int ocio_const_context_get_int(void* handle, int field);
+const char* ocio_const_context_get_indexed_text(void* handle, int field, int index);
+void* ocio_const_context_get_config_io_proxy(void* handle);
+const char* ocio_const_context_resolve_with_used(void* handle, int field, const char* input, void* used);
 void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination);
 void* ocio_config_get_processor_const_transform_with_const_context(void* config, void* context, void* transform, int direction);
 void* ocio_config_get_processor_from_color_space_refs(void* config, void* context,
