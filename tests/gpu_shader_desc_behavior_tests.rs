@@ -28,6 +28,265 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_texture_policy_controls_native_virtual_getters_and_detaches() {
+    use ocio_rs::{
+        ShaderExtractionHooks, ShaderFinalizeControl, ShaderTextureAction, ShaderTexturePolicy,
+        ShaderUniformAction, ShaderUniformControl, ShaderUniformRegistration,
+    };
+    struct Hooks;
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    impl ShaderFinalizeControl for Hooks {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            Ok(None)
+        }
+    }
+    struct Policy {
+        widths: usize,
+        dimensions: usize,
+        failure: u8,
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            self.widths += 1;
+            match self.failure {
+                1 => Err(ocio_rs::OcioError::InvalidInput("policy failed".into())),
+                2 => panic!("policy panic"),
+                3 => Ok(1),
+                _ => Ok(1024),
+            }
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            self.dimensions += 1;
+            if self.failure == 4 {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "allow policy failed".into(),
+                ));
+            }
+            assert_ne!(self.failure, 5, "allow policy panic");
+            Ok(false)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_texture_max_width(2048).unwrap();
+    template.set_allow_texture_1d(true).unwrap();
+    let mut invalid_cache = Policy {
+        widths: 0,
+        dimensions: 0,
+        failure: 0,
+    };
+    let error = gpu
+        .try_extract_with_texture_policy(&template, &mut Hooks, &mut invalid_cache, c"", |_| {
+            Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+        })
+        .err()
+        .unwrap();
+    assert!(error.to_string().contains("nonempty cache ID"));
+    assert_eq!(invalid_cache.widths, 0);
+    let desc = {
+        let mut policy = Policy {
+            widths: 0,
+            dimensions: 0,
+            failure: 0,
+        };
+        let desc = gpu
+            .try_extract_with_texture_policy(
+                &template,
+                &mut Hooks,
+                &mut policy,
+                c"policy-initial",
+                |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+            )
+            .unwrap();
+        assert!(policy.widths > 0 && policy.dimensions > 0);
+        assert_eq!(
+            desc.try_cache_id().unwrap().as_deref(),
+            Some("policy-initial")
+        );
+        assert_eq!(
+            desc.texture_2d(0).unwrap().dimensions,
+            GpuTextureDimensions::Texture2D
+        );
+        let calls = (policy.widths, policy.dimensions);
+        assert_eq!(desc.try_texture_max_width().unwrap(), 2048);
+        assert!(desc.try_allow_texture_1d().unwrap());
+        assert_eq!((policy.widths, policy.dimensions), calls);
+        desc
+    };
+    assert_eq!(desc.try_texture_max_width().unwrap(), 2048);
+    for failure in [1, 2, 3, 4, 5] {
+        let mut policy = Policy {
+            widths: 0,
+            dimensions: 0,
+            failure,
+        };
+        let err = gpu
+            .try_extract_with_texture_policy(
+                &template,
+                &mut Hooks,
+                &mut policy,
+                c"policy-failure",
+                |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+            )
+            .err()
+            .expect("policy failure");
+        let expected = match failure {
+            1 => "policy failed",
+            2 => "panicked",
+            3 => "invalid texture policy",
+            4 => "allow policy failed",
+            _ => "panicked",
+        };
+        assert!(err.to_string().contains(expected), "{err}");
+    }
+    let mut policy = Policy {
+        widths: 0,
+        dimensions: 0,
+        failure: 1,
+    };
+    let error = gpu
+        .try_extract_with_texture_policy(
+            &template,
+            &mut Hooks,
+            &mut policy,
+            c"policy-failure",
+            |_| {
+                Err(ocio_rs::OcioError::InvalidInput(
+                    "later texture error".into(),
+                ))
+            },
+        )
+        .err()
+        .expect("policy failure");
+    assert!(error.to_string().contains("policy failed"), "{error}");
+
+    struct Switching {
+        calls: usize,
+    }
+    impl ShaderTexturePolicy for Switching {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(1024)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            self.calls += 1;
+            Ok(self.calls == 1)
+        }
+    }
+    let second_lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    second_lut.set_length(3).unwrap();
+    second_lut
+        .set_values(&[0.0, 0.0, 0.0, 0.3, 0.2, 0.4, 1.0, 1.0, 1.0])
+        .unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&lut).unwrap();
+    group
+        .append_transform(&MatrixTransform::scale(&[0.9, 1.1, 1.0, 1.0]).unwrap())
+        .unwrap();
+    group.append_transform(&second_lut).unwrap();
+    let two_luts = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let mut switching = Switching { calls: 0 };
+    let mut dimensions = Vec::new();
+    let desc = two_luts
+        .try_extract_with_texture_policy(
+            &template,
+            &mut Hooks,
+            &mut switching,
+            c"policy-switching",
+            |texture| {
+                dimensions.push(texture.dimensions);
+                Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+            },
+        )
+        .unwrap();
+    assert_eq!(switching.calls, 2);
+    assert_eq!(
+        dimensions,
+        [
+            Some(GpuTextureDimensions::Texture1D),
+            Some(GpuTextureDimensions::Texture2D)
+        ]
+    );
+    assert_eq!(desc.num_textures(), 2);
+    assert_eq!(
+        desc.try_cache_id().unwrap().as_deref(),
+        Some("policy-switching")
+    );
+
+    struct Retaining {
+        getter: Option<ocio_rs::ShaderUniformGetter>,
+    }
+    impl ShaderExtractionHooks for Retaining {}
+    impl ShaderUniformControl for Retaining {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.getter = Some(uniform.getter);
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    impl ShaderFinalizeControl for Retaining {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            Ok(None)
+        }
+    }
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&lut).unwrap();
+    let gpu = config
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let mut retained = Retaining { getter: None };
+    {
+        let mut failing = Policy {
+            widths: 0,
+            dimensions: 0,
+            failure: 1,
+        };
+        let result = gpu.try_extract_with_texture_policy(
+            &template,
+            &mut retained,
+            &mut failing,
+            c"policy-retained-failure",
+            |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+        );
+        assert!(result.err().unwrap().to_string().contains("policy failed"));
+    }
+    assert_eq!(
+        retained.getter.as_mut().unwrap().double().unwrap(),
+        Some(0.5)
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fallible_descriptor_clone_clears_stale_errors_and_reports_null_handle() {
     let _guard = gpu_shader_desc_test_lock();
     unsafe {

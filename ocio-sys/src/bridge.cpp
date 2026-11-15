@@ -9001,6 +9001,8 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   ocio_shader_texture_callback texture_callback;
   ocio_shader_texture_control_callback texture_control_callback = nullptr;
   ocio_shader_finalize_callback finalize_callback = nullptr;
+  ocio_shader_texture_policy_callback policy_callback = nullptr;
+  mutable bool policy_failed = false;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
   ocio_shader_code_callback code_callback;
@@ -9125,10 +9127,12 @@ public:
   }
   void setTextureControl(ocio_shader_texture_control_callback cb) { texture_control_callback = cb; }
   void setFinalizeControl(ocio_shader_finalize_callback cb) { finalize_callback = cb; }
+  void setTexturePolicy(ocio_shader_texture_policy_callback cb) { policy_callback = cb; }
+  bool texturePolicyFailed() const noexcept { return policy_failed; }
   const char* getCacheID() const noexcept override {
     return has_cache_id_override ? cache_id_override.c_str() : ocio::GpuShaderCreator::getCacheID();
   }
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; policy_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
   void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { ocio::GpuShaderCreator::end(); notifyLifecycle(2); }
   void finalize() override {
@@ -9159,9 +9163,19 @@ public:
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
   void setTextureMaxWidth(unsigned v) override { resources->setTextureMaxWidth(v); }
-  unsigned getTextureMaxWidth() const noexcept override { return resources->getTextureMaxWidth(); }
+  unsigned getTextureMaxWidth() const noexcept override {
+    if (!policy_callback) return resources->getTextureMaxWidth();
+    uint32_t value = 1048577;
+    if (!policy_callback(context, 0, &value) || value < 2) { policy_failed = true; return 1048577; }
+    return value;
+  }
   void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
-  bool getAllowTexture1D() const override { return resources->getAllowTexture1D(); }
+  bool getAllowTexture1D() const override {
+    if (!policy_callback) return resources->getAllowTexture1D();
+    uint32_t value = 0;
+    if (!policy_callback(context, 1, &value) || value > 1) { policy_failed = true; return false; }
+    return value != 0;
+  }
   bool addUniform(const char* n, const DoubleGetter& g) override {
     if (!registration_callback) return notifyUniform(resources->addUniform(n, g), n, 0, false, 0);
     UniformData data; data.m_type = ocio::UNIFORM_DOUBLE; data.m_getDouble = g;
@@ -9350,9 +9364,10 @@ static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* temp
     ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
     void* context, bool stream_textures, const char* cache_id_override,
     ocio_shader_texture_control_callback texture_control = nullptr,
-    ocio_shader_finalize_callback finalize_control = nullptr) {
+    ocio_shader_finalize_callback finalize_control = nullptr,
+    ocio_shader_texture_policy_callback policy = nullptr) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)registration; (void)context; (void)stream_textures; (void)cache_id_override; (void)texture_control; (void)finalize_control;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)registration; (void)context; (void)stream_textures; (void)cache_id_override; (void)texture_control; (void)finalize_control; (void)policy;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
@@ -9362,6 +9377,7 @@ static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* temp
     auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, code, registration, context, stream_textures);
     desc->setTextureControl(texture_control);
     desc->setFinalizeControl(finalize_control);
+    desc->setTexturePolicy(policy);
     // Retained getters may keep desc alive after either success or failure;
     // never leave the synchronous Rust callback context attached to it.
     struct CallbackReset {
@@ -9382,6 +9398,7 @@ static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* temp
     desc->setCacheIDOverride(cache_id_override);
     ocio::GpuShaderCreatorRcPtr creator = desc;
     ocio_rs_bridge::get_real_gpu_processor(handle)->extractGpuShaderInfo(creator);
+    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust texture policy callback failed");
     desc->clear_callback();
     auto out = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{desc});
@@ -9433,6 +9450,16 @@ void* ocio_gpu_processor_extract_with_finalize_control(void* handle, void* templ
   if (!texture || !finalize) { ocio_rs_bridge::capture_error_message("texture and finalize control callbacks required"); return nullptr; }
   return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, nullptr, uniform,
       lifecycle, code, registration, context, false, cache_id_override, texture, finalize);
+}
+void* ocio_gpu_processor_extract_with_texture_policy(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    ocio_shader_finalize_callback finalize, ocio_shader_texture_policy_callback policy,
+    const char* cache_id_override, void* context) {
+  if (!texture || !finalize || !policy) { ocio_rs_bridge::capture_error_message("texture, finalize and policy callbacks required"); return nullptr; }
+  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, nullptr, uniform,
+      lifecycle, code, registration, context, false, cache_id_override, texture, finalize, policy);
 }
 void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,

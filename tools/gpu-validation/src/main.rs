@@ -6,8 +6,8 @@ use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
     ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderTexture,
-    ShaderTextureAction, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
-    ShaderUniformRegistration, TransformDirection,
+    ShaderTextureAction, ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl,
+    ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -54,7 +54,9 @@ fn validate_case(
     let mut desc = GpuShaderDesc::create()?;
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
-    desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
+    desc.set_allow_texture_1d(
+        expected_texture == TextureKind::OneD || name == "dynamic texture policy",
+    )?;
     if name.contains("packed-width-4") {
         desc.set_texture_max_width(4)?;
     }
@@ -170,7 +172,37 @@ fn validate_case(
             });
             Ok(None)
         };
-        desc = if hooks.custom_finalize {
+        desc = if name == "dynamic texture policy" {
+            struct Policy {
+                width_queries: usize,
+                dimension_queries: usize,
+            }
+            impl ShaderTexturePolicy for Policy {
+                fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+                    self.width_queries += 1;
+                    Ok(1024)
+                }
+                fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+                    self.dimension_queries += 1;
+                    Ok(false)
+                }
+            }
+            let mut policy = Policy {
+                width_queries: 0,
+                dimension_queries: 0,
+            };
+            let result = gpu.try_extract_with_texture_policy(
+                &desc,
+                &mut hooks,
+                &mut policy,
+                c"gpu-validation-texture-policy",
+                |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+            )?;
+            if policy.width_queries == 0 || policy.dimension_queries == 0 {
+                return Err("native texture policy was not queried".into());
+            }
+            result
+        } else if hooks.custom_finalize {
             let mut first = true;
             gpu.try_extract_with_finalize_control(&desc, &mut hooks, None, |texture| {
                 if expected_texture == TextureKind::Mixed && first {
@@ -838,6 +870,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
     let packed = Lut1DTransform::create()?;
+    validate_case(
+        &device,
+        &queue,
+        "dynamic texture policy",
+        &processor,
+        None,
+        TextureKind::TwoD,
+        5e-3,
+        None,
+        true,
+    )?;
     packed.set_length(5)?;
     packed.set_values(&[
         0., 0., 0., 0.1, 0.2, 0.3, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1., 1., 1.,

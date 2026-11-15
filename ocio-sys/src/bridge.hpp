@@ -740,6 +740,8 @@ typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_te
 typedef bool (*ocio_shader_texture_control_callback)(void* context, const ocio_shader_texture_event* event,
     bool* store, bool* override_binding, uint32_t* binding);
 typedef bool (*ocio_shader_finalize_callback)(void* context, const char** shader_text);
+// Returns a policy value in `value`; kind 0 is maximum width, kind 1 is allow-1D.
+typedef bool (*ocio_shader_texture_policy_callback)(void* context, int kind, uint32_t* value);
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
@@ -786,6 +788,12 @@ void* ocio_gpu_processor_extract_with_finalize_control(void* handle, void* templ
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
     ocio_shader_finalize_callback finalize, const char* cache_id_override, void* context);
+void* ocio_gpu_processor_extract_with_texture_policy(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    ocio_shader_finalize_callback finalize, ocio_shader_texture_policy_callback policy,
+    const char* cache_id_override, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);

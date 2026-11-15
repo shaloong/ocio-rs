@@ -2253,6 +2253,29 @@ pub trait ShaderFinalizeControl: ShaderUniformControl {
     fn finalize_shader(&mut self) -> Result<Option<String>>;
 }
 
+/// Synchronous policy for OCIO's native texture-width and 1D-texture getters.
+///
+/// These methods can be called repeatedly during extraction. The policy is
+/// detached before the resulting descriptor is returned. Its maximum width
+/// must be at least two; supported OCIO versions have a separate LUT padding
+/// bug for certain width/length pairs, so the caller must ensure its policies
+/// are safe for every generated LUT. No callback runs in the GPU pixel loop.
+///
+/// ```
+/// # use ocio_rs::{ShaderTexturePolicy, Result};
+/// struct Policy;
+/// impl ShaderTexturePolicy for Policy {
+///     fn texture_max_width(&mut self) -> Result<u32> { Ok(4096) }
+///     fn allow_texture_1d(&mut self) -> Result<bool> { Ok(false) }
+/// }
+/// ```
+pub trait ShaderTexturePolicy {
+    /// Maximum native texture width for the current query.
+    fn texture_max_width(&mut self) -> Result<u32>;
+    /// Whether OCIO may emit 1D textures for the current query.
+    fn allow_texture_1d(&mut self) -> Result<bool>;
+}
+
 /// Lifecycle stages of a native shader-creator extraction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShaderLifecycle<'a> {
@@ -2844,8 +2867,124 @@ impl GPUProcessor {
         )
     }
 
+    /// Extract with independently controlled texture policy, resource storage,
+    /// uniforms and finalization. Policy callbacks are synchronous and detached
+    /// on every return path. Do not reenter the same processor from callbacks.
+    ///
+    /// The native width getter is `noexcept`: on a callback failure or panic,
+    /// extraction uses a conservative temporary fallback and then returns the
+    /// original error. Other callbacks and external uploads may have occurred
+    /// before failure and their cleanup remains the caller's responsibility.
+    /// Policy values may vary during extraction, so a template-only layout probe
+    /// cannot prove them safe; see [`ShaderTexturePolicy`].
+    /// `cache_id` must be nonempty and uniquely represent the policy and output;
+    /// update it whenever they change to avoid native resource-key collisions.
+    pub fn try_extract_with_texture_policy<H, P, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        policy: &mut P,
+        cache_id: &std::ffi::CStr,
+        mut texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderFinalizeControl + ?Sized,
+        P: ShaderTexturePolicy + ?Sized,
+        T: FnMut(ShaderTexture<'_>) -> Result<ShaderTextureAction>,
+    {
+        if cache_id.to_bytes().is_empty() {
+            return Err(OcioError::InvalidInput(
+                "texture policy requires a nonempty cache ID".into(),
+            ));
+        }
+        let hooks = std::cell::RefCell::new(hooks);
+        let storage = std::cell::Cell::new(true);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        let mut finalizer = || hooks.borrow_mut().finalize_shader();
+        let mut query = |kind| match kind {
+            0 => policy.texture_max_width(),
+            1 => policy.allow_texture_1d().map(u32::from),
+            _ => Err(OcioError::InvalidInput(
+                "invalid texture policy query".into(),
+            )),
+        };
+        self.try_extract_with_callbacks_and_policy(
+            template,
+            false,
+            Some(&storage),
+            Some(cache_id),
+            &mut registration,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |event| match texture(event)? {
+                ShaderTextureAction::StoreInDescriptor { binding } => {
+                    storage.set(true);
+                    Ok(binding)
+                }
+                ShaderTextureAction::External { binding } => {
+                    storage.set(false);
+                    Ok(binding)
+                }
+            },
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+            Some(&mut finalizer),
+            Some(&mut query),
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn try_extract_with_callbacks<F, G>(
+        &self,
+        template: &GpuShaderDesc,
+        stream_textures: bool,
+        texture_storage: Option<&std::cell::Cell<bool>>,
+        cache_id_override: Option<&std::ffi::CStr>,
+        registration: &mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
+        has_registration: bool,
+        assemble: F,
+        texture: G,
+        notify_texture: bool,
+        uniform: &mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
+        notify_uniform: bool,
+        lifecycle: &mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
+        notify_lifecycle: bool,
+        code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
+        notify_code: bool,
+        finalizer: Option<&mut dyn FnMut() -> Result<Option<String>>>,
+    ) -> Result<GpuShaderDesc>
+    where
+        F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
+        G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+    {
+        self.try_extract_with_callbacks_and_policy(
+            template,
+            stream_textures,
+            texture_storage,
+            cache_id_override,
+            registration,
+            has_registration,
+            assemble,
+            texture,
+            notify_texture,
+            uniform,
+            notify_uniform,
+            lifecycle,
+            notify_lifecycle,
+            code,
+            notify_code,
+            finalizer,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_extract_with_callbacks_and_policy<F, G>(
         &self,
         template: &GpuShaderDesc,
         stream_textures: bool,
@@ -2863,6 +3002,7 @@ impl GPUProcessor {
         code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
         notify_code: bool,
         mut finalizer: Option<&mut dyn FnMut() -> Result<Option<String>>>,
+        mut policy: Option<&mut dyn FnMut(i32) -> Result<u32>>,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -2878,10 +3018,60 @@ impl GPUProcessor {
             registration:
                 &'a mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
             finalizer: Option<&'a mut dyn FnMut() -> Result<Option<String>>>,
+            policy: Option<&'a mut dyn FnMut(i32) -> Result<u32>>,
             output: Option<std::ffi::CString>,
             code_output: Option<std::ffi::CString>,
             finalizer_output: Option<std::ffi::CString>,
             error: Option<OcioError>,
+        }
+        unsafe extern "C" fn policy_callback<F, G>(
+            context: *mut c_void,
+            kind: i32,
+            value: *mut u32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
+            if state.error.is_some() {
+                return false;
+            }
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
+                    if value.is_null() || !(0..=1).contains(&kind) {
+                        return Err(OcioError::InvalidInput(
+                            "invalid texture policy event".into(),
+                        ));
+                    }
+                    let policy = state
+                        .policy
+                        .as_mut()
+                        .ok_or_else(|| OcioError::InvalidInput("missing texture policy".into()))?;
+                    let result = policy(kind)?;
+                    if (kind == 0 && result < 2) || (kind == 1 && result > 1) {
+                        return Err(OcioError::InvalidInput(
+                            "invalid texture policy value".into(),
+                        ));
+                    }
+                    Ok(result)
+                }));
+            match result {
+                Ok(Ok(result)) => {
+                    unsafe { *value = result };
+                    true
+                }
+                Ok(Err(error)) => {
+                    state.error.get_or_insert(error);
+                    false
+                }
+                Err(_) => {
+                    state.error.get_or_insert_with(|| {
+                        OcioError::InvalidInput("texture policy callback panicked".into())
+                    });
+                    false
+                }
+            }
         }
         unsafe extern "C" fn finalize_callback<F, G>(
             context: *mut c_void,
@@ -3070,11 +3260,11 @@ impl GPUProcessor {
             match result {
                 Ok(Ok(())) => true,
                 Ok(Err(error)) => {
-                    state.error = Some(error);
+                    state.error.get_or_insert(error);
                     false
                 }
                 Err(_) => {
-                    state.error = Some(OcioError::InvalidInput(
+                    state.error.get_or_insert(OcioError::InvalidInput(
                         "shader uniform callback panicked".into(),
                     ));
                     false
@@ -3136,11 +3326,13 @@ impl GPUProcessor {
                     true
                 }
                 Ok(Err(error)) => {
-                    state.error = Some(error);
+                    state.error.get_or_insert(error);
                     false
                 }
                 Err(_) => {
-                    state.error = Some(OcioError::InvalidInput("shader assembler panicked".into()));
+                    state
+                        .error
+                        .get_or_insert(OcioError::InvalidInput("shader assembler panicked".into()));
                     false
                 }
             }
@@ -3219,11 +3411,11 @@ impl GPUProcessor {
                     true
                 }
                 Ok(Err(error)) => {
-                    state.error = Some(error);
+                    state.error.get_or_insert(error);
                     false
                 }
                 Err(_) => {
-                    state.error = Some(OcioError::InvalidInput(
+                    state.error.get_or_insert(OcioError::InvalidInput(
                         "shader texture callback panicked".into(),
                     ));
                     false
@@ -3326,6 +3518,7 @@ impl GPUProcessor {
             }
         }
         let has_finalizer = finalizer.is_some();
+        let has_policy = policy.is_some();
         let mut state = State {
             function: &mut assemble,
             texture: &mut texture,
@@ -3337,6 +3530,9 @@ impl GPUProcessor {
             finalizer: finalizer
                 .as_mut()
                 .map(|f| &mut **f as &mut dyn FnMut() -> Result<Option<String>>),
+            policy: policy
+                .as_mut()
+                .map(|p| &mut **p as &mut dyn FnMut(i32) -> Result<u32>),
             output: None,
             code_output: None,
             finalizer_output: None,
@@ -3351,7 +3547,23 @@ impl GPUProcessor {
             } else {
                 ocio_sys::ocio_gpu_processor_extract_with_hooks
             };
-            if has_finalizer {
+            if has_policy {
+                debug_assert!(has_finalizer && texture_storage.is_some());
+                ocio_sys::ocio_gpu_processor_extract_with_texture_policy(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    texture_control_callback::<F, G>,
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    has_registration.then_some(registration_callback::<F, G>),
+                    finalize_callback::<F, G>,
+                    policy_callback::<F, G>,
+                    cache_id_override.map_or(std::ptr::null(), |id| id.as_ptr()),
+                    context,
+                )
+            } else if has_finalizer {
                 ocio_sys::ocio_gpu_processor_extract_with_finalize_control(
                     self.handle.as_ptr(),
                     template.handle.as_ptr(),
@@ -3421,6 +3633,9 @@ impl GPUProcessor {
         };
         let result = crate::handle_result(ptr);
         if let Some(error) = state.error {
+            if let Ok(handle) = result {
+                unsafe { ocio_sys::ocio_gpu_shader_desc_destroy(handle.as_ptr()) };
+            }
             return Err(error);
         }
         Ok(GpuShaderDesc { handle: result? })
