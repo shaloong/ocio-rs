@@ -1,6 +1,20 @@
 use std::ffi::c_void;
 
 unsafe extern "C" {
+    pub fn ocio_grading_curve_const_view(h: *mut c_void, kind: i32, hue: bool) -> *const c_void;
+    pub fn ocio_grading_spline_const_count(h: *const c_void) -> usize;
+    pub fn ocio_grading_spline_const_point(
+        h: *const c_void,
+        index: usize,
+        x: *mut f32,
+        y: *mut f32,
+    );
+    pub fn ocio_grading_spline_const_slope(h: *const c_void, index: usize) -> f32;
+    pub fn ocio_grading_spline_const_slopes_default(h: *const c_void) -> bool;
+    pub fn ocio_grading_spline_const_validate(h: *const c_void);
+    pub fn ocio_grading_spline_const_copy(h: *const c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_spline_const_type(h: *const c_void) -> i32;
     pub fn ocio_grading_bspline_curve_create(count: usize) -> *mut c_void;
     pub fn ocio_grading_bspline_curve_create_from_points(
         xy: *const [f32; 2],

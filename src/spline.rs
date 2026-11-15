@@ -1,6 +1,90 @@
 use crate::Result;
 use std::{ffi::c_void, ptr::NonNull};
 
+/// Borrowed read-only spline owned by a grading curve set.
+///
+/// This view does not copy the spline. Other handles to the same native spline
+/// can still edit it; do not access native aliases concurrently.
+///
+/// ```compile_fail
+/// # use ocio_rs::{GradingRGBCurve, GradingStyle, RGBCurveType};
+/// let parent = GradingRGBCurve::create(GradingStyle::Lin).unwrap();
+/// let view = parent.curve_ref(RGBCurveType::Red).unwrap();
+/// drop(parent);
+/// let _ = view.num_control_points();
+/// ```
+pub struct ConstGradingBSplineCurve<'a> {
+    handle: NonNull<c_void>,
+    owner: std::marker::PhantomData<&'a ()>,
+}
+impl ConstGradingBSplineCurve<'_> {
+    /// Make an independent editable native copy.
+    pub fn create_editable_copy(&self) -> Result<GradingBSplineCurve> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_grading_spline_const_copy(self.handle.as_ptr()) };
+        Ok(GradingBSplineCurve {
+            handle: crate::handle_result(ptr)?,
+        })
+    }
+    /// Number of native control points.
+    pub fn num_control_points(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let n = unsafe { ocio_sys::ocio_grading_spline_const_count(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(n)
+    }
+    /// Copy one native control point.
+    pub fn control_point(&self, index: usize) -> Result<(f32, f32)> {
+        let (mut x, mut y) = (0.0, 0.0);
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_spline_const_point(self.handle.as_ptr(), index, &mut x, &mut y)
+        };
+        crate::ocio_call_status()?;
+        Ok((x, y))
+    }
+    /// Read one native slope.
+    pub fn slope(&self, index: usize) -> Result<f32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_grading_spline_const_slope(self.handle.as_ptr(), index) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Whether native slopes use their defaults.
+    pub fn slopes_are_default(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_grading_spline_const_slopes_default(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Validate the native spline.
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_grading_spline_const_validate(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+    /// Read the native spline type.
+    #[cfg(feature = "v2_5")]
+    pub fn spline_type(&self) -> Result<BSplineType> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_grading_spline_const_type(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        match value {
+            0 => Ok(BSplineType::Standard),
+            1 => Ok(BSplineType::Diagonal),
+            2 => Ok(BSplineType::HueHue),
+            3 => Ok(BSplineType::PeriodicOne),
+            4 => Ok(BSplineType::PeriodicZero),
+            5 => Ok(BSplineType::HorizontalOne),
+            _ => Err(crate::OcioError::Ocio(format!(
+                "Unknown spline type: {value}"
+            ))),
+        }
+    }
+}
+
 /// Type of the monotonic or periodic native grading spline.
 #[cfg(feature = "v2_5")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -227,6 +311,17 @@ pub struct GradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingRGBCurve {
+    /// Borrow a read-only native child without copying it.
+    pub fn curve_ref(&self, kind: crate::RGBCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_grading_curve_const_view(self.handle.as_ptr(), kind as i32, false)
+        };
+        Ok(ConstGradingBSplineCurve {
+            handle: crate::handle_result(ptr.cast_mut())?,
+            owner: std::marker::PhantomData,
+        })
+    }
     /// Create the native default curves for a grading style.
     pub fn create(style: crate::GradingStyle) -> Result<Self> {
         crate::clear_last_error();
@@ -320,6 +415,17 @@ pub struct GradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl GradingHueCurve {
+    /// Borrow a read-only native child without copying it.
+    pub fn curve_ref(&self, kind: crate::HueCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_grading_curve_const_view(self.handle.as_ptr(), kind as i32, true)
+        };
+        Ok(ConstGradingBSplineCurve {
+            handle: crate::handle_result(ptr.cast_mut())?,
+            owner: std::marker::PhantomData,
+        })
+    }
     /// Return the native spline type used for a hue-curve family.
     pub fn b_spline_type_for_hue_curve_type(kind: crate::HueCurveType) -> Result<BSplineType> {
         crate::clear_last_error();

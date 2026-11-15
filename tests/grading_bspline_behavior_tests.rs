@@ -45,8 +45,26 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let original = value.create_editable_copy().unwrap();
     let mut red = value.curve(RGBCurveType::Red).unwrap();
     let red_alias = value.curve(RGBCurveType::Red).unwrap();
+    let view = value.curve_ref(RGBCurveType::Red).unwrap();
     red.set_slope(0, 0.37).unwrap();
     assert_eq!(red_alias.slope(0).unwrap(), 0.37);
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+    assert_eq!(
+        view.slopes_are_default().unwrap(),
+        red.slopes_are_default().unwrap()
+    );
+    let mut independent = view.create_editable_copy().unwrap();
+    independent.set_slope(0, 0.63).unwrap();
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+    assert_eq!(
+        view.num_control_points().unwrap(),
+        red.num_control_points().unwrap()
+    );
+    assert_eq!(
+        view.control_point(0).unwrap(),
+        red.control_point(0).unwrap()
+    );
+    assert!(view.control_point(usize::MAX).is_err());
     let (x, y) = red.control_point(0).unwrap();
     red.set_control_point(0, x, y + 0.1).unwrap();
     assert!(!value.equals(&original).unwrap());
@@ -76,6 +94,10 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     value.set_draw_curve_only(true).unwrap();
     let mut curve = value.curve(HueCurveType::HueFx).unwrap();
     curve.set_slope(0, 0.37).unwrap();
+    let view = value.curve_ref(HueCurveType::HueFx).unwrap();
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+    assert_eq!(view.spline_type().unwrap(), curve.spline_type().unwrap());
+    view.validate().unwrap();
     let transform = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
     let copy = GradingHueCurve::from_transform(&transform).unwrap();

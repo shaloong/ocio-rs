@@ -1743,6 +1743,17 @@ void* ocio_grading_rgb_curve_object_create_editable_copy(void* h);
 void ocio_grading_rgb_curve_object_validate(void* h);
 bool ocio_grading_rgb_curve_object_is_identity(void* h);
 void* ocio_grading_rgb_curve_object_get_curve(void* h, int kind);
+/* Borrowed const curve is valid only while its parent remains alive. */
+const void* ocio_grading_curve_const_view(void* h, int kind, bool hue);
+size_t ocio_grading_spline_const_count(const void* h);
+void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y);
+float ocio_grading_spline_const_slope(const void* h, size_t index);
+bool ocio_grading_spline_const_slopes_default(const void* h);
+void ocio_grading_spline_const_validate(const void* h);
+void* ocio_grading_spline_const_copy(const void* h);
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+int ocio_grading_spline_const_type(const void* h);
+#endif
 bool ocio_grading_rgb_curve_object_equals(void* h, void* other);
 void* ocio_grading_hue_curve_object_create(int style);
 void ocio_grading_hue_curve_object_destroy(void* h);

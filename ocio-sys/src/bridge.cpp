@@ -19236,4 +19236,83 @@ const char* ocio_app_helper_serialize(void* handle, int kind) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+const void* ocio_grading_curve_const_view(void* h, int kind, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)kind; (void)hue;
+  ocio_rs_bridge::capture_error_message("grading curve view requires native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!h) throw std::invalid_argument("null curve set");
+    if (!hue) {
+      const ocio::GradingRGBCurve& value = **static_cast<CurveObjectrgb*>(h);
+      return value.getCurve(static_cast<ocio::RGBCurveType>(kind)).get();
+    }
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    const ocio::GradingHueCurve& value = **static_cast<CurveObjecthue*>(h);
+    return value.getCurve(static_cast<ocio::HueCurveType>(kind)).get();
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+size_t ocio_grading_spline_const_count(const void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return 0;
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); return static_cast<const ocio::GradingBSplineCurve*>(h)->getNumControlPoints(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)index; (void)x; (void)y; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO");
+#else
+  try { if (!h || !x || !y) throw std::invalid_argument("null spline or output"); const auto& p = static_cast<const ocio::GradingBSplineCurve*>(h)->getControlPoint(index); *x = p.m_x; *y = p.m_y; }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+float ocio_grading_spline_const_slope(const void* h, size_t index) {
+#ifdef OCIO_RS_STUB
+  (void)h; (void)index; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return 0;
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); return static_cast<const ocio::GradingBSplineCurve*>(h)->getSlope(index); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+bool ocio_grading_spline_const_slopes_default(const void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return false;
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); return static_cast<const ocio::GradingBSplineCurve*>(h)->slopesAreDefault(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+void ocio_grading_spline_const_validate(const void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO");
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); static_cast<const ocio::GradingBSplineCurve*>(h)->validate(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+void* ocio_grading_spline_const_copy(const void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return nullptr;
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); return new Spline(static_cast<const ocio::GradingBSplineCurve*>(h)->createEditableCopy()); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+int ocio_grading_spline_const_type(const void* h) {
+#ifdef OCIO_RS_STUB
+  (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return 0;
+#else
+  try { if (!h) throw std::invalid_argument("null spline"); return static_cast<int>(static_cast<const ocio::GradingBSplineCurve*>(h)->getSplineType()); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+#endif
 }  // extern "C"
