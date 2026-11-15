@@ -47,6 +47,9 @@ the bridge selects the native ABI separately.
   probe before extraction with unchanged template settings; it does not validate
   arbitrary native creators with independent policies. Fixing the native
   algorithm itself and guarding arbitrary native creators requires further work.
+  The manual Vulkan tool exercises both checked descriptor extraction and the
+  explicit probe before hooks, including a width-4, five-entry packed LUT; it
+  compares GPU pixels with OCIO CPU output without adding a PR CI job.
 
 - `ShaderUniformControl` can decide registration results and own or delegate
   uniform storage for all scalar and array getter overloads. A complete Rust

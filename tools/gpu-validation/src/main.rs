@@ -55,9 +55,13 @@ fn validate_case(
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(expected_texture == TextureKind::OneD)?;
+    if name.contains("packed-width-4") {
+        desc.set_texture_max_width(4)?;
+    }
     let mut streamed_lut = Vec::new();
     let mut external_uniform = None;
     if use_hooks {
+        gpu.validate_shader_texture_layout(&desc)?;
         struct MarkBody {
             seen: bool,
             modified_footer: bool,
@@ -215,7 +219,7 @@ fn validate_case(
             return Err("shader code hook did not modify generated text".into());
         }
     } else {
-        gpu.try_extract_shader_info(&mut desc)?;
+        gpu.try_extract_shader_info_checked(&mut desc)?;
     }
     if let Some(value) = exposure {
         cpu.dynamic_property(DynamicPropertyType::Exposure)?
@@ -833,6 +837,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
+    let packed = Lut1DTransform::create()?;
+    packed.set_length(5)?;
+    packed.set_values(&[
+        0., 0., 0., 0.1, 0.2, 0.3, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1., 1., 1.,
+    ])?;
+    let packed_processor = config.processor_from_transform(&packed, TransformDirection::Forward)?;
+    for use_hooks in [false, true] {
+        validate_case(
+            &device,
+            &queue,
+            "packed-width-4 LUT",
+            &packed_processor,
+            None,
+            TextureKind::TwoD,
+            5e-3,
+            None,
+            use_hooks,
+        )?;
+    }
     validate_case(
         &device,
         &queue,
