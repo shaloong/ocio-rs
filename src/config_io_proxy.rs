@@ -217,7 +217,8 @@ impl ConfigIOProxy {
         self.set_lut_data_with_hash_bytes(filepath, data, fast_hash.as_ref().as_bytes())
     }
 
-    /// Register a LUT using an arbitrary byte hash, including embedded NULs.
+    /// Register a LUT using a byte hash, including embedded NULs.
+    /// An empty hash signals an unavailable file to OCIO, even if data is stored.
     pub fn set_lut_data_with_hash_bytes(
         &self,
         filepath: impl AsRef<str>,
@@ -255,6 +256,11 @@ impl ConfigIOProxy {
     /// "not found" (`Ok(None)`) from "internal error" (`Err`).
     pub fn try_lut_data(&self, filepath: impl AsRef<str>) -> Result<Option<Vec<u8>>> {
         let filepath = cstring(filepath)?;
+        self.try_lut_data_cstr(&filepath)
+    }
+
+    /// Query a LUT using an existing native path without allocating a path string.
+    pub fn try_lut_data_cstr(&self, filepath: &CStr) -> Result<Option<Vec<u8>>> {
         let mut bytes = Vec::new();
         crate::clear_last_error();
         let found = unsafe {
@@ -275,6 +281,11 @@ impl ConfigIOProxy {
     /// found or the buffer is too small, and `Err` on internal errors.
     pub fn try_copy_lut_data(&self, filepath: impl AsRef<str>, data: &mut [u8]) -> Result<bool> {
         let filepath = cstring(filepath)?;
+        self.try_copy_lut_data_cstr(&filepath, data)
+    }
+
+    /// Copy a LUT to caller-owned storage using an existing native path.
+    pub fn try_copy_lut_data_cstr(&self, filepath: &CStr, data: &mut [u8]) -> Result<bool> {
         crate::clear_last_error();
         let copied = unsafe {
             ocio_sys::ocio_config_io_proxy_copy_lut_data(
@@ -314,6 +325,11 @@ impl ConfigIOProxy {
         filepath: impl AsRef<str>,
     ) -> Result<Option<Vec<u8>>> {
         let filepath = cstring(filepath)?;
+        self.try_fast_lut_file_hash_bytes_cstr(&filepath)
+    }
+
+    /// Query hash bytes using an existing native path without allocating it.
+    pub fn try_fast_lut_file_hash_bytes_cstr(&self, filepath: &CStr) -> Result<Option<Vec<u8>>> {
         let mut bytes = Vec::new();
         crate::clear_last_error();
         let found = unsafe {
@@ -336,6 +352,11 @@ impl ConfigIOProxy {
     /// Return the size of the registered LUT payload, or 0 if not found.
     pub fn try_get_lut_data_size(&self, filepath: impl AsRef<str>) -> Result<u64> {
         let filepath = cstring(filepath)?;
+        self.try_get_lut_data_size_cstr(&filepath)
+    }
+
+    /// Query LUT size using an existing native path without allocating it.
+    pub fn try_get_lut_data_size_cstr(&self, filepath: &CStr) -> Result<u64> {
         crate::clear_last_error();
         let size = unsafe {
             ocio_sys::ocio_config_io_proxy_get_lut_data_size(
@@ -356,6 +377,11 @@ impl ConfigIOProxy {
     /// internal OCIO bridge failures.
     pub fn try_has_lut_data(&self, filepath: impl AsRef<str>) -> Result<bool> {
         let filepath = cstring(filepath)?;
+        self.try_has_lut_data_cstr(&filepath)
+    }
+
+    /// Query LUT presence using an existing native path without allocating it.
+    pub fn try_has_lut_data_cstr(&self, filepath: &CStr) -> Result<bool> {
         crate::clear_last_error();
         let exists = unsafe {
             ocio_sys::ocio_config_io_proxy_has_lut_data(self.handle.as_ptr(), filepath.as_ptr())

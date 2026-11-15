@@ -19,6 +19,9 @@ interface requires owned return values, so transfer still copies to native
 storage; this is not a zero-copy native API.
 LUT hashes can contain arbitrary bytes, including NUL. The byte-oriented proxy
 APIs preserve them; the text convenience getter replaces invalid UTF-8.
+An empty hash signals a missing file to OCIO. LUT queries also accept reusable
+`&CStr` paths, avoiding repeated Rust path allocation; OCIO's virtual methods
+may still allocate native return values.
 
 | Upstream addition | Rust coverage |
 | --- | --- |

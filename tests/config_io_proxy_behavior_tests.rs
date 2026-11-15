@@ -526,6 +526,35 @@ fn lut_hash_preserves_binary_bytes_for_memory_and_custom_providers() {
         memory.try_fast_lut_file_hash_bytes("missing").unwrap(),
         None
     );
+    struct RawPath;
+    impl ConfigIOProvider for RawPath {
+        fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
+            Ok(Cow::Borrowed(""))
+        }
+        fn lut_data<'a>(&'a self, path: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            assert_eq!(path.to_bytes(), b"lut-\xff");
+            Ok(Cow::Borrowed(b"value"))
+        }
+        fn fast_lut_file_hash<'a>(
+            &'a self,
+            path: &std::ffi::CStr,
+        ) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            assert_eq!(path.to_bytes(), b"lut-\xff");
+            Ok(Cow::Borrowed(b"hash"))
+        }
+    }
+    let raw = ConfigIOProxy::from_provider(RawPath).unwrap();
+    let path = c"lut-\xff";
+    assert_eq!(
+        raw.try_lut_data_cstr(path).unwrap().as_deref(),
+        Some(&b"value"[..])
+    );
+    assert_eq!(
+        raw.try_fast_lut_file_hash_bytes_cstr(path)
+            .unwrap()
+            .as_deref(),
+        Some(&b"hash"[..])
+    );
 }
 
 #[test]
@@ -663,6 +692,41 @@ fn config_io_proxy_payload_and_attachment_round_trip_behavior() {
     );
     assert_eq!(proxy.lut_data("E:/virtual/context/missing.spi1d"), None);
     assert!(proxy.try_fast_lut_file_hash("bad\0path").is_err());
+    let path = c"E:/virtual/context/empty.spi1d";
+    assert_eq!(proxy.try_lut_data_cstr(path).unwrap(), Some(Vec::new()));
+    assert!(proxy.try_copy_lut_data_cstr(path, &mut []).unwrap());
+    assert_eq!(proxy.try_get_lut_data_size_cstr(path).unwrap(), 0);
+    assert!(proxy.try_has_lut_data_cstr(path).unwrap());
+    assert_eq!(
+        proxy
+            .try_fast_lut_file_hash_bytes_cstr(path)
+            .unwrap()
+            .as_deref(),
+        Some(&b"empty-hash"[..])
+    );
+    let missing = c"E:/virtual/context/missing.spi1d";
+    assert!(proxy.try_lut_data_cstr(missing).unwrap().is_none());
+    assert!(!proxy.try_copy_lut_data_cstr(missing, &mut []).unwrap());
+    assert!(!proxy.try_has_lut_data_cstr(missing).unwrap());
+    assert!(proxy
+        .try_fast_lut_file_hash_bytes_cstr(missing)
+        .unwrap()
+        .is_none());
+    assert!(proxy
+        .set_lut_data_with_hash_bytes("E:/virtual/context/binary.spi1d", b"abc", b"a\0b")
+        .unwrap());
+    let mut bytes = [0; 3];
+    assert!(proxy
+        .try_copy_lut_data_cstr(c"E:/virtual/context/binary.spi1d", &mut bytes)
+        .unwrap());
+    assert_eq!(&bytes, b"abc");
+    assert_eq!(
+        proxy
+            .try_fast_lut_file_hash_bytes_cstr(c"E:/virtual/context/binary.spi1d")
+            .unwrap()
+            .as_deref(),
+        Some(&b"a\0b"[..])
+    );
 
     let config = Config::raw().expect("raw config");
     config
