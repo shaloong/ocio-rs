@@ -133,6 +133,8 @@ retained in the descriptor or handled externally, while keeping a global binding
 sequence across texture types on OCIO 2.5+.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
 an external dynamic uniform, including combined uniform-plus-LUT pipelines.
+It also executes mixed external and descriptor-owned 2D/3D texture pipelines
+in both registration orders.
 These hooks do not
 replace the full native `GpuShaderCreator` subclass interface: Rust callers
 cannot yet implement every virtual method or control all resource storage.

@@ -22,6 +22,8 @@ An additional exposure case stores a native getter outside the descriptor and
 checks the GPU against CPU output before and after changing its property.
 Combined cases also exercise that external dynamic uniform with streamed 2D
 and 3D LUTs in the same Vulkan bind group.
+Two further cases mix one externally managed texture with one descriptor-owned
+texture in a single pipeline, in both 2D-then-3D and 3D-then-2D order.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
