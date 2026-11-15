@@ -31,9 +31,9 @@ fn required_scalar_len(
     stride: i64,
     channels_per_pixel: usize,
 ) -> Result<usize> {
-    // Native generic scanline helpers calculate four samples per pixel in
-    // C++ long arithmetic, which is 32-bit on 64-bit Windows as well.
-    if num_pixels > (std::ffi::c_long::MAX / 4) as i64 {
+    // Native generic scanline loops calculate four samples per pixel in
+    // C++ int arithmetic, which can be narrower than long.
+    if num_pixels > (std::ffi::c_int::MAX / 4) as i64 {
         return Err(OcioError::InvalidInput(format!(
             "{api}: pixel count exceeds the native scanline limit"
         )));
@@ -7946,15 +7946,15 @@ mod tests {
 
     #[test]
     fn packed_scalar_validation_enforces_native_scanline_limit() {
-        let limit = (std::ffi::c_long::MAX / 4) as i64;
+        let limit = (std::ffi::c_int::MAX / 4) as i64;
         assert!(required_scalar_len("test", limit, 0, 3).is_ok());
         assert!(required_scalar_len("test", limit + 1, 0, 3).is_err());
     }
 
-    #[cfg(all(target_os = "windows", not(ocio_stub)))]
+    #[cfg(not(ocio_stub))]
     #[test]
     fn native_image_entrypoints_reject_scanline_overflow() {
-        let width = i64::from(i32::MAX) / 4 + 1;
+        let width = (std::ffi::c_int::MAX / 4) as i64 + 1;
         let mut channel = 0.0_f32;
         let ptr = std::ptr::addr_of_mut!(channel);
         let desc = ocio_sys::OcioPackedBuffer {

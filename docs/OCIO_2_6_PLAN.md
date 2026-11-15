@@ -55,8 +55,8 @@ The current inventory and runtime validation are incomplete; the status in
    first-channel pointer step, not every packed channel's final pointer step.
    Resolve this without assuming padding outside the caller's slice or imposing
    a full-image copy on the common path; verify native fast and generic paths.
-   Image entry points conservatively reject a scanline wider than `LONG_MAX / 4`
-   because native generic scanline buffers multiply width by four in `long`.
+   Image entry points conservatively reject a scanline wider than `INT_MAX / 4`
+   because native generic scanline loops multiply `int` pixel indices by four.
    This also limits optimized layouts that may not allocate that buffer; support
    for larger rows requires safely chunking them rather than omitting the guard.
 3. For each family, test representative native behavior and error paths at its
