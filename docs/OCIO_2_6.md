@@ -77,6 +77,8 @@ Config queries take reusable `&CStr` arguments without converting them in
 the bridge. Returned config text is owned because the native config can
 invalidate its strings. ID lookup returns an independent editable color
 space; alias authoring materializes the vector required by the C++ API.
+`try_is_color_space_linear_cstr` preserves native missing-space errors instead
+of conflating them with a negative linearity result.
 Reuse the built-in config passed to matching to retain its native cache.
 
 The parity checker measures its recognized API surface, not every overload,

@@ -531,22 +531,42 @@ impl Config {
     }
 
     /// Test whether a named color space is linear with respect to a reference space type.
+    /// Returns `false` on error; use [`Self::try_is_color_space_linear`] to distinguish errors.
     pub fn is_color_space_linear(
         &self,
         color_space: impl AsRef<str>,
         reference: ReferenceSpaceType,
     ) -> bool {
-        let cs = match cstring(color_space) {
-            Ok(cs) => cs,
-            Err(_) => return false,
-        };
-        unsafe {
+        self.try_is_color_space_linear(color_space, reference)
+            .unwrap_or(false)
+    }
+
+    /// Test color-space linearity, preserving missing-space and native errors.
+    pub fn try_is_color_space_linear(
+        &self,
+        color_space: impl AsRef<str>,
+        reference: ReferenceSpaceType,
+    ) -> Result<bool> {
+        let cs = cstring(color_space)?;
+        self.try_is_color_space_linear_cstr(&cs, reference)
+    }
+
+    /// Test color-space linearity with an existing native name and no name allocation.
+    pub fn try_is_color_space_linear_cstr(
+        &self,
+        color_space: &std::ffi::CStr,
+        reference: ReferenceSpaceType,
+    ) -> Result<bool> {
+        crate::clear_last_error();
+        let result = unsafe {
             ocio_sys::ocio_config_is_color_space_linear(
                 self.handle.as_ptr(),
-                cs.as_ptr().cast(),
+                color_space.as_ptr(),
                 reference as i32,
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
     }
 
     /// Identify the color-space name in `src_config` equivalent to a color space from a built-in

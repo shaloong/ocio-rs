@@ -5,6 +5,8 @@ declarations in the OpenColorIO 2.4.2 and 2.6.0 headers. This is a manual
 signature-family audit, not a claim that every combination or behavior has
 been verified. The `v2_5` Cargo feature controls access to 2.5+ Rust APIs;
 the bridge selects the native ABI separately.
+The 59-test GPU descriptor suite also passed with the native 2.5.2 library on
+Windows; this does not establish hardware execution or full creator parity.
 
 | Native operation | Current Rust surface | Remaining issue |
 | --- | --- | --- |

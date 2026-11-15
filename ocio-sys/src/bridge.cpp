@@ -3144,7 +3144,7 @@ bool ocio_config_is_color_space_linear(void* handle, const char* colorSpace, int
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->isColorSpaceLinear(colorSpace, static_cast<ocio::ReferenceSpaceType>(referenceSpaceType));
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

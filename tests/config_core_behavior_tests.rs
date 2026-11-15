@@ -29,6 +29,34 @@ fn test_data_path(rel: &str) -> PathBuf {
         .join(rel)
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_linearity_distinguishes_native_errors_from_false() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    let reference = ocio_rs::ReferenceSpaceType::Scene;
+    let linear = ocio_rs::ColorSpace::create().unwrap();
+    linear.set_name("test-linear").unwrap();
+    linear.set_encoding("scene-linear").unwrap();
+    config.try_add_color_space(&linear).unwrap();
+    assert!(config
+        .try_is_color_space_linear_cstr(c"test-linear", reference)
+        .unwrap());
+    assert!(!config.try_is_color_space_linear("raw", reference).unwrap());
+    assert!(!config
+        .try_is_color_space_linear_cstr(c"raw", reference)
+        .unwrap());
+    let error = config
+        .try_is_color_space_linear_cstr(c"missing-space", reference)
+        .unwrap_err();
+    assert!(matches!(error, OcioError::Ocio(_)));
+    assert!(config
+        .try_is_color_space_linear("bad\0name", reference)
+        .is_err());
+    assert!(!config.is_color_space_linear("missing-space", reference));
+    assert!(!config.try_is_color_space_linear("raw", reference).unwrap());
+}
+
 #[cfg(feature = "v2_5")]
 fn packaged_context_test1_path() -> PathBuf {
     if cfg!(windows) {
