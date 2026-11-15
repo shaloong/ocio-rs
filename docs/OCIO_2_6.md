@@ -199,6 +199,9 @@ output changes, since OCIO's template-derived ID cannot describe dynamic policy.
 `PersistentPolicyCreator` keeps a Rust texture policy attached to the same
 native creator between calls. It detaches callbacks before releasing Rust state,
 requires explicit cache invalidation, and does not itself preflight LUT packing.
+Its optional persistent texture controller selects descriptor or external
+storage and can consume borrowed texels without a Rust-side copy. External
+resources created before an extraction error remain the caller's responsibility.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
 an external dynamic uniform, including combined uniform-plus-LUT pipelines.
 It also executes mixed external and descriptor-owned 2D/3D texture pipelines

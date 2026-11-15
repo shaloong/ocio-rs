@@ -1670,6 +1670,16 @@ unsafe extern "C" {
         context: *mut c_void,
     ) -> *mut c_void;
     pub fn ocio_gpu_shader_creator_detach_persistent_policy(creator: *mut c_void);
+    pub fn ocio_gpu_shader_creator_set_persistent_texture_control(
+        creator: *mut c_void,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+    );
     pub fn ocio_gpu_shader_creator_extract_persistent_policy(
         processor: *mut c_void,
         creator: *mut c_void,

@@ -1188,6 +1188,135 @@ fn texture_control_mixes_native_and_external_resources() {
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
     let reference = gpu.try_extract_with_hooks(&template, &mut Hooks).unwrap();
+    struct PersistentControl {
+        external_first: bool,
+        seen: Vec<(Option<ocio_rs::GpuTextureDimensions>, Option<u32>, Vec<f32>)>,
+        fail: u8,
+        binding_base: Option<u32>,
+    }
+    impl ocio_rs::ShaderTexturePolicy for PersistentControl {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(4096)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(true)
+        }
+    }
+    impl ocio_rs::ShaderTextureControl for PersistentControl {
+        fn register_texture(
+            &mut self,
+            texture: ocio_rs::ShaderTexture<'_>,
+        ) -> ocio_rs::Result<ShaderTextureAction> {
+            if self.fail == 1 {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "persistent texture rejected".into(),
+                ));
+            }
+            if self.fail == 2 {
+                panic!("persistent texture panic");
+            }
+            let external = self.seen.is_empty() == self.external_first;
+            let binding = self.binding_base.map(|base| base + self.seen.len() as u32);
+            self.seen.push((
+                texture.dimensions,
+                texture.suggested_binding,
+                texture.values.to_vec(),
+            ));
+            Ok(if external {
+                ShaderTextureAction::External { binding }
+            } else {
+                ShaderTextureAction::StoreInDescriptor { binding }
+            })
+        }
+    }
+    for external_first in [false, true] {
+        let policy = PersistentControl {
+            external_first,
+            seen: Vec::new(),
+            fail: 0,
+            binding_base: None,
+        };
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &template,
+            policy,
+            c"persistent-control",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        let seen = &creator.policy_mut().seen;
+        assert_eq!(seen.len(), 2);
+        let stored = seen[usize::from(external_first)].clone();
+        let desc = creator.finish().unwrap();
+        assert_eq!(desc.shader_text(), reference.shader_text());
+        assert_eq!(desc.num_textures() + desc.num_3d_textures(), 1);
+        assert_eq!(
+            if stored.0.is_some() {
+                desc.texture_values(0)
+            } else {
+                desc.texture_3d_values(0)
+            },
+            stored.2
+        );
+        #[cfg(feature = "v2_5")]
+        if let Some(binding) = stored.1 {
+            assert_eq!(
+                if stored.0.is_some() {
+                    desc.texture_shader_binding_index(0)
+                } else {
+                    desc.texture_3d_shader_binding_index(0)
+                },
+                Some(binding)
+            );
+        }
+    }
+    for fail in [1, 2] {
+        let policy = PersistentControl {
+            external_first: true,
+            seen: Vec::new(),
+            fail,
+            binding_base: None,
+        };
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &template,
+            policy,
+            c"persistent-failure",
+        )
+        .unwrap();
+        let error = creator.try_extract(&gpu).unwrap_err();
+        assert!(
+            matches!(error, ocio_rs::OcioError::InvalidInput(ref message) if message == if fail == 1 { "persistent texture rejected" } else { "shader texture callback panicked" })
+        );
+        creator.policy_mut().fail = 0;
+        creator.try_extract(&gpu).unwrap();
+        assert_eq!(creator.policy_mut().seen.len(), 2);
+    }
+    #[cfg(feature = "v2_5")]
+    {
+        let vk_template = GpuShaderDesc::create().unwrap();
+        vk_template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+        let policy = PersistentControl {
+            external_first: true,
+            seen: Vec::new(),
+            fail: 0,
+            binding_base: Some(42),
+        };
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &vk_template,
+            policy,
+            c"persistent-vulkan",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        let desc = creator.finish().unwrap();
+        let text = desc.shader_text().unwrap();
+        assert!(text.contains("binding = 42") && text.contains("binding = 43"));
+        let binding = if desc.num_textures() == 1 {
+            desc.texture_shader_binding_index(0)
+        } else {
+            desc.texture_3d_shader_binding_index(0)
+        };
+        assert_eq!(binding, Some(43));
+    }
     for external_first in [false, true] {
         let mut seen = Vec::new();
         let desc = gpu

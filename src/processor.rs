@@ -2265,6 +2265,59 @@ pub enum ShaderTextureAction {
     External { binding: Option<u32> },
 }
 
+/// Controls storage and binding of each texture registered by a persistent creator.
+///
+/// Texel data is borrowed only for the call. External resources already created
+/// are not rolled back if extraction later fails. Changing the resulting shader
+/// or binding layout requires updating the creator's cache ID.
+pub trait ShaderTextureControl {
+    /// Register or upload the supplied texture and select its storage and binding.
+    fn register_texture(&mut self, texture: ShaderTexture<'_>) -> Result<ShaderTextureAction>;
+}
+
+// SAFETY: The native event and its name and data pointers remain valid for the
+// callback, and callers must not let the returned borrows escape that callback.
+unsafe fn shader_texture_from_event(
+    event: &ocio_sys::OcioShaderTextureEvent,
+) -> Result<ShaderTexture<'_>> {
+    let read = |ptr: *const i8| -> Result<&str> {
+        if ptr.is_null() {
+            return Err(OcioError::InvalidInput("null texture name".into()));
+        }
+        unsafe { std::ffi::CStr::from_ptr(ptr) }
+            .to_str()
+            .map_err(|_| OcioError::InvalidInput("texture name is not UTF-8".into()))
+    };
+    if event.values.is_null()
+        || event.value_count > isize::MAX as usize / std::mem::size_of::<f32>()
+    {
+        return Err(OcioError::InvalidInput("invalid texture data".into()));
+    }
+    let dimensions = match event.dimensions {
+        1 => Some(GpuTextureDimensions::Texture1D),
+        2 => Some(GpuTextureDimensions::Texture2D),
+        3 => None,
+        _ => return Err(OcioError::InvalidInput("unknown texture dimensions".into())),
+    };
+    let channel = match event.channel {
+        0 => GpuTextureChannel::Red,
+        1 => GpuTextureChannel::Rgb,
+        _ => return Err(OcioError::InvalidInput("unknown texture channel".into())),
+    };
+    Ok(ShaderTexture {
+        texture_name: read(event.texture_name)?,
+        sampler_name: read(event.sampler_name)?,
+        width: event.width,
+        height: event.height,
+        depth: event.depth,
+        channel,
+        dimensions,
+        interpolation: interpolation_from_raw(event.interpolation),
+        values: unsafe { std::slice::from_raw_parts(event.values, event.value_count) },
+        suggested_binding: event.has_binding.then_some(event.binding),
+    })
+}
+
 /// A uniform registered by OCIO during custom shader extraction.
 pub struct ShaderUniform<'a> {
     /// Name used by the generated shader.
@@ -2529,7 +2582,8 @@ unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
 /// repeated extraction may append resources. The policy must avoid OCIO's
 /// documented LUT-packing bug; this API does not automatically probe layouts.
 /// Do not reenter the same GPU processor or creator from a policy callback.
-/// This covers persistent texture-policy virtual methods only, not arbitrary
+/// Optional [`ShaderTextureControl`] also controls texture registration. This
+/// does not provide arbitrary
 /// Rust implementations of every `GpuShaderCreator` virtual method or clone.
 ///
 /// ```no_run
@@ -2570,6 +2624,26 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
+    /// Create a persistent creator with control over each registered texture.
+    pub fn create_with_texture_control(
+        template: &GpuShaderDesc,
+        policy: P,
+        cache_id: &std::ffi::CStr,
+    ) -> Result<Self>
+    where
+        P: ShaderTextureControl,
+    {
+        let creator = Self::create(template, policy, cache_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_persistent_texture_control(
+                creator.creator.handle.as_ptr(),
+                persistent_texture_control_callback::<P>,
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(creator)
+    }
     /// Create a persistent policy creator using the template's native settings.
     /// Existing template shader code and resources are not copied.
     pub fn create(template: &GpuShaderDesc, policy: P, cache_id: &std::ffi::CStr) -> Result<Self> {
@@ -2738,6 +2812,64 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     /// Retain a scoped cache of the descriptor's native uniform getters.
     pub fn uniform_cache(&mut self) -> Result<GpuUniformCache<'_>> {
         self.descriptor.uniform_cache()
+    }
+}
+
+unsafe extern "C" fn persistent_texture_control_callback<
+    P: ShaderTexturePolicy + ShaderTextureControl,
+>(
+    context: *mut c_void,
+    event: *const ocio_sys::OcioShaderTextureEvent,
+    store: *mut bool,
+    replace: *mut bool,
+    binding: *mut u32,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<ShaderTextureAction> {
+            let event = unsafe { event.as_ref() }
+                .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
+            if store.is_null() || replace.is_null() || binding.is_null() {
+                return Err(OcioError::InvalidInput(
+                    "null texture control output".into(),
+                ));
+            }
+            state
+                .policy
+                .register_texture(unsafe { shader_texture_from_event(event)? })
+        },
+    ));
+    match result {
+        Ok(Ok(action)) => {
+            let (stored, requested) = match action {
+                ShaderTextureAction::StoreInDescriptor { binding } => (true, binding),
+                ShaderTextureAction::External { binding } => (false, binding),
+            };
+            unsafe {
+                *store = stored;
+                *replace = requested.is_some();
+                if let Some(value) = requested {
+                    *binding = value;
+                }
+            }
+            true
+        }
+        Ok(Err(error)) => {
+            state.error = Some(error);
+            false
+        }
+        Err(_) => {
+            state.error = Some(OcioError::InvalidInput(
+                "shader texture callback panicked".into(),
+            ));
+            false
+        }
     }
 }
 
@@ -3922,52 +4054,7 @@ impl GPUProcessor {
                 || -> Result<Option<u32>> {
                     let event = unsafe { event.as_ref() }
                         .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
-                    let read = |ptr: *const i8| -> Result<&str> {
-                        if ptr.is_null() {
-                            return Err(OcioError::InvalidInput("null texture name".into()));
-                        }
-                        unsafe { std::ffi::CStr::from_ptr(ptr) }
-                            .to_str()
-                            .map_err(|_| {
-                                OcioError::InvalidInput("texture name is not UTF-8".into())
-                            })
-                    };
-                    if event.values.is_null()
-                        || event.value_count > isize::MAX as usize / std::mem::size_of::<f32>()
-                    {
-                        return Err(OcioError::InvalidInput("invalid texture data".into()));
-                    }
-                    let dimensions = match event.dimensions {
-                        1 => Some(GpuTextureDimensions::Texture1D),
-                        2 => Some(GpuTextureDimensions::Texture2D),
-                        3 => None,
-                        _ => {
-                            return Err(OcioError::InvalidInput(
-                                "unknown texture dimensions".into(),
-                            ))
-                        }
-                    };
-                    let channel = match event.channel {
-                        0 => GpuTextureChannel::Red,
-                        1 => GpuTextureChannel::Rgb,
-                        _ => return Err(OcioError::InvalidInput("unknown texture channel".into())),
-                    };
-                    // SAFETY: OCIO owns the valid native float array during this
-                    // synchronous callback; its checked length fits a Rust slice.
-                    let values =
-                        unsafe { std::slice::from_raw_parts(event.values, event.value_count) };
-                    (state.texture)(ShaderTexture {
-                        texture_name: read(event.texture_name)?,
-                        sampler_name: read(event.sampler_name)?,
-                        width: event.width,
-                        height: event.height,
-                        depth: event.depth,
-                        channel,
-                        dimensions,
-                        interpolation: interpolation_from_raw(event.interpolation),
-                        values,
-                        suggested_binding: event.has_binding.then_some(event.binding),
-                    })
+                    (state.texture)(unsafe { shader_texture_from_event(event)? })
                 },
             ));
             match result {

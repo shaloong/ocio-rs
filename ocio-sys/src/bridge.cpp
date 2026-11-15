@@ -9662,6 +9662,19 @@ void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, cons
 #endif
 }
 
+void ocio_gpu_shader_creator_set_persistent_texture_control(void* creator, ocio_shader_texture_control_callback texture) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)texture; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !texture) throw std::invalid_argument("invalid persistent texture control arguments");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    desc->setTextureControl(texture);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_gpu_shader_creator_detach_persistent_policy(void* creator) {
 #ifdef OCIO_RS_STUB
   (void)creator;

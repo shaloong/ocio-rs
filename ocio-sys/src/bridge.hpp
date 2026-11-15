@@ -771,6 +771,7 @@ typedef bool (*ocio_shader_texture_policy_callback)(void* context, int kind, uin
 // detached. Detach before releasing context, including when native objects are
 // retained by caches or other shared pointers. Callbacks must not unwind.
 void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, const char* cache_id, ocio_shader_texture_policy_callback policy, void* context);
+void ocio_gpu_shader_creator_set_persistent_texture_control(void* creator, ocio_shader_texture_control_callback texture);
 void ocio_gpu_shader_creator_detach_persistent_policy(void* creator);
 void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* creator);
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
