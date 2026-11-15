@@ -5,6 +5,25 @@ use crate::{
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
+pub(crate) fn serialize_named_item(
+    handle: NonNull<c_void>,
+    kind: i32,
+    is_const: bool,
+) -> Result<String> {
+    crate::clear_last_error();
+    let text = unsafe {
+        crate::cstr_to_opt_string(ocio_sys::ocio_named_item_serialize_text(
+            handle.as_ptr(),
+            kind,
+            is_const,
+        ))
+    };
+    crate::ocio_call_status()?;
+    text.ok_or_else(|| {
+        crate::OcioError::Ocio("OCIO returned a null named item representation".into())
+    })
+}
+
 struct Item {
     handle: NonNull<c_void>,
     kind: i32,
@@ -89,6 +108,11 @@ macro_rules! accessors {
             /// Copy the native name as owned text.
             pub fn name(&self) -> Result<Option<String>> {
                 self.0.name()
+            }
+            /// Return OCIO's diagnostic stream output as owned text. It is not
+            /// a stable interchange format and may contain sensitive paths.
+            pub fn serialize(&self) -> Result<String> {
+                serialize_named_item(self.0.handle, self.0.kind, true)
             }
             /// Borrow the native name without allocating.
             pub fn name_ref(&self) -> Result<Option<&CStr>> {

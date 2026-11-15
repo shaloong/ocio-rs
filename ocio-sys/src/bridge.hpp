@@ -39,6 +39,7 @@ size_t ocio_const_rules_number(void* handle, int kind, int field, size_t rule, c
 const char* ocio_const_rules_text(void* handle, int kind, int field, size_t rule, size_t index);
 void* ocio_config_get_const_named_item(void* config, const char* name, int kind);
 void ocio_const_named_item_destroy(void* handle, int kind);
+const char* ocio_named_item_serialize_text(void* handle, int kind, bool is_const);
 const char* ocio_const_named_item_name(void* handle, int kind);
 const char* ocio_const_named_item_text(void* handle, int kind, int field, size_t index, const char* argument);
 size_t ocio_const_named_item_number(void* handle, int kind, int field);

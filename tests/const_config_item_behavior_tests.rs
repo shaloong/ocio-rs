@@ -5,6 +5,37 @@ use ocio_rs::{
 };
 
 #[test]
+#[cfg(ocio_stub)]
+fn named_item_diagnostics_report_stub_unavailability() {
+    assert!(Look::create().unwrap().serialize().is_err());
+    assert!(NamedTransform::create().unwrap().serialize().is_err());
+    assert!(ViewTransform::create(ReferenceSpaceType::Scene)
+        .unwrap()
+        .serialize()
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_look_setters_reject_null_without_crashing() {
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let look = sys::ocio_look_create();
+        assert!(!look.is_null());
+        for setter in [
+            sys::ocio_look_set_transform,
+            sys::ocio_look_set_inverse_transform,
+        ] {
+            sys::ocio_error_clear_last();
+            setter(look, std::ptr::null_mut());
+            assert!(!sys::ocio_error_get_last().is_null());
+        }
+        sys::ocio_error_clear_last();
+        sys::ocio_look_destroy(look);
+    }
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_named_items_are_copied_or_shared_read_only() {
     let config = Config::raw().unwrap();
@@ -53,6 +84,18 @@ fn config_named_items_are_copied_or_shared_read_only() {
         .try_const_view_transform(c"test-view")
         .unwrap()
         .unwrap();
+    let look_text = look.serialize().unwrap();
+    let named_text = named.serialize().unwrap();
+    let view_text = view.serialize().unwrap();
+    assert_eq!(shared_look.serialize().unwrap(), look_text);
+    assert_eq!(shared_named.serialize().unwrap(), named_text);
+    assert_eq!(shared_view.serialize().unwrap(), view_text);
+    assert!(look_text.contains("test-look") && look_text.contains("look description"));
+    assert!(named_text.contains("test-named") && named_text.contains("named/family"));
+    assert!(view_text.contains("test-view") && view_text.contains("view/family"));
+    look.set_description("later description").unwrap();
+    assert!(look_text.contains("look description"));
+    assert!(look.serialize().unwrap().contains("later description"));
     let shared_transform = shared_look.try_const_transform().unwrap().unwrap();
     let target_look = Look::create().unwrap();
     target_look

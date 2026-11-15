@@ -117,6 +117,8 @@ This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
 See [the Context audit](OCIO_CONTEXT_AUDIT.md) for ownership, resolution and
 the native variable-clear cache invalidation workaround.
+The [named-item audit](OCIO_NAMED_ITEMS_AUDIT.md) records look, named transform,
+and view-transform ownership and diagnostic stream behavior.
 Editable metadata children are path-backed and detect ancestor clearing across
 binding-created handles; a stale child cannot silently target a newly inserted
 element at the same index. Unsynchronized external native mutations remain the

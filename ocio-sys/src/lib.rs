@@ -233,6 +233,11 @@ unsafe extern "C" {
         kind: i32,
     ) -> *mut c_void;
     pub fn ocio_const_named_item_destroy(handle: *mut c_void, kind: i32);
+    pub fn ocio_named_item_serialize_text(
+        handle: *mut c_void,
+        kind: i32,
+        is_const: bool,
+    ) -> *const i8;
     pub fn ocio_const_named_item_name(handle: *mut c_void, kind: i32) -> *const i8;
     pub fn ocio_const_named_item_editable_copy(handle: *mut c_void, kind: i32) -> *mut c_void;
     pub fn ocio_config_get_const_current_context(config: *mut c_void) -> *mut c_void;

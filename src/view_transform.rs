@@ -35,6 +35,11 @@ pub struct ViewTransform {
 }
 
 impl ViewTransform {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// It may contain sensitive paths from transforms.
+    pub fn serialize(&self) -> Result<String> {
+        crate::const_config_item::serialize_named_item(self.handle, 2, false)
+    }
     /// Share the native transform without an editable copy.
     pub fn try_const_transform(
         &self,

@@ -11,6 +11,11 @@ pub struct NamedTransform {
 }
 
 impl NamedTransform {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// It may contain sensitive paths from transforms.
+    pub fn serialize(&self) -> Result<String> {
+        crate::const_config_item::serialize_named_item(self.handle, 1, false)
+    }
     /// Resolve a native transform, synthesizing it from the opposite direction if needed.
     /// Returns an error if neither direction is defined.
     pub fn resolve_const_transform(

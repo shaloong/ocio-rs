@@ -6294,6 +6294,26 @@ void* ocio_config_get_const_named_item(void* config, const char* name, int kind)
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+const char* ocio_named_item_serialize_text(void* handle, int kind, bool is_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)is_const;
+  ocio_rs_bridge::capture_error_message("Native named item required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null named item");
+    std::ostringstream out;
+    switch (kind) {
+      case 0: if (is_const) out << **static_cast<ocio::ConstLookRcPtr*>(handle); else out << *ocio_rs_bridge::get_real_look(handle); break;
+      case 1: if (is_const) out << **static_cast<ocio::ConstNamedTransformRcPtr*>(handle); else out << *ocio_rs_bridge::get_real_named_transform(handle); break;
+      case 2: if (is_const) out << **static_cast<ocio::ConstViewTransformRcPtr*>(handle); else out << *ocio_rs_bridge::get_real_view_transform(handle); break;
+      default: throw std::invalid_argument("invalid named item kind");
+    }
+    ocio_rs_bridge::g_serialized_text = out.str();
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_const_named_item_destroy(void* handle, int kind) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)kind;
@@ -7286,8 +7306,10 @@ void ocio_look_set_transform(void* handle, void* transform) {
   return;
 #else
   try {
+    if (!handle || !transform) throw std::invalid_argument("look transform must not be null");
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
+    if (!transform_ptr) throw std::invalid_argument("look transform must not be null");
     ocio_rs_bridge::get_real_look(handle)->setTransform(transform_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -7315,8 +7337,10 @@ void ocio_look_set_inverse_transform(void* handle, void* transform) {
   return;
 #else
   try {
+    if (!handle || !transform) throw std::invalid_argument("look inverse transform must not be null");
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
+    if (!transform_ptr) throw std::invalid_argument("look inverse transform must not be null");
     ocio_rs_bridge::get_real_look(handle)->setInverseTransform(transform_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
