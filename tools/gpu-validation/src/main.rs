@@ -4,10 +4,10 @@ use ocio_rs::transform::{
 };
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
-    GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderTexture,
-    ShaderTextureAction, ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl,
-    ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
+    GpuTextureDimensions, GpuUniformType, Interpolation, PersistentPolicyCreator, Processor,
+    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
+    ShaderTexture, ShaderTextureAction, ShaderTexturePolicy, ShaderUniformAction,
+    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -55,14 +55,39 @@ fn validate_case(
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(
-        expected_texture == TextureKind::OneD || name == "dynamic texture policy",
+        expected_texture == TextureKind::OneD
+            || name == "dynamic texture policy"
+            || name == "persistent texture policy",
     )?;
     if name.contains("packed-width-4") {
         desc.set_texture_max_width(4)?;
     }
     let mut streamed_lut = Vec::new();
     let mut external_uniform = None;
-    if use_hooks {
+    if name == "persistent texture policy" {
+        struct Policy {
+            queries: usize,
+        }
+        impl ShaderTexturePolicy for Policy {
+            fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+                self.queries += 1;
+                Ok(1024)
+            }
+            fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+                Ok(false)
+            }
+        }
+        let mut creator = PersistentPolicyCreator::create(
+            &desc,
+            Policy { queries: 0 },
+            c"persistent-gpu-validation",
+        )?;
+        creator.try_extract(&gpu)?;
+        if creator.policy_mut().queries == 0 {
+            return Err("persistent texture policy was not queried".into());
+        }
+        desc = creator.finish()?;
+    } else if use_hooks {
         if name != "dynamic texture policy" {
             gpu.validate_shader_texture_layout(&desc)?;
         }
@@ -899,6 +924,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         5e-3,
         None,
         true,
+    )?;
+    validate_case(
+        &device,
+        &queue,
+        "persistent texture policy",
+        &processor,
+        None,
+        TextureKind::TwoD,
+        5e-3,
+        None,
+        false,
     )?;
     packed.set_length(5)?;
     packed.set_values(&[

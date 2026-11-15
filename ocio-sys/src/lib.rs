@@ -1661,6 +1661,19 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_creator_set_texture_max_width(creator: *mut c_void, width: u32);
     pub fn ocio_gpu_shader_creator_get_allow_texture_1d(creator: *mut c_void) -> bool;
     pub fn ocio_gpu_shader_creator_set_allow_texture_1d(creator: *mut c_void, allow: bool);
+    /// The caller must keep `context` alive until callbacks are detached, even
+    /// if other native references retain the creator. The callback must not unwind.
+    pub fn ocio_gpu_shader_creator_create_persistent_policy(
+        template_desc: *mut c_void,
+        cache_id: *const i8,
+        policy: unsafe extern "C" fn(*mut c_void, i32, *mut u32) -> bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_detach_persistent_policy(creator: *mut c_void);
+    pub fn ocio_gpu_shader_creator_extract_persistent_policy(
+        processor: *mut c_void,
+        creator: *mut c_void,
+    );
     pub fn ocio_gpu_shader_creator_destroy(creator: *mut c_void);
     pub fn ocio_gpu_processor_extract_owned_creator(processor: *mut c_void, creator: *mut c_void);
     pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;

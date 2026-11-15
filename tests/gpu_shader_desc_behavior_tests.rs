@@ -56,6 +56,236 @@ fn native_creator_borrow_reports_stub_unavailability() {
     assert!(desc.try_borrow_creator().is_err());
 }
 
+#[test]
+#[cfg(ocio_stub)]
+fn persistent_policy_stub_releases_policy_state() {
+    use ocio_rs::{PersistentPolicyCreator, ShaderTexturePolicy};
+    use std::cell::Cell;
+    use std::rc::Rc;
+    struct Policy(Rc<Cell<bool>>);
+    impl Drop for Policy {
+        fn drop(&mut self) {
+            self.0.set(true);
+        }
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(64)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let template = GpuShaderDesc::create().unwrap();
+    let dropped = Rc::new(Cell::new(false));
+    assert!(PersistentPolicyCreator::create(&template, Policy(dropped.clone()), c"id").is_err());
+    assert!(dropped.get());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_texture_policy_survives_calls_and_reports_callback_errors() {
+    use ocio_rs::{OcioError, PersistentPolicyCreator, ShaderTexturePolicy};
+    use std::cell::Cell;
+    use std::rc::Rc;
+    struct Policy {
+        calls: Rc<Cell<usize>>,
+        dropped: Rc<Cell<bool>>,
+        allow_set: Rc<Cell<Option<bool>>>,
+        fail: bool,
+        width: u32,
+    }
+    impl Drop for Policy {
+        fn drop(&mut self) {
+            self.dropped.set(true);
+        }
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn set_texture_max_width(&mut self, width: u32) -> ocio_rs::Result<()> {
+            self.width = width;
+            Ok(())
+        }
+        fn set_allow_texture_1d(&mut self, allow: bool) -> ocio_rs::Result<()> {
+            self.allow_set.set(Some(allow));
+            Ok(())
+        }
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            self.calls.set(self.calls.get() + 1);
+            if self.fail {
+                return Err(OcioError::InvalidInput("policy rejected width".into()));
+            }
+            Ok(self.width)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let calls = Rc::new(Cell::new(0));
+    let dropped = Rc::new(Cell::new(false));
+    let allow_set = Rc::new(Cell::new(None));
+    let mut creator = PersistentPolicyCreator::create(
+        &template,
+        Policy {
+            calls: calls.clone(),
+            dropped: dropped.clone(),
+            allow_set: allow_set.clone(),
+            fail: true,
+            width: 64,
+        },
+        c"policy-v1",
+    )
+    .unwrap();
+    assert_eq!(
+        allow_set.get(),
+        Some(template.try_allow_texture_1d().unwrap())
+    );
+    assert!(
+        matches!(creator.try_texture_max_width(), Err(OcioError::InvalidInput(message)) if message == "policy rejected width")
+    );
+    assert!(
+        matches!(creator.try_extract(&gpu), Err(OcioError::InvalidInput(message)) if message == "policy rejected width")
+    );
+    assert!(calls.get() > 0);
+    assert!(!dropped.get());
+    creator.policy_mut().fail = false;
+    creator.try_set_texture_max_width(64).unwrap();
+    assert_eq!(creator.try_texture_max_width().unwrap(), 64);
+    creator.try_set_allow_texture_1d(false).unwrap();
+    assert_eq!(allow_set.get(), Some(false));
+    assert!(!creator.try_allow_texture_1d().unwrap());
+    creator.set_cache_id(c"policy-v2").unwrap();
+    creator.try_extract(&gpu).unwrap();
+    assert!(creator.shader_text_ref().unwrap().is_some());
+    assert_eq!(creator.try_num_textures().unwrap(), 1);
+    assert!(creator.try_texture_2d(0).unwrap().is_some());
+    assert_eq!(creator.try_num_uniforms().unwrap(), 0);
+    assert!(!creator.texture_values_ref(0).unwrap().is_empty());
+    let before_second = calls.get();
+    creator.try_extract(&gpu).unwrap();
+    assert!(calls.get() > before_second);
+    assert_eq!(creator.try_num_textures().unwrap(), 2);
+    let detached = creator.finish().unwrap();
+    assert!(dropped.get());
+    let after_detach = calls.get();
+    assert_eq!(detached.try_texture_max_width().unwrap(), 64);
+    assert_eq!(calls.get(), after_detach);
+    assert_eq!(detached.num_textures(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_texture_policy_contains_panics_and_constructor_failures() {
+    use ocio_rs::{OcioError, PersistentPolicyCreator, ShaderTexturePolicy};
+    use std::cell::Cell;
+    use std::rc::Rc;
+    struct Policy {
+        dropped: Rc<Cell<bool>>,
+        fail_setter: bool,
+    }
+    impl Drop for Policy {
+        fn drop(&mut self) {
+            self.dropped.set(true);
+        }
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn set_texture_max_width(&mut self, _: u32) -> ocio_rs::Result<()> {
+            if self.fail_setter {
+                return Err(OcioError::InvalidInput("setter rejected".into()));
+            }
+            Ok(())
+        }
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            panic!("policy panic")
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let template = GpuShaderDesc::create().unwrap();
+    let dropped = Rc::new(Cell::new(false));
+    assert!(
+        matches!(PersistentPolicyCreator::create(&template, Policy { dropped: dropped.clone(), fail_setter: true }, c"policy"), Err(OcioError::InvalidInput(message)) if message == "setter rejected")
+    );
+    assert!(dropped.get());
+    dropped.set(false);
+    let mut creator = PersistentPolicyCreator::create(
+        &template,
+        Policy {
+            dropped: dropped.clone(),
+            fail_setter: false,
+        },
+        c"policy",
+    )
+    .unwrap();
+    assert!(
+        matches!(creator.try_texture_max_width(), Err(OcioError::InvalidInput(message)) if message == "texture policy callback panicked")
+    );
+    drop(creator);
+    assert!(dropped.get());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_policy_creator_retains_dynamic_properties() {
+    use ocio_rs::{PersistentPolicyCreator, ShaderTexturePolicy};
+    struct Policy;
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(4096)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let gpu = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut creator =
+        PersistentPolicyCreator::create(&template, Policy, c"dynamic-policy").unwrap();
+    creator.try_extract(&gpu).unwrap();
+    let property = creator
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    let index = (0..creator.try_num_uniforms().unwrap())
+        .find(|&i| {
+            creator
+                .try_uniform(i)
+                .unwrap()
+                .is_some_and(|u| u.uniform_type == GpuUniformType::Double)
+        })
+        .unwrap();
+    let mut cache = creator.uniform_cache().unwrap();
+    let before = cache.double(index).unwrap().unwrap();
+    property.set_double_value(-1.0).unwrap();
+    assert_ne!(cache.double(index).unwrap().unwrap(), before);
+    drop(cache);
+    drop(creator);
+    property.set_double_value(1.0).unwrap();
+    assert_eq!(property.double_value().unwrap(), 1.0);
+}
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
 use std::sync::{Mutex, MutexGuard, OnceLock};

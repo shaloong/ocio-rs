@@ -33,6 +33,8 @@ second GPU pass without rebuilding the shader.
 The checked dynamic texture-policy case also executes a 1D LUT promoted to a 2D
 texture by Rust's native virtual getter callbacks, checks setter events, and
 compares GPU with CPU.
+The persistent-policy case also extracts through a retained Rust policy,
+detaches it into a native descriptor, and executes the result on the GPU.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
