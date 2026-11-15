@@ -78,8 +78,10 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let mut red = value.curve(RGBCurveType::Red).unwrap();
     let red_alias = value.curve(RGBCurveType::Red).unwrap();
     let shared = value.curve_shared(RGBCurveType::Red).unwrap();
+    let shared_set = GradingRGBCurve::create_from_shared_curves([&shared; 4]).unwrap();
     let view = value.curve_ref(RGBCurveType::Red).unwrap();
     red.set_slope(0, 0.37).unwrap();
+    assert!(shared_set.is_identity().unwrap());
     assert_eq!(shared.view().slope(0).unwrap(), 0.37);
     assert_eq!(red_alias.slope(0).unwrap(), 0.37);
     assert_eq!(view.slope(0).unwrap(), 0.37);
@@ -158,6 +160,38 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     .into_iter()
     .map(|kind| value.curve(kind).unwrap())
     .collect();
+    let shared_curves: Vec<_> = [
+        HueCurveType::HueHue,
+        HueCurveType::HueSat,
+        HueCurveType::HueLum,
+        HueCurveType::LumSat,
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ]
+    .into_iter()
+    .map(|kind| value.curve_shared(kind).unwrap())
+    .collect();
+    let shared_assembled = GradingHueCurve::create_from_shared_curves([
+        &shared_curves[0],
+        &shared_curves[1],
+        &shared_curves[2],
+        &shared_curves[3],
+        &shared_curves[4],
+        &shared_curves[5],
+        &shared_curves[6],
+        &shared_curves[7],
+    ])
+    .unwrap();
+    assert_eq!(
+        shared_assembled
+            .curve_ref(HueCurveType::HueFx)
+            .unwrap()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
     let mut assembled = GradingHueCurve::create_from_curves([
         &curves[0], &curves[1], &curves[2], &curves[3], &curves[4], &curves[5], &curves[6],
         &curves[7],

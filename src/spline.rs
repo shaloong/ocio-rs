@@ -372,6 +372,18 @@ pub struct GradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingRGBCurve {
+    /// Construct from read-only shared splines in OCIO enum order.
+    /// OCIO copies the supplied splines into the new curve set.
+    pub fn create_from_shared_curves(curves: [&SharedGradingBSplineCurve; 4]) -> Result<Self> {
+        let pointers = curves.map(|curve| curve.owner.as_ptr());
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_grading_rgb_curve_object_create_from_shared_curves(pointers.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
     /// Retain a read-only native child independently of this curve set.
     pub fn curve_shared(&self, kind: crate::RGBCurveType) -> Result<SharedGradingBSplineCurve> {
         SharedGradingBSplineCurve::from_parent(self.handle, kind as i32, false)
@@ -480,6 +492,18 @@ pub struct GradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl GradingHueCurve {
+    /// Construct from read-only shared splines in OCIO enum order.
+    /// OCIO copies and validates the supplied splines.
+    pub fn create_from_shared_curves(curves: [&SharedGradingBSplineCurve; 8]) -> Result<Self> {
+        let pointers = curves.map(|curve| curve.owner.as_ptr());
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_grading_hue_curve_object_create_from_shared_curves(pointers.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
     /// Retain a read-only native child independently of this curve set.
     pub fn curve_shared(&self, kind: crate::HueCurveType) -> Result<SharedGradingBSplineCurve> {
         SharedGradingBSplineCurve::from_parent(self.handle, kind as i32, true)
