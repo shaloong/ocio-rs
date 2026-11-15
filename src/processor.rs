@@ -3520,6 +3520,29 @@ impl GPUProcessor {
     /// It relies on the 1,048,576-entry limit of supported OCIO 2.4–2.6 and
     /// must be re-audited before supporting a newer native version.
     pub fn try_extract_shader_info_checked(&self, shader_desc: &mut GpuShaderDesc) -> Result<()> {
+        self.validate_shader_texture_layout(shader_desc)?;
+        self.try_extract_shader_info(shader_desc)
+    }
+
+    /// Conservatively check the optimized processor's texture layouts before
+    /// extraction with `template`. This performs a probe extraction, but does
+    /// not invoke the caller's shader hooks or retain probe textures.
+    ///
+    /// The probe has the cost and version/false-positive limitations documented
+    /// on [`Self::try_extract_shader_info_checked`]. It may be followed by any
+    /// of this library's synchronous custom extraction APIs using the same
+    /// processor and unchanged template settings. It does not validate arbitrary
+    /// native creators with independently implemented texture-policy methods.
+    ///
+    /// ```no_run
+    /// # use ocio_rs::{GPUProcessor, GpuShaderDesc, ShaderExtractionHooks, Result};
+    /// # fn extract<H: ShaderExtractionHooks>(gpu: &GPUProcessor, template: &GpuShaderDesc, hooks: &mut H) -> Result<()> {
+    /// gpu.validate_shader_texture_layout(template)?;
+    /// let shader = gpu.try_extract_with_hooks(template, hooks)?;
+    /// # let _ = shader;
+    /// # Ok(()) }
+    /// ```
+    pub fn validate_shader_texture_layout(&self, shader_desc: &GpuShaderDesc) -> Result<()> {
         struct ProbeHooks;
         impl ShaderExtractionHooks for ProbeHooks {}
         let probe = shader_desc.clone_desc().ok_or_else(|| {
@@ -3537,7 +3560,7 @@ impl GPUProcessor {
         for length in lengths {
             shader_desc.validate_lut_texture_layout(length)?;
         }
-        self.try_extract_shader_info(shader_desc)
+        Ok(())
     }
 
     #[doc(hidden)]

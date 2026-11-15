@@ -159,6 +159,64 @@ fn checked_extraction_probes_optimized_lut_without_mutating_target_on_failure() 
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn optimized_layout_probe_can_guard_custom_texture_and_finalizer_hooks() {
+    use ocio_rs::{
+        ShaderExtractionHooks, ShaderFinalizeControl, ShaderTextureAction, ShaderUniformAction,
+        ShaderUniformControl, ShaderUniformRegistration,
+    };
+    struct Hooks {
+        finalizations: usize,
+    }
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    impl ShaderFinalizeControl for Hooks {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            self.finalizations += 1;
+            Ok(None)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_texture_max_width(2).unwrap();
+    let mut hooks = Hooks { finalizations: 0 };
+    let mut textures = 0;
+    let guarded_extract =
+        |hooks: &mut Hooks, textures: &mut usize| -> ocio_rs::Result<GpuShaderDesc> {
+            gpu.validate_shader_texture_layout(&template)?;
+            gpu.try_extract_with_finalize_control(&template, hooks, None, |_| {
+                *textures += 1;
+                Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+            })
+        };
+    assert!(guarded_extract(&mut hooks, &mut textures).is_err());
+    assert_eq!(hooks.finalizations, 0);
+    assert_eq!(textures, 0);
+    template.set_texture_max_width(64).unwrap();
+    let desc = guarded_extract(&mut hooks, &mut textures).unwrap();
+    assert_eq!(hooks.finalizations, 1);
+    assert!(textures > 0);
+    assert!(desc.num_textures() > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_finalize_can_replace_native_stage_or_delegate_and_cleans_up() {
     use ocio_rs::{
         OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,

@@ -42,9 +42,11 @@ the bridge selects the native ABI separately.
   `GPUProcessor::try_extract_shader_info_checked` offers a more comprehensive,
   conservative opt-in probe of the optimized processor by first extracting
   with a width above the 1,048,576-entry native LUT limit. It generates the
-  shader twice and may reject non-LUT textures; it has not been implemented for
-  custom Rust hooks or arbitrary native creators. Fixing the native algorithm
-  itself and covering those extraction paths requires further work.
+  shader twice and may reject non-LUT textures. The separately callable
+  `validate_shader_texture_layout` lets custom Rust hook users perform the same
+  probe before extraction with unchanged template settings; it does not validate
+  arbitrary native creators with independent policies. Fixing the native
+  algorithm itself and guarding arbitrary native creators requires further work.
 
 - `ShaderUniformControl` can decide registration results and own or delegate
   uniform storage for all scalar and array getter overloads. A complete Rust
