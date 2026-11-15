@@ -13,6 +13,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifndef OCIO_RS_STUB
@@ -15002,14 +15003,39 @@ void* ocio_group_transform_get_transform_v1(void* handle, int index) {
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+static void ocio_rs_validate_group_child(const ocio::GroupTransformRcPtr& target, const ocio::TransformRcPtr& child) {
+  if (!target || !child) throw std::invalid_argument("group and child transform must not be null");
+  if (target.get() == child.get()) throw std::invalid_argument("group transform cycle");
+  auto nested = std::dynamic_pointer_cast<ocio::GroupTransform>(child);
+  if (!nested) return; // Common non-group children require no graph allocation.
+  std::vector<ocio::GroupTransformRcPtr> pending{std::move(nested)};
+  std::unordered_set<const ocio::GroupTransform*> visited;
+  while (!pending.empty()) {
+    auto group = std::move(pending.back());
+    pending.pop_back();
+    if (!visited.insert(group.get()).second) continue;
+    for (int i = 0, count = group->getNumTransforms(); i < count; ++i) {
+      const auto& item = group->getTransform(i);
+      if (item.get() == target.get()) throw std::invalid_argument("group transform cycle");
+      if (auto next = std::dynamic_pointer_cast<ocio::GroupTransform>(item)) pending.push_back(std::move(next));
+    }
+  }
+}
+#endif
+
 void ocio_group_transform_set_transform(void* handle, int index, void* transform) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index; (void)transform;
 #else
   try {
+    if (!handle || !transform) throw std::invalid_argument("group and child transform must not be null");
     auto* child = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto replacement = child->get_ocio_transform();
-    ocio_rs_bridge::get_real_group_transform(handle)->getTransform(index) = std::move(replacement);
+    auto group = ocio_rs_bridge::get_real_group_transform(handle);
+    auto& slot = group->getTransform(index);
+    ocio_rs_validate_group_child(group, replacement);
+    slot = std::move(replacement);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
@@ -15031,9 +15057,12 @@ void ocio_group_transform_append_transform(void* handle, void* transform) {
   return;
 #else
   try {
+    if (!handle || !transform) throw std::invalid_argument("group and child transform must not be null");
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
-    ocio_rs_bridge::get_real_group_transform(handle)->appendTransform(transform_ptr);
+    auto group = ocio_rs_bridge::get_real_group_transform(handle);
+    ocio_rs_validate_group_child(group, transform_ptr);
+    group->appendTransform(transform_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -15044,9 +15073,12 @@ void ocio_group_transform_prepend_transform(void* handle, void* transform) {
   return;
 #else
   try {
+    if (!handle || !transform) throw std::invalid_argument("group and child transform must not be null");
     auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
     auto transform_ptr = _transform_h->get_ocio_transform();
-    ocio_rs_bridge::get_real_group_transform(handle)->prependTransform(transform_ptr);
+    auto group = ocio_rs_bridge::get_real_group_transform(handle);
+    ocio_rs_validate_group_child(group, transform_ptr);
+    group->prependTransform(transform_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }

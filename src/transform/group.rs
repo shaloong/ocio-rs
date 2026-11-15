@@ -11,6 +11,9 @@ use ocio_sys;
 ///
 /// Group transforms are useful for composing generated or user-authored
 /// transform chains before asking a `Config` for a processor.
+/// Adding or replacing a child rejects direct and indirect cycles before
+/// mutation. Acyclic groups may share children; non-group children require no
+/// graph traversal. Group traversal occurs only while editing, not per pixel.
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -117,7 +120,11 @@ impl GroupTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Remove the child transform at `index`.
+    /// Remove the child transform at `index` by rebuilding this wrapper's group.
+    ///
+    /// OCIO exposes no in-place removal API. Existing shared references,
+    /// including groups that already contain this group and previously obtained
+    /// metadata, continue to refer to the original native object.
     pub fn remove_transform(&self, index: usize) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -126,7 +133,9 @@ impl GroupTransform {
         crate::ocio_call_status()
     }
 
-    /// Remove every child transform from the group.
+    /// Remove every child by rebuilding this wrapper's group. Existing shared
+    /// native references continue to point to the original group; see
+    /// [`Self::remove_transform`].
     pub fn clear_transforms(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };

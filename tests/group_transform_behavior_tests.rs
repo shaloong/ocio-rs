@@ -32,6 +32,57 @@ fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_rejects_direct_and_indirect_cycles_without_mutation() {
+    let _guard = group_transform_test_lock();
+    let root = GroupTransform::create().unwrap();
+    assert!(root.append_transform(&root).is_err());
+    assert!(root.prepend_transform(&root).is_err());
+    assert_eq!(root.num_transforms(), 0);
+    let child = GroupTransform::create().unwrap();
+    let leaf = scale_matrix([1.2, 1.0, 1.0, 1.0]);
+    child.append_transform(&leaf).unwrap();
+    root.append_transform(&child).unwrap();
+    assert!(child.append_transform(&root).is_err());
+    assert!(child.prepend_transform(&root).is_err());
+    assert!(child.set_transform(0, &root).is_err());
+    assert_eq!(root.num_transforms(), 1);
+    assert_eq!(child.num_transforms(), 1);
+    let inner = GroupTransform::create().unwrap();
+    child.append_transform(&inner).unwrap();
+    assert!(inner.append_transform(&root).is_err());
+    assert_eq!(inner.num_transforms(), 0);
+    // Reusing a child in an acyclic graph remains valid and retains sharing.
+    root.append_transform(&child).unwrap();
+    assert_eq!(root.num_transforms(), 2);
+    let Some(Transform::Group(shared)) = root.try_transform(0).unwrap() else {
+        panic!("expected shared group");
+    };
+    assert_eq!(shared.num_transforms(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_removal_rebuilds_wrapper_without_mutating_existing_shared_group() {
+    let _guard = group_transform_test_lock();
+    let parent = GroupTransform::create().unwrap();
+    let child = GroupTransform::create().unwrap();
+    let leaf = scale_matrix([1.1, 1.0, 1.0, 1.0]);
+    child.append_transform(&leaf).unwrap();
+    child.append_transform(&leaf).unwrap();
+    parent.append_transform(&child).unwrap();
+    child.remove_transform(0).unwrap();
+    assert_eq!(child.num_transforms(), 1);
+    let Some(Transform::Group(old_shared)) = parent.try_transform(0).unwrap() else {
+        panic!("expected previously shared group");
+    };
+    assert_eq!(old_shared.num_transforms(), 2);
+    child.clear_transforms().unwrap();
+    assert_eq!(child.num_transforms(), 0);
+    assert_eq!(old_shared.num_transforms(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_order_copy_and_mutation_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {

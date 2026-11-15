@@ -119,6 +119,9 @@ See [the Context audit](OCIO_CONTEXT_AUDIT.md) for ownership, resolution and
 the native variable-clear cache invalidation workaround.
 The [named-item audit](OCIO_NAMED_ITEMS_AUDIT.md) records look, named transform,
 and view-transform ownership and diagnostic stream behavior.
+Group child insertion and replacement reject direct or indirect cycles while
+retaining native sharing for acyclic graphs. Cycle checks occur on edits, not
+in the CPU or GPU pixel-processing path.
 Editable metadata children are path-backed and detect ancestor clearing across
 binding-created handles; a stale child cannot silently target a newly inserted
 element at the same index. Unsynchronized external native mutations remain the
