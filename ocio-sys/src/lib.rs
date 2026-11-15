@@ -152,6 +152,18 @@ unsafe extern "C" {
         source: *const i8,
         destination: *const i8,
     ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_with_context(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        destination: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_from_transform(
+        handle: *mut c_void,
+        context: *mut c_void,
+        transform: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
     pub fn ocio_const_named_item_text(
         handle: *mut c_void,
         kind: i32,

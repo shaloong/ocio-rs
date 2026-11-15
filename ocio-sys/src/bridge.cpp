@@ -1872,6 +1872,47 @@ void* ocio_const_config_get_processor(void* handle, const char* source, const ch
 #endif
 }
 
+void* ocio_const_config_get_processor_with_context(void* handle, void* context, const char* source, const char* destination) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)source; (void)destination; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !context || !source || !destination) throw std::invalid_argument("invalid const config processor arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto ctx = *static_cast<ocio::ConstContextRcPtr*>(context);
+    auto p = config->getProcessor(ctx, source, destination);
+    if (p && p->isDynamic()) p = config->createEditableCopy()->getProcessor(ctx, source, destination);
+    if (!p) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_config_get_processor_from_transform(void* handle, void* context, void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)transform; (void)direction; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !transform) throw std::invalid_argument("invalid const config transform arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto value = *static_cast<ocio::ConstTransformRcPtr*>(transform);
+    auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
+      return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), value, dir)
+                     : cfg->getProcessor(value, dir);
+    };
+    auto p = build(config);
+    if (p && p->isDynamic()) p = build(config->createEditableCopy());
+    if (!p) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_set_current_config(void* config) {
 #ifdef OCIO_RS_STUB
   (void)config;

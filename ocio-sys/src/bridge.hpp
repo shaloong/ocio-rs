@@ -162,6 +162,8 @@ void* ocio_const_config_get_context(void* handle);
 void* ocio_const_config_get_named_item(void* handle, const char* name, int kind);
 void* ocio_const_config_get_rules(void* handle, int kind);
 void* ocio_const_config_get_processor(void* handle, const char* source, const char* destination);
+void* ocio_const_config_get_processor_with_context(void* handle, void* context, const char* source, const char* destination);
+void* ocio_const_config_get_processor_from_transform(void* handle, void* context, void* transform, int direction);
 void ocio_set_current_config(void* config);
 void ocio_clear_all_caches(void);
 

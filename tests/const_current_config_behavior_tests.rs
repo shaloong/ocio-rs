@@ -26,6 +26,13 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     );
     assert!(shared.cache_id().unwrap().is_some());
     assert!(shared.try_const_current_context().unwrap().is_some());
+    let shared_context = shared.try_const_current_context().unwrap().unwrap();
+    assert!(shared
+        .processor_with_const_context(c"raw", c"raw", &shared_context)
+        .is_ok());
+    assert!(shared
+        .processor_with_const_context(c"missing", c"raw", &shared_context)
+        .is_err());
     assert!(shared.try_const_color_space(c"raw").unwrap().is_some());
     assert_eq!(
         shared
@@ -92,6 +99,59 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     dynamic_config.try_add_color_space(&input).unwrap();
     try_set_current_config(&dynamic_config).unwrap();
     let snapshot = try_const_current_config().unwrap().unwrap();
+    let context = snapshot.try_const_current_context().unwrap().unwrap();
+    let ctx_left = snapshot
+        .processor_with_const_context(c"dynamic-input", c"reference", &context)
+        .unwrap();
+    let ctx_right = snapshot
+        .processor_with_const_context(c"dynamic-input", c"reference", &context)
+        .unwrap();
+    let ctx_property = ctx_left
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap();
+    ctx_property.set_double_value(1.25).unwrap();
+    assert_eq!(
+        ctx_right
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
+    let transform = snapshot
+        .try_const_color_space(c"dynamic-input")
+        .unwrap()
+        .unwrap()
+        .try_const_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    for context_option in [None, Some(&context)] {
+        let a = snapshot
+            .processor_from_const_transform(
+                &transform,
+                ocio_rs::TransformDirection::Forward,
+                context_option,
+            )
+            .unwrap();
+        let b = snapshot
+            .processor_from_const_transform(
+                &transform,
+                ocio_rs::TransformDirection::Forward,
+                context_option,
+            )
+            .unwrap();
+        a.dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .set_double_value(0.75)
+            .unwrap();
+        assert_eq!(
+            b.dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+                .unwrap()
+                .double_value()
+                .unwrap(),
+            0.0
+        );
+    }
     let left = snapshot.processor(c"dynamic-input", c"reference").unwrap();
     let right = snapshot.processor(c"dynamic-input", c"reference").unwrap();
     assert!(left.is_dynamic() && right.is_dynamic());
@@ -111,7 +171,10 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
             let barrier = barrier.clone();
             std::thread::spawn(move || {
                 let config = try_const_current_config().unwrap().unwrap();
-                let processor = config.processor(c"dynamic-input", c"reference").unwrap();
+                let context = config.try_const_current_context().unwrap().unwrap();
+                let processor = config
+                    .processor_with_const_context(c"dynamic-input", c"reference", &context)
+                    .unwrap();
                 let property = processor
                     .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
                     .unwrap();

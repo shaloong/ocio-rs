@@ -91,6 +91,9 @@ other native aliases may change the underlying context.
 An editable context can merge variables directly from a read-only context;
 both expose OCIO's diagnostic stream output, which may contain sensitive data
 and is not a stable interchange format.
+Shared immutable configurations can create processors with a shared context or
+transform. Static processors retain OCIO caching; dynamic processors are
+rebuilt from an independent config copy to avoid sharing mutable properties.
 An individual context variable can be removed without clearing the others;
 config and context IO proxies can also be detached while separately retained
 proxy handles remain usable.

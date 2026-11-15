@@ -114,6 +114,47 @@ impl ConstConfig {
         };
         Config::processor_handle_result(handle)
     }
+
+    /// Create a processor using a shared context and native color-space names.
+    /// Static processors retain native caching; dynamic processors are isolated
+    /// as described by [`Self::processor`].
+    pub fn processor_with_const_context(
+        &self,
+        src: &std::ffi::CStr,
+        dst: &std::ffi::CStr,
+        context: &crate::ConstContext,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor_with_context(
+                self.handle.as_ptr(),
+                context.handle.as_ptr(),
+                src.as_ptr(),
+                dst.as_ptr(),
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+
+    /// Create a processor from a shared native transform and optional context.
+    /// Dynamic processors are isolated as described by [`Self::processor`].
+    pub fn processor_from_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: TransformDirection,
+        context: Option<&crate::ConstContext>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor_from_transform(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
 }
 impl Drop for ConstConfig {
     fn drop(&mut self) {
