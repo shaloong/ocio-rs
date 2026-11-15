@@ -1450,7 +1450,7 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
     let mut first = Hooks::default();
-    let first_desc = {
+    let mut first_desc = {
         let id = CString::new("custom-cache-first").unwrap();
         gpu.try_extract_with_creator_options(
             &template,
@@ -1503,7 +1503,7 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
         first_desc.try_cache_id().unwrap(),
         repeated_desc.try_cache_id().unwrap()
     );
-    let cloned = first_desc.clone_desc().expect("native clone");
+    let mut cloned = first_desc.clone_desc().expect("native clone");
     assert_ne!(
         cloned.try_cache_id().unwrap().as_deref(),
         Some("custom-cache-first")
@@ -1514,6 +1514,26 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
         first_desc.try_cache_id().unwrap().as_deref(),
         Some("custom-cache-first")
     );
+    first_desc
+        .set_custom_cache_id(Some(c"updated-cache"))
+        .unwrap();
+    assert_eq!(
+        first_desc.try_cache_id().unwrap().as_deref(),
+        Some("updated-cache")
+    );
+    first_desc.set_custom_cache_id(None).unwrap();
+    assert_ne!(
+        first_desc.try_cache_id().unwrap().as_deref(),
+        Some("updated-cache")
+    );
+    first_desc
+        .set_custom_cache_id(Some(c"after-clear"))
+        .unwrap();
+    assert_eq!(
+        first_desc.try_cache_id().unwrap().as_deref(),
+        Some("after-clear")
+    );
+    assert!(cloned.set_custom_cache_id(Some(c"not-supported")).is_err());
 }
 
 #[test]

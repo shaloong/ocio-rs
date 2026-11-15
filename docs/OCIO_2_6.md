@@ -80,6 +80,10 @@ caller-provided Rust writer. Bytes already written remain on failure;
 the deprecated text methods reject binary output instead of silently truncating
 at NUL bytes. The writer avoids another archive-sized bridge buffer, although
 OCIO itself assembles the archive in memory.
+On Unix, OCIO 2.4–2.6 may create an archive whose generated `config.ocio`
+entry has no permission bits; native extraction may restore those zero bits,
+making the extracted file unreadable until its owner changes the permissions.
+The binding does not silently change permissions on extracted user files.
 The exact-tag CI also runs behavior tests and
 all three API feature levels. DirectX and Vulkan test frameworks are upstream
 test infrastructure, not additional application-facing binding APIs.
@@ -140,7 +144,8 @@ Dynamic property values remain live, rather than being snapshotted at capture.
 Custom creators may supply a native-owned cache ID through
 `ShaderCreatorOptions`. The caller is responsible for changing it when the
 creator configuration or output changes, including after descriptor mutation;
-cloning the descriptor does not preserve the override.
+`set_custom_cache_id` updates or clears it after extraction. This does not
+rename already-generated resources, and cloning does not preserve the override.
 Custom shader assembly, code-fragment rewriting, texture callbacks, uniform
 registration notifications, and creator lifecycle notifications are supported.
 Default hook assembly delegates to OCIO, including its Vulkan uniform block.

@@ -2203,7 +2203,8 @@ pub struct ShaderCreatorOptions<'a> {
     ///
     /// OCIO uses this ID when deriving resource keys. The caller must ensure
     /// the ID changes whenever creator configuration or output changes,
-    /// including after mutating the returned descriptor. The string is copied
+    /// including after mutating the returned descriptor. Update it with
+    /// [`GpuShaderDesc::set_custom_cache_id`]. The string is copied
     /// once into native ownership. `None` retains OCIO's default behavior.
     /// Native descriptor cloning creates a generic descriptor and does not
     /// preserve this override.
@@ -4747,6 +4748,29 @@ impl GpuShaderDesc {
         };
         crate::ocio_call_status()?;
         Ok(value)
+    }
+
+    /// Change or clear the cache ID override on a descriptor created by a
+    /// custom extraction method. Clearing restores OCIO's native cache ID.
+    ///
+    /// This does not rename resources already generated during extraction;
+    /// applications must manage any resource keys and external caches as well.
+    /// Generic descriptors, including native clones, do not support this override.
+    pub fn set_custom_cache_id(&mut self, id: Option<&std::ffi::CStr>) -> Result<()> {
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_set_custom_cache_id(
+                self.handle.as_ptr(),
+                id.map_or(std::ptr::null(), std::ffi::CStr::as_ptr),
+            )
+        };
+        crate::ocio_call_status()?;
+        if !ok {
+            return Err(OcioError::Ocio(
+                "Could not set custom shader cache ID".into(),
+            ));
+        }
+        Ok(())
     }
 
     /// Returns the OCIO texture UID associated with a 1D/2D resource, if any.

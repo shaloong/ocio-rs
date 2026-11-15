@@ -900,6 +900,7 @@ void ocio_gpu_shader_desc_set_texture_max_width_u32(void* handle, uint32_t maxWi
 void ocio_gpu_shader_desc_set_allow_texture_1d(void* handle, bool allowed);
 bool ocio_gpu_shader_desc_get_allow_texture_1d(void* handle);
 const char* ocio_gpu_shader_desc_get_cache_id(void* handle);
+bool ocio_gpu_shader_desc_set_custom_cache_id(void* handle, const char* value);
 void ocio_gpu_shader_desc_begin(void* handle, const char* uid);
 void ocio_gpu_shader_desc_end(void* handle);
 uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle);

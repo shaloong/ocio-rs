@@ -9095,6 +9095,7 @@ public:
       : callback(cb), texture_callback(tex), uniform_callback(uniform), lifecycle_callback(lifecycle), code_callback(code), registration_callback(registration), context(ctx), stream_textures(stream) {}
   void setCacheIDOverride(const char* value) {
     if (value) { cache_id_override = value; has_cache_id_override = true; }
+    else { cache_id_override.clear(); has_cache_id_override = false; }
   }
   void setTextureControl(ocio_shader_texture_control_callback cb) { texture_control_callback = cb; }
   void setFinalizeControl(ocio_shader_finalize_callback cb) { finalize_callback = cb; }
@@ -9299,6 +9300,23 @@ public:
 #endif
 };
 #endif
+
+bool ocio_gpu_shader_desc_set_custom_cache_id(void* handle, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)value;
+  ocio_rs_bridge::capture_error_message("custom shader cache ID requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("invalid shader descriptor");
+    auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
+    auto custom = dynamic_cast<OcioRsAssemblingDesc*>(desc.get());
+    if (!custom) throw std::invalid_argument("descriptor does not support a custom cache ID");
+    custom->setCacheIDOverride(value);
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
 
 static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,

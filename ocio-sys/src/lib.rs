@@ -3235,6 +3235,7 @@ unsafe extern "C" {
     pub fn ocio_format_metadata_set_name(metadata: *mut c_void, name: *const i8) -> ();
 
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_set_custom_cache_id(desc: *mut c_void, value: *const i8) -> bool;
     pub fn ocio_gpu_shader_desc_begin(shader_desc: *mut c_void, uid: *const i8) -> ();
     pub fn ocio_gpu_shader_desc_end(shader_desc: *mut c_void) -> ();
     pub fn ocio_gpu_shader_desc_get_next_resource_index(shader_desc: *mut c_void) -> u32;
