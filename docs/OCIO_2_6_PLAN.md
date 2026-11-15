@@ -47,6 +47,14 @@ The current inventory and runtime validation are incomplete; the status in
    A `noexcept` native getter cannot propagate a Rust failure as a C++ exception;
    any proposed callback design must define failure handling and detached-context
    behavior before implementation.
+   Audit packed-image pointer stepping as well: in OCIO 2.4.1--2.6.0,
+   generic image packing advances each channel pointer after the last pixel.
+   For a tightly sized packed allocation, the final non-first-channel pointer
+   may be formed beyond one-past the allocation even though it is not
+   dereferenced. The current bounds checks account for sample access and a
+   first-channel pointer step, not every packed channel's final pointer step.
+   Resolve this without assuming padding outside the caller's slice or imposing
+   a full-image copy on the common path; verify native fast and generic paths.
 3. For each family, test representative native behavior and error paths at its
    minimum supported version and at 2.6, including feature gates and lifetime
    guarantees. Add regression cases to existing suites; test version-specific

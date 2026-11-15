@@ -8793,7 +8793,8 @@ void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green,
 #else
   try {
     if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
-        height > std::numeric_limits<long>::max() || !red || !green || !blue)
+        height > std::numeric_limits<long>::max() ||
+        width > std::numeric_limits<long>::max() / height || !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions or channel pointers");
     auto cpu = ocio_rs_bridge::get_real_cpu_processor(handle);
     if (cpu->getInputBitDepth() != ocio::BIT_DEPTH_F32 || cpu->getOutputBitDepth() != ocio::BIT_DEPTH_F32)
@@ -8815,7 +8816,8 @@ void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float
   try {
     constexpr auto limit = std::numeric_limits<ptrdiff_t>::max() / sizeof(float);
     if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
-        height > std::numeric_limits<long>::max() || x_stride <= 0 || y_stride <= 0 ||
+        height > std::numeric_limits<long>::max() ||
+        width > std::numeric_limits<long>::max() / height || x_stride <= 0 || y_stride <= 0 ||
         x_stride > limit || y_stride > limit || x_stride > y_stride / width ||
         !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions, strides or pointers");

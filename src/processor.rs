@@ -7895,6 +7895,47 @@ impl Drop for DynamicProperty {
 mod tests {
     use super::*;
 
+    #[cfg(all(target_os = "windows", not(ocio_stub)))]
+    #[test]
+    fn planar_float_native_entrypoints_reject_pixel_count_overflow() {
+        let width = i64::from(i32::MAX) / 2 + 1;
+        let mut channel = 0.0_f32;
+        let ptr = std::ptr::addr_of_mut!(channel);
+        // The rejected dimensions must be checked before either entry point
+        // dereferences the processor or the deliberately tiny channel buffer.
+        unsafe {
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_planar_f32(
+                std::ptr::null_mut(),
+                ptr,
+                ptr,
+                ptr,
+                std::ptr::null_mut(),
+                width,
+                2,
+            );
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid planar"));
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_planar_strided_f32(
+                std::ptr::null_mut(),
+                ptr,
+                ptr,
+                ptr,
+                std::ptr::null_mut(),
+                width,
+                2,
+                1,
+                width,
+            );
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid planar"));
+            crate::clear_last_error();
+        }
+    }
+
     #[test]
     fn packed_layout_rejects_out_of_bounds_and_overflow() {
         let bytes = [0u8; 24];
