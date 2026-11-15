@@ -96,6 +96,90 @@ fn config_payload_preserves_native_length_and_provider_errors() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_provider_returns_arbitrary_config_bytes() {
+    struct BinaryProvider {
+        owned: bool,
+    }
+    impl ConfigIOProvider for BinaryProvider {
+        fn config_data_bytes(&self) -> ocio_rs::Result<Cow<'_, [u8]>> {
+            let data = &b"\xff\0configuration"[..];
+            Ok(if self.owned {
+                Cow::Owned(data.to_vec())
+            } else {
+                Cow::Borrowed(data)
+            })
+        }
+        fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+    }
+    let _guard = config_io_proxy_test_lock();
+    for owned in [false, true] {
+        let proxy = ConfigIOProxy::from_provider(BinaryProvider { owned }).unwrap();
+        assert_eq!(
+            proxy.try_config_data_bytes().unwrap().as_deref(),
+            Some(&b"\xff\0configuration"[..])
+        );
+        assert_eq!(
+            proxy.try_config_data().unwrap().as_deref(),
+            Some("\u{fffd}\0configuration")
+        );
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn byte_provider_supplies_config_and_lut_to_native_processor() {
+    struct Assets {
+        config: Vec<u8>,
+        lut: Vec<u8>,
+    }
+    impl ConfigIOProvider for Assets {
+        fn config_data_bytes(&self) -> ocio_rs::Result<Cow<'_, [u8]>> {
+            Ok(Cow::Borrowed(&self.config))
+        }
+        fn lut_data<'a>(&'a self, path: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(if path.to_bytes().ends_with(b"lut1.clf") {
+                &self.lut
+            } else {
+                &[]
+            }))
+        }
+        fn fast_lut_file_hash<'a>(
+            &'a self,
+            path: &std::ffi::CStr,
+        ) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(if path.to_bytes().ends_with(b"lut1.clf") {
+                &b"byte-provider-lut-v1"[..]
+            } else {
+                b""
+            }))
+        }
+    }
+    let _guard = config_io_proxy_test_lock();
+    let proxy = ConfigIOProxy::from_provider(Assets {
+        config: fs::read(test_data_path("configs/context_test1/config.ocio")).unwrap(),
+        lut: fs::read(test_data_path("configs/context_test1/shot1/lut1.clf")).unwrap(),
+    })
+    .unwrap();
+    let config = Config::from_config_io_proxy(&proxy).unwrap();
+    config.set_working_dir("E:/virtual/context").unwrap();
+    drop(proxy);
+    let cpu = config
+        .processor("shot1_lut1_cs", "reference")
+        .unwrap()
+        .optimized_cpu_processor(0)
+        .unwrap();
+    let mut pixel = [1.0f32; 4];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert_close(pixel[0] as f64, 10.0, 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_provider_loads_lut_on_demand_and_outlives_proxy_handle() {
     let _guard = config_io_proxy_test_lock();
     let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));

@@ -30,8 +30,23 @@ use ocio_sys;
 /// }
 /// ```
 pub trait ConfigIOProvider: Send + Sync + 'static {
-    /// Return the configuration YAML.
-    fn config_data(&self) -> Result<Cow<'_, str>>;
+    /// Return UTF-8 configuration YAML. Implement this method or override
+    /// [`Self::config_data_bytes`] to provide the native byte representation.
+    fn config_data(&self) -> Result<Cow<'_, str>> {
+        Err(OcioError::InvalidInput(
+            "config provider does not implement config_data or config_data_bytes".into(),
+        ))
+    }
+    /// Return the complete native config payload. The default adapts the text
+    /// method without copying borrowed data and moves owned strings into bytes.
+    /// Override this method when the payload is not UTF-8. OCIO is responsible
+    /// for deciding whether the returned bytes are valid configuration YAML.
+    fn config_data_bytes(&self) -> Result<Cow<'_, [u8]>> {
+        self.config_data().map(|data| match data {
+            Cow::Borrowed(text) => Cow::Borrowed(text.as_bytes()),
+            Cow::Owned(text) => Cow::Owned(text.into_bytes()),
+        })
+    }
     /// Return the bytes of a referenced LUT, or an empty slice if unavailable.
     fn lut_data<'a>(&'a self, path: &CStr) -> Result<Cow<'a, [u8]>>;
     /// Return a fast cache identifier as bytes, or an empty slice if unavailable.
@@ -82,7 +97,7 @@ impl ConfigIOProxy {
                     let emit =
                         |bytes: &[u8]| unsafe { write(destination, bytes.as_ptr(), bytes.len()) };
                     match kind {
-                        0 => Ok(emit(provider.config_data()?.as_bytes())),
+                        0 => Ok(emit(&provider.config_data_bytes()?)),
                         1 | 2 => {
                             if path.is_null() {
                                 return Ok(false);
