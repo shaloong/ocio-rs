@@ -37,7 +37,8 @@ The persistent-policy case also extracts through a retained Rust policy,
 detaches it into a native descriptor, and executes the result on the GPU.
 Persistent texture-control cases additionally use explicit bindings and mix
 external and descriptor-owned 2D/3D textures in both registration orders;
-each order is tested with and without an updated dynamic exposure uniform.
+each order is tested with and without an externally retained, updated dynamic
+exposure uniform using the persistent uniform controller.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support

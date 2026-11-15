@@ -782,6 +782,7 @@ typedef bool (*ocio_shader_code_callback)(void* context, int section, const char
 // ocio_gpu_uniform_cache_destroy, even if the callback reports failure.
 typedef bool (*ocio_shader_uniform_registration_callback)(void* context, const char* name,
     int type, bool has_max_size, uint32_t max_size, void* getter, int* action);
+void ocio_gpu_shader_creator_set_persistent_uniform_control(void* creator, ocio_shader_uniform_registration_callback uniform);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
 void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,

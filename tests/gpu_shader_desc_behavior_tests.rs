@@ -286,6 +286,146 @@ fn persistent_policy_creator_retains_dynamic_properties() {
     assert_eq!(property.double_value().unwrap(), 1.0);
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_resource_control_retains_uniform_getters_and_contains_failures() {
+    use ocio_rs::{
+        PersistentPolicyCreator, ShaderExtractionHooks, ShaderTexture, ShaderTextureAction,
+        ShaderTextureControl, ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl,
+        ShaderUniformGetter, ShaderUniformRegistration,
+    };
+    struct Policy {
+        getter: Option<ShaderUniformGetter>,
+        mode: u8,
+        textures: usize,
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(4096)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    impl ShaderTextureControl for Policy {
+        fn register_texture(
+            &mut self,
+            _: ShaderTexture<'_>,
+        ) -> ocio_rs::Result<ShaderTextureAction> {
+            self.textures += 1;
+            Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+        }
+    }
+    impl ShaderExtractionHooks for Policy {}
+    impl ShaderUniformControl for Policy {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            if self.mode == 1 {
+                return Err(ocio_rs::OcioError::InvalidInput("uniform rejected".into()));
+            }
+            if self.mode == 2 {
+                panic!("uniform panic");
+            }
+            if self.mode == 3 {
+                return Ok(ShaderUniformAction::StoreInDescriptor);
+            }
+            self.getter = Some(uniform.getter);
+            if self.mode == 4 {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "retained then rejected".into(),
+                ));
+            }
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&lut).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut creator = PersistentPolicyCreator::create_with_resource_control(
+        &template,
+        Policy {
+            getter: None,
+            mode: 0,
+            textures: 0,
+        },
+        c"persistent-uniform",
+    )
+    .unwrap();
+    creator.try_extract(&gpu).unwrap();
+    assert_eq!(creator.try_num_uniforms().unwrap(), 0);
+    assert_eq!(creator.policy_mut().textures, 1);
+    let property = creator
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    let mut getter = creator.policy_mut().getter.take().unwrap();
+    let before = getter.double().unwrap().unwrap();
+    drop(creator);
+    property.set_double_value(-1.0).unwrap();
+    assert_ne!(getter.double().unwrap().unwrap(), before);
+    drop(property);
+    assert!(getter.double().unwrap().is_some());
+    let mut failed = PersistentPolicyCreator::create_with_resource_control(
+        &template,
+        Policy {
+            getter: None,
+            mode: 4,
+            textures: 0,
+        },
+        c"persistent-uniform-failure",
+    )
+    .unwrap();
+    assert!(
+        matches!(failed.try_extract(&gpu), Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "retained then rejected")
+    );
+    let mut retained = failed.policy_mut().getter.take().unwrap();
+    drop(failed);
+    assert!(retained.double().unwrap().is_some());
+    for mode in [1, 2, 3] {
+        let mut creator = PersistentPolicyCreator::create_with_resource_control(
+            &template,
+            Policy {
+                getter: None,
+                mode,
+                textures: 0,
+            },
+            c"persistent-uniform-modes",
+        )
+        .unwrap();
+        let result = creator.try_extract(&gpu);
+        if mode == 3 {
+            result.unwrap();
+            assert!(creator.try_num_uniforms().unwrap() > 0);
+        } else {
+            let expected = if mode == 1 {
+                "uniform rejected"
+            } else {
+                "uniform registration callback panicked"
+            };
+            assert!(
+                matches!(result, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == expected)
+            );
+        }
+    }
+}
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
 use std::sync::{Mutex, MutexGuard, OnceLock};

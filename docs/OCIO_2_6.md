@@ -202,6 +202,8 @@ requires explicit cache invalidation, and does not itself preflight LUT packing.
 Its optional persistent texture controller selects descriptor or external
 storage and can consume borrowed texels without a Rust-side copy. External
 resources created before an extraction error remain the caller's responsibility.
+`create_with_resource_control` also keeps uniform registration control attached;
+retained uniform getters keep the native creator alive after wrapper destruction.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
 an external dynamic uniform, including combined uniform-plus-LUT pipelines.
 It also executes mixed external and descriptor-owned 2D/3D texture pipelines

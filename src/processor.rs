@@ -2624,6 +2624,32 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
+    /// Retain both texture and uniform registration controllers between calls.
+    ///
+    /// External uniform getters retain the native creator and remain live after
+    /// this wrapper is dropped. As with textures, external storage is not rolled
+    /// back if a later callback fails. Do not reenter the creator from callbacks.
+    /// Only `register_uniform` is used from [`ShaderUniformControl`]; its
+    /// inherited synchronous shader hooks are not attached by this constructor.
+    pub fn create_with_resource_control(
+        template: &GpuShaderDesc,
+        policy: P,
+        cache_id: &std::ffi::CStr,
+    ) -> Result<Self>
+    where
+        P: ShaderTextureControl + ShaderUniformControl,
+    {
+        let creator = Self::create_with_texture_control(template, policy, cache_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_persistent_uniform_control(
+                creator.creator.handle.as_ptr(),
+                persistent_uniform_control_callback::<P>,
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(creator)
+    }
     /// Create a persistent creator with control over each registered texture.
     pub fn create_with_texture_control(
         template: &GpuShaderDesc,
@@ -2867,6 +2893,77 @@ unsafe extern "C" fn persistent_texture_control_callback<
         Err(_) => {
             state.error = Some(OcioError::InvalidInput(
                 "shader texture callback panicked".into(),
+            ));
+            false
+        }
+    }
+}
+
+unsafe extern "C" fn persistent_uniform_control_callback<
+    P: ShaderTexturePolicy + ShaderUniformControl,
+>(
+    context: *mut c_void,
+    name: *const i8,
+    uniform_type: i32,
+    has_max_size: bool,
+    max_size: u32,
+    getter: *mut c_void,
+    action: *mut i32,
+) -> bool {
+    // Ownership transfers on every path, including an invalid context or error.
+    let Some(handle) = NonNull::new(getter) else {
+        return false;
+    };
+    let getter = ShaderUniformGetter {
+        cache: GpuUniformCache {
+            handle,
+            _desc: std::marker::PhantomData,
+        },
+        uniform_type: GpuUniformType::from_raw(uniform_type),
+    };
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<ShaderUniformAction> {
+            if name.is_null() || action.is_null() || !(0..=4).contains(&uniform_type) {
+                return Err(OcioError::InvalidInput(
+                    "invalid uniform registration".into(),
+                ));
+            }
+            let name = unsafe { std::ffi::CStr::from_ptr(name) }
+                .to_str()
+                .map_err(|_| OcioError::InvalidInput("uniform name is not UTF-8".into()))?;
+            state.policy.register_uniform(ShaderUniformRegistration {
+                name: name.to_owned(),
+                uniform_type: GpuUniformType::from_raw(uniform_type),
+                max_size: has_max_size.then_some(max_size),
+                getter,
+            })
+        },
+    ));
+    match result {
+        Ok(Ok(choice)) => {
+            unsafe {
+                *action = match choice {
+                    ShaderUniformAction::StoreInDescriptor => 0,
+                    ShaderUniformAction::ExternalAdded => 1,
+                    ShaderUniformAction::ExternalDuplicate => 2,
+                };
+            }
+            true
+        }
+        Ok(Err(error)) => {
+            state.error = Some(error);
+            false
+        }
+        Err(_) => {
+            state.error = Some(OcioError::InvalidInput(
+                "uniform registration callback panicked".into(),
             ));
             false
         }

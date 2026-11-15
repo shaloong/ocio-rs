@@ -18,7 +18,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | `getCacheID() const noexcept` | `GpuShaderCreator::try_cache_id`, `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |
 | `begin(uid)`, `finalize()`, `end()` | Lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization | Begin/end remain notifications; this is not full native subclassing. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Creator virtual access, synchronous hooks and `PersistentPolicyCreator` with retained Rust policy | Arbitrary Rust subclassing and custom clone remain absent. Policy widths must avoid OCIO's known LUT packing bug. |
-| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
+| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; synchronous or persistent `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
 | `addDynamicProperty`, count, index/type lookup and presence | Descriptor `add_dynamic_property` and dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | These methods are non-virtual in OCIO; they use its creator-owned store rather than a replaceable subclass hook. |
 | `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; streaming sink; per-texture `ShaderTextureAction`; persistent `ShaderTextureControl` | 2.4 returns `void`, 2.5+ returns a binding. Other creator virtual methods remain non-customizable. |
@@ -93,7 +93,12 @@ Windows; this does not establish hardware execution or full creator parity.
   compares GPU pixels with OCIO CPU output without adding a PR CI job.
 
 - `ShaderUniformControl` can decide registration results and own or delegate
-  uniform storage for all scalar and array getter overloads. A complete Rust
+  uniform storage for all scalar and array getter overloads. The persistent
+  resource-control constructor retains this control together with texture
+  control. Its returned live getters retain the creator even after a failed
+  extraction or wrapper destruction; external storage remains caller-owned.
+  Manual Vulkan tests combine an externally retained dynamic uniform with
+  external and descriptor-owned LUTs, including a property update. A complete Rust
   creator must still independently control the remaining native virtual methods.
 - Several OCIO getters capture raw pointers to creator-owned dynamic properties.
   Retained getters hold the native creator alive and are thread-confined; native

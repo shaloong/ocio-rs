@@ -92,6 +92,7 @@ fn validate_case(
         struct Policy {
             seen: usize,
             external: Vec<LutTexture>,
+            uniform: Option<ShaderUniformGetter>,
         }
         impl ShaderTexturePolicy for Policy {
             fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -130,11 +131,27 @@ fn validate_case(
                 Ok(ShaderTextureAction::External { binding })
             }
         }
-        let mut creator = PersistentPolicyCreator::create_with_texture_control(
+        impl ShaderExtractionHooks for Policy {}
+        impl ShaderUniformControl for Policy {
+            fn register_uniform(
+                &mut self,
+                uniform: ShaderUniformRegistration,
+            ) -> ocio_rs::Result<ShaderUniformAction> {
+                if uniform.uniform_type != GpuUniformType::Double || self.uniform.is_some() {
+                    return Err(ocio_rs::OcioError::InvalidInput(
+                        "unexpected persistent uniform".into(),
+                    ));
+                }
+                self.uniform = Some(uniform.getter);
+                Ok(ShaderUniformAction::ExternalAdded)
+            }
+        }
+        let mut creator = PersistentPolicyCreator::create_with_resource_control(
             &desc,
             Policy {
                 seen: 0,
                 external: Vec::new(),
+                uniform: None,
             },
             c"persistent-control-gpu-validation",
         )?;
@@ -143,6 +160,7 @@ fn validate_case(
             return Err("expected two persistent texture registrations".into());
         }
         streamed_lut = std::mem::take(&mut creator.policy_mut().external);
+        external_uniform = creator.policy_mut().uniform.take();
         desc = creator.finish()?;
     } else if use_hooks {
         if name != "dynamic texture policy" {
