@@ -562,10 +562,16 @@ pub unsafe fn reset_logging_callback_unchecked() -> Result<()> {
 
 /// Install a process-global OCIO compute-hash callback.
 ///
-/// The callback receives and returns raw bytes so OCIO `std::string` values,
-/// including embedded NUL bytes, round-trip without loss. Its output is copied
+/// The callback receives OCIO's resolved file path as bytes and returns the
+/// file hash as bytes. OCIO `std::string` values, including embedded NUL bytes,
+/// round-trip without loss. Its output is copied
 /// by the bridge immediately after the callback returns. Panics are caught and never unwind
 /// across the FFI boundary.
+/// OCIO caches file hashes, and replacing this callback does not invalidate
+/// previously cached entries. In particular, a failing callback may leave an
+/// empty cached result. After correcting a failure or changing hash semantics,
+/// coordinate with other OCIO users and call [`try_clear_all_caches`] before
+/// retrying affected files.
 ///
 /// # Safety
 ///

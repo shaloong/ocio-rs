@@ -166,8 +166,25 @@ fn logging_callback_reentrant_helpers_return_without_deadlock() {
 fn safe_logger_updates_follow_native_synchronization_version() {
     let _guard = runtime_helpers_test_lock();
     if version_hex() < 0x0205_0200 {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let count = calls.clone();
+        // The test lock excludes all other OCIO operations in this process.
+        unsafe {
+            set_logging_callback_unchecked(move |_| {
+                count.fetch_add(1, Ordering::SeqCst);
+            })
+        }
+        .unwrap();
         assert!(set_logging_callback(|_| {}).is_err());
         assert!(reset_logging_callback().is_err());
+        try_log_message(
+            LoggingLevel::Warning,
+            "existing logger must remain installed",
+        )
+        .unwrap();
+        assert!(calls.load(Ordering::SeqCst) > 0);
+        // The same lock excludes logging while the legacy callback is removed.
+        unsafe { reset_logging_callback_unchecked() }.unwrap();
     } else {
         set_logging_callback(|_| {}).unwrap();
         reset_logging_callback().unwrap();
@@ -220,10 +237,15 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
 
     let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
+    let saw_path = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let callback_saw_path = saw_path.clone();
     // All tests in this process that access OCIO use runtime_helpers_test_lock.
     unsafe {
-        set_compute_hash_callback(move |_| {
+        set_compute_hash_callback(move |input| {
             callback_calls.fetch_add(1, Ordering::SeqCst);
+            if input.ends_with(b"matrix_3x4_example.clf") {
+                callback_saw_path.store(true, Ordering::SeqCst);
+            }
             b"intentionally-invalid-hash".to_vec()
         })
     }
@@ -240,6 +262,7 @@ fn global_compute_hash_callback_is_invoked_for_file_backed_transforms() {
 
     let _ = loaded;
     assert!(calls.load(Ordering::SeqCst) > 0);
+    assert!(saw_path.load(Ordering::SeqCst));
 }
 
 #[test]
@@ -312,8 +335,22 @@ fn global_compute_hash_callback_panic_does_not_cross_ffi() {
         .processor_from_transform_default_direction(&transform);
     unsafe { reset_compute_hash_callback() }.expect("reset compute hash callback");
 
-    let _ = result;
+    assert!(result.is_err());
     assert!(calls.load(Ordering::SeqCst) > 0);
+    let retry = || {
+        Config::raw()
+            .unwrap()
+            .processor_from_transform_default_direction(&transform)
+    };
+    assert!(
+        retry().is_err(),
+        "OCIO should retain the failed file hash until cache clear"
+    );
+    try_clear_all_caches().unwrap();
+    assert!(
+        retry().is_ok(),
+        "clearing caches should allow recovery with the default hash"
+    );
 }
 
 #[test]
