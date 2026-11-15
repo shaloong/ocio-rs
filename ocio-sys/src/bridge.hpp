@@ -1745,6 +1745,9 @@ bool ocio_grading_rgb_curve_object_is_identity(void* h);
 void* ocio_grading_rgb_curve_object_get_curve(void* h, int kind);
 /* Borrowed const curve is valid only while its parent remains alive. */
 const void* ocio_grading_curve_const_view(void* h, int kind, bool hue);
+void* ocio_grading_curve_const_shared(void* h, int kind, bool hue);
+const void* ocio_grading_spline_shared_data(const void* h);
+void ocio_grading_spline_shared_destroy(void* h);
 size_t ocio_grading_spline_const_count(const void* h);
 void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y);
 float ocio_grading_spline_const_slope(const void* h, size_t index);

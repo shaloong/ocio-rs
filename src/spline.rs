@@ -17,6 +17,41 @@ pub struct ConstGradingBSplineCurve<'a> {
     handle: NonNull<c_void>,
     owner: std::marker::PhantomData<&'a ()>,
 }
+
+/// Read-only native shared spline that can outlive its original curve set.
+///
+/// This retains the native spline without copying it. Mutable aliases can still
+/// change its contents; native concurrent access requires synchronization.
+pub struct SharedGradingBSplineCurve {
+    owner: NonNull<c_void>,
+    data: NonNull<c_void>,
+}
+impl SharedGradingBSplineCurve {
+    fn from_parent(parent: NonNull<c_void>, kind: i32, hue: bool) -> Result<Self> {
+        crate::clear_last_error();
+        let owner =
+            unsafe { ocio_sys::ocio_grading_curve_const_shared(parent.as_ptr(), kind, hue) };
+        let owner = crate::handle_result(owner)?;
+        let data = unsafe { ocio_sys::ocio_grading_spline_shared_data(owner.as_ptr()) };
+        let Some(data) = NonNull::new(data.cast_mut()) else {
+            unsafe { ocio_sys::ocio_grading_spline_shared_destroy(owner.as_ptr()) };
+            return Err(crate::OcioError::Ocio("null shared grading spline".into()));
+        };
+        Ok(Self { owner, data })
+    }
+    /// Borrow this shared spline without another allocation or reference increment.
+    pub fn view(&self) -> ConstGradingBSplineCurve<'_> {
+        ConstGradingBSplineCurve {
+            handle: self.data,
+            owner: std::marker::PhantomData,
+        }
+    }
+}
+impl Drop for SharedGradingBSplineCurve {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_grading_spline_shared_destroy(self.owner.as_ptr()) }
+    }
+}
 impl ConstGradingBSplineCurve<'_> {
     /// Make an independent editable native copy.
     pub fn create_editable_copy(&self) -> Result<GradingBSplineCurve> {
@@ -311,6 +346,10 @@ pub struct GradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingRGBCurve {
+    /// Retain a read-only native child independently of this curve set.
+    pub fn curve_shared(&self, kind: crate::RGBCurveType) -> Result<SharedGradingBSplineCurve> {
+        SharedGradingBSplineCurve::from_parent(self.handle, kind as i32, false)
+    }
     /// Borrow a read-only native child without copying it.
     pub fn curve_ref(&self, kind: crate::RGBCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
         crate::clear_last_error();
@@ -415,6 +454,10 @@ pub struct GradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl GradingHueCurve {
+    /// Retain a read-only native child independently of this curve set.
+    pub fn curve_shared(&self, kind: crate::HueCurveType) -> Result<SharedGradingBSplineCurve> {
+        SharedGradingBSplineCurve::from_parent(self.handle, kind as i32, true)
+    }
     /// Borrow a read-only native child without copying it.
     pub fn curve_ref(&self, kind: crate::HueCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
         crate::clear_last_error();

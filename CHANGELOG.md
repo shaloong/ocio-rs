@@ -50,6 +50,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Retain read-only grading splines through native shared ownership, independently
+  of the parent curve set and without copying spline data.
 - Borrow read-only RGB and hue child splines without copying their native data.
 - Bake directly to a Rust `Write` with bounded native buffering, or obtain
   lossless bytes in memory without treating output as a C string.
