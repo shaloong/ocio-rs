@@ -1323,6 +1323,13 @@ unsafe extern "C" {
         transform: *mut c_void,
         dir: i32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_color_space_visit_interchange_attributes(
+        handle: *mut c_void,
+        is_const: bool,
+        visitor: unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> bool,
+        context: *mut c_void,
+    ) -> bool;
     pub fn ocio_color_space_set_const_transform(
         handle: *mut c_void,
         transform: *mut c_void,

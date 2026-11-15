@@ -22,6 +22,9 @@
 
 extern "C" {
 
+typedef bool (*ocio_attribute_visitor)(void* context, const char* name, size_t name_len,
+                                       const char* value, size_t value_len);
+
 // --- Error state ---
 const char* ocio_error_get_last(void);
 // 0: ordinary error or no error; 1: OCIO ExceptionMissingFile.
@@ -528,6 +531,7 @@ void ocio_color_space_get_allocation_vars(void* handle, void* vars);
 void ocio_color_space_set_allocation_vars(void* handle, int numvars, const float* vars);
 void* ocio_color_space_get_transform(void* handle, int dir);
 void ocio_color_space_set_transform(void* handle, void* transform, int dir);
+bool ocio_color_space_visit_interchange_attributes(void* handle, bool is_const, ocio_attribute_visitor visitor, void* context);
 void ocio_color_space_set_const_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---

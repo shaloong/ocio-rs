@@ -432,3 +432,57 @@ fn color_space_interop_and_interchange_errors_surface_behavior() {
         .interchange_attribute("definitely_unknown_attr")
         .is_none());
 }
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_interchange_attribute_snapshots_cover_const_and_editable() {
+    let _guard = color_space_test_lock();
+    let space = ColorSpace::create().unwrap();
+    space.set_name("snapshot").unwrap();
+    assert!(space.try_interchange_attributes().unwrap().is_empty());
+    space
+        .set_interchange_attribute("icc_profile_name", "profile.icc")
+        .unwrap();
+    space
+        .set_interchange_attribute("amf_transform_ids", "id-one\nid-two")
+        .unwrap();
+    let expected = space.try_interchange_attributes().unwrap();
+    assert_eq!(expected.len(), 2);
+    assert_eq!(
+        expected.get("icc_profile_name").map(String::as_str),
+        Some("profile.icc")
+    );
+    assert_eq!(
+        expected.get("amf_transform_ids").map(String::as_str),
+        Some("id-one\nid-two")
+    );
+    assert_eq!(space.interchange_attributes(), expected);
+    let config = Config::raw().unwrap();
+    config.try_add_color_space(&space).unwrap();
+    let shared = config.try_const_color_space("snapshot").unwrap().unwrap();
+    assert_eq!(shared.try_interchange_attributes().unwrap(), expected);
+    space
+        .set_interchange_attribute("icc_profile_name", "changed.icc")
+        .unwrap();
+    assert_eq!(shared.try_interchange_attributes().unwrap(), expected);
+    assert_eq!(
+        expected.get("icc_profile_name").map(String::as_str),
+        Some("profile.icc")
+    );
+    space
+        .set_interchange_attribute("icc_profile_name", "")
+        .unwrap();
+    assert!(!space
+        .try_interchange_attributes()
+        .unwrap()
+        .contains_key("icc_profile_name"));
+}
+
+#[cfg(all(feature = "v2_5", ocio_stub))]
+#[test]
+fn stub_interchange_attribute_snapshot_is_empty() {
+    let space = ColorSpace::create().unwrap();
+    assert!(space.try_interchange_attributes().unwrap().is_empty());
+    assert!(space.interchange_attributes().is_empty());
+}

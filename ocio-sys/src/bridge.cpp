@@ -5773,6 +5773,25 @@ void ocio_color_space_set_interop_id(void* handle, const char* interopID) {
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+bool ocio_color_space_visit_interchange_attributes(void* handle, bool is_const, ocio_attribute_visitor visitor, void* context) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; (void)visitor; (void)context;
+  return true;
+#else
+  try {
+    if (!handle || !visitor) throw std::invalid_argument("invalid interchange attribute visitor");
+    ocio::ConstColorSpaceRcPtr space = is_const
+      ? *static_cast<ocio::ConstColorSpaceRcPtr*>(handle)
+      : ocio_rs_bridge::get_real_color_space(handle);
+    for (const auto& entry : space->getInterchangeAttributes()) {
+      if (!visitor(context, entry.first.data(), entry.first.size(), entry.second.data(), entry.second.size()))
+        throw std::runtime_error("interchange attribute visitor failed");
+    }
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 void ocio_color_space_set_interchange_attribute(void* handle, const char* attrName, const char* value) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)attrName; (void)value;

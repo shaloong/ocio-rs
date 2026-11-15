@@ -9,6 +9,57 @@ use crate::{
 };
 use ocio_sys;
 
+#[cfg(feature = "v2_5")]
+fn interchange_attributes_snapshot(
+    handle: *mut c_void,
+    is_const: bool,
+) -> Result<BTreeMap<String, String>> {
+    unsafe extern "C" fn visit(
+        context: *mut c_void,
+        name: *const u8,
+        name_len: usize,
+        value: *const u8,
+        value_len: usize,
+    ) -> bool {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            if context.is_null()
+                || name.is_null()
+                || value.is_null()
+                || name_len > isize::MAX as usize
+                || value_len > isize::MAX as usize
+            {
+                return false;
+            }
+            let map = unsafe { &mut *context.cast::<BTreeMap<String, String>>() };
+            let name = unsafe { std::slice::from_raw_parts(name, name_len) };
+            let value = unsafe { std::slice::from_raw_parts(value, value_len) };
+            map.insert(
+                String::from_utf8_lossy(name).into_owned(),
+                String::from_utf8_lossy(value).into_owned(),
+            );
+            true
+        }))
+        .unwrap_or(false)
+    }
+    let mut attributes = BTreeMap::new();
+    crate::clear_last_error();
+    let ok = unsafe {
+        ocio_sys::ocio_color_space_visit_interchange_attributes(
+            handle,
+            is_const,
+            visit,
+            (&mut attributes as *mut BTreeMap<String, String>).cast(),
+        )
+    };
+    crate::ocio_call_status()?;
+    if !ok {
+        return Err(OcioError::Ocio(
+            "interchange attribute visitor failed".into(),
+        ));
+    }
+    Ok(attributes)
+}
+
 /// Describes a color space definition stored in a [`Config`](crate::Config).
 pub struct ColorSpace {
     pub(crate) handle: NonNull<c_void>,
@@ -134,6 +185,12 @@ impl ConstColorSpace {
         } else {
             Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
         })
+    }
+    /// Return an owned snapshot of all native interchange attributes.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        interchange_attributes_snapshot(self.handle.as_ptr(), true)
     }
     /// Number of aliases.
     pub fn num_aliases(&self) -> Result<usize> {
@@ -788,32 +845,14 @@ impl ColorSpace {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
-        let mut attrs = BTreeMap::new();
-        let count = unsafe {
-            ocio_sys::ocio_color_space_get_num_interchange_attributes(self.handle.as_ptr())
-        };
-        for index in 0..count {
-            let name = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_color_space_get_interchange_attribute_name_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            let value = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_color_space_get_interchange_attribute_value_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            if let (Some(name), Some(value)) = (name, value) {
-                attrs.insert(name, value);
-            }
-        }
-        attrs
+        self.try_interchange_attributes().unwrap_or_default()
+    }
+
+    /// Return an owned snapshot of all native interchange attributes, preserving errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        interchange_attributes_snapshot(self.handle.as_ptr(), false)
     }
 }
 

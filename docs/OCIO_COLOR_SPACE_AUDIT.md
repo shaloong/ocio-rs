@@ -9,7 +9,7 @@ the library. The interop ID and interchange attributes require the relevant
 | --- | --- | --- |
 | `Create` overloads, `createEditableCopy` | `create`, `create_with_reference_space`, editable-copy methods | Actual reference space and copy independence are covered by behavior tests. |
 | Name, aliases, family, equality group, description | Editable accessors and mutation; borrowed const metadata | Several legacy editable getters are infallible convenience methods. |
-| Interop ID and interchange attributes | Editable accessors, const ID and individual const attribute | Full interchange-attribute map is not yet exposed on const handles. |
+| Interop ID and interchange attributes | Editable accessors, const ID and individual const attribute; owned map snapshots on both handles | Snapshots preserve native errors and visit one native map rather than repeatedly rebuilding it. |
 | Bit depth, reference space, categories, encoding, data | Editable accessors and mutation; const readers | Legacy editable getters may collapse native errors. |
 | Allocation and variables | Editable vector access and setter; const buffer-based reads | Full caller-buffer read is currently available on const handles. |
 | `getTransform`, `setTransform` | Shared const and editable-copy getters; editable and const setters; directional clear | OCIO copies transforms when setting; retained const getters outlive their source. |

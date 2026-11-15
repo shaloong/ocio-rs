@@ -773,6 +773,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("create_from_stream", "from_stream"),
         ("create_from_config_io_proxy", "from_config_io_proxy"),
         ("get_num_interchange_attributes", "interchange_attributes"),
+        ("visit_interchange_attributes", "try_interchange_attributes"),
         (
             "get_interchange_attribute_name_by_index",
             "interchange_attributes",
