@@ -344,6 +344,21 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Remove one context variable. Removing an absent name is a native no-op.
+    /// This differs from setting the variable to an empty string.
+    pub fn remove_string_var(&self, name: impl AsRef<str>) -> Result<()> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_set_string_var(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                std::ptr::null(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Return the number of named string variables on the context.
     pub fn num_string_vars(&self) -> i32 {
         self.try_num_string_vars().unwrap_or(0)
@@ -595,6 +610,15 @@ impl Context {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Detach the IO proxy. Other retained proxy handles remain valid.
+    pub fn clear_config_io_proxy(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), std::ptr::null_mut())
         };
         crate::ocio_call_status()
     }

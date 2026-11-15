@@ -45,6 +45,37 @@ impl ConfigIOProvider for OnDemandProvider {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_and_context_can_detach_proxy_without_invalidating_retained_handle() {
+    let _guard = config_io_proxy_test_lock();
+    let proxy = ConfigIOProxy::create().unwrap();
+    proxy.set_config_data("retained").unwrap();
+    let config = Config::raw().unwrap();
+    let context = Context::create().unwrap();
+    config.set_config_io_proxy_object(&proxy).unwrap();
+    context.set_config_io_proxy_object(&proxy).unwrap();
+    let retained = context.try_config_io_proxy_object().unwrap().unwrap();
+    let retained_from_config = config.try_config_io_proxy_object().unwrap().unwrap();
+    drop(proxy);
+    config.clear_config_io_proxy().unwrap();
+    context.clear_config_io_proxy().unwrap();
+    assert!(config.try_config_io_proxy_object().unwrap().is_none());
+    assert!(context.try_config_io_proxy_object().unwrap().is_none());
+    config.clear_config_io_proxy().unwrap();
+    context.clear_config_io_proxy().unwrap();
+    drop(context);
+    drop(config);
+    assert_eq!(
+        retained.try_config_data().unwrap().as_deref(),
+        Some("retained")
+    );
+    assert_eq!(
+        retained_from_config.try_config_data().unwrap().as_deref(),
+        Some("retained")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_payload_preserves_native_length_and_provider_errors() {
     let _guard = config_io_proxy_test_lock();
     let proxy = ConfigIOProxy::create().unwrap();

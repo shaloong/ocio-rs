@@ -4308,6 +4308,15 @@ impl Config {
         crate::ocio_call_status()
     }
 
+    /// Detach the IO proxy. Other retained proxy handles remain valid.
+    pub fn clear_config_io_proxy(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_config_set_config_io_proxy(self.handle.as_ptr(), std::ptr::null_mut())
+        };
+        crate::ocio_call_status()
+    }
+
     /// Return the default family separator character for this OCIO version.
     pub fn default_family_separator(&self) -> char {
         unsafe {

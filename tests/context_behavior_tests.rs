@@ -36,6 +36,28 @@ fn path_str(path: &Path) -> String {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn removing_one_variable_preserves_empty_values_and_other_variables() {
+    let _guard = context_test_lock();
+    let ctx = Context::create().unwrap();
+    ctx.set_string_var("REMOVE", "value").unwrap();
+    ctx.set_string_var("EMPTY", "").unwrap();
+    ctx.set_string_var("KEEP", "keep").unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 3);
+    let old_id = ctx.try_cache_id().unwrap();
+    ctx.remove_string_var("REMOVE").unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 2);
+    assert_eq!(ctx.try_string_var("EMPTY").unwrap().as_deref(), Some(""));
+    assert_eq!(ctx.try_string_var("KEEP").unwrap().as_deref(), Some("keep"));
+    assert_ne!(ctx.try_cache_id().unwrap(), old_id);
+    let id_after = ctx.try_cache_id().unwrap();
+    ctx.remove_string_var("REMOVE").unwrap();
+    assert_eq!(ctx.try_cache_id().unwrap(), id_after);
+    assert!(ctx.remove_string_var("BAD\0NAME").is_err());
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_string_vars_round_trip_and_copy_behavior() {
     let _guard = context_test_lock();
     if is_stub() {

@@ -91,6 +91,9 @@ other native aliases may change the underlying context.
 An editable context can merge variables directly from a read-only context;
 both expose OCIO's diagnostic stream output, which may contain sensitive data
 and is not a stable interchange format.
+An individual context variable can be removed without clearing the others;
+config and context IO proxies can also be detached while separately retained
+proxy handles remain usable.
 Menu parameters, menus, mixing managers, sliders, legacy viewing pipelines,
 and merging parameters expose OCIO's diagnostic stream representations as
 owned strings; these are not stable interchange or round-trip formats.
