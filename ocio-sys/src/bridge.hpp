@@ -1794,6 +1794,7 @@ const void* ocio_grading_curve_value_shared_spline_view(void* value, int kind, b
 void* ocio_grading_curve_value_shared_copy(void* value, bool hue);
 bool ocio_grading_curve_value_shared_identity(void* value, bool hue);
 void ocio_grading_curve_value_shared_validate(void* value, bool hue);
+bool ocio_grading_curve_value_shared_equals(void* lhs, void* rhs, bool hue);
 bool ocio_grading_hue_curve_value_shared_draw_only(void* value);
 
 void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h);

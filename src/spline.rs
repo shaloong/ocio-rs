@@ -76,6 +76,23 @@ pub struct SharedGradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl SharedGradingRGBCurve {
+    /// Compare using OCIO's native equality semantics without deep copying.
+    pub fn equals(&self, other: &Self) -> Result<bool> {
+        crate::clear_last_error();
+        let result = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+                false,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
+    }
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 4)
+    }
     /// Borrow a child spline without allocating a new ownership handle.
     ///
     /// ```compile_fail
@@ -165,6 +182,23 @@ pub struct SharedGradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl SharedGradingHueCurve {
+    /// Compare using OCIO's native equality semantics without deep copying.
+    pub fn equals(&self, other: &Self) -> Result<bool> {
+        crate::clear_last_error();
+        let result = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_equals(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+                true,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
+    }
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 5)
+    }
     /// Borrow a child spline without allocating a new ownership handle.
     pub fn curve_ref(&self, kind: crate::HueCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
         crate::clear_last_error();

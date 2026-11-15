@@ -94,6 +94,13 @@ fn shared_rgb_value_retains_previous_native_value_after_replacement() {
     assert_eq!(old_view.slope(0).unwrap(), old_slope);
     let new = property.grading_rgb_curve_shared().unwrap();
     assert_eq!(
+        old.equals(&new).unwrap(),
+        old.create_editable_copy()
+            .unwrap()
+            .equals(&new.create_editable_copy().unwrap())
+            .unwrap()
+    );
+    assert_eq!(
         new.curve_shared(RGBCurveType::Red)
             .unwrap()
             .view()

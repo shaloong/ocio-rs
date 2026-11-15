@@ -16,6 +16,11 @@ unsafe extern "C" {
     pub fn ocio_grading_curve_value_shared_copy(value: *mut c_void, hue: bool) -> *mut c_void;
     pub fn ocio_grading_curve_value_shared_identity(value: *mut c_void, hue: bool) -> bool;
     pub fn ocio_grading_curve_value_shared_validate(value: *mut c_void, hue: bool);
+    pub fn ocio_grading_curve_value_shared_equals(
+        lhs: *mut c_void,
+        rhs: *mut c_void,
+        hue: bool,
+    ) -> bool;
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_value_shared_draw_only(value: *mut c_void) -> bool;
     pub fn ocio_grading_curve_serialize(

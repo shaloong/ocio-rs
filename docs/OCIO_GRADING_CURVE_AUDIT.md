@@ -15,8 +15,8 @@ tests for representative validation.
 | RGB/Hue curve set constructors from style, copy, or constituent splines | `create`, `create_editable_copy`, `create_from_curves`, `create_from_shared_curves` | Explicitly test more constructor failures and native versions. |
 | Curve-set `getCurve` mutable overload | `curve(&mut self)` returns an independently owned native shared handle | Repeated handles alias the same spline, as upstream; no cross-thread sharing. |
 | Curve-set `getCurve` const overload | `curve_ref(&self)` borrows without copying; `curve_shared(&self)` retains native shared ownership beyond the parent | Other previously acquired mutable aliases remain live; concurrent native access requires external synchronization. |
-| Curve-set identity, validation, equality and hue draw-only flag | Corresponding Rust methods | Equality and native version differences need continued behavioral verification. |
-| Native diagnostic stream operators | `serialize` on splines, borrowed spline views and curve sets | Native diagnostic output is not a stable interchange format. |
+| Curve-set identity, validation, equality and hue draw-only flag | Corresponding methods on editable and shared values | Equality and native version differences need continued behavioral verification. |
+| Native diagnostic stream operators | `serialize` on splines, borrowed spline views, editable and shared curve sets | Native diagnostic output is not a stable interchange format. |
 
 Transform and dynamic-property `getValue` return native const curve sets.
 `SharedGradingRGBCurve` and `SharedGradingHueCurve` retain those values without

@@ -109,6 +109,12 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let transform = GradingRGBCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
     let shared_value = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
+    let shared_equal = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
+    assert!(shared_value.equals(&shared_equal).unwrap());
+    assert_eq!(
+        shared_value.serialize().unwrap(),
+        value.serialize().unwrap()
+    );
     assert_eq!(
         shared_value
             .curve_ref(RGBCurveType::Red)
@@ -170,6 +176,12 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     let transform = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
     let shared_value = ocio_rs::SharedGradingHueCurve::from_transform(&transform).unwrap();
+    let shared_equal = ocio_rs::SharedGradingHueCurve::from_transform(&transform).unwrap();
+    assert!(shared_value.equals(&shared_equal).unwrap());
+    assert_eq!(
+        shared_value.serialize().unwrap(),
+        value.serialize().unwrap()
+    );
     assert_eq!(
         shared_value
             .curve_ref(HueCurveType::HueFx)

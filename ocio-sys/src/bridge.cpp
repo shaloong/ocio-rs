@@ -19197,8 +19197,10 @@ const char* ocio_grading_curve_serialize(const void* handle, int kind) {
       case 0: output << **static_cast<const Spline*>(handle); break;
       case 1: output << *static_cast<const ocio::GradingBSplineCurve*>(handle); break;
       case 2: output << **static_cast<const CurveObjectrgb*>(handle); break;
+      case 4: output << **static_cast<const ocio::ConstGradingRGBCurveRcPtr*>(handle); break;
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
       case 3: output << **static_cast<const CurveObjecthue*>(handle); break;
+      case 5: output << **static_cast<const ocio::ConstGradingHueCurveRcPtr*>(handle); break;
 #endif
       default: throw std::invalid_argument("unknown grading curve kind");
     }
@@ -19391,6 +19393,21 @@ void ocio_grading_curve_value_shared_validate(void* value, bool hue) {
     throw std::invalid_argument("hue curves require OpenColorIO 2.5");
 #endif
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+bool ocio_grading_curve_value_shared_equals(void* lhs, void* rhs, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)lhs; (void)rhs; (void)hue; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return false;
+#else
+  try {
+    if (!lhs || !rhs) throw std::invalid_argument("null curve value");
+    if (!hue) return **static_cast<ocio::ConstGradingRGBCurveRcPtr*>(lhs) == **static_cast<ocio::ConstGradingRGBCurveRcPtr*>(rhs);
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    return **static_cast<ocio::ConstGradingHueCurveRcPtr*>(lhs) == **static_cast<ocio::ConstGradingHueCurveRcPtr*>(rhs);
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
