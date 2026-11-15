@@ -96,6 +96,7 @@ fn validate_case(
             lifecycle: usize,
             body_seen: bool,
             footer_modified: bool,
+            assembly_count: usize,
         }
         impl ShaderTexturePolicy for Policy {
             fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -157,6 +158,30 @@ fn validate_case(
                 }
                 Ok(None)
             }
+            fn assemble(
+                &mut self,
+                parts: ocio_rs::ShaderSections<'_>,
+            ) -> ocio_rs::Result<Option<String>> {
+                self.assembly_count += 1;
+                let mut result = String::from("// persistent GPU assembler\n");
+                if !parts.parameters.is_empty() {
+                    result.push_str(
+                        "layout (set = 0, binding = 0) uniform ocio_transform_Parameters\n{\n",
+                    );
+                    result.push_str(parts.parameters);
+                    result.push_str("\n};\n");
+                }
+                for part in [
+                    parts.textures,
+                    parts.helpers,
+                    parts.header,
+                    parts.body,
+                    parts.footer,
+                ] {
+                    result.push_str(part);
+                }
+                Ok(Some(result))
+            }
         }
         impl ShaderUniformControl for Policy {
             fn register_uniform(
@@ -172,7 +197,7 @@ fn validate_case(
                 Ok(ShaderUniformAction::ExternalAdded)
             }
         }
-        let mut creator = PersistentPolicyCreator::create_with_hooks(
+        let mut creator = PersistentPolicyCreator::create_with_assembler(
             &desc,
             Policy {
                 seen: 0,
@@ -181,6 +206,7 @@ fn validate_case(
                 lifecycle: 0,
                 body_seen: false,
                 footer_modified: false,
+                assembly_count: 0,
             },
             c"persistent-control-gpu-validation",
         )?;
@@ -191,16 +217,16 @@ fn validate_case(
         if creator.policy_mut().lifecycle != 3
             || !creator.policy_mut().body_seen
             || !creator.policy_mut().footer_modified
+            || creator.policy_mut().assembly_count != 1
         {
             return Err("persistent shader hooks did not run".into());
         }
         streamed_lut = std::mem::take(&mut creator.policy_mut().external);
         external_uniform = creator.policy_mut().uniform.take();
         desc = creator.finish()?;
-        if !desc
-            .try_shader_text()?
-            .is_some_and(|s| s.contains("// persistent GPU hook"))
-        {
+        if !desc.try_shader_text()?.is_some_and(|s| {
+            s.contains("// persistent GPU hook") && s.contains("// persistent GPU assembler")
+        }) {
             return Err("persistent shader code was not applied".into());
         }
     } else if use_hooks {

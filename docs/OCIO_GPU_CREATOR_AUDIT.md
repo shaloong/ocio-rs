@@ -25,7 +25,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | Helper, function header/body/footer append methods | Descriptor methods and synchronous or persistent code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
-| `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
+| `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, synchronous and persistent `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
 | Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache; `GpuShaderCreator::try_borrow_desc` gives scoped access when the creator is a descriptor | Descriptor semantics apply; streamed textures are intentionally not enumerated. The scoped view does not expose `DerefMut`, preventing the descriptor handle from being moved out. |
 
 ## Design constraints for closing the creator gap
@@ -55,6 +55,8 @@ Windows; this does not establish hardware execution or full creator parity.
   assembler hook or replace native finalization. Unmodified fragments are
   forwarded; replacements are retained until native code consumes them. The
   first callback error is retained even if the subsequent `End` hook also fails.
+  `create_with_assembler` additionally retains shader assembly, using the same
+  ownership and error rules; its `None` result preserves native Vulkan wrapping.
 
 - `ShaderTexturePolicy` can supply the two texture-policy virtual getters on
   each query during synchronous extraction, alongside texture/uniform storage

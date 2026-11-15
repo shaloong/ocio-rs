@@ -2516,6 +2516,7 @@ struct PersistentPolicyState<P> {
     policy: P,
     error: Option<OcioError>,
     code_output: Option<std::ffi::CString>,
+    assembly_output: Option<std::ffi::CString>,
 }
 
 unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
@@ -2625,6 +2626,28 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
+    /// Retain resource controls, hooks, and the optional shader assembler.
+    /// `assemble` may return `None` to use OCIO's native assembly, including
+    /// Vulkan uniform wrapping. A replacement must provide any required wrapper.
+    pub fn create_with_assembler(
+        template: &GpuShaderDesc,
+        policy: P,
+        cache_id: &std::ffi::CStr,
+    ) -> Result<Self>
+    where
+        P: ShaderTextureControl + ShaderUniformControl,
+    {
+        let creator = Self::create_with_hooks(template, policy, cache_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_persistent_assembler(
+                creator.creator.handle.as_ptr(),
+                persistent_assembler_callback::<P>,
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(creator)
+    }
     /// Retain resource controls and lifecycle/code hooks across extractions.
     ///
     /// Only `lifecycle` and `code` hooks are installed. Texture and uniform
@@ -2709,6 +2732,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             policy,
             error: None,
             code_output: None,
+            assembly_output: None,
         });
         crate::clear_last_error();
         let raw = unsafe {
@@ -3122,6 +3146,80 @@ unsafe extern "C" fn persistent_code_callback<P: ShaderTexturePolicy + ShaderExt
             state.error.get_or_insert(OcioError::InvalidInput(
                 "shader code callback panicked".into(),
             ));
+            false
+        }
+    }
+}
+
+unsafe extern "C" fn persistent_assembler_callback<
+    P: ShaderTexturePolicy + ShaderExtractionHooks,
+>(
+    context: *mut c_void,
+    parameters: *const i8,
+    textures: *const i8,
+    helpers: *const i8,
+    header: *const i8,
+    body: *const i8,
+    footer: *const i8,
+    output: *mut *const i8,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<Option<std::ffi::CString>> {
+            if output.is_null() {
+                return Err(OcioError::InvalidInput("null shader output".into()));
+            }
+            let read = |ptr: *const i8| -> Result<&str> {
+                if ptr.is_null() {
+                    return Err(OcioError::InvalidInput("null shader section".into()));
+                }
+                unsafe { std::ffi::CStr::from_ptr(ptr) }
+                    .to_str()
+                    .map_err(|_| OcioError::InvalidInput("shader section is not UTF-8".into()))
+            };
+            state
+                .policy
+                .assemble(ShaderSections {
+                    parameters: read(parameters)?,
+                    textures: read(textures)?,
+                    helpers: read(helpers)?,
+                    header: read(header)?,
+                    body: read(body)?,
+                    footer: read(footer)?,
+                })?
+                .map(|s| {
+                    std::ffi::CString::new(s).map_err(|_| {
+                        OcioError::InvalidInput("assembled shader contains a NUL byte".into())
+                    })
+                })
+                .transpose()
+        },
+    ));
+    match result {
+        Ok(Ok(text)) => {
+            state.assembly_output = text;
+            unsafe {
+                *output = state
+                    .assembly_output
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr())
+            };
+            true
+        }
+        Ok(Err(error)) => {
+            state.error.get_or_insert(error);
+            false
+        }
+        Err(_) => {
+            state
+                .error
+                .get_or_insert(OcioError::InvalidInput("shader assembler panicked".into()));
             false
         }
     }

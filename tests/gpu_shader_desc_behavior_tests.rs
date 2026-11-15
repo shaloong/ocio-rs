@@ -424,6 +424,29 @@ fn persistent_resource_control_retains_uniform_getters_and_contains_failures() {
             );
         }
     }
+    #[cfg(feature = "v2_5")]
+    {
+        let template = GpuShaderDesc::create().unwrap();
+        template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+        template.set_function_name("customDisplay").unwrap();
+        template.try_set_descriptor_set_index(3, 7).unwrap();
+        let mut creator = PersistentPolicyCreator::create_with_assembler(
+            &template,
+            Policy {
+                getter: None,
+                mode: 3,
+                textures: 0,
+            },
+            c"persistent-native-assembly",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        assert!(creator
+            .try_shader_text()
+            .unwrap()
+            .unwrap()
+            .contains("layout (set = 3, binding = 0) uniform customDisplay_Parameters"));
+    }
 }
 
 #[test]
@@ -437,6 +460,7 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
     struct Policy {
         events: Vec<&'static str>,
         mode: u8,
+        assemblies: usize,
     }
     impl ShaderTexturePolicy for Policy {
         fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -496,6 +520,27 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
             }
             Ok(None)
         }
+        fn assemble(
+            &mut self,
+            parts: ocio_rs::ShaderSections<'_>,
+        ) -> ocio_rs::Result<Option<String>> {
+            self.assemblies += 1;
+            match self.mode {
+                7 => Ok(None),
+                8 => Err(ocio_rs::OcioError::InvalidInput("assembly rejected".into())),
+                9 => panic!("assembly panic"),
+                10 => Ok(Some("invalid\0shader".into())),
+                _ => Ok(Some(format!(
+                    "// persistent assembler\n{}{}{}{}{}{}",
+                    parts.parameters,
+                    parts.textures,
+                    parts.helpers,
+                    parts.header,
+                    parts.body,
+                    parts.footer
+                ))),
+            }
+        }
     }
     let _guard = gpu_shader_desc_test_lock();
     let transform = MatrixTransform::scale(&[0.8, 0.7, 0.6, 1.]).unwrap();
@@ -506,18 +551,20 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
         .default_gpu_processor()
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
-    for mode in 0..=5 {
-        let mut creator = PersistentPolicyCreator::create_with_hooks(
-            &template,
-            Policy {
-                events: Vec::new(),
-                mode,
-            },
-            c"persistent-hooks",
-        )
+    for mode in 0..=10 {
+        let policy = Policy {
+            events: Vec::new(),
+            mode,
+            assemblies: 0,
+        };
+        let mut creator = if mode >= 6 {
+            PersistentPolicyCreator::create_with_assembler(&template, policy, c"persistent-hooks")
+        } else {
+            PersistentPolicyCreator::create_with_hooks(&template, policy, c"persistent-hooks")
+        }
         .unwrap();
         let result = creator.try_extract(&gpu);
-        if mode == 0 {
+        if mode == 0 || mode == 6 || mode == 7 {
             result.unwrap();
             assert!(creator
                 .try_shader_text()
@@ -525,12 +572,28 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
                 .unwrap()
                 .contains("// persistent hook"));
             assert_eq!(creator.policy_mut().events, ["begin", "finalized", "end"]);
+            assert_eq!(creator.policy_mut().assemblies, usize::from(mode >= 6));
+            if mode == 6 {
+                assert!(creator
+                    .try_shader_text()
+                    .unwrap()
+                    .unwrap()
+                    .contains("// persistent assembler"));
+                creator.try_extract(&gpu).unwrap();
+                assert_eq!(creator.policy_mut().assemblies, 2);
+            }
         } else {
             let error = result.unwrap_err();
             if mode == 4 {
                 assert!(matches!(error, ocio_rs::OcioError::InteriorNul));
             } else {
-                let expected = if mode == 5 {
+                let expected = if mode == 10 {
+                    "assembled shader contains a NUL byte"
+                } else if mode == 9 {
+                    "shader assembler panicked"
+                } else if mode == 8 {
+                    "assembly rejected"
+                } else if mode == 5 {
                     "begin rejected"
                 } else if mode == 3 {
                     "shader code callback panicked"
