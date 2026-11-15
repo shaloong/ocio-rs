@@ -533,6 +533,7 @@ void* ocio_color_space_get_transform(void* handle, int dir);
 void ocio_color_space_set_transform(void* handle, void* transform, int dir);
 bool ocio_color_space_visit_interchange_attributes(void* handle, bool is_const, ocio_attribute_visitor visitor, void* context);
 bool ocio_named_item_visit_interchange_attributes(void* handle, int kind, bool is_const, ocio_attribute_visitor visitor, void* context);
+void ocio_named_item_set_const_transform(void* handle, int kind, void* transform, int direction);
 void ocio_color_space_set_const_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---

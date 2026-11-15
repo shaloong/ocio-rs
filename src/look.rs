@@ -177,6 +177,23 @@ impl Look {
         crate::ocio_call_status()
     }
 
+    /// Set the forward transform from a shared read-only handle. OCIO copies it.
+    pub fn try_set_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                0,
+                transform.handle.as_ptr(),
+                0,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Get an independent editable copy of the inverse transform.
     pub fn inverse_transform(&self) -> Option<Transform> {
         self.try_inverse_transform().ok().flatten()
@@ -207,6 +224,23 @@ impl Look {
                 transform.as_ptr() as *mut c_void,
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Set the inverse transform from a shared read-only handle. OCIO copies it.
+    pub fn try_set_const_inverse_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                1,
+                transform.handle.as_ptr(),
+                0,
+            )
+        };
         crate::ocio_call_status()
     }
 }

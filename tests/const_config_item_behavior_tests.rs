@@ -53,6 +53,44 @@ fn config_named_items_are_copied_or_shared_read_only() {
         .try_const_view_transform(c"test-view")
         .unwrap()
         .unwrap();
+    let shared_transform = shared_look.try_const_transform().unwrap().unwrap();
+    let target_look = Look::create().unwrap();
+    target_look
+        .try_set_const_transform(&shared_transform)
+        .unwrap();
+    target_look
+        .try_set_const_inverse_transform(&shared_transform)
+        .unwrap();
+    let target_view = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    target_view
+        .try_set_const_transform(Some(&shared_transform), ViewTransformDirection::ToReference)
+        .unwrap();
+    target_view
+        .try_set_const_transform(
+            Some(&shared_transform),
+            ViewTransformDirection::FromReference,
+        )
+        .unwrap();
+    target_view
+        .try_set_const_transform(None, ViewTransformDirection::ToReference)
+        .unwrap();
+    assert!(target_view
+        .try_const_transform(ViewTransformDirection::ToReference)
+        .unwrap()
+        .is_none());
+    assert!(target_view
+        .try_const_transform(ViewTransformDirection::FromReference)
+        .unwrap()
+        .is_some());
+    assert!(target_look.try_const_transform().unwrap().is_some());
+    assert!(target_look.try_const_inverse_transform().unwrap().is_some());
+    drop(shared_transform);
+    let ocio_rs::transform::Transform::Matrix(copied) =
+        target_look.try_transform().unwrap().unwrap()
+    else {
+        panic!("expected matrix transform");
+    };
+    assert_eq!(copied.matrix()[0], 2.0);
     assert_eq!(shared_look.name_ref().unwrap().unwrap(), c"test-look");
     assert_eq!(shared_look.process_space().unwrap().unwrap(), c"raw");
     assert_eq!(

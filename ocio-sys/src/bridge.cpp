@@ -6124,6 +6124,29 @@ void ocio_color_space_set_const_transform(void* handle, void* transform, int dir
 #endif
 }
 
+void ocio_named_item_set_const_transform(void* handle, int kind, void* transform, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)transform; (void)direction;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null named item");
+    ocio::ConstTransformRcPtr value;
+    if (transform) value = *static_cast<ocio::ConstTransformRcPtr*>(transform);
+    switch (kind) {
+      case 0:
+        if (!value) throw std::invalid_argument("look transform must not be null");
+        ocio_rs_bridge::get_real_look(handle)->setTransform(value); break;
+      case 1:
+        if (!value) throw std::invalid_argument("look inverse transform must not be null");
+        ocio_rs_bridge::get_real_look(handle)->setInverseTransform(value); break;
+      case 2:
+        ocio_rs_bridge::get_real_view_transform(handle)->setTransform(value, static_cast<ocio::ViewTransformDirection>(direction)); break;
+      default: throw std::invalid_argument("invalid named item transform kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 
 // --- ColorSpaceSet ---
 

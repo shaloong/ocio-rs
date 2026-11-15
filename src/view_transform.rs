@@ -280,6 +280,25 @@ impl ViewTransform {
         crate::ocio_call_status()
     }
 
+    /// Set a shared read-only transform or clear the selected direction.
+    /// OCIO copies a supplied transform into this view transform.
+    pub fn try_set_const_transform(
+        &self,
+        transform: Option<&crate::transform::ConstTransform>,
+        direction: ViewTransformDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                2,
+                transform.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Create an editable deep copy of this view transform.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
