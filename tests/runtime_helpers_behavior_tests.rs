@@ -13,10 +13,10 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use ocio_rs::transform::FileTransform;
 use ocio_rs::{
     extract_ocioz_archive, get_env_variable, is_env_variable_present, logging_level,
-    reset_compute_hash_callback, reset_logging_callback, resolve_config_path,
-    set_compute_hash_callback, set_env_variable, set_logging_callback, try_clear_all_caches,
-    try_log_message, try_logging_level, try_set_logging_level, unset_env_variable, version,
-    version_hex, Config, LoggingLevel,
+    reset_compute_hash_callback, reset_logging_callback, reset_logging_callback_unchecked,
+    resolve_config_path, set_compute_hash_callback, set_env_variable, set_logging_callback,
+    set_logging_callback_unchecked, try_clear_all_caches, try_log_message, try_logging_level,
+    try_set_logging_level, unset_env_variable, version, version_hex, Config, LoggingLevel,
 };
 
 fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
@@ -121,13 +121,16 @@ fn global_logging_callback_preserves_lifetime_and_panic_boundaries() {
 
     let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
-    set_logging_callback(move |_| {
-        callback_calls.fetch_add(1, Ordering::SeqCst);
-    })
+    // All OCIO-using tests in this process take runtime_helpers_test_lock.
+    unsafe {
+        set_logging_callback_unchecked(move |_| {
+            callback_calls.fetch_add(1, Ordering::SeqCst);
+        })
+    }
     .expect("install logging callback");
     try_log_message(LoggingLevel::Warning, "ocio-rs logging callback test")
         .expect("emit logging callback message");
-    reset_logging_callback().expect("reset logging callback");
+    unsafe { reset_logging_callback_unchecked() }.expect("reset logging callback");
     assert!(calls.load(Ordering::SeqCst) > 0);
 }
 
@@ -137,22 +140,71 @@ fn logging_callback_reentrant_helpers_return_without_deadlock() {
     let _guard = runtime_helpers_test_lock();
     let calls = Arc::new(AtomicUsize::new(0));
     let callback_calls = Arc::clone(&calls);
-    set_logging_callback(move |_| {
-        assert_eq!(logging_level(), LoggingLevel::Unknown);
-        assert!(try_logging_level().is_err());
-        assert!(try_set_logging_level(LoggingLevel::Warning).is_err());
-        assert!(try_log_message(LoggingLevel::Warning, "nested").is_err());
-        assert!(set_logging_callback(|_| {}).is_err());
-        assert!(reset_logging_callback().is_err());
-        callback_calls.fetch_add(1, Ordering::SeqCst);
-        panic!("intentional logging callback panic");
-    })
+    // All OCIO-using tests in this process take runtime_helpers_test_lock.
+    unsafe {
+        set_logging_callback_unchecked(move |_| {
+            assert_eq!(logging_level(), LoggingLevel::Unknown);
+            assert!(try_logging_level().is_err());
+            assert!(try_set_logging_level(LoggingLevel::Warning).is_err());
+            assert!(try_log_message(LoggingLevel::Warning, "nested").is_err());
+            assert!(set_logging_callback(|_| {}).is_err());
+            assert!(reset_logging_callback().is_err());
+            callback_calls.fetch_add(1, Ordering::SeqCst);
+            panic!("intentional logging callback panic");
+        })
+    }
     .expect("install logging callback");
     try_log_message(LoggingLevel::Warning, "test reentrant logging")
         .expect("emit logging callback message");
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert!(try_logging_level().is_ok());
-    reset_logging_callback().expect("reset logging callback");
+    unsafe { reset_logging_callback_unchecked() }.expect("reset logging callback");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn safe_logger_updates_follow_native_synchronization_version() {
+    let _guard = runtime_helpers_test_lock();
+    if version_hex() < 0x0205_0200 {
+        assert!(set_logging_callback(|_| {}).is_err());
+        assert!(reset_logging_callback().is_err());
+    } else {
+        set_logging_callback(|_| {}).unwrap();
+        reset_logging_callback().unwrap();
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn synchronized_native_logger_can_be_replaced_while_threads_log() {
+    let _guard = runtime_helpers_test_lock();
+    if version_hex() < 0x0205_0200 {
+        return;
+    }
+    let calls = Arc::new(AtomicUsize::new(0));
+    let count = calls.clone();
+    set_logging_callback(move |_| {
+        count.fetch_add(1, Ordering::Relaxed);
+    })
+    .unwrap();
+    std::thread::scope(|scope| {
+        for _ in 0..3 {
+            scope.spawn(|| {
+                for _ in 0..64 {
+                    try_log_message(LoggingLevel::Warning, "concurrent logging test").unwrap();
+                }
+            });
+        }
+        for _ in 0..32 {
+            let count = calls.clone();
+            set_logging_callback(move |_| {
+                count.fetch_add(1, Ordering::Relaxed);
+            })
+            .unwrap();
+        }
+    });
+    reset_logging_callback().unwrap();
+    assert!(calls.load(Ordering::Relaxed) > 0);
 }
 
 #[test]

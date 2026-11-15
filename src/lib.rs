@@ -463,7 +463,34 @@ pub fn try_log_message(level: crate::LoggingLevel, message: impl AsRef<str>) -> 
 /// so): even operations unrelated to logging can emit log messages and deadlock.
 /// Direct calls to this crate's logging helpers on the callback thread return an
 /// error; [`logging_level`] returns `Unknown` there for compatibility.
+///
+/// OCIO versions before 2.5.2 do not synchronize logger replacement against
+/// logging. On those versions this safe function returns an error; applications
+/// that can exclude all concurrent OCIO logging may use
+/// [`set_logging_callback_unchecked`] instead.
 pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> Result<()> {
+    check_logging_reentrancy()?;
+    if !is_stub_build() && version_hex() < 0x0205_0200 {
+        return Err(OcioError::InvalidInput(
+            "OCIO before 2.5.2 requires externally synchronized logging callback replacement"
+                .into(),
+        ));
+    }
+    // SAFETY: Supported native versions serialize replacement with logging;
+    // stub mode has no native logger.
+    unsafe { set_logging_callback_unchecked(callback) }
+}
+
+/// Install a logger even on versions whose logger replacement is not synchronized.
+///
+/// # Safety
+/// For OCIO before 2.5.2, no other thread or native component may log or replace
+/// the process-global OCIO logger while this function executes. OCIO operations
+/// that appear unrelated may log. This obligation includes native users outside
+/// this crate. The normal callback reentrancy restrictions still apply.
+pub unsafe fn set_logging_callback_unchecked(
+    callback: impl Fn(&str) + Send + Sync + 'static,
+) -> Result<()> {
     check_logging_reentrancy()?;
     let update = logging_callback_update_lock()
         .lock()
@@ -496,7 +523,27 @@ pub fn set_logging_callback(callback: impl Fn(&str) + Send + Sync + 'static) -> 
 ///
 /// Any callback previously installed through [`set_logging_callback`] is
 /// dropped after OCIO accepts the reset.
+/// Returns an error before changing state on native versions before 2.5.2;
+/// see [`reset_logging_callback_unchecked`] for externally synchronized use.
 pub fn reset_logging_callback() -> Result<()> {
+    check_logging_reentrancy()?;
+    if !is_stub_build() && version_hex() < 0x0205_0200 {
+        return Err(OcioError::InvalidInput(
+            "OCIO before 2.5.2 requires externally synchronized logging callback replacement"
+                .into(),
+        ));
+    }
+    // SAFETY: Supported native versions serialize replacement with logging;
+    // stub mode has no native logger.
+    unsafe { reset_logging_callback_unchecked() }
+}
+
+/// Reset a logger on versions without synchronized replacement.
+///
+/// # Safety
+/// The same exclusion of concurrent OCIO logging and logger changes required by
+/// [`set_logging_callback_unchecked`] applies for OCIO before 2.5.2.
+pub unsafe fn reset_logging_callback_unchecked() -> Result<()> {
     check_logging_reentrancy()?;
     let update = logging_callback_update_lock()
         .lock()

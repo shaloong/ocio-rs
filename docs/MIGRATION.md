@@ -1,5 +1,13 @@
 # Migration Notes
 
+## Unreleased: logging callback synchronization
+
+Safe logger installation and reset require native OpenColorIO 2.5.2 or later.
+Earlier versions do not synchronize replacement with concurrent logging, so
+these functions return an error without changing the logger. Applications able
+to exclude all concurrent OCIO logging (including native users outside this
+crate) may use the corresponding `unsafe` `_unchecked` functions instead.
+
 ## Unreleased: OpenColorIO 2.6
 
 The supported native range is extended to `>= 2.4.1, < 2.7`. Enable `v2_6`
