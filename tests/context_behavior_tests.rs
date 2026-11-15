@@ -58,6 +58,45 @@ fn removing_one_variable_preserves_empty_values_and_other_variables() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn clearing_variables_invalidates_cached_resolution_and_cache_id() {
+    let _guard = context_test_lock();
+    let ctx = Context::create().unwrap();
+    let fresh = Context::create().unwrap();
+    let expression = "${OCIO_RS_CLEAR_CACHE_TEST}/asset.clf";
+    let expected = fresh.try_resolve_string_var(expression).unwrap();
+    let empty_id = fresh.try_cache_id().unwrap();
+    ctx.set_string_var("OCIO_RS_CLEAR_CACHE_TEST", "old-value")
+        .unwrap();
+    assert_eq!(
+        ctx.try_resolve_string_var(expression).unwrap().as_deref(),
+        Some("old-value/asset.clf")
+    );
+    assert_ne!(ctx.try_cache_id().unwrap(), empty_id);
+    ctx.try_clear_string_vars().unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 0);
+    assert_eq!(ctx.try_resolve_string_var(expression).unwrap(), expected);
+    assert_eq!(ctx.try_cache_id().unwrap(), empty_id);
+    let mut used = Context::create().unwrap();
+    assert_eq!(
+        ctx.try_resolve_string_var_with_used_context(expression, &mut used)
+            .unwrap(),
+        expected
+    );
+    assert_eq!(used.try_num_string_vars().unwrap(), 0);
+    ctx.set_working_dir(env!("CARGO_MANIFEST_DIR")).unwrap();
+    ctx.set_string_var("OCIO_RS_CLEAR_CACHE_TEST", ".").unwrap();
+    assert!(ctx
+        .try_resolve_file_location("${OCIO_RS_CLEAR_CACHE_TEST}/Cargo.toml")
+        .unwrap()
+        .is_some());
+    ctx.try_clear_string_vars().unwrap();
+    assert!(ctx
+        .try_resolve_file_location("${OCIO_RS_CLEAR_CACHE_TEST}/Cargo.toml")
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn context_string_vars_round_trip_and_copy_behavior() {
     let _guard = context_test_lock();
     if is_stub() {

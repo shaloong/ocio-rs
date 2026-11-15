@@ -12024,7 +12024,12 @@ void ocio_context_clear_string_vars(void* handle) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_context(handle)->clearStringVars();
+    auto context = ocio_rs_bridge::get_real_context(handle);
+    context->clearStringVars();
+    // OCIO 2.4--2.6 clears the variable map without invalidating its string,
+    // file and cache-ID caches. Removing any absent, nonempty name invokes
+    // the native cache invalidation without adding a variable or copying data.
+    context->setStringVar("ocio_rs_clear_cache", nullptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }

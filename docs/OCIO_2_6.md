@@ -115,6 +115,8 @@ test infrastructure, not additional application-facing binding APIs.
 
 This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
+See [the Context audit](OCIO_CONTEXT_AUDIT.md) for ownership, resolution and
+the native variable-clear cache invalidation workaround.
 The color-space menu parameters and immutable menu are now bound at their
 native version floors. The menu borrows native strings without allocating.
 Read-only current contexts support indexed search paths and variables,

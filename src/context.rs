@@ -545,7 +545,8 @@ impl Context {
         let _ = self.try_clear_string_vars();
     }
 
-    /// Try to remove every string variable from this context.
+    /// Remove every string variable and invalidate cached resolutions and cache ID.
+    /// This works around the missing invalidation in OCIO 2.4 through 2.6.
     pub fn try_clear_string_vars(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
