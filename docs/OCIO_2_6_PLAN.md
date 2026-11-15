@@ -33,6 +33,29 @@ Work is prioritized by missing capabilities, safety, and application impact.
 The current inventory and runtime validation are incomplete; the status in
 `OCIO_2_6.md` must not be read as a full-library coverage claim.
 
+## Remaining execution order
+
+1. Finish a signature-level inventory against the exact 2.4.1, 2.5.2 and
+   2.6.0 public headers. Record evidence per API family, including overloads,
+   virtual methods and ownership; do not interpret a passing name-based parity
+   check as proof of completeness. The GPU creator and grading curve audits are
+   partial examples, not substitutes for the remaining subsystem inventories.
+2. Resolve missing capabilities in priority order: sound ownership and mutation,
+   native callback/creator extensibility, then remaining ordinary APIs. For GPU
+   creators, explicitly account for clone, lifecycle, texture policy and dynamic
+   cache ID behavior; extraction hooks are not arbitrary native subclassing.
+   A `noexcept` native getter cannot propagate a Rust failure as a C++ exception;
+   any proposed callback design must define failure handling and detached-context
+   behavior before implementation.
+3. For each family, test representative native behavior and error paths at its
+   minimum supported version and at 2.6, including feature gates and lifetime
+   guarantees. Add regression cases to existing suites; test version-specific
+   ABI differences against actual native builds, not just Cargo features.
+4. Recheck application-facing docs, migration guidance and examples, then run
+   the release-candidate gates below on the exact proposed commit. A release or
+   full-coverage claim requires recorded results and explicit resolution of every
+   inventoried gap, including intentional limitations and their rationale.
+
 ## Validation placement and cost
 
 - **Main/develop pushes and PRs:** existing cross-platform stub suites, lint/docs/parity,

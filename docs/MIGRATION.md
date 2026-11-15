@@ -1,5 +1,13 @@
 # Migration Notes
 
+## Unreleased: OpenColorIO 2.6
+
+The supported native range is extended to `>= 2.4.1, < 2.7`. Enable `v2_6`
+for the 2.6 API; it also enables `v2_5` and requires OpenColorIO 2.6.0 or
+newer. Installing 2.6 does not enable this Cargo feature automatically. See
+the [compatibility audit](OCIO_2_6.md) for coverage and remaining limitations.
+The 0.3.0 section below describes that release's original compatibility range.
+
 ## Unreleased: processor thread confinement
 
 `Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` no longer
