@@ -9168,6 +9168,61 @@ void ocio_gpu_shader_creator_destroy(void* creator) {
 #endif
 }
 
+const char* ocio_gpu_shader_creator_get_cache_id(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getCacheID();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+uint32_t ocio_gpu_shader_creator_get_texture_max_width(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return 0;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getTextureMaxWidth();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_gpu_shader_creator_set_texture_max_width(void* creator, uint32_t width) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)width; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->setTextureMaxWidth(width);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+bool ocio_gpu_shader_creator_get_allow_texture_1d(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return false;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getAllowTexture1D();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_gpu_shader_creator_set_allow_texture_1d(void* creator, bool allow) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)allow; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->setAllowTexture1D(allow);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void* ocio_gpu_shader_creator_borrow_desc(void* creator) {
 #ifdef OCIO_RS_STUB
   (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;

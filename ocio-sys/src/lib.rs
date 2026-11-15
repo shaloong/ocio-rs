@@ -1656,6 +1656,11 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_creator_from_desc(shader_desc: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_creator_clone(creator: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_creator_borrow_desc(creator: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_get_cache_id(creator: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_creator_get_texture_max_width(creator: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_creator_set_texture_max_width(creator: *mut c_void, width: u32);
+    pub fn ocio_gpu_shader_creator_get_allow_texture_1d(creator: *mut c_void) -> bool;
+    pub fn ocio_gpu_shader_creator_set_allow_texture_1d(creator: *mut c_void, allow: bool);
     pub fn ocio_gpu_shader_creator_destroy(creator: *mut c_void);
     pub fn ocio_gpu_processor_extract_owned_creator(processor: *mut c_void, creator: *mut c_void);
     pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;

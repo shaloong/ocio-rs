@@ -738,6 +738,11 @@ void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCre
 void* ocio_gpu_shader_creator_from_desc(void* shaderDesc);
 void* ocio_gpu_shader_creator_clone(void* creator);
 void* ocio_gpu_shader_creator_borrow_desc(void* creator);
+const char* ocio_gpu_shader_creator_get_cache_id(void* creator);
+uint32_t ocio_gpu_shader_creator_get_texture_max_width(void* creator);
+void ocio_gpu_shader_creator_set_texture_max_width(void* creator, uint32_t width);
+bool ocio_gpu_shader_creator_get_allow_texture_1d(void* creator);
+void ocio_gpu_shader_creator_set_allow_texture_1d(void* creator, bool allow);
 void ocio_gpu_shader_creator_destroy(void* creator);
 void ocio_gpu_processor_extract_owned_creator(void* processor, void* creator);
 void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);

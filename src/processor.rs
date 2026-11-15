@@ -2073,6 +2073,62 @@ pub struct GpuShaderCreator<'a> {
 }
 
 impl GpuShaderCreator<'_> {
+    /// Copy the native virtual cache identifier, preserving bridge errors.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let id = unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_creator_get_cache_id(
+                self.handle.as_ptr(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(id)
+    }
+
+    /// Query the creator's native virtual maximum texture width.
+    pub fn try_texture_max_width(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let width = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_get_texture_max_width(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(width)
+    }
+
+    /// Set the creator's native virtual maximum texture width.
+    /// Widths below two are invalid; other widths still require the native LUT
+    /// packing precautions documented on [`GpuShaderDesc::validate_lut_texture_layout`].
+    pub fn try_set_texture_max_width(&mut self, width: u32) -> Result<()> {
+        if width < 2 {
+            return Err(OcioError::InvalidInput(
+                "texture maximum width must be at least 2".into(),
+            ));
+        }
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_texture_max_width(self.handle.as_ptr(), width)
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Query whether the native creator allows 1D textures.
+    pub fn try_allow_texture_1d(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let allow =
+            unsafe { ocio_sys::ocio_gpu_shader_creator_get_allow_texture_1d(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(allow)
+    }
+
+    /// Set the creator's native virtual 1D texture policy.
+    pub fn try_set_allow_texture_1d(&mut self, allow: bool) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_allow_texture_1d(self.handle.as_ptr(), allow)
+        };
+        crate::ocio_call_status()
+    }
+
     /// Borrow the native descriptor when this creator is a `GpuShaderDesc`.
     /// Returns `None` for creators implemented without that descriptor interface.
     pub fn try_borrow_desc(&mut self) -> Result<Option<GpuShaderDescView<'_>>> {
