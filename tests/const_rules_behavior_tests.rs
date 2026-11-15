@@ -19,6 +19,8 @@ fn config_rules_are_const_and_editable_copies_are_independent() {
     let views = config.try_const_viewing_rules().unwrap().unwrap();
     assert_eq!(files.num_entries().unwrap(), 2);
     assert_eq!(files.index_for_rule(c"Images").unwrap(), 0);
+    assert_eq!(files.index_for_rule(c"images").unwrap(), 0);
+    assert!(files.index_for_rule(c"missing").is_err());
     assert_eq!(files.name(0).unwrap().unwrap(), c"Images");
     assert_eq!(files.pattern(0).unwrap().unwrap(), c"*");
     assert_eq!(files.extension(0).unwrap().unwrap(), c"exr");
@@ -29,6 +31,8 @@ fn config_rules_are_const_and_editable_copies_are_independent() {
     assert_eq!(files.custom_key_value(0, 0).unwrap().unwrap(), c"value");
     assert_eq!(views.num_entries().unwrap(), 2);
     assert_eq!(views.index_for_rule(c"Raw").unwrap(), 0);
+    assert_eq!(views.index_for_rule(c"raw").unwrap(), 0);
+    assert!(views.index_for_rule(c"missing").is_err());
     assert_eq!(views.name(0).unwrap().unwrap(), c"Raw");
     assert_eq!(views.num_color_spaces(0).unwrap(), 1);
     assert_eq!(views.color_space(0, 0).unwrap().unwrap(), c"raw");
