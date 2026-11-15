@@ -69,6 +69,14 @@ consumed by the bundled build path, so use it together with
 `--features bundled` when overriding the vendored
 OpenColorIO source tree.
 
+When building an unmodified OpenColorIO 2.4.1 source tree with CMake 4, some
+of its older bundled dependencies require compatibility with CMake policies
+older than 3.5. If configuration fails with “Compatibility with CMake < 3.5
+has been removed”, either use a supported CMake 3 release or set
+`CMAKE_POLICY_VERSION_MINIMUM=3.5` in the build environment. This CMake 4
+setting also reaches the dependency builds. It is a compatibility override for
+those older projects, not a requirement for all OpenColorIO versions.
+
 Installed-library resolution is owned by `system-deps`. The supported native
 range is `>= 2.4.1, < 2.7`, which the `v2_5` feature raises to
 `>= 2.5.1, < 2.7`
