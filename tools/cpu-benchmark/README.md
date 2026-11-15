@@ -24,6 +24,9 @@ of the retained curve value itself. No allocation-free or zero-cost claim is
 implied by the ratio.
 The single-call Rust slope accessor is measured separately against the same
 native trampoline to isolate the cost of splitting the borrow and read calls.
+The tool also compares copying all points and slopes into preallocated Rust
+storage using individual getters versus a single bulk bridge call. This last
+comparison uses the default curve's point count and is not a scalability test.
 
 The tool requires OCIO 2.6 source for the `bundled` feature and an installed
 matching OCIO include directory containing the generated `OpenColorABI.h`.

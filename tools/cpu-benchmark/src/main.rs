@@ -207,5 +207,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             rust_ns / native_ns
         );
     }
+    let view = curve.curve_ref(RGBCurveType::Red)?;
+    let count = view.num_control_points()?;
+    let mut bulk = vec![[0.0; 3]; count];
+    let mut individual = bulk.clone();
+    view.copy_points_into(0, &mut bulk)?;
+    for (index, point) in individual.iter_mut().enumerate() {
+        let (x, y) = view.control_point(index)?;
+        *point = [x, y, view.slope(index)?];
+    }
+    if bulk != individual {
+        return Err("bulk and individual curve reads differ".into());
+    }
+    let mut bulk_times = Vec::new();
+    let mut individual_times = Vec::new();
+    for round in 0..7 {
+        for bulk_first in [round % 2 == 0, round % 2 != 0] {
+            for _ in 0..100 {
+                if bulk_first {
+                    view.copy_points_into(0, black_box(&mut bulk))?;
+                } else {
+                    for (index, point) in individual.iter_mut().enumerate() {
+                        let (x, y) = view.control_point(index)?;
+                        *point = [x, y, view.slope(index)?];
+                    }
+                }
+            }
+            let start = Instant::now();
+            for _ in 0..100_000 {
+                if bulk_first {
+                    view.copy_points_into(0, black_box(&mut bulk))?;
+                } else {
+                    for (index, point) in individual.iter_mut().enumerate() {
+                        let (x, y) = view.control_point(index)?;
+                        *point = [x, y, view.slope(index)?];
+                    }
+                    black_box(&individual);
+                }
+            }
+            let ns = start.elapsed().as_secs_f64() * 1e9 / 100_000.0;
+            if bulk_first {
+                bulk_times.push(ns);
+            } else {
+                individual_times.push(ns);
+            }
+        }
+    }
+    println!(
+        "{count} curve points: per-point {:.2} ns, bulk {:.2} ns",
+        median(&mut individual_times),
+        median(&mut bulk_times)
+    );
     Ok(())
 }
