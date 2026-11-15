@@ -62,6 +62,24 @@ fn config_named_items_are_copied_or_shared_read_only() {
         .try_set_const_inverse_transform(&shared_transform)
         .unwrap();
     let target_view = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    let target_named = NamedTransform::create().unwrap();
+    target_named
+        .try_set_const_transform(Some(&shared_transform), TransformDirection::Forward)
+        .unwrap();
+    target_named
+        .try_set_const_transform(Some(&shared_transform), TransformDirection::Inverse)
+        .unwrap();
+    target_named
+        .try_set_const_transform(None, TransformDirection::Inverse)
+        .unwrap();
+    assert!(target_named
+        .try_const_transform(TransformDirection::Inverse)
+        .unwrap()
+        .is_none());
+    assert!(target_named
+        .try_const_transform(TransformDirection::Forward)
+        .unwrap()
+        .is_some());
     target_view
         .try_set_const_transform(Some(&shared_transform), ViewTransformDirection::ToReference)
         .unwrap();
@@ -91,6 +109,14 @@ fn config_named_items_are_copied_or_shared_read_only() {
         panic!("expected matrix transform");
     };
     assert_eq!(copied.matrix()[0], 2.0);
+    let ocio_rs::transform::Transform::Matrix(named_copy) = target_named
+        .try_transform(TransformDirection::Forward)
+        .unwrap()
+        .unwrap()
+    else {
+        panic!("expected matrix transform");
+    };
+    assert_eq!(named_copy.matrix()[0], 2.0);
     assert_eq!(shared_look.name_ref().unwrap().unwrap(), c"test-look");
     assert_eq!(shared_look.process_space().unwrap().unwrap(), c"raw");
     assert_eq!(

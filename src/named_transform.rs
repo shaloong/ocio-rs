@@ -271,6 +271,25 @@ impl NamedTransform {
         }
         crate::ocio_call_status()
     }
+
+    /// Set a shared read-only transform or clear the selected direction.
+    /// OCIO stores an independent copy of a supplied transform.
+    pub fn try_set_const_transform(
+        &self,
+        transform: Option<&crate::transform::ConstTransform>,
+        direction: TransformDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                3,
+                transform.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
 }
 
 impl Drop for NamedTransform {

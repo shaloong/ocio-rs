@@ -6141,6 +6141,8 @@ void ocio_named_item_set_const_transform(void* handle, int kind, void* transform
         ocio_rs_bridge::get_real_look(handle)->setInverseTransform(value); break;
       case 2:
         ocio_rs_bridge::get_real_view_transform(handle)->setTransform(value, static_cast<ocio::ViewTransformDirection>(direction)); break;
+      case 3:
+        ocio_rs_bridge::get_real_named_transform(handle)->setTransform(value, static_cast<ocio::TransformDirection>(direction)); break;
       default: throw std::invalid_argument("invalid named item transform kind");
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
