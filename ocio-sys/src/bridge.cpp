@@ -8336,7 +8336,7 @@ void ocio_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixe
   return;
 #else
   try {
-    if (!rgba || numPixels <= 0) return;
+    if (!rgba || numPixels <= 0 || numPixels > std::numeric_limits<long>::max() / 4) return;
     auto cpu = ocio_rs_bridge::get_real_processor(handle)->getDefaultCPUProcessor();
     if (!cpu) return;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
@@ -8768,6 +8768,8 @@ bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t
   ocio_rs_bridge::clear_last_error();
   try {
     if (!rgba || numPixels <= 0) return true;
+    if (numPixels > std::numeric_limits<long>::max() / 4)
+      throw std::invalid_argument("pixel count exceeds the native scanline limit");
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
@@ -8792,7 +8794,7 @@ void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green,
   ocio_rs_bridge::clear_last_error();
 #else
   try {
-    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
+    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() / 4 ||
         height > std::numeric_limits<long>::max() ||
         width > std::numeric_limits<long>::max() / height || !red || !green || !blue)
       throw std::invalid_argument("invalid planar image dimensions or channel pointers");
@@ -8815,7 +8817,7 @@ void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float
 #else
   try {
     constexpr auto limit = std::numeric_limits<ptrdiff_t>::max() / sizeof(float);
-    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() ||
+    if (width <= 0 || height <= 0 || width > std::numeric_limits<long>::max() / 4 ||
         height > std::numeric_limits<long>::max() ||
         width > std::numeric_limits<long>::max() / height || x_stride <= 0 || y_stride <= 0 ||
         x_stride > limit || y_stride > limit || x_stride > y_stride / width ||
@@ -8838,7 +8840,7 @@ static bool ocio_rs_valid_planar_strides(int64_t width, int64_t height,
                                           int64_t x_stride, int64_t y_stride) {
   const int64_t limit = std::numeric_limits<ptrdiff_t>::max();
   const int64_t long_limit = std::numeric_limits<long>::max();
-  if (width <= 0 || height <= 0 || width > long_limit || height > long_limit ||
+  if (width <= 0 || height <= 0 || width > long_limit / 4 || height > long_limit ||
       width > long_limit / height || x_stride == 0 || y_stride == 0 ||
       x_stride < -limit || x_stride > limit || y_stride < -limit || y_stride > limit)
     return false;
@@ -8935,7 +8937,7 @@ void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void
   ocio_rs_bridge::capture_error_message("Bit-depth conversion requires native OpenColorIO");
 #else
   try {
-    if (!src || !dst || count <= 0 || count > std::numeric_limits<long>::max() ||
+    if (!src || !dst || count <= 0 || count > std::numeric_limits<long>::max() / 4 ||
         (channels != 3 && channels != 4) || input_stride <= 0 || output_stride <= 0 ||
         input_stride > std::numeric_limits<ptrdiff_t>::max() / count ||
         output_stride > std::numeric_limits<ptrdiff_t>::max() / count)
@@ -9037,6 +9039,8 @@ void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPi
   ocio_rs_bridge::clear_last_error();
   try {
     if (!rgb || numPixels <= 0) return;
+    if (numPixels > std::numeric_limits<long>::max() / 4)
+      throw std::invalid_argument("pixel count exceeds the native scanline limit");
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 3) * static_cast<int64_t>(sizeof(float)));
     ocio::PackedImageDesc img(rgb, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGB,
@@ -9058,6 +9062,8 @@ void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth
   ocio_rs_bridge::clear_last_error();
   try {
     if (!rgba || numPixels <= 0) return;
+    if (numPixels > std::numeric_limits<long>::max() / 4)
+      throw std::invalid_argument("pixel count exceeds the native scanline limit");
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
       : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16
          || bitDepth == ocio::BIT_DEPTH_UINT10 || bitDepth == ocio::BIT_DEPTH_UINT12
@@ -9084,6 +9090,8 @@ void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, 
   ocio_rs_bridge::clear_last_error();
   try {
     if (!rgb || numPixels <= 0) return;
+    if (numPixels > std::numeric_limits<long>::max() / 4)
+      throw std::invalid_argument("pixel count exceeds the native scanline limit");
     const size_t bytesPerChannel = (bitDepth == ocio::BIT_DEPTH_F32) ? sizeof(float)
       : (bitDepth == ocio::BIT_DEPTH_F16 || bitDepth == ocio::BIT_DEPTH_UINT16
          || bitDepth == ocio::BIT_DEPTH_UINT10 || bitDepth == ocio::BIT_DEPTH_UINT12

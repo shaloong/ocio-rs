@@ -31,6 +31,13 @@ fn required_scalar_len(
     stride: i64,
     channels_per_pixel: usize,
 ) -> Result<usize> {
+    // Native generic scanline helpers calculate four samples per pixel in
+    // C++ long arithmetic, which is 32-bit on 64-bit Windows as well.
+    if num_pixels > (std::ffi::c_long::MAX / 4) as i64 {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: pixel count exceeds the native scanline limit"
+        )));
+    }
     let num_pixels = usize::try_from(num_pixels)
         .map_err(|_| OcioError::InvalidInput(format!("{api}: num_pixels must be non-negative")))?;
     let stride = normalized_stride(api, stride, channels_per_pixel)?;
@@ -7898,7 +7905,8 @@ mod tests {
     #[cfg(all(target_os = "windows", not(ocio_stub)))]
     #[test]
     fn planar_float_native_entrypoints_reject_pixel_count_overflow() {
-        let width = i64::from(i32::MAX) / 2 + 1;
+        let width = 2;
+        let height = i64::from(i32::MAX) / 2 + 1;
         let mut channel = 0.0_f32;
         let ptr = std::ptr::addr_of_mut!(channel);
         // The rejected dimensions must be checked before either entry point
@@ -7912,7 +7920,7 @@ mod tests {
                 ptr,
                 std::ptr::null_mut(),
                 width,
-                2,
+                height,
             );
             assert!(crate::last_error_message()
                 .unwrap()
@@ -7925,13 +7933,66 @@ mod tests {
                 ptr,
                 std::ptr::null_mut(),
                 width,
-                2,
+                height,
                 1,
                 width,
             );
             assert!(crate::last_error_message()
                 .unwrap()
                 .contains("invalid planar"));
+            crate::clear_last_error();
+        }
+    }
+
+    #[test]
+    fn packed_scalar_validation_enforces_native_scanline_limit() {
+        let limit = (std::ffi::c_long::MAX / 4) as i64;
+        assert!(required_scalar_len("test", limit, 0, 3).is_ok());
+        assert!(required_scalar_len("test", limit + 1, 0, 3).is_err());
+    }
+
+    #[cfg(all(target_os = "windows", not(ocio_stub)))]
+    #[test]
+    fn native_image_entrypoints_reject_scanline_overflow() {
+        let width = i64::from(i32::MAX) / 4 + 1;
+        let mut channel = 0.0_f32;
+        let ptr = std::ptr::addr_of_mut!(channel);
+        let desc = ocio_sys::OcioPackedBuffer {
+            data: ptr.cast(),
+            width,
+            height: 1,
+            channel_stride: 4,
+            x_stride: 12,
+            y_stride: 12 * width,
+            bit_depth: BitDepth::F32 as i32,
+            channel_order: ChannelOrdering::Rgb as i32,
+        };
+        // All calls must reject the width before accessing the null processor
+        // or the undersized buffers.
+        unsafe {
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_planar_f32(
+                std::ptr::null_mut(),
+                ptr,
+                ptr,
+                ptr,
+                std::ptr::null_mut(),
+                width,
+                1,
+            );
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid planar"));
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_packed_image(std::ptr::null_mut(), &desc);
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid packed"));
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_rgb_pixels(std::ptr::null_mut(), ptr, width, 3);
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("scanline limit"));
             crate::clear_last_error();
         }
     }
