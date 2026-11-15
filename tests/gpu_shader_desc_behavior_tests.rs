@@ -1467,6 +1467,10 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
         first_desc.try_cache_id().unwrap().as_deref(),
         Some("custom-cache-first")
     );
+    assert_eq!(
+        first_desc.cache_id_ref().unwrap(),
+        Some(c"custom-cache-first")
+    );
     let mut second = Hooks::default();
     let second_desc = gpu
         .try_extract_with_creator_options(
@@ -1517,6 +1521,7 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
     first_desc
         .set_custom_cache_id(Some(c"updated-cache"))
         .unwrap();
+    assert_eq!(first_desc.cache_id_ref().unwrap(), Some(c"updated-cache"));
     assert_eq!(
         first_desc.try_cache_id().unwrap().as_deref(),
         Some("updated-cache")
@@ -1525,6 +1530,11 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
     assert_ne!(
         first_desc.try_cache_id().unwrap().as_deref(),
         Some("updated-cache")
+    );
+    let native_id = first_desc.try_cache_id().unwrap().unwrap();
+    assert_eq!(
+        first_desc.cache_id_ref().unwrap().unwrap().to_bytes(),
+        native_id.as_bytes()
     );
     first_desc
         .set_custom_cache_id(Some(c"after-clear"))
@@ -1541,6 +1551,20 @@ fn custom_creator_cache_id_controls_native_resource_key_and_is_owned() {
 fn shader_text_borrow_is_absent_in_stub_mode() {
     let mut desc = GpuShaderDesc::create().expect("stub descriptor");
     assert!(desc.shader_text_ref().unwrap().is_none());
+    assert!(desc.cache_id_ref().unwrap().is_none());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn descriptor_borrowed_cache_id_tracks_native_invalidation() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let previous = desc.cache_id_ref().unwrap().unwrap().to_owned();
+    desc.set_function_name("different_gpu_function").unwrap();
+    let expected = desc.try_cache_id().unwrap().unwrap();
+    let current = desc.cache_id_ref().unwrap().unwrap();
+    assert_eq!(current.to_bytes(), expected.as_bytes());
+    assert_ne!(current, previous.as_c_str());
 }
 
 #[test]

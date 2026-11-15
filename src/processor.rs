@@ -4750,6 +4750,34 @@ impl GpuShaderDesc {
         Ok(value)
     }
 
+    /// Borrow the native cache identifier without copying or UTF-8 conversion.
+    ///
+    /// OCIO invalidates this string when descriptor settings change. The
+    /// exclusive borrow prevents safe Rust from mutating the descriptor or
+    /// replacing its custom ID while the returned string is in use. Native
+    /// aliases must not mutate it concurrently. Stub builds return `None`.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderDesc;
+    /// # fn example(desc: &mut GpuShaderDesc) {
+    /// let id = desc.cache_id_ref().unwrap().unwrap();
+    /// desc.set_custom_cache_id(Some(c"new-id")).unwrap();
+    /// println!("{:?}", id);
+    /// # }
+    /// ```
+    pub fn cache_id_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_shader_desc_get_cache_id(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            Ok(None)
+        } else {
+            // SAFETY: the descriptor owns this NUL-terminated string and the
+            // exclusive borrow prevents mutation or destruction in safe Rust.
+            Ok(Some(unsafe { std::ffi::CStr::from_ptr(ptr) }))
+        }
+    }
+
     /// Change or clear the cache ID override on a descriptor created by a
     /// custom extraction method. Clearing restores OCIO's native cache ID.
     ///

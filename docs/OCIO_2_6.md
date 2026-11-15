@@ -141,6 +141,8 @@ native getters once. Its caller-owned output buffers avoid bridge allocations
 on each read; getter implementations may still allocate. The cache exclusively
 borrows the descriptor and reports the required size for an undersized buffer.
 Dynamic property values remain live, rather than being snapshotted at capture.
+`GpuShaderDesc::cache_id_ref` borrows the native cache ID without allocating;
+its exclusive borrow prevents safe descriptor mutation while it is in use.
 Custom creators may supply a native-owned cache ID through
 `ShaderCreatorOptions`. The caller is responsible for changing it when the
 creator configuration or output changes, including after descriptor mutation;
