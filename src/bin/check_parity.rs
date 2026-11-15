@@ -656,6 +656,9 @@ fn run_l1(bridge_funcs: &[CFunc], lib_funcs: &HashSet<String>) -> L1Result {
 // L2: Only the truly irregular mappings that can't be derived by get_/set_ stripping.
 fn l2_overrides() -> HashMap<&'static str, &'static str> {
     [
+        // One bridge dispatches LUT and hash reads; both public visitors reach it
+        // through the same private helper. Runtime tests cover both branches.
+        ("read_native", "with_lut_data_cstr"),
         ("apply_planar_f32", "try_apply_planar_f32"),
         ("apply_planar_strided_f32", "try_apply_planar_strided_f32"),
         ("convert_mixed_image", "try_convert_packed_to_planar"),
@@ -1363,6 +1366,16 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn l2_maps_native_proxy_read_to_public_visitor() {
+        let methods = HashSet::from(["with_lut_data_cstr".to_owned()]);
+        assert_eq!(
+            find_rust_method("read_native", &methods, &l2_overrides()).as_deref(),
+            Some("with_lut_data_cstr")
+        );
+        assert!(find_rust_method("read_native", &HashSet::new(), &l2_overrides()).is_none());
+    }
 
     #[test]
     fn l3_skips_forward_declarations_and_reads_real_classes() {
