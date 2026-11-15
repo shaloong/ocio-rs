@@ -228,18 +228,16 @@ impl FormatMetadata {
 
     /// Get a live child element at the given index.
     ///
-    /// The returned wrapper remains usable when siblings are appended to this
-    /// metadata object. OCIO invalidates child references when the parent is
-    /// cleared, so discard child wrappers before calling [`Self::clear`] on
-    /// their parent.
+    /// The wrapper remains usable when siblings are appended. Clearing an
+    /// ancestor invalidates it: subsequent fallible operations return an error
+    /// even if a new child later occupies the same index.
     pub fn child_element(&self, i: i32) -> Option<FormatMetadata> {
         self.try_child_element(i).ok().flatten()
     }
 
     /// Get a live child element by index, preserving OCIO query failures.
     ///
-    /// See [`Self::child_element`] for the lifetime rule around
-    /// [`Self::clear`].
+    /// See [`Self::child_element`] for invalidation behavior.
     pub fn try_child_element(&self, i: i32) -> Result<Option<FormatMetadata>> {
         crate::clear_last_error();
         let handle =
@@ -265,7 +263,14 @@ impl FormatMetadata {
 
     /// Clear all data on this metadata element.
     pub fn clear(&self) {
+        let _ = self.try_clear();
+    }
+
+    /// Clear this element and invalidate all previously obtained descendants.
+    pub fn try_clear(&self) -> Result<()> {
+        crate::clear_last_error();
         unsafe { ocio_sys::ocio_format_metadata_clear(self.handle.as_ptr() as *mut c_void) };
+        crate::ocio_call_status()
     }
 
     /// Get the name of this metadata element.

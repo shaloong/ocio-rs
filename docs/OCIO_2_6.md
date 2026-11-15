@@ -117,6 +117,10 @@ This is not a full-library parity claim. In particular, the existing checker
 does not account for all application helpers in `OpenColorAppHelpers.h`.
 See [the Context audit](OCIO_CONTEXT_AUDIT.md) for ownership, resolution and
 the native variable-clear cache invalidation workaround.
+Editable metadata children are path-backed and detect ancestor clearing across
+binding-created handles; a stale child cannot silently target a newly inserted
+element at the same index. Unsynchronized external native mutations remain the
+application's responsibility.
 The color-space menu parameters and immutable menu are now bound at their
 native version floors. The menu borrows native strings without allocating.
 Read-only current contexts support indexed search paths and variables,

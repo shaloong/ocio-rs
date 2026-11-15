@@ -81,6 +81,9 @@ void capture_current_exception() {
 struct ConfigHandle { std::shared_ptr<void> inner; };
 struct ProcessorHandle { std::shared_ptr<void> inner; };
 struct ProcessorMetadataHandle { std::shared_ptr<void> inner; };
+struct FormatMetadataEpochs {
+  std::map<std::vector<int>, std::shared_ptr<uint64_t>> generations;
+};
 struct FormatMetadataHandle {
   std::shared_ptr<void> owner;
   // OCIO stores child metadata by value in a vector. Keep a path from the
@@ -88,6 +91,8 @@ struct FormatMetadataHandle {
   // reallocate that vector.
   void* metadata = nullptr;
   std::vector<int> child_indices;
+  std::shared_ptr<FormatMetadataEpochs> epochs;
+  std::vector<std::pair<std::shared_ptr<uint64_t>, uint64_t>> ancestor_generations;
 };
 struct CPUProcessorHandle { std::shared_ptr<void> inner; };
 struct GPUProcessorHandle { std::shared_ptr<void> inner; };
@@ -1063,7 +1068,11 @@ static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
   auto* h = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(handle);
   if (!h || !h->metadata) return nullptr;
   auto* metadata = static_cast<ocio::FormatMetadata*>(h->metadata);
-  for (const int index : h->child_indices) {
+  for (size_t depth = 0; depth < h->child_indices.size(); ++depth) {
+    const auto& generation = h->ancestor_generations[depth];
+    if (*generation.first != generation.second)
+      throw std::invalid_argument("metadata child was invalidated by clearing an ancestor");
+    const int index = h->child_indices[depth];
     metadata = &metadata->getChildElement(index);
   }
   return metadata;
@@ -1071,9 +1080,29 @@ static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
 
 static void* make_format_metadata_handle(std::shared_ptr<void> owner, const ocio::FormatMetadata* metadata) {
   if (!metadata) return nullptr;
+  // Multiple wrappers may independently reference the same native root. Share
+  // generation state without retaining roots after their last handle is gone.
+  static std::mutex registry_mutex;
+  static std::unordered_map<const void*, std::weak_ptr<FormatMetadataEpochs>> registry;
+  static unsigned registrations_since_cleanup = 0;
+  std::shared_ptr<FormatMetadataEpochs> epochs;
+  {
+    std::lock_guard<std::mutex> lock(registry_mutex);
+    // Amortize expired-entry cleanup rather than scanning all live roots for
+    // every metadata handle acquisition.
+    if (++registrations_since_cleanup >= 256) {
+      for (auto it = registry.begin(); it != registry.end();) {
+        if (it->second.expired()) it = registry.erase(it); else ++it;
+      }
+      registrations_since_cleanup = 0;
+    }
+    epochs = registry[metadata].lock();
+    if (!epochs) { epochs = std::make_shared<FormatMetadataEpochs>(); registry[metadata] = epochs; }
+  }
   auto out_handle = std::make_unique<ocio_rs_bridge::FormatMetadataHandle>();
   out_handle->owner = std::move(owner);
   out_handle->metadata = const_cast<ocio::FormatMetadata*>(metadata);
+  out_handle->epochs = std::move(epochs);
   return out_handle.release();
 }
 
@@ -16494,7 +16523,16 @@ void* ocio_format_metadata_get_child_element(void* metadata, int i) {
     auto out_handle = std::make_unique<ocio_rs_bridge::FormatMetadataHandle>();
     out_handle->owner = parent_handle ? parent_handle->owner : std::shared_ptr<void>{};
     out_handle->metadata = parent_handle ? parent_handle->metadata : nullptr;
-    if (parent_handle) out_handle->child_indices = parent_handle->child_indices;
+    if (parent_handle) {
+      out_handle->child_indices = parent_handle->child_indices;
+      out_handle->epochs = parent_handle->epochs;
+      out_handle->ancestor_generations = parent_handle->ancestor_generations;
+      auto& generations = out_handle->epochs->generations;
+      auto generation = generations.find(out_handle->child_indices);
+      if (generation == generations.end())
+        generation = generations.emplace(out_handle->child_indices, std::make_shared<uint64_t>(0)).first;
+      out_handle->ancestor_generations.emplace_back(generation->second, *generation->second);
+    }
     out_handle->child_indices.push_back(i);
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
@@ -16677,9 +16715,24 @@ void ocio_format_metadata_clear(void* metadata) {
 #ifndef OCIO_RS_STUB
   try {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
+      auto* handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
+      const auto generation = handle->epochs->generations.find(handle->child_indices);
+      if (generation != handle->epochs->generations.end()) {
+        if (*generation->second == std::numeric_limits<uint64_t>::max())
+          throw std::overflow_error("metadata generation exhausted");
+        ++*generation->second;
+      }
+      // Descendant handles already carry their old tokens. Release registry
+      // entries for removed paths so repeated clear/rebuild cycles do not
+      // retain an ever-growing map of dead nodes.
+      auto& generations = handle->epochs->generations;
+      auto it = generations.upper_bound(handle->child_indices);
+      while (it != generations.end() && it->first.size() > handle->child_indices.size() &&
+             std::equal(handle->child_indices.begin(), handle->child_indices.end(), it->first.begin()))
+        it = generations.erase(it);
       format_metadata->clear();
     }
-  } catch (...) { return; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata;
 #endif

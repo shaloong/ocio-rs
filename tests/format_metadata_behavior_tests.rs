@@ -22,6 +22,48 @@ fn format_metadata_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cleared_child_handle_does_not_retarget_new_child() {
+    let _guard = format_metadata_test_lock();
+    let baker = Baker::create().unwrap();
+    let first_root = baker.format_metadata().unwrap();
+    let second_root = baker.format_metadata().unwrap();
+    first_root.add_child_element("original", "old").unwrap();
+    let old = first_root.try_child_element(0).unwrap().unwrap();
+    old.add_child_element("grandchild", "before").unwrap();
+    let grandchild = old.try_child_element(0).unwrap().unwrap();
+    first_root
+        .add_child_element("sibling", "untouched")
+        .unwrap();
+    let sibling = second_root.try_child_element(1).unwrap().unwrap();
+    old.try_clear().unwrap();
+    old.add_child_element("replacement-grandchild", "after")
+        .unwrap();
+    assert!(grandchild
+        .set_element_value("must-not-change-grandchild")
+        .is_err());
+    assert_eq!(sibling.element_value().as_deref(), Some("untouched"));
+    assert_eq!(
+        old.child_element(0).unwrap().element_value().as_deref(),
+        Some("after")
+    );
+    second_root.clear();
+    second_root.add_child_element("replacement", "new").unwrap();
+    assert!(old
+        .set_element_value("must-not-change-replacement")
+        .is_err());
+    assert!(sibling.try_clear().is_err());
+    assert_eq!(
+        second_root
+            .child_element(0)
+            .unwrap()
+            .element_value()
+            .as_deref(),
+        Some("new")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_format_metadata_round_trip_and_copy_behavior() {
     let _guard = format_metadata_test_lock();
     if is_stub() {
