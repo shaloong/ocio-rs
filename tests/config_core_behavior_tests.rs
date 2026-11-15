@@ -30,6 +30,62 @@ fn test_data_path(rel: &str) -> PathBuf {
 }
 
 #[test]
+fn color_space_and_named_transform_indices_preserve_missing_and_errors() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    assert_eq!(config.try_color_space_index_cstr(c"missing").unwrap(), -1);
+    assert_eq!(
+        config.try_named_transform_index_cstr(c"missing").unwrap(),
+        -1
+    );
+    assert!(config.try_color_space_index("bad\0name").is_err());
+    assert!(config.try_named_transform_index("bad\0name").is_err());
+    if is_stub() {
+        return;
+    }
+    assert!(config.try_color_space_index_cstr(c"raw").unwrap() >= 0);
+    let named = ocio_rs::NamedTransform::create().unwrap();
+    named.set_name("index-test").unwrap();
+    let identity = ocio_rs::transform::MatrixTransform::identity().unwrap();
+    named
+        .try_set_transform(&identity, ocio_rs::TransformDirection::Forward)
+        .unwrap();
+    config.try_add_named_transform(&named).unwrap();
+    assert!(
+        config
+            .try_named_transform_index_cstr(c"index-test")
+            .unwrap()
+            >= 0
+    );
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert_eq!(
+            ocio_rs::ocio_sys::ocio_config_get_index_for_color_space(
+                std::ptr::null_mut(),
+                c"raw".as_ptr()
+            ),
+            -1
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(config.try_color_space_index_cstr(c"missing").unwrap(), -1);
+    unsafe {
+        assert_eq!(
+            ocio_rs::ocio_sys::ocio_config_get_index_for_named_transform(
+                std::ptr::null_mut(),
+                c"missing".as_ptr()
+            ),
+            -1
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(
+        config.try_named_transform_index_cstr(c"missing").unwrap(),
+        -1
+    );
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_linearity_distinguishes_native_errors_from_false() {
     let _guard = config_core_test_lock();

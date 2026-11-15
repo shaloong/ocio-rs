@@ -3023,11 +3023,12 @@ void* ocio_config_get_color_space_name_by_index_v1(void* handle, int index) {
 int ocio_config_get_index_for_color_space(void* handle, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name;
-  return 0;
+  return -1;
 #else
   try {
+    if (!handle || !name) throw std::invalid_argument("invalid color-space index arguments");
     return ocio_rs_bridge::get_real_config(handle)->getIndexForColorSpace(name);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
 #endif
 }
 
@@ -4250,11 +4251,12 @@ void* ocio_config_get_named_transform_name_by_index_v1(void* handle, int index) 
 int ocio_config_get_index_for_named_transform(void* handle, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name;
-  return 0;
+  return -1;
 #else
   try {
+    if (!handle || !name) throw std::invalid_argument("invalid named-transform index arguments");
     return ocio_rs_bridge::get_real_config(handle)->getIndexForNamedTransform(name);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
 #endif
 }
 

@@ -79,6 +79,8 @@ invalidate its strings. ID lookup returns an independent editable color
 space; alias authoring materializes the vector required by the C++ API.
 `try_is_color_space_linear_cstr` preserves native missing-space errors instead
 of conflating them with a negative linearity result.
+Color-space and named-transform index queries also offer fallible `&CStr`
+variants; a missing entry returns OCIO's `-1`, distinct from bridge errors.
 Reuse the built-in config passed to matching to retain its native cache.
 
 The parity checker measures its recognized API surface, not every overload,

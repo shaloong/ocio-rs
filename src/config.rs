@@ -2582,18 +2582,24 @@ impl Config {
         Ok(color_space.map(|color_space| (color_space, rule_index)))
     }
 
-    /// Return the index of the named color space in the config, or -1 if not found.
+    /// Return the index of the named color space, or -1 if not found or on error.
     pub fn color_space_index(&self, name: impl AsRef<str>) -> i32 {
-        let n = cstring(name);
-        match n {
-            Ok(n) => unsafe {
-                ocio_sys::ocio_config_get_index_for_color_space(
-                    self.handle.as_ptr(),
-                    n.as_ptr().cast(),
-                )
-            },
-            Err(_) => -1,
-        }
+        self.try_color_space_index(name).unwrap_or(-1)
+    }
+
+    /// Return a native index, preserving lookup errors separately from -1.
+    pub fn try_color_space_index(&self, name: impl AsRef<str>) -> Result<i32> {
+        self.try_color_space_index_cstr(&cstring(name)?)
+    }
+
+    /// Look up an index using an existing native name without allocating it.
+    pub fn try_color_space_index_cstr(&self, name: &std::ffi::CStr) -> Result<i32> {
+        crate::clear_last_error();
+        let index = unsafe {
+            ocio_sys::ocio_config_get_index_for_color_space(self.handle.as_ptr(), name.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     #[doc(hidden)]
@@ -3427,18 +3433,24 @@ impl Config {
         self.named_transform(name)
     }
 
-    /// Return the index of a named transform, or -1 if not found.
+    /// Return the index of a named transform, or -1 if not found or on error.
     pub fn named_transform_index(&self, name: impl AsRef<str>) -> i32 {
-        let name = match cstring(name) {
-            Ok(v) => v,
-            Err(_) => return -1,
+        self.try_named_transform_index(name).unwrap_or(-1)
+    }
+
+    /// Return a native index, preserving invalid input and bridge errors separately from -1.
+    pub fn try_named_transform_index(&self, name: impl AsRef<str>) -> Result<i32> {
+        self.try_named_transform_index_cstr(&cstring(name)?)
+    }
+
+    /// Look up a named-transform index using an existing native name.
+    pub fn try_named_transform_index_cstr(&self, name: &std::ffi::CStr) -> Result<i32> {
+        crate::clear_last_error();
+        let index = unsafe {
+            ocio_sys::ocio_config_get_index_for_named_transform(self.handle.as_ptr(), name.as_ptr())
         };
-        unsafe {
-            ocio_sys::ocio_config_get_index_for_named_transform(
-                self.handle.as_ptr(),
-                name.as_ptr().cast(),
-            )
-        }
+        crate::ocio_call_status()?;
+        Ok(index)
     }
 
     #[doc(hidden)]
