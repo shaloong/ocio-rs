@@ -1,5 +1,13 @@
 # Migration Notes
 
+## Unreleased: transform handle safety
+
+`TransformHandle` is now sealed because safe external implementations could
+forge pointers that the native bridge dereferences. Generic bounds and all
+crate-provided transforms continue to work; replace custom implementations with
+the provided concrete wrappers or the `Transform` enum. Raw native interop
+remains available through explicitly unsafe low-level APIs.
+
 ## Unreleased: logging callback synchronization
 
 Safe logger installation and reset require native OpenColorIO 2.5.2 or later.

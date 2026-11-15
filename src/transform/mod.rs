@@ -108,7 +108,55 @@ pub use lut3d::Lut3DTransform;
 pub use matrix::MatrixTransform;
 pub use range::RangeTransform;
 
-pub trait TransformHandle {
+mod sealed {
+    pub trait Sealed {}
+}
+
+macro_rules! seal_transform_handles {
+    ($($ty:ty),+ $(,)?) => { $(impl sealed::Sealed for $ty {})+ };
+}
+seal_transform_handles!(
+    FileTransform,
+    CDLTransform,
+    ExponentTransform,
+    ExponentWithLinearTransform,
+    MatrixTransform,
+    LogTransform,
+    RangeTransform,
+    GroupTransform,
+    BuiltinTransform,
+    FixedFunctionTransform,
+    Lut1DTransform,
+    Lut3DTransform,
+    ExposureContrastTransform,
+    ColorSpaceTransform,
+    LookTransform,
+    DisplayViewTransform,
+    AllocationTransform,
+    LogAffineTransform,
+    LogCameraTransform,
+    GradingRGBCurveTransform,
+    GradingPrimaryTransform,
+    GradingToneTransform,
+    Transform,
+);
+#[cfg(feature = "v2_5")]
+seal_transform_handles!(GradingHueCurveTransform);
+
+/// A native transform handle supplied by this crate.
+///
+/// This trait is sealed: arbitrary raw pointers cannot satisfy the internal
+/// bridge ownership and type invariants. Use the built-in transform wrappers or
+/// [`Transform`] in generic code.
+///
+/// ```compile_fail
+/// use ocio_rs::transform::TransformHandle;
+/// struct Forged;
+/// impl TransformHandle for Forged {
+///     fn as_ptr(&self) -> *mut std::ffi::c_void { std::ptr::null_mut() }
+/// }
+/// ```
+pub trait TransformHandle: sealed::Sealed {
     fn as_ptr(&self) -> *mut c_void;
 }
 
