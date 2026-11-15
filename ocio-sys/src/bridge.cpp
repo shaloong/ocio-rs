@@ -9201,14 +9201,16 @@ void ocio_gpu_shader_desc_destroy(void* handle) {
 
 void* ocio_gpu_shader_desc_clone(void* handle) {
 #ifdef OCIO_RS_STUB
-  (void)handle; 
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("GPU shader descriptor cloning requires native OpenColorIO");
   return nullptr;
 #else
   try {
+    if (!handle) throw std::invalid_argument("null GPU shader descriptor");
     auto result = ocio_rs_bridge::get_real_gpu_shader_desc(handle)->clone();
-    if (!result) return nullptr;
+    if (!result) throw std::runtime_error("GPU shader descriptor clone returned null");
     auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(result);
-    if (!desc) return nullptr;
+    if (!desc) throw std::runtime_error("GPU shader descriptor clone is not a descriptor");
     auto out_handle = std::make_unique<ocio_rs_bridge::GpuShaderDescHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGpuShaderDesc>(ocio_rs_bridge::RealGpuShaderDesc{desc});
     return out_handle.release();

@@ -28,6 +28,33 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn fallible_descriptor_clone_clears_stale_errors_and_reports_null_handle() {
+    let _guard = gpu_shader_desc_test_lock();
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert!(ocio_rs::ocio_sys::ocio_gpu_shader_desc_clone(std::ptr::null_mut()).is_null());
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    let desc = GpuShaderDesc::create().unwrap();
+    desc.set_function_name("clone_error_test").unwrap();
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert!(ocio_rs::ocio_sys::ocio_gpu_shader_desc_clone(std::ptr::null_mut()).is_null());
+    }
+    let clone = desc.try_clone_desc().unwrap();
+    assert_eq!(
+        clone.try_function_name().unwrap().as_deref(),
+        Some("clone_error_test")
+    );
+    assert!(unsafe { ocio_rs::ocio_sys::ocio_error_get_last().is_null() });
+    assert_eq!(
+        desc.clone_desc().unwrap().function_name().as_deref(),
+        Some("clone_error_test")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn invalid_texture_max_width_is_rejected_without_changing_descriptor() {
     let _guard = gpu_shader_desc_test_lock();
     let config = ocio_rs::Config::raw().unwrap();

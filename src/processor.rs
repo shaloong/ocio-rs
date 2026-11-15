@@ -3545,9 +3545,7 @@ impl GPUProcessor {
     pub fn validate_shader_texture_layout(&self, shader_desc: &GpuShaderDesc) -> Result<()> {
         struct ProbeHooks;
         impl ShaderExtractionHooks for ProbeHooks {}
-        let probe = shader_desc.clone_desc().ok_or_else(|| {
-            OcioError::InvalidInput("failed to clone GPU descriptor for LUT probe".into())
-        })?;
+        let probe = shader_desc.try_clone_desc()?;
         probe.set_texture_max_width(1_048_577)?;
         probe.set_allow_texture_1d(shader_desc.try_allow_texture_1d()?)?;
         let mut lengths = Vec::new();
@@ -4781,10 +4779,18 @@ impl GpuShaderDesc {
     /// extracted shader payloads are not guaranteed to be copied into the clone.
     /// A custom cache ID from [`ShaderCreatorOptions`] is not preserved.
     pub fn clone_desc(&self) -> Option<GpuShaderDesc> {
+        self.try_clone_desc().ok()
+    }
+
+    /// Clone descriptor configuration and preserve native errors.
+    /// See [`Self::clone_desc`] for which native settings are copied.
+    pub fn try_clone_desc(&self) -> Result<GpuShaderDesc> {
         crate::clear_last_error();
         let h =
             unsafe { ocio_sys::ocio_gpu_shader_desc_clone(self.handle.as_ptr() as *mut c_void) };
-        NonNull::new(h).map(|h| GpuShaderDesc { handle: h })
+        Ok(GpuShaderDesc {
+            handle: crate::handle_result(h)?,
+        })
     }
 
     #[doc(hidden)]
