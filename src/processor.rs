@@ -3506,6 +3506,40 @@ impl GPUProcessor {
         crate::ocio_call_status()
     }
 
+    /// Probe optimized texture resources before extracting into `shader_desc`.
+    ///
+    /// OCIO 2.4–2.6 can underflow while packing some 1D LUT lengths into 2D
+    /// textures. The probe uses a temporary descriptor wide enough for every
+    /// 1D LUT accepted by these versions, streams its textures without storing
+    /// them, and checks their lengths against the requested width before the
+    /// real extraction. The target descriptor is untouched if probing fails.
+    ///
+    /// This performs shader generation twice and allocates OCIO's temporary
+    /// texture data. It conservatively checks all 1D/2D resources with height
+    /// one, including non-LUT resources, so it can reject a safe processor.
+    /// It relies on the 1,048,576-entry limit of supported OCIO 2.4–2.6 and
+    /// must be re-audited before supporting a newer native version.
+    pub fn try_extract_shader_info_checked(&self, shader_desc: &mut GpuShaderDesc) -> Result<()> {
+        struct ProbeHooks;
+        impl ShaderExtractionHooks for ProbeHooks {}
+        let probe = shader_desc.clone_desc().ok_or_else(|| {
+            OcioError::InvalidInput("failed to clone GPU descriptor for LUT probe".into())
+        })?;
+        probe.set_texture_max_width(1_048_577)?;
+        probe.set_allow_texture_1d(shader_desc.try_allow_texture_1d()?)?;
+        let mut lengths = Vec::new();
+        self.try_extract_with_streamed_textures(&probe, &mut ProbeHooks, |texture| {
+            if texture.dimensions.is_some() && texture.height == 1 && texture.width >= 2 {
+                lengths.push(texture.width as usize);
+            }
+            Ok(None)
+        })?;
+        for length in lengths {
+            shader_desc.validate_lut_texture_layout(length)?;
+        }
+        self.try_extract_shader_info(shader_desc)
+    }
+
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",

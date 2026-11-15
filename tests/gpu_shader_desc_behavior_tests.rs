@@ -116,6 +116,49 @@ fn lut_texture_layout_preflight_detects_native_padding_underflow() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn checked_extraction_probes_optimized_lut_without_mutating_target_on_failure() {
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.set_texture_max_width(2).unwrap();
+    assert!(matches!(
+        gpu.try_extract_shader_info_checked(&mut desc),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(desc.num_textures(), 0);
+    assert_eq!(desc.try_texture_max_width().unwrap(), 2);
+    desc.set_texture_max_width(64).unwrap();
+    gpu.try_extract_shader_info_checked(&mut desc).unwrap();
+    assert!(desc.num_textures() > 0);
+
+    // Native GPU optimization may resample an inverse LUT. Checking only the
+    // original three entries would miss the dangerous generated length.
+    let inverse = config
+        .processor_from_transform(&lut, TransformDirection::Inverse)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut inverse_desc = GpuShaderDesc::create().unwrap();
+    inverse_desc.set_texture_max_width(3).unwrap();
+    inverse_desc.validate_lut_texture_layout(3).unwrap();
+    assert!(matches!(
+        inverse.try_extract_shader_info_checked(&mut inverse_desc),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(inverse_desc.num_textures(), 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_finalize_can_replace_native_stage_or_delegate_and_cleans_up() {
     use ocio_rs::{
         OcioError, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,

@@ -39,7 +39,12 @@ the bridge selects the native ABI separately.
   the native padding calculation and native arithmetic limits, without generating
   the shader. It is not automatic: optimization may create or change LUTs, and
   the public GPU processor API does not expose the resulting operation list.
-  Fixing or safely preflighting all packed LUTs requires further work.
+  `GPUProcessor::try_extract_shader_info_checked` offers a more comprehensive,
+  conservative opt-in probe of the optimized processor by first extracting
+  with a width above the 1,048,576-entry native LUT limit. It generates the
+  shader twice and may reject non-LUT textures; it has not been implemented for
+  custom Rust hooks or arbitrary native creators. Fixing the native algorithm
+  itself and covering those extraction paths requires further work.
 
 - `ShaderUniformControl` can decide registration results and own or delegate
   uniform storage for all scalar and array getter overloads. A complete Rust
