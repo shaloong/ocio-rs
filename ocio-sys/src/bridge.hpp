@@ -1779,6 +1779,7 @@ void* ocio_grading_rgb_curve_object_create_from_curves(void* const* curves);
 void* ocio_grading_hue_curve_object_create_from_curves(void* const* curves);
 void* ocio_grading_rgb_curve_object_create_from_shared_curves(void* const* curves);
 void* ocio_grading_hue_curve_object_create_from_shared_curves(void* const* curves);
+const char* ocio_grading_curve_serialize(const void* handle, int kind);
 
 void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h);
 void ocio_dynamic_property_grading_rgb_curve_object_set(void* h, void* value);

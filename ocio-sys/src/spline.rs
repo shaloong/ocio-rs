@@ -1,6 +1,10 @@
 use std::ffi::c_void;
 
 unsafe extern "C" {
+    pub fn ocio_grading_curve_serialize(
+        handle: *const c_void,
+        kind: i32,
+    ) -> *const std::ffi::c_char;
     pub fn ocio_grading_curve_const_view(h: *mut c_void, kind: i32, hue: bool) -> *const c_void;
     pub fn ocio_grading_curve_const_shared(h: *mut c_void, kind: i32, hue: bool) -> *mut c_void;
     pub fn ocio_grading_spline_shared_data(h: *const c_void) -> *const c_void;

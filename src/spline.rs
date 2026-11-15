@@ -1,5 +1,22 @@
 use crate::Result;
-use std::{ffi::c_void, ptr::NonNull};
+use std::{
+    ffi::{c_void, CStr},
+    ptr::NonNull,
+};
+
+fn serialize_curve(handle: NonNull<c_void>, kind: i32) -> Result<String> {
+    crate::clear_last_error();
+    let ptr = unsafe { ocio_sys::ocio_grading_curve_serialize(handle.as_ptr(), kind) };
+    crate::ocio_call_status()?;
+    if ptr.is_null() {
+        return Err(crate::OcioError::Ocio(
+            "null grading curve serialization".into(),
+        ));
+    }
+    Ok(unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned())
+}
 
 /// Borrowed read-only spline owned by a grading curve set.
 ///
@@ -53,6 +70,10 @@ impl Drop for SharedGradingBSplineCurve {
     }
 }
 impl ConstGradingBSplineCurve<'_> {
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 1)
+    }
     /// Make an independent editable native copy.
     pub fn create_editable_copy(&self) -> Result<GradingBSplineCurve> {
         crate::clear_last_error();
@@ -144,6 +165,10 @@ pub struct GradingBSplineCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingBSplineCurve {
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 0)
+    }
     fn create_points_impl(
         points: &[[f32; 2]],
         kind: i32,
@@ -372,6 +397,10 @@ pub struct GradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingRGBCurve {
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 2)
+    }
     /// Construct from read-only shared splines in OCIO enum order.
     /// OCIO copies the supplied splines into the new curve set.
     pub fn create_from_shared_curves(curves: [&SharedGradingBSplineCurve; 4]) -> Result<Self> {
@@ -492,6 +521,10 @@ pub struct GradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl GradingHueCurve {
+    /// Return OCIO's diagnostic stream representation, not a stable interchange format.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_curve(self.handle, 3)
+    }
     /// Construct from read-only shared splines in OCIO enum order.
     /// OCIO copies and validates the supplied splines.
     pub fn create_from_shared_curves(curves: [&SharedGradingBSplineCurve; 8]) -> Result<Self> {

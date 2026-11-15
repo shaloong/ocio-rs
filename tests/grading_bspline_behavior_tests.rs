@@ -78,6 +78,8 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     let mut red = value.curve(RGBCurveType::Red).unwrap();
     let red_alias = value.curve(RGBCurveType::Red).unwrap();
     let shared = value.curve_shared(RGBCurveType::Red).unwrap();
+    assert_eq!(shared.view().serialize().unwrap(), red.serialize().unwrap());
+    assert!(value.serialize().unwrap().contains("<red="));
     let shared_set = GradingRGBCurve::create_from_shared_curves([&shared; 4]).unwrap();
     let view = value.curve_ref(RGBCurveType::Red).unwrap();
     red.set_slope(0, 0.37).unwrap();
@@ -137,6 +139,8 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     curve.set_slope(0, 0.37).unwrap();
     let view = value.curve_ref(HueCurveType::HueFx).unwrap();
     let shared = value.curve_shared(HueCurveType::HueFx).unwrap();
+    assert_eq!(view.serialize().unwrap(), curve.serialize().unwrap());
+    assert!(!value.serialize().unwrap().is_empty());
     assert_eq!(view.slope(0).unwrap(), 0.37);
     assert_eq!(view.spline_type().unwrap(), curve.spline_type().unwrap());
     view.validate().unwrap();

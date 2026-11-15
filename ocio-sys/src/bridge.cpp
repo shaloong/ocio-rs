@@ -19122,6 +19122,31 @@ void* ocio_grading_rgb_curve_object_create_from_curves(void* const* curves) {
 #endif
 }
 
+const char* ocio_grading_curve_serialize(const void* handle, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null grading curve");
+    std::ostringstream output;
+    switch (kind) {
+      case 0: output << **static_cast<const Spline*>(handle); break;
+      case 1: output << *static_cast<const ocio::GradingBSplineCurve*>(handle); break;
+      case 2: output << **static_cast<const CurveObjectrgb*>(handle); break;
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+      case 3: output << **static_cast<const CurveObjecthue*>(handle); break;
+#endif
+      default: throw std::invalid_argument("unknown grading curve kind");
+    }
+    static thread_local std::string result;
+    result = output.str();
+    return result.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_grading_rgb_curve_object_create_from_shared_curves(void* const* curves) {
 #ifdef OCIO_RS_STUB
   (void)curves;
