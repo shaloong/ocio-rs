@@ -76,6 +76,64 @@ fn config_and_context_can_detach_proxy_without_invalidating_retained_handle() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn replacing_proxy_invalidates_context_resolution_without_global_side_effects() {
+    let _guard = config_io_proxy_test_lock();
+    let filename = format!("ocio-rs-proxy-switch-{}.clf", std::process::id());
+    let populated = ConfigIOProxy::create().unwrap();
+    populated
+        .set_lut_data(&filename, b"lut", "hash-one")
+        .unwrap();
+    let empty = ConfigIOProxy::create().unwrap();
+    let context = Context::create().unwrap();
+    context.set_config_io_proxy_object(&populated).unwrap();
+    assert!(context
+        .try_resolve_file_location(&filename)
+        .unwrap()
+        .is_some());
+    context.set_config_io_proxy_object(&empty).unwrap();
+    let other = Context::create().unwrap();
+    other.set_config_io_proxy_object(&empty).unwrap();
+    // OCIO's separate process-global path hash is keyed by path, not proxy.
+    // Attachment must not implicitly flush it for other users.
+    assert!(other
+        .try_resolve_file_location(&filename)
+        .unwrap()
+        .is_some());
+    ocio_rs::try_clear_all_caches().unwrap();
+    // Reattaching also invalidates the context's local cached result.
+    context.set_config_io_proxy_object(&empty).unwrap();
+    assert!(context.try_resolve_file_location(&filename).is_err());
+    ocio_rs::try_clear_all_caches().unwrap();
+    context.set_config_io_proxy_object(&populated).unwrap();
+    assert!(context
+        .try_resolve_file_location(&filename)
+        .unwrap()
+        .is_some());
+    ocio_rs::try_clear_all_caches().unwrap();
+    context.clear_config_io_proxy().unwrap();
+    assert!(context.try_resolve_file_location(&filename).is_err());
+    let config = Config::raw().unwrap();
+    let filename = format!("ocio-rs-config-proxy-switch-{}.clf", std::process::id());
+    populated
+        .set_lut_data(&filename, b"lut", "hash-two")
+        .unwrap();
+    config.set_config_io_proxy_object(&populated).unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    let path = std::ffi::CString::new(filename).unwrap();
+    assert!(shared.resolve_file_location(&path).unwrap().is_some());
+    ocio_rs::try_clear_all_caches().unwrap();
+    config.set_config_io_proxy_object(&empty).unwrap();
+    assert!(shared.resolve_file_location(&path).is_err());
+    ocio_rs::try_clear_all_caches().unwrap();
+    config.set_config_io_proxy_object(&populated).unwrap();
+    assert!(shared.resolve_file_location(&path).unwrap().is_some());
+    ocio_rs::try_clear_all_caches().unwrap();
+    config.clear_config_io_proxy().unwrap();
+    assert!(shared.resolve_file_location(&path).is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_payload_preserves_native_length_and_provider_errors() {
     let _guard = config_io_proxy_test_lock();
     let proxy = ConfigIOProxy::create().unwrap();

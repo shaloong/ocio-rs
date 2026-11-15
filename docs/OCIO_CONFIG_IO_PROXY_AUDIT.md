@@ -27,6 +27,17 @@ interface; stored data can exist with an empty hash even though OCIO treats it
 as unavailable. Returned proxy handles retain native ownership independently
 of the config or context handle that supplied them.
 
+OCIO 2.4--2.6 keeps a process-global file-hash cache keyed by path, not by
+proxy. Two proxies assigning different content or availability to the same path
+may therefore share a stale cached hash, even across separate contexts. OCIO
+also keeps a per-context resolved-path cache. The Rust binding invalidates the
+latter when a proxy is attached or detached, without flushing global state.
+If a path's meaning changes, applications must coordinate with other OCIO users
+and explicitly call `try_clear_all_caches`, then reattach the proxy to each
+affected context/config to invalidate its local path cache. This also applies
+when a mutable provider changes in place. Prefer stable globally unique paths
+for different assets; local invalidation alone cannot isolate proxy namespaces.
+
 Evidence: `tests/config_io_proxy_behavior_tests.rs` covers native processing,
 binary and empty hashes, non-UTF-8 paths, direct and borrowed reads, provider and
 visitor errors/panics, retained ownership, and concurrent in-memory snapshots.

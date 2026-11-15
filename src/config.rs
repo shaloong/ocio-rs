@@ -4484,6 +4484,10 @@ impl Config {
     }
 
     /// Attach a typed config IO proxy used to serve the config and LUT assets.
+    /// Attach a proxy and invalidate this config's context path resolutions.
+    /// OCIO separately caches file hashes process-wide by path, not by proxy.
+    /// When an existing path changes meaning, coordinate with other OCIO users
+    /// and call [`crate::try_clear_all_caches`]; this is never done implicitly.
     pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -4492,7 +4496,8 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    /// Detach the IO proxy. Other retained proxy handles remain valid.
+    /// Detach the IO proxy. Other retained proxy handles remain valid. The
+    /// process-global file hash cache is not implicitly cleared.
     pub fn clear_config_io_proxy(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe {

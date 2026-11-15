@@ -4914,13 +4914,17 @@ void ocio_config_set_config_io_proxy(void* handle, void* ciop) {
   return;
 #else
   try {
-    if (!ciop) {
-      ocio_rs_bridge::get_real_config(handle)->setConfigIOProxy(ocio::ConfigIOProxyRcPtr());
-      return;
+    auto config = ocio_rs_bridge::get_real_config(handle);
+    const std::string working_dir(config->getWorkingDir());
+    ocio::ConfigIOProxyRcPtr proxy;
+    if (ciop) {
+      auto* proxy_handle = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
+      proxy = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(proxy_handle->inner)->proxy;
     }
-    auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
-    auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
-    ocio_rs_bridge::get_real_config(handle)->setConfigIOProxy(ciop_ptr);
+    config->setConfigIOProxy(proxy);
+    // OCIO does not invalidate the current context's path cache when the
+    // proxy changes. Reapply the same working directory to clear that cache.
+    config->setWorkingDir(working_dir.c_str());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -12140,13 +12144,15 @@ void ocio_context_set_config_io_proxy(void* handle, void* ciop) {
   return;
 #else
   try {
-    if (!ciop) {
-      ocio_rs_bridge::get_real_context(handle)->setConfigIOProxy(ocio::ConfigIOProxyRcPtr());
-      return;
+    auto context = ocio_rs_bridge::get_real_context(handle);
+    const std::string working_dir(context->getWorkingDir());
+    ocio::ConfigIOProxyRcPtr proxy;
+    if (ciop) {
+      auto* proxy_handle = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
+      proxy = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(proxy_handle->inner)->proxy;
     }
-    auto* _ciop_h = static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(ciop);
-    auto ciop_ptr = std::static_pointer_cast<ocio_rs_bridge::RealConfigIOProxy>(_ciop_h->inner)->proxy;
-    ocio_rs_bridge::get_real_context(handle)->setConfigIOProxy(ciop_ptr);
+    context->setConfigIOProxy(proxy);
+    context->setWorkingDir(working_dir.c_str());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }

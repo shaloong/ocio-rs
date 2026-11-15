@@ -607,6 +607,10 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Attach a proxy and invalidate this context's cached path resolutions.
+    /// OCIO also caches file hashes process-wide by path, not by proxy. If the
+    /// meaning of an existing path changes, coordinate with other OCIO users
+    /// and call [`crate::try_clear_all_caches`]; it is never called implicitly.
     pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -616,6 +620,8 @@ impl Context {
     }
 
     /// Detach the IO proxy. Other retained proxy handles remain valid.
+    /// The process-global file hash cache is not cleared; see
+    /// [`Self::set_config_io_proxy_object`].
     pub fn clear_config_io_proxy(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe {

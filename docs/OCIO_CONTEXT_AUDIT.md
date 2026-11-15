@@ -20,3 +20,6 @@ removal of an absent nonempty variable, triggering OCIO's existing cache
 invalidation without adding a variable. The regression covers cached string
 and file resolution, used-variable output, and cache identity. This workaround
 is on the mutation path only; resolution itself remains a direct native call.
+Attaching or detaching a proxy also invalidates local resolutions; OCIO's
+process-global path-hash cache remains separate and needs explicit coordination
+as described in [the proxy audit](OCIO_CONFIG_IO_PROXY_AUDIT.md).
