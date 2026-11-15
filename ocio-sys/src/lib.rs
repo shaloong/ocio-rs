@@ -472,6 +472,13 @@ unsafe extern "C" {
         destination: *mut c_void,
         write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
     ) -> bool;
+    pub fn ocio_config_io_proxy_read_native(
+        handle: *mut c_void,
+        path: *const i8,
+        hash: bool,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
     pub fn ocio_config_io_proxy_destroy(handle: *mut c_void);
     pub fn ocio_config_io_proxy_set_config_data(handle: *mut c_void, data: *const i8) -> ();
     pub fn ocio_config_io_proxy_get_config_data(handle: *mut c_void) -> *const i8;

@@ -22,6 +22,12 @@ APIs preserve them; the text convenience getter replaces invalid UTF-8.
 An empty hash signals a missing file to OCIO. LUT queries also accept reusable
 `&CStr` paths, avoiding repeated Rust path allocation; OCIO's virtual methods
 may still allocate native return values.
+`read_lut_data_cstr` and `read_fast_lut_file_hash_cstr` call the two native
+virtual methods independently and preserve empty results; the `try_*` lookup
+conveniences interpret an empty hash as unavailable for custom providers.
+The corresponding `with_*_cstr` methods let a synchronous visitor inspect the
+native result without a second payload copy; OCIO still allocates its native
+return value, and the borrowed slice may not outlive the callback.
 
 | Upstream addition | Rust coverage |
 | --- | --- |

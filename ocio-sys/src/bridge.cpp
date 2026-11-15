@@ -2186,6 +2186,29 @@ void ocio_config_io_proxy_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::ConfigIOProxyHandle*>(handle);
 }
 
+bool ocio_config_io_proxy_read_native(void* handle, const char* path, bool hash,
+                                      void* destination, ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)path; (void)hash; (void)destination; (void)write;
+  ocio_rs_bridge::capture_error_message("config IO requires native OpenColorIO");
+  return false;
+#else
+  try {
+    if (!handle || !path || !write) throw std::invalid_argument("invalid native proxy read");
+    auto proxy = ocio_rs_bridge::get_real_config_io_proxy_handle(handle)->proxy;
+    if (hash) {
+      const auto value = proxy->getFastLutFileHash(path);
+      if (!write(destination, reinterpret_cast<const unsigned char*>(value.data()), value.size()))
+        throw ocio::Exception("LUT hash visitor failed");
+    } else {
+      const auto value = proxy->getLutData(path);
+      if (!write(destination, value.data(), value.size())) throw ocio::Exception("LUT visitor failed");
+    }
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* destination,
                                         ocio_proxy_write_callback write) {
 #ifdef OCIO_RS_STUB

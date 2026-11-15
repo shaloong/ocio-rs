@@ -275,6 +275,108 @@ impl ConfigIOProxy {
         Ok(found.then_some(bytes))
     }
 
+    /// Call OCIO's native `getLutData` directly, without first checking the hash.
+    /// An empty result may mean an empty LUT or an unavailable file; this
+    /// method does not infer availability. Native OCIO returns an owned vector,
+    /// whose bytes are copied into Rust-owned storage across the bridge.
+    pub fn read_lut_data_cstr(&self, filepath: &CStr) -> Result<Vec<u8>> {
+        self.with_lut_data_cstr(filepath, |bytes| Ok(bytes.to_vec()))
+    }
+
+    /// Call OCIO's native `getFastLutFileHash` directly, preserving empty and
+    /// non-UTF-8 hashes without interpreting them as an `Option`.
+    pub fn read_fast_lut_file_hash_cstr(&self, filepath: &CStr) -> Result<Vec<u8>> {
+        self.with_fast_lut_file_hash_cstr(filepath, |bytes| Ok(bytes.to_vec()))
+    }
+
+    /// Inspect the native `getLutData` result without copying it into Rust.
+    /// The slice is valid only during `visitor`, which must not reenter this
+    /// proxy. OCIO still constructs the native owned result. Errors and panics
+    /// are contained at the FFI boundary.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{ConfigIOProxy, Result};
+    /// # fn example(proxy: &ConfigIOProxy) -> Result<()> {
+    /// let leaked = proxy.with_lut_data_cstr(c"lut.clf", |data| Ok(data))?;
+    /// println!("{:?}", leaked);
+    /// # Ok(()) }
+    /// ```
+    pub fn with_lut_data_cstr<T>(
+        &self,
+        filepath: &CStr,
+        visitor: impl FnOnce(&[u8]) -> Result<T>,
+    ) -> Result<T> {
+        self.with_native_cstr(filepath, false, visitor)
+    }
+
+    /// Inspect native hash bytes without copying them into Rust-owned storage.
+    /// The same callback, lifetime, and reentrancy rules as [`Self::with_lut_data_cstr`] apply.
+    pub fn with_fast_lut_file_hash_cstr<T>(
+        &self,
+        filepath: &CStr,
+        visitor: impl FnOnce(&[u8]) -> Result<T>,
+    ) -> Result<T> {
+        self.with_native_cstr(filepath, true, visitor)
+    }
+
+    fn with_native_cstr<T, F: FnOnce(&[u8]) -> Result<T>>(
+        &self,
+        filepath: &CStr,
+        hash: bool,
+        visitor: F,
+    ) -> Result<T> {
+        struct State<F, T> {
+            visitor: Option<F>,
+            result: Option<Result<T>>,
+        }
+        unsafe extern "C" fn visit<T, F: FnOnce(&[u8]) -> Result<T>>(
+            context: *mut c_void,
+            data: *const u8,
+            len: usize,
+        ) -> bool {
+            let state = unsafe { &mut *context.cast::<State<F, T>>() };
+            let Some(visitor) = state.visitor.take() else {
+                return false;
+            };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let bytes = if len == 0 {
+                    &[]
+                } else {
+                    unsafe { std::slice::from_raw_parts(data, len) }
+                };
+                visitor(bytes)
+            }))
+            .unwrap_or_else(|_| Err(OcioError::Ocio("native proxy visitor panicked".into())));
+            let ok = result.is_ok();
+            state.result = Some(result);
+            ok
+        }
+        let mut state = State {
+            visitor: Some(visitor),
+            result: None,
+        };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_config_io_proxy_read_native(
+                self.handle.as_ptr(),
+                filepath.as_ptr(),
+                hash,
+                (&mut state as *mut State<F, T>).cast(),
+                visit::<T, F>,
+            )
+        };
+        if state.result.as_ref().is_some_and(Result::is_err) {
+            return state.result.take().expect("checked visitor result");
+        }
+        crate::ocio_call_status()?;
+        if !ok {
+            return Err(OcioError::Ocio("native proxy read failed".into()));
+        }
+        state
+            .result
+            .ok_or_else(|| OcioError::Ocio("native proxy visitor was not called".into()))?
+    }
+
     /// Copy the LUT payload into `data`, returning whether the copy succeeded.
     ///
     /// Returns `Ok(true)` if data was copied, `Ok(false)` if the LUT was not

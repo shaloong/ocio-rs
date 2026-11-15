@@ -200,6 +200,8 @@ void* ocio_config_io_proxy_create_with_callback(void* context, ocio_proxy_read_c
                                                  void (*release)(void*));
 bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* destination,
                                         ocio_proxy_write_callback write);
+bool ocio_config_io_proxy_read_native(void* handle, const char* path, bool hash,
+                                      void* destination, ocio_proxy_write_callback write);
 void ocio_config_io_proxy_destroy(void* handle);
 void ocio_config_io_proxy_set_config_data(void* handle, const char* data);
 const char* ocio_config_io_proxy_get_config_data(void* handle);

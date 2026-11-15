@@ -420,6 +420,11 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
     }
     let proxy = ConfigIOProxy::from_provider(LutFailure).unwrap();
     assert!(proxy
+        .read_lut_data_cstr(c"test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("LUT backend unavailable"));
+    assert!(proxy
         .try_lut_data("test.clf")
         .unwrap_err()
         .to_string()
@@ -444,6 +449,12 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
         }
     }
     let proxy = ConfigIOProxy::from_provider(HashFailure).unwrap();
+    assert_eq!(proxy.read_lut_data_cstr(c"test.clf").unwrap(), b"data");
+    assert!(proxy
+        .read_fast_lut_file_hash_cstr(c"test.clf")
+        .unwrap_err()
+        .to_string()
+        .contains("hash backend unavailable"));
     assert!(proxy
         .try_fast_lut_file_hash_bytes("test.clf")
         .unwrap_err()
@@ -526,6 +537,24 @@ fn lut_hash_preserves_binary_bytes_for_memory_and_custom_providers() {
         memory.try_fast_lut_file_hash_bytes("missing").unwrap(),
         None
     );
+    memory
+        .set_lut_data_with_hash_bytes("empty-hash.clf", b"payload", b"")
+        .unwrap();
+    assert_eq!(
+        memory.read_lut_data_cstr(c"empty-hash.clf").unwrap(),
+        b"payload"
+    );
+    assert_eq!(
+        memory
+            .read_fast_lut_file_hash_cstr(c"empty-hash.clf")
+            .unwrap(),
+        b""
+    );
+    assert_eq!(memory.read_lut_data_cstr(c"missing").unwrap(), b"");
+    assert_eq!(
+        memory.read_fast_lut_file_hash_cstr(c"missing").unwrap(),
+        b""
+    );
     struct RawPath;
     impl ConfigIOProvider for RawPath {
         fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
@@ -555,6 +584,30 @@ fn lut_hash_preserves_binary_bytes_for_memory_and_custom_providers() {
             .as_deref(),
         Some(&b"hash"[..])
     );
+    assert_eq!(raw.read_lut_data_cstr(path).unwrap(), b"value");
+    assert_eq!(raw.read_fast_lut_file_hash_cstr(path).unwrap(), b"hash");
+    assert_eq!(
+        raw.with_lut_data_cstr(path, |bytes| Ok(bytes.len()))
+            .unwrap(),
+        5
+    );
+    assert_eq!(
+        raw.with_fast_lut_file_hash_cstr(path, |bytes| Ok(bytes[0]))
+            .unwrap(),
+        b'h'
+    );
+    assert!(raw
+        .with_lut_data_cstr(path, |_| -> ocio_rs::Result<()> {
+            Err(ocio_rs::OcioError::InvalidInput("visitor failure".into()))
+        })
+        .unwrap_err()
+        .to_string()
+        .contains("visitor failure"));
+    assert!(raw
+        .with_lut_data_cstr(path, |_| -> ocio_rs::Result<()> { panic!("visitor panic") })
+        .unwrap_err()
+        .to_string()
+        .contains("panicked"));
 }
 
 #[test]
