@@ -115,6 +115,7 @@ mod format_metadata;
 pub mod grading;
 mod look;
 mod named_transform;
+mod output_writer;
 mod processor;
 mod processor_metadata;
 pub mod transform;

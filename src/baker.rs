@@ -185,59 +185,12 @@ impl Baker {
     /// Do not reenter the same baker from the writer callback.
     /// In stub builds, no bytes are written.
     pub fn bake_to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> Result<()> {
-        struct State<'a, W: ?Sized> {
-            writer: &'a mut W,
-            error: Option<OcioError>,
+        // The native bridge uses the callback synchronously and does not retain it.
+        unsafe {
+            crate::output_writer::write_to(writer, "Baker", |context, callback| {
+                ocio_sys::ocio_baker_bake_to_writer(self.handle.as_ptr(), context, callback)
+            })
         }
-        unsafe extern "C" fn write<W: Write + ?Sized>(
-            context: *mut c_void,
-            data: *const u8,
-            len: usize,
-        ) -> bool {
-            let state = unsafe { &mut *context.cast::<State<'_, W>>() };
-            if state.error.is_some() {
-                return false;
-            }
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let bytes = if len == 0 {
-                    &[]
-                } else {
-                    unsafe { std::slice::from_raw_parts(data, len) }
-                };
-                state.writer.write_all(bytes)
-            }));
-            match result {
-                Ok(Ok(())) => true,
-                Ok(Err(error)) => {
-                    state.error = Some(OcioError::Ocio(error.to_string()));
-                    false
-                }
-                Err(_) => {
-                    state.error = Some(OcioError::Ocio("Baker output writer panicked".into()));
-                    false
-                }
-            }
-        }
-        let mut state = State {
-            writer,
-            error: None,
-        };
-        crate::clear_last_error();
-        let ok = unsafe {
-            ocio_sys::ocio_baker_bake_to_writer(
-                self.handle.as_ptr(),
-                (&mut state as *mut State<'_, W>).cast(),
-                write::<W>,
-            )
-        };
-        if let Some(error) = state.error {
-            return Err(error);
-        }
-        crate::ocio_call_status()?;
-        if !ok {
-            return Err(OcioError::Ocio("Baker output writer failed".into()));
-        }
-        Ok(())
     }
 
     /// Bake into a byte buffer. Returns `None` in stub builds.
