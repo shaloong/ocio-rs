@@ -76,6 +76,30 @@ pub struct SharedGradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl SharedGradingRGBCurve {
+    /// Borrow a child spline without allocating a new ownership handle.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{SharedGradingRGBCurve, RGBCurveType};
+    /// # fn example(value: SharedGradingRGBCurve) {
+    /// let view = value.curve_ref(RGBCurveType::Red).unwrap();
+    /// drop(value);
+    /// let _ = view.num_control_points();
+    /// # }
+    /// ```
+    pub fn curve_ref(&self, kind: crate::RGBCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_spline_view(
+                self.handle.as_ptr(),
+                kind as i32,
+                false,
+            )
+        };
+        Ok(ConstGradingBSplineCurve {
+            handle: crate::handle_result(ptr.cast_mut())?,
+            owner: std::marker::PhantomData,
+        })
+    }
     /// Check OCIO identity without making an editable copy.
     pub fn is_identity(&self) -> Result<bool> {
         crate::clear_last_error();
@@ -141,6 +165,21 @@ pub struct SharedGradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl SharedGradingHueCurve {
+    /// Borrow a child spline without allocating a new ownership handle.
+    pub fn curve_ref(&self, kind: crate::HueCurveType) -> Result<ConstGradingBSplineCurve<'_>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_spline_view(
+                self.handle.as_ptr(),
+                kind as i32,
+                true,
+            )
+        };
+        Ok(ConstGradingBSplineCurve {
+            handle: crate::handle_result(ptr.cast_mut())?,
+            owner: std::marker::PhantomData,
+        })
+    }
     /// Read the native draw-only flag without making an editable copy.
     pub fn draw_curve_only(&self) -> Result<bool> {
         crate::clear_last_error();

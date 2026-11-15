@@ -8,6 +8,11 @@ unsafe extern "C" {
         kind: i32,
         hue: bool,
     ) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_spline_view(
+        value: *mut c_void,
+        kind: i32,
+        hue: bool,
+    ) -> *const c_void;
     pub fn ocio_grading_curve_value_shared_copy(value: *mut c_void, hue: bool) -> *mut c_void;
     pub fn ocio_grading_curve_value_shared_identity(value: *mut c_void, hue: bool) -> bool;
     pub fn ocio_grading_curve_value_shared_validate(value: *mut c_void, hue: bool);

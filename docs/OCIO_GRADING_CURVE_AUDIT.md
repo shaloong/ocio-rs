@@ -21,6 +21,8 @@ tests for representative validation.
 Transform and dynamic-property `getValue` return native const curve sets.
 `SharedGradingRGBCurve` and `SharedGradingHueCurve` retain those values without
 deep copying, and can retain child splines or make explicit editable copies.
+Their `curve_ref` methods additionally borrow a child without allocating a new
+ownership handle; the borrow cannot outlive its shared parent.
 Replacing the source value does not retarget a retained value. The typed
 editable `from_transform` and legacy raw-value paths create independent copies;
 `set_transform` delegates native validation and copying. Native callbacks,

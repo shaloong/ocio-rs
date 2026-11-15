@@ -81,6 +81,7 @@ fn shared_rgb_value_retains_previous_native_value_after_replacement() {
         .dynamic_property(DynamicPropertyType::GradingRgbCurve)
         .unwrap();
     let old = property.grading_rgb_curve_shared().unwrap();
+    let old_view = old.curve_ref(RGBCurveType::Red).unwrap();
     let old_child = old.curve_shared(RGBCurveType::Red).unwrap();
     let old_slope = old_child.view().slope(0).unwrap();
     let mut replacement = old.create_editable_copy().unwrap();
@@ -90,6 +91,7 @@ fn shared_rgb_value_retains_previous_native_value_after_replacement() {
         .set_slope(0, 0.37)
         .unwrap();
     property.set_grading_rgb_curve_object(&replacement).unwrap();
+    assert_eq!(old_view.slope(0).unwrap(), old_slope);
     let new = property.grading_rgb_curve_shared().unwrap();
     assert_eq!(
         new.curve_shared(RGBCurveType::Red)
