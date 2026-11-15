@@ -352,6 +352,25 @@ fn const_context_exposes_native_enumeration_and_retained_proxy() {
     drop(proxy);
     let shared = config.try_const_current_context().unwrap().unwrap();
     let editable = shared.create_editable_copy().unwrap();
+    assert_eq!(shared.serialize().unwrap(), editable.serialize().unwrap());
+    assert!(shared.serialize().unwrap().contains("SHOT"));
+    let target = ocio_rs::Context::create().unwrap();
+    target.set_string_var("SHOT", "old").unwrap();
+    target.set_string_var("OTHER", "keep").unwrap();
+    target.try_add_string_vars_from_const(&shared).unwrap();
+    assert_eq!(
+        target.try_string_var("SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
+    assert_eq!(
+        target.try_string_var("OTHER").unwrap().as_deref(),
+        Some("keep")
+    );
+    target.set_string_var("SHOT", "local").unwrap();
+    assert_eq!(
+        shared.string_var(c"SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
     assert_eq!(
         shared.num_search_paths().unwrap(),
         editable.try_num_search_paths().unwrap()

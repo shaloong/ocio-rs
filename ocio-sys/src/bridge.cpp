@@ -6253,6 +6253,30 @@ const char* ocio_const_context_resolve_with_used(void* handle, int field, const 
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+void ocio_context_add_string_vars_from_const(void* handle, void* source) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)source; ocio_rs_bridge::capture_error_message("Native context required");
+#else
+  try {
+    if (!handle || !source) throw std::invalid_argument("null context");
+    ocio_rs_bridge::get_real_context(handle)->addStringVars(*static_cast<ocio::ConstContextRcPtr*>(source));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+const char* ocio_context_serialize_text(void* handle, bool is_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; ocio_rs_bridge::capture_error_message("Native context required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null context");
+    std::ostringstream out;
+    if (is_const) out << **static_cast<ocio::ConstContextRcPtr*>(handle);
+    else out << *ocio_rs_bridge::get_real_context(handle);
+    ocio_rs_bridge::g_serialized_text = out.str();
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)context; (void)source; (void)destination;

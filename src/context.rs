@@ -14,7 +14,23 @@ pub struct Context {
 pub struct ConstContext {
     pub(crate) handle: NonNull<c_void>,
 }
+fn serialize_context(handle: NonNull<c_void>, is_const: bool) -> Result<String> {
+    crate::clear_last_error();
+    let text = unsafe {
+        crate::cstr_to_opt_string(ocio_sys::ocio_context_serialize_text(
+            handle.as_ptr(),
+            is_const,
+        ))
+    };
+    crate::ocio_call_status()?;
+    text.ok_or_else(|| OcioError::Ocio("OCIO returned a null context representation".into()))
+}
 impl ConstContext {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// The output may include context-variable values and other sensitive data.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_context(self.handle, true)
+    }
     fn integer(&self, field: i32) -> Result<i32> {
         crate::clear_last_error();
         let value = unsafe { ocio_sys::ocio_const_context_get_int(self.handle.as_ptr(), field) };
@@ -154,6 +170,11 @@ impl Drop for ConstContext {
 }
 
 impl Context {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// The output may include context-variable values and other sensitive data.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_context(self.handle, false)
+    }
     /// Create a new OCIO context with default search-path and environment behavior.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -529,6 +550,18 @@ impl Context {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_add_string_vars(self.handle.as_ptr(), other.handle.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Merge variables directly from a shared read-only context without copying it.
+    pub fn try_add_string_vars_from_const(&self, other: &ConstContext) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_add_string_vars_from_const(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
         };
         crate::ocio_call_status()
     }

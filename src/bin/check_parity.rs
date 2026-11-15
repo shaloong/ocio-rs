@@ -824,6 +824,11 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("set_lut_data_bytes", "set_lut_data_with_hash_bytes"),
         ("visit_fast_lut_file_hash", "try_fast_lut_file_hash_bytes"),
         ("visit_config_data", "try_config_data_bytes"),
+        (
+            "add_string_vars_from_const",
+            "try_add_string_vars_from_const",
+        ),
+        ("serialize_text", "serialize"),
         ("add_uniform_double_getter", "add_uniform_f64_getter"),
         ("add_uniform_vector_float", "add_uniform_f32_array"),
         (

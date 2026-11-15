@@ -218,6 +218,8 @@ unsafe extern "C" {
         input: *const i8,
         used: *mut c_void,
     ) -> *const i8;
+    pub fn ocio_context_add_string_vars_from_const(handle: *mut c_void, source: *mut c_void);
+    pub fn ocio_context_serialize_text(handle: *mut c_void, is_const: bool) -> *const i8;
     pub fn ocio_config_get_processor_with_const_context(
         config: *mut c_void,
         context: *mut c_void,

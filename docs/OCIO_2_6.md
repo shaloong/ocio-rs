@@ -88,6 +88,9 @@ Read-only current contexts support indexed search paths and variables,
 environment mode, resolution with used-variable tracking, and retained IO
 proxies without making an editable context copy. Text results are owned because
 other native aliases may change the underlying context.
+An editable context can merge variables directly from a read-only context;
+both expose OCIO's diagnostic stream output, which may contain sensitive data
+and is not a stable interchange format.
 Menu parameters, menus, mixing managers, sliders, legacy viewing pipelines,
 and merging parameters expose OCIO's diagnostic stream representations as
 owned strings; these are not stable interchange or round-trip formats.
