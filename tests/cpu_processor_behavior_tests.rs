@@ -378,6 +378,59 @@ fn packed_abgr_negative_pixel_stride_keeps_padding() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_channel_orders_and_signed_strides_preserve_pixel_and_padding() {
+    use ocio_rs::{ChannelOrdering, PackedImageLayout};
+    let _guard = cpu_processor_test_lock();
+    let cpu = scaled_processor([0.5, 1.0, 1.0, 1.0])
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    for (order, red_offset, channels) in [
+        (ChannelOrdering::Rgba, 0usize, 4usize),
+        (ChannelOrdering::Bgra, 2, 4),
+        (ChannelOrdering::Abgr, 3, 4),
+        (ChannelOrdering::Rgb, 0, 3),
+        (ChannelOrdering::Bgr, 2, 3),
+    ] {
+        for x_sign in [-1isize, 1] {
+            for y_sign in [-1isize, 1] {
+                let x_stride = x_sign * 6;
+                let y_stride = y_sign * 16;
+                let origin = (24 + if x_sign < 0 { 6 } else { 0 } + if y_sign < 0 { 16 } else { 0 })
+                    as usize;
+                let layout = PackedImageLayout {
+                    width: 2,
+                    height: 2,
+                    origin,
+                    channel_stride: 1,
+                    x_stride,
+                    y_stride,
+                    bit_depth: BitDepth::Uint8,
+                    channel_order: order,
+                };
+                let mut data = [231u8; 80];
+                let mut expected = data;
+                for y in 0..2isize {
+                    for x in 0..2isize {
+                        let start = (origin as isize + x * x_stride + y * y_stride) as usize;
+                        for c in 0..channels {
+                            data[start + c] = if c == red_offset { 100 } else { 60 + c as u8 };
+                            expected[start + c] = if c == red_offset { 50 } else { 60 + c as u8 };
+                        }
+                    }
+                }
+                cpu.try_apply_packed_image(&mut data, layout).unwrap();
+                assert_eq!(
+                    data, expected,
+                    "order={order:?}, x={x_stride}, y={y_stride}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgba_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
