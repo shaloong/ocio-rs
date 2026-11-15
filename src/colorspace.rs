@@ -10,9 +10,10 @@ use crate::{
 use ocio_sys;
 
 #[cfg(feature = "v2_5")]
-fn interchange_attributes_snapshot(
+pub(crate) fn interchange_attributes_snapshot(
     handle: *mut c_void,
     is_const: bool,
+    named_kind: Option<i32>,
 ) -> Result<BTreeMap<String, String>> {
     unsafe extern "C" fn visit(
         context: *mut c_void,
@@ -44,12 +45,15 @@ fn interchange_attributes_snapshot(
     let mut attributes = BTreeMap::new();
     crate::clear_last_error();
     let ok = unsafe {
-        ocio_sys::ocio_color_space_visit_interchange_attributes(
-            handle,
-            is_const,
-            visit,
-            (&mut attributes as *mut BTreeMap<String, String>).cast(),
-        )
+        let context = (&mut attributes as *mut BTreeMap<String, String>).cast();
+        match named_kind {
+            Some(kind) => ocio_sys::ocio_named_item_visit_interchange_attributes(
+                handle, kind, is_const, visit, context,
+            ),
+            None => ocio_sys::ocio_color_space_visit_interchange_attributes(
+                handle, is_const, visit, context,
+            ),
+        }
     };
     crate::ocio_call_status()?;
     if !ok {
@@ -190,7 +194,7 @@ impl ConstColorSpace {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
-        interchange_attributes_snapshot(self.handle.as_ptr(), true)
+        interchange_attributes_snapshot(self.handle.as_ptr(), true, None)
     }
     /// Number of aliases.
     pub fn num_aliases(&self) -> Result<usize> {
@@ -852,7 +856,7 @@ impl ColorSpace {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
-        interchange_attributes_snapshot(self.handle.as_ptr(), false)
+        interchange_attributes_snapshot(self.handle.as_ptr(), false, None)
     }
 }
 

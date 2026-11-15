@@ -112,6 +112,11 @@ accessors!(ConstNamedTransform, NamedTransform);
 accessors!(ConstViewTransform, ViewTransform);
 
 impl ConstLook {
+    /// Return an owned snapshot of all interchange attributes.
+    #[cfg(feature = "v2_5")]
+    pub fn try_interchange_attributes(&self) -> Result<std::collections::BTreeMap<String, String>> {
+        crate::colorspace::interchange_attributes_snapshot(self.0.handle.as_ptr(), true, Some(0))
+    }
     /// Borrow the process-space name.
     pub fn process_space(&self) -> Result<Option<&CStr>> {
         self.0.text(2, 0, None)
@@ -183,6 +188,11 @@ impl ConstNamedTransform {
     }
 }
 impl ConstViewTransform {
+    /// Return an owned snapshot of all interchange attributes.
+    #[cfg(feature = "v2_5")]
+    pub fn try_interchange_attributes(&self) -> Result<std::collections::BTreeMap<String, String>> {
+        crate::colorspace::interchange_attributes_snapshot(self.0.handle.as_ptr(), true, Some(2))
+    }
     /// Borrow the family string.
     pub fn family(&self) -> Result<Option<&CStr>> {
         self.0.text(3, 0, None)

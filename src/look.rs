@@ -135,29 +135,14 @@ impl Look {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
-        let mut attrs = BTreeMap::new();
-        let count =
-            unsafe { ocio_sys::ocio_look_get_num_interchange_attributes(self.handle.as_ptr()) };
-        for index in 0..count {
-            let name = unsafe {
-                cstr_to_opt_string(ocio_sys::ocio_look_get_interchange_attribute_name_by_index(
-                    self.handle.as_ptr(),
-                    index,
-                ))
-            };
-            let value = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_look_get_interchange_attribute_value_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            if let (Some(name), Some(value)) = (name, value) {
-                attrs.insert(name, value);
-            }
-        }
-        attrs
+        self.try_interchange_attributes().unwrap_or_default()
+    }
+
+    /// Return a snapshot of all interchange attributes, preserving errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        crate::colorspace::interchange_attributes_snapshot(self.handle.as_ptr(), false, Some(0))
     }
 
     /// Get an independent editable copy of the forward transform.

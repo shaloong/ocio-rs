@@ -101,6 +101,32 @@ fn config_named_items_are_copied_or_shared_read_only() {
             c"view-id"
         );
         assert!(shared_view.interchange_attribute(c"unknown").is_err());
+        let look_snapshot = shared_look.try_interchange_attributes().unwrap();
+        let view_snapshot = shared_view.try_interchange_attributes().unwrap();
+        assert_eq!(
+            look_snapshot.get("amf_transform_ids").map(String::as_str),
+            Some("look-id")
+        );
+        assert_eq!(
+            view_snapshot.get("amf_transform_ids").map(String::as_str),
+            Some("view-id")
+        );
+        assert_eq!(look.try_interchange_attributes().unwrap(), look_snapshot);
+        assert_eq!(view.try_interchange_attributes().unwrap(), view_snapshot);
+        assert_eq!(look.interchange_attributes(), look_snapshot);
+        assert_eq!(view.interchange_attributes(), view_snapshot);
+        look.set_interchange_attribute("amf_transform_ids", "changed-look-id")
+            .unwrap();
+        view.set_interchange_attribute("amf_transform_ids", "changed-view-id")
+            .unwrap();
+        assert_eq!(
+            shared_look.try_interchange_attributes().unwrap(),
+            look_snapshot
+        );
+        assert_eq!(
+            shared_view.try_interchange_attributes().unwrap(),
+            view_snapshot
+        );
     }
     let shared_default = config
         .try_const_default_scene_to_display_view_transform()

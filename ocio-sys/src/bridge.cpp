@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <map>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -5784,6 +5785,30 @@ bool ocio_color_space_visit_interchange_attributes(void* handle, bool is_const, 
       ? *static_cast<ocio::ConstColorSpaceRcPtr*>(handle)
       : ocio_rs_bridge::get_real_color_space(handle);
     for (const auto& entry : space->getInterchangeAttributes()) {
+      if (!visitor(context, entry.first.data(), entry.first.size(), entry.second.data(), entry.second.size()))
+        throw std::runtime_error("interchange attribute visitor failed");
+    }
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_named_item_visit_interchange_attributes(void* handle, int kind, bool is_const, ocio_attribute_visitor visitor, void* context) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)kind; (void)is_const; (void)visitor; (void)context;
+  return true;
+#else
+  try {
+    if (!handle || !visitor) throw std::invalid_argument("invalid interchange attribute visitor");
+    std::map<std::string, std::string> attributes;
+    if (kind == 0) {
+      ocio::ConstLookRcPtr item = is_const ? *static_cast<ocio::ConstLookRcPtr*>(handle) : ocio_rs_bridge::get_real_look(handle);
+      attributes = item->getInterchangeAttributes();
+    } else if (kind == 2) {
+      ocio::ConstViewTransformRcPtr item = is_const ? *static_cast<ocio::ConstViewTransformRcPtr*>(handle) : ocio_rs_bridge::get_real_view_transform(handle);
+      attributes = item->getInterchangeAttributes();
+    } else throw std::invalid_argument("invalid interchange attribute item kind");
+    for (const auto& entry : attributes) {
       if (!visitor(context, entry.first.data(), entry.first.size(), entry.second.data(), entry.second.size()))
         throw std::runtime_error("interchange attribute visitor failed");
     }

@@ -1330,6 +1330,14 @@ unsafe extern "C" {
         visitor: unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> bool,
         context: *mut c_void,
     ) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_named_item_visit_interchange_attributes(
+        handle: *mut c_void,
+        kind: i32,
+        is_const: bool,
+        visitor: unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> bool,
+        context: *mut c_void,
+    ) -> bool;
     pub fn ocio_color_space_set_const_transform(
         handle: *mut c_void,
         transform: *mut c_void,

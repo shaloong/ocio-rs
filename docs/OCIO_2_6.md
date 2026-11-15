@@ -10,6 +10,9 @@ The [global API audit](OCIO_GLOBAL_API_AUDIT.md) maps the global declarations
 and records remaining validation limitations.
 The [config IO proxy audit](OCIO_CONFIG_IO_PROXY_AUDIT.md) maps its virtual
 signatures, ownership, and byte-oriented access.
+Editable and shared read-only color spaces, looks, and view transforms expose
+fallible interchange-attribute snapshots. Each call obtains one native map;
+the returned Rust map is independent of subsequent object changes.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the
