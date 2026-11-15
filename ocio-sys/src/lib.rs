@@ -164,6 +164,20 @@ unsafe extern "C" {
         transform: *mut c_void,
         direction: i32,
     ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_display(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        display: *const i8,
+        view: *const i8,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_named(
+        handle: *mut c_void,
+        context: *mut c_void,
+        name: *const i8,
+        direction: i32,
+    ) -> *mut c_void;
     pub fn ocio_const_named_item_text(
         handle: *mut c_void,
         kind: i32,

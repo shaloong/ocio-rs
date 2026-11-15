@@ -155,6 +155,50 @@ impl ConstConfig {
         };
         Config::processor_handle_result(handle)
     }
+
+    /// Create a display/view processor with an optional read-only context.
+    /// Dynamic processors are isolated as described by [`Self::processor`].
+    pub fn processor_display(
+        &self,
+        src: &std::ffi::CStr,
+        display: &std::ffi::CStr,
+        view: &std::ffi::CStr,
+        direction: TransformDirection,
+        context: Option<&crate::ConstContext>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor_display(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                src.as_ptr(),
+                display.as_ptr(),
+                view.as_ptr(),
+                direction as i32,
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+
+    /// Create a named-transform processor with an optional read-only context.
+    /// Dynamic processors are isolated as described by [`Self::processor`].
+    pub fn processor_named_transform(
+        &self,
+        name: &std::ffi::CStr,
+        direction: TransformDirection,
+        context: Option<&crate::ConstContext>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_processor_named(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
+                name.as_ptr(),
+                direction as i32,
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
 }
 impl Drop for ConstConfig {
     fn drop(&mut self) {

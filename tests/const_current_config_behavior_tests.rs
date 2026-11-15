@@ -6,6 +6,9 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     let previous = try_current_config().unwrap().unwrap();
     let first = Config::raw().unwrap();
     first.set_name("first-global").unwrap();
+    first
+        .add_display("TestDisplay", "TestView", "raw", "")
+        .unwrap();
     let look = ocio_rs::Look::create().unwrap();
     look.set_name("global-look").unwrap();
     look.set_process_space("raw").unwrap();
@@ -33,6 +36,33 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     assert!(shared
         .processor_with_const_context(c"missing", c"raw", &shared_context)
         .is_err());
+    for context in [None, Some(&shared_context)] {
+        let processor = shared
+            .processor_display(
+                c"raw",
+                c"TestDisplay",
+                c"TestView",
+                ocio_rs::TransformDirection::Forward,
+                context,
+            )
+            .unwrap();
+        let mut pixel = [0.2, 0.4, 0.6, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        assert_eq!(pixel, [0.2, 0.4, 0.6, 1.0]);
+        assert!(shared
+            .processor_display(
+                c"raw",
+                c"missing",
+                c"TestView",
+                ocio_rs::TransformDirection::Forward,
+                context
+            )
+            .is_err());
+    }
     assert!(shared.try_const_color_space(c"raw").unwrap().is_some());
     assert_eq!(
         shared
@@ -93,6 +123,12 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     input.set_name("dynamic-input").unwrap();
     let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
     exposure.make_exposure_dynamic();
+    let named = ocio_rs::NamedTransform::create().unwrap();
+    named.set_name("dynamic-named").unwrap();
+    named
+        .try_set_transform(&exposure, ocio_rs::TransformDirection::Forward)
+        .unwrap();
+    dynamic_config.try_add_named_transform(&named).unwrap();
     input
         .try_set_transform(&exposure, ocio_rs::ColorSpaceDirection::ToReference)
         .unwrap();
@@ -100,6 +136,30 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     try_set_current_config(&dynamic_config).unwrap();
     let snapshot = try_const_current_config().unwrap().unwrap();
     let context = snapshot.try_const_current_context().unwrap().unwrap();
+    for ctx in [None, Some(&context)] {
+        let first = snapshot
+            .processor_named_transform(c"dynamic-named", ocio_rs::TransformDirection::Forward, ctx)
+            .unwrap();
+        let second = snapshot
+            .processor_named_transform(c"dynamic-named", ocio_rs::TransformDirection::Forward, ctx)
+            .unwrap();
+        first
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .set_double_value(1.5)
+            .unwrap();
+        assert_eq!(
+            second
+                .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+                .unwrap()
+                .double_value()
+                .unwrap(),
+            0.0
+        );
+        assert!(snapshot
+            .processor_named_transform(c"missing", ocio_rs::TransformDirection::Forward, ctx)
+            .is_err());
+    }
     let ctx_left = snapshot
         .processor_with_const_context(c"dynamic-input", c"reference", &context)
         .unwrap();

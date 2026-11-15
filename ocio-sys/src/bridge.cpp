@@ -1574,6 +1574,18 @@ template<typename T> struct OcioRsUniformArrayGetter {
     return length ? values.data() : nullptr;
   }
 };
+
+// Keep dynamic-property isolation consistent across every ConstConfig
+// processor overload, while preserving native caching for static processors.
+template<typename Build>
+static void* ocio_rs_const_config_processor(const ocio::ConstConfigRcPtr& config, Build&& build) {
+  auto processor = build(config);
+  if (processor && processor->isDynamic()) processor = build(config->createEditableCopy());
+  if (!processor) return nullptr;
+  auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+  out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+  return out.release();
+}
 #endif
 
 // =====================================================================
@@ -1856,18 +1868,9 @@ void* ocio_const_config_get_processor(void* handle, const char* source, const ch
 #else
   try {
     auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
-    auto p = config->getProcessor(source, destination);
-    // The global immutable config may be queried independently on different
-    // threads. OCIO may return a cached processor with shared, unsynchronized
-    // dynamic properties. Isolate only dynamic pipelines; ordinary lookups
-    // retain native config and processor caching without a copy.
-    if (p && p->isDynamic()) {
-      p = config->createEditableCopy()->getProcessor(source, destination);
-    }
-    if (!p) return nullptr;
-    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
-    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
-    return out.release();
+    return ocio_rs_const_config_processor(config, [&](const ocio::ConstConfigRcPtr& cfg) {
+      return cfg->getProcessor(source, destination);
+    });
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -1880,12 +1883,9 @@ void* ocio_const_config_get_processor_with_context(void* handle, void* context, 
     if (!handle || !context || !source || !destination) throw std::invalid_argument("invalid const config processor arguments");
     auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
     auto ctx = *static_cast<ocio::ConstContextRcPtr*>(context);
-    auto p = config->getProcessor(ctx, source, destination);
-    if (p && p->isDynamic()) p = config->createEditableCopy()->getProcessor(ctx, source, destination);
-    if (!p) return nullptr;
-    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
-    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
-    return out.release();
+    return ocio_rs_const_config_processor(config, [&](const ocio::ConstConfigRcPtr& cfg) {
+      return cfg->getProcessor(ctx, source, destination);
+    });
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -1903,12 +1903,39 @@ void* ocio_const_config_get_processor_from_transform(void* handle, void* context
       return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), value, dir)
                      : cfg->getProcessor(value, dir);
     };
-    auto p = build(config);
-    if (p && p->isDynamic()) p = build(config->createEditableCopy());
-    if (!p) return nullptr;
-    auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
-    out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(p)});
-    return out.release();
+    return ocio_rs_const_config_processor(config, build);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_processor_display(void* handle, void* context, const char* source, const char* display, const char* view, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)source; (void)display; (void)view; (void)direction; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !source || !display || !view) throw std::invalid_argument("invalid display processor arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
+      return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), source, display, view, dir)
+                     : cfg->getProcessor(source, display, view, dir);
+    };
+    return ocio_rs_const_config_processor(config, build);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_processor_named(void* handle, void* context, const char* name, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)name; (void)direction; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !name) throw std::invalid_argument("invalid named processor arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
+      return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), name, dir)
+                     : cfg->getProcessor(name, dir);
+    };
+    return ocio_rs_const_config_processor(config, build);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
