@@ -1721,6 +1721,7 @@ const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index);
 
 void* ocio_grading_bspline_curve_create(size_t count);
 void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode);
+void* ocio_grading_bspline_curve_create_from_points_unvalidated(const float (*xy)[2], size_t count, int kind, int mode);
 void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind);
 void* ocio_grading_bspline_curve_create_with_hue_type(size_t count, int kind);
 void ocio_grading_bspline_curve_destroy(void* h);

@@ -22,6 +22,38 @@ fn spline_points_slopes_copy_and_errors() {
     assert!(curve.set_slope(99, 0.5).is_err());
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn point_list_construction_can_defer_native_validation() {
+    let empty = GradingBSplineCurve::create_from_points_unvalidated(&[]).unwrap();
+    assert_eq!(empty.num_control_points().unwrap(), 0);
+    assert!(empty.validate().is_err());
+    let points = [[1.0, 1.0], [0.0, 0.0]];
+    assert!(GradingBSplineCurve::create_from_points(&points).is_err());
+    let mut curve = GradingBSplineCurve::create_from_points_unvalidated(&points).unwrap();
+    assert_eq!(curve.control_point(0).unwrap(), (1.0, 1.0));
+    assert!(curve.validate().is_err());
+    curve.set_control_point(0, 0.0, 0.0).unwrap();
+    curve.set_control_point(1, 1.0, 1.0).unwrap();
+    curve.validate().unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        use ocio_rs::{BSplineType, HueCurveType};
+        let typed = GradingBSplineCurve::create_from_points_with_spline_type_unvalidated(
+            &points,
+            BSplineType::Standard,
+        )
+        .unwrap();
+        assert!(typed.validate().is_err());
+        let hue = GradingBSplineCurve::create_from_points_with_hue_type_unvalidated(
+            &points,
+            HueCurveType::HueFx,
+        )
+        .unwrap();
+        assert!(hue.validate().is_err());
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]

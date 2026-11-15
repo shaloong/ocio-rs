@@ -144,15 +144,20 @@ pub struct GradingBSplineCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl GradingBSplineCurve {
-    fn create_points_impl(points: &[[f32; 2]], kind: i32, mode: i32) -> Result<Self> {
+    fn create_points_impl(
+        points: &[[f32; 2]],
+        kind: i32,
+        mode: i32,
+        validate: bool,
+    ) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
-            ocio_sys::ocio_grading_bspline_curve_create_from_points(
-                points.as_ptr(),
-                points.len(),
-                kind,
-                mode,
-            )
+            let create = if validate {
+                ocio_sys::ocio_grading_bspline_curve_create_from_points
+            } else {
+                ocio_sys::ocio_grading_bspline_curve_create_from_points_unvalidated
+            };
+            create(points.as_ptr(), points.len(), kind, mode)
         };
         Ok(Self {
             handle: crate::handle_result(handle)?,
@@ -161,7 +166,12 @@ impl GradingBSplineCurve {
 
     /// Construct and validate a native spline from coordinates with native default slopes.
     pub fn create_from_points(points: &[[f32; 2]]) -> Result<Self> {
-        Self::create_points_impl(points, 0, 0)
+        Self::create_points_impl(points, 0, 0, true)
+    }
+    /// Construct like OCIO's point-list overload without validating the curve.
+    /// Call [`Self::validate`] before using it for color processing.
+    pub fn create_from_points_unvalidated(points: &[[f32; 2]]) -> Result<Self> {
+        Self::create_points_impl(points, 0, 0, false)
     }
 
     /// Construct from coordinates with a specific spline type.
@@ -170,7 +180,15 @@ impl GradingBSplineCurve {
         points: &[[f32; 2]],
         kind: BSplineType,
     ) -> Result<Self> {
-        Self::create_points_impl(points, kind as i32, 1)
+        Self::create_points_impl(points, kind as i32, 1, true)
+    }
+    /// Construct with a spline type without validating the supplied points.
+    #[cfg(feature = "v2_5")]
+    pub fn create_from_points_with_spline_type_unvalidated(
+        points: &[[f32; 2]],
+        kind: BSplineType,
+    ) -> Result<Self> {
+        Self::create_points_impl(points, kind as i32, 1, false)
     }
 
     /// Construct from coordinates with the native type for a hue curve.
@@ -179,7 +197,15 @@ impl GradingBSplineCurve {
         points: &[[f32; 2]],
         kind: crate::HueCurveType,
     ) -> Result<Self> {
-        Self::create_points_impl(points, kind as i32, 2)
+        Self::create_points_impl(points, kind as i32, 2, true)
+    }
+    /// Construct with a hue curve type without validating the supplied points.
+    #[cfg(feature = "v2_5")]
+    pub fn create_from_points_with_hue_type_unvalidated(
+        points: &[[f32; 2]],
+        kind: crate::HueCurveType,
+    ) -> Result<Self> {
+        Self::create_points_impl(points, kind as i32, 2, false)
     }
     /// Create a native spline with the specified number of points.
     pub fn create(count: usize) -> Result<Self> {

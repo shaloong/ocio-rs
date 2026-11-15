@@ -25,6 +25,12 @@ unsafe extern "C" {
         kind: i32,
         mode: i32,
     ) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_create_from_points_unvalidated(
+        xy: *const [f32; 2],
+        count: usize,
+        kind: i32,
+        mode: i32,
+    ) -> *mut c_void;
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_bspline_curve_create_with_spline_type(
         count: usize,

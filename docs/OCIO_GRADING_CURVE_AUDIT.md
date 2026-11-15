@@ -8,7 +8,7 @@ tests for representative validation.
 
 | Native operation | Rust surface | Remaining concern |
 | --- | --- | --- |
-| Spline `Create(size)` and point-list constructor | `GradingBSplineCurve::create`, `create_from_points` | Point-list wrapper validates before returning; verify all boundary cases against native behavior. |
+| Spline `Create(size)` and point-list constructor | `GradingBSplineCurve::create`, validated and `_unvalidated` point-list constructors | Deferred validation matches native construction; verify remaining boundary cases. |
 | Spline type / hue-type constructor overloads | `create_with_spline_type`, `create_with_hue_type` and point-list variants (`v2_5`) | Exact 2.5.1 floor belongs in release validation. |
 | Editable copy, point count/coordinates, slopes, validation | `GradingBSplineCurve` methods | Getters return values rather than native references; no borrowed mutable point view. |
 | Spline type get/set | `spline_type`, `set_spline_type` (`v2_5`) | Native 2.4 does not provide this API. |

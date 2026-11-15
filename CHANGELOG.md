@@ -50,6 +50,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Offer spline point-list constructors with deferred native validation, while
+  retaining the existing eagerly validated convenience constructors.
 - Retain read-only grading splines through native shared ownership, independently
   of the parent curve set and without copying spline data.
 - Borrow read-only RGB and hue child splines without copying their native data.

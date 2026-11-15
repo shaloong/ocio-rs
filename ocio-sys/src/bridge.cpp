@@ -18684,9 +18684,9 @@ void* ocio_grading_bspline_curve_create(size_t count) {
 #endif
 }
 
-void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode) {
+static void* ocio_grading_bspline_curve_create_points_impl(const float (*xy)[2], size_t count, int kind, int mode, bool validate) {
 #ifdef OCIO_RS_STUB
-  (void)xy; (void)count; (void)kind; (void)mode;
+  (void)xy; (void)count; (void)kind; (void)mode; (void)validate;
   ocio_rs_bridge::capture_error_message("B-spline requires native OpenColorIO");
   return nullptr;
 #else
@@ -18704,10 +18704,16 @@ void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t
       point.m_x = xy[i][0];
       point.m_y = xy[i][1];
     }
-    value->validate();
+    if (validate) value->validate();
     return new Spline(value);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
+}
+void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode) {
+  return ocio_grading_bspline_curve_create_points_impl(xy, count, kind, mode, true);
+}
+void* ocio_grading_bspline_curve_create_from_points_unvalidated(const float (*xy)[2], size_t count, int kind, int mode) {
+  return ocio_grading_bspline_curve_create_points_impl(xy, count, kind, mode, false);
 }
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
