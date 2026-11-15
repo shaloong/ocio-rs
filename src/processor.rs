@@ -670,7 +670,7 @@ pub struct PackedConversionLayout {
 /// Channel stride is positive. Slices must include pointer-step padding after
 /// the final pixel, including before the lowest pixel for a negative x stride.
 /// Strides and origin must be aligned to the sample size. The pixel stride's
-/// magnitude must cover all stored channels, and the row stride's magnitude
+/// magnitude must be at least the channel stride times the channel count, and the row stride's magnitude
 /// must be at least `width * abs(x_stride)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PackedImageLayout {
@@ -707,12 +707,18 @@ fn packed_image_descriptor(
         .checked_mul(layout.channel_stride)
         .and_then(|v| v.checked_add(size))
         .ok_or_else(invalid)?;
+    // OpenColorIO requires a full channel stride for every stored channel,
+    // including the last one, rather than only the occupied sample bytes.
+    let native_pixel_stride = channels
+        .checked_mul(layout.channel_stride)
+        .filter(|&v| v <= isize::MAX as usize)
+        .ok_or_else(invalid)?;
     let x = layout.x_stride.checked_abs().ok_or_else(invalid)? as usize;
     let y = layout.y_stride.checked_abs().ok_or_else(invalid)? as usize;
     if layout.width == 0
         || layout.height == 0
         || layout.channel_stride < size
-        || x < pixel_size
+        || x < native_pixel_stride
         || y == 0
         || x > y / layout.width
         || !layout.channel_stride.is_multiple_of(size)
@@ -7933,6 +7939,31 @@ mod tests {
             PackedImageLayout {
                 x_stride: -4,
                 origin: 8,
+                ..layout
+            },
+            &bytes
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn packed_layout_requires_full_final_channel_stride() {
+        let bytes = [0u8; 16];
+        let layout = PackedImageLayout {
+            width: 1,
+            height: 1,
+            origin: 0,
+            channel_stride: 2,
+            x_stride: 5,
+            y_stride: 5,
+            bit_depth: BitDepth::Uint8,
+            channel_order: ChannelOrdering::Rgb,
+        };
+        assert!(packed_image_descriptor(layout, &bytes).is_err());
+        assert!(packed_image_descriptor(
+            PackedImageLayout {
+                x_stride: 6,
+                y_stride: 6,
                 ..layout
             },
             &bytes
