@@ -16,6 +16,10 @@ using representative upstream-derived high-light and negative-channel inputs.
 The matrix and tetrahedral cases also run through Rust shader code hooks that
 halve RGB in the generated footer; GPU output is compared with the equivalent
 CPU result, verifying that the rewrite actually affects execution.
+The matrix case additionally collects the raw code fragments and assembles them
+with a custom finalizer before executing the resulting shader. A combined case
+does the same with a dynamic uniform and mixed retained/external textures,
+including the explicitly constructed Vulkan uniform block.
 The tetrahedral and additional 1D/2D cases stream texture data through the
 Rust texture sink rather than retaining it in the returned descriptor.
 An additional exposure case stores a native getter outside the descriptor and

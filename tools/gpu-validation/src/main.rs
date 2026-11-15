@@ -5,9 +5,9 @@ use ocio_rs::transform::{
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
-    ShaderCreatorOptions, ShaderExtractionHooks, ShaderTexture, ShaderTextureAction,
-    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
-    TransformDirection,
+    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderTexture,
+    ShaderTextureAction, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+    ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -62,6 +62,8 @@ fn validate_case(
             seen: bool,
             modified_footer: bool,
             external_uniform: Option<ShaderUniformGetter>,
+            custom_finalize: bool,
+            sections: [String; 7],
         }
         impl ShaderExtractionHooks for MarkBody {
             fn code(
@@ -69,19 +71,32 @@ fn validate_case(
                 section: ShaderCodeSection,
                 code: &str,
             ) -> ocio_rs::Result<Option<String>> {
-                if section == ShaderCodeSection::Body {
+                let replacement = if section == ShaderCodeSection::Body {
                     self.seen = true;
-                    Ok(Some(format!("// GPU validation hook\n{code}")))
+                    Some(format!("// GPU validation hook\n{code}"))
                 } else if section == ShaderCodeSection::Footer && code.contains("return outColor;")
                 {
                     self.modified_footer = true;
-                    Ok(Some(code.replace(
+                    Some(code.replace(
                         "return outColor;",
                         "outColor.rgb *= 0.5;\n  return outColor;",
-                    )))
+                    ))
                 } else {
-                    Ok(None)
+                    None
+                };
+                if self.custom_finalize {
+                    let index = match section {
+                        ShaderCodeSection::Declarations => 0,
+                        ShaderCodeSection::Parameters => 1,
+                        ShaderCodeSection::Textures => 2,
+                        ShaderCodeSection::Helpers => 3,
+                        ShaderCodeSection::Header => 4,
+                        ShaderCodeSection::Body => 5,
+                        ShaderCodeSection::Footer => 6,
+                    };
+                    self.sections[index].push_str(replacement.as_deref().unwrap_or(code));
                 }
+                Ok(replacement)
             }
         }
         impl ShaderUniformControl for MarkBody {
@@ -99,10 +114,31 @@ fn validate_case(
                 Ok(ShaderUniformAction::ExternalAdded)
             }
         }
+        impl ShaderFinalizeControl for MarkBody {
+            fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+                if !self.custom_finalize {
+                    return Ok(None);
+                }
+                let mut result = self.sections[0].clone();
+                if !self.sections[1].is_empty() {
+                    result.push_str(
+                        "layout (set = 0, binding = 0) uniform ocio_transform_Parameters\n{\n",
+                    );
+                    result.push_str(&self.sections[1]);
+                    result.push_str("\n};\n");
+                }
+                for section in &self.sections[2..] {
+                    result.push_str(section);
+                }
+                Ok(Some(result))
+            }
+        }
         let mut hooks = MarkBody {
             seen: false,
             modified_footer: false,
             external_uniform: None,
+            custom_finalize: name.contains("custom finalizer"),
+            sections: std::array::from_fn(|_| String::new()),
         };
         let mut texture_sink = |texture: ShaderTexture<'_>| {
             if expected_texture != TextureKind::Mixed && !streamed_lut.is_empty() {
@@ -130,7 +166,18 @@ fn validate_case(
             });
             Ok(None)
         };
-        desc = if expected_texture == TextureKind::Mixed {
+        desc = if hooks.custom_finalize {
+            let mut first = true;
+            gpu.try_extract_with_finalize_control(&desc, &mut hooks, None, |texture| {
+                if expected_texture == TextureKind::Mixed && first {
+                    first = false;
+                    texture_sink(texture)?;
+                    Ok(ShaderTextureAction::External { binding: None })
+                } else {
+                    Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+                }
+            })?
+        } else if expected_texture == TextureKind::Mixed {
             let mut first = true;
             gpu.try_extract_with_texture_control(&desc, &mut hooks, None, |texture| {
                 if first {
@@ -616,6 +663,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None,
         true,
     )?;
+    validate_case(
+        &device,
+        &queue,
+        "matrix with custom finalizer",
+        &processor,
+        None,
+        TextureKind::None,
+        1e-5,
+        None,
+        true,
+    )?;
     let exposure = ExposureContrastTransform::create()?;
     exposure.set_exposure(1.1);
     exposure.make_exposure_dynamic();
@@ -760,6 +818,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
             true,
         )?;
+        if dynamic && !reverse {
+            validate_case(
+                &device,
+                &queue,
+                "custom finalizer + dynamic uniform + external 2D + retained 3D",
+                &processor,
+                Some(1.1),
+                TextureKind::Mixed,
+                5e-3,
+                None,
+                true,
+            )?;
+        }
     }
     let processor = config.processor_from_transform(&lut, TransformDirection::Forward)?;
     validate_case(
