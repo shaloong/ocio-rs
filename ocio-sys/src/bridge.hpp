@@ -528,6 +528,7 @@ void ocio_color_space_get_allocation_vars(void* handle, void* vars);
 void ocio_color_space_set_allocation_vars(void* handle, int numvars, const float* vars);
 void* ocio_color_space_get_transform(void* handle, int dir);
 void ocio_color_space_set_transform(void* handle, void* transform, int dir);
+void ocio_color_space_set_const_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---
 void* ocio_color_space_set_create(void);

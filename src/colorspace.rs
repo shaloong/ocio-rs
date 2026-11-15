@@ -574,6 +574,37 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
+    /// Set a shared read-only transform in `direction`.
+    /// OCIO stores an independent copy of the supplied transform.
+    pub fn try_set_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: ColorSpaceDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_const_transform(
+                self.handle.as_ptr(),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Remove the transform in `direction`, leaving the other direction unchanged.
+    pub fn try_clear_transform(&self, direction: ColorSpaceDirection) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_const_transform(
+                self.handle.as_ptr(),
+                std::ptr::null_mut(),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Get the number of aliases for this color space.
     pub fn num_aliases(&self) -> i32 {
         unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }

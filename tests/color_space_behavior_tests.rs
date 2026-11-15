@@ -341,6 +341,60 @@ fn color_space_object_processor_uses_explicit_context() {
     }
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_sets_const_transform_copy_and_clears_one_direction() {
+    let _guard = color_space_test_lock();
+    let source = ColorSpace::create().unwrap();
+    let matrix = MatrixTransform::create().unwrap();
+    let mut values = matrix.matrix();
+    values[0] = 2.0;
+    matrix.set_matrix(&values).unwrap();
+    source
+        .try_set_transform(&matrix, ColorSpaceDirection::ToReference)
+        .unwrap();
+    let shared = source
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let target = ColorSpace::create().unwrap();
+    target
+        .try_set_const_transform(&shared, ColorSpaceDirection::ToReference)
+        .unwrap();
+    target
+        .try_set_transform(&matrix, ColorSpaceDirection::FromReference)
+        .unwrap();
+    source
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
+    drop(source);
+    values[0] = 7.0;
+    matrix.set_matrix(&values).unwrap();
+    let copied = target
+        .try_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(copied) = copied else {
+        panic!("expected matrix")
+    };
+    assert_eq!(copied.matrix()[0], 2.0);
+    assert!(shared.create_editable_copy().is_ok());
+    target
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
+    assert!(target
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .is_none());
+    assert!(target
+        .try_const_transform(ColorSpaceDirection::FromReference)
+        .unwrap()
+        .is_some());
+    target
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]

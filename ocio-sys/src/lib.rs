@@ -1323,6 +1323,11 @@ unsafe extern "C" {
         transform: *mut c_void,
         dir: i32,
     ) -> ();
+    pub fn ocio_color_space_set_const_transform(
+        handle: *mut c_void,
+        transform: *mut c_void,
+        dir: i32,
+    );
 
     // --- ColorSpaceSet ---
     pub fn ocio_color_space_set_create() -> *mut c_void;

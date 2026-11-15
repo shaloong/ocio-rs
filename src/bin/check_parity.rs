@@ -716,6 +716,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("operation", "union"),
         ("equal", "try_equals"),
         ("get_const_color_space", "try_const_color_space"),
+        ("set_const_transform", "try_set_const_transform"),
         ("ref_get_const_color_space", "try_const_color_space"),
         (
             "ref_get_const_color_space_by_index",

@@ -6068,6 +6068,18 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
 #endif
 }
 
+void ocio_color_space_set_const_transform(void* handle, void* transform, int dir) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)transform; (void)dir;
+#else
+  try {
+    ocio::ConstTransformRcPtr value;
+    if (transform) value = *static_cast<ocio::ConstTransformRcPtr*>(transform);
+    ocio_rs_bridge::get_real_color_space(handle)->setTransform(value, static_cast<ocio::ColorSpaceDirection>(dir));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 
 // --- ColorSpaceSet ---
 
