@@ -631,6 +631,19 @@ fn config_archive_returns_payload_for_archivable_file_behavior() {
     let extracted = root.join("extracted");
     ocio_rs::extract_ocioz_archive(archive_path.to_string_lossy(), extracted.to_string_lossy())
         .unwrap();
+    // OCIO 2.4–2.6 writes the generated config entry with zero Unix mode;
+    // minizip restores that mode on extraction. Repair only this test's own
+    // temporary fixture so that its content and LUTs can be verified.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let path = extracted.join("config.ocio");
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        if permissions.mode() & 0o777 == 0 {
+            permissions.set_mode(0o600);
+            std::fs::set_permissions(path, permissions).unwrap();
+        }
+    }
     let unpacked = Config::from_file(extracted.join("config.ocio").to_string_lossy()).unwrap();
     assert_eq!(config.serialize().unwrap(), unpacked.serialize().unwrap());
     let mut outputs = Vec::new();

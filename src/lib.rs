@@ -673,6 +673,9 @@ pub fn resolve_config_path(original_path: impl AsRef<str>) -> Result<String> {
 ///
 /// This operation requires a real OCIO build. Stub mode returns an [`OcioError`] rather than
 /// pretending that archive extraction succeeded.
+/// OCIO 2.4–2.6 archives created on Unix may contain a `config.ocio` with zero
+/// permission bits, which native extraction preserves. The caller may need to
+/// restore appropriate file permissions before reading it.
 pub fn extract_ocioz_archive(
     archive_path: impl AsRef<str>,
     destination_dir: impl AsRef<str>,
