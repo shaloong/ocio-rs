@@ -76,6 +76,10 @@ caller-provided Rust writer. Bytes already written remain on failure;
 `bake_to_bytes` is available when an owned in-memory result is required.
 `Baker::const_config` shares OCIO's immutable config without a deep copy;
 `Baker::config` returns an independent editable copy.
+`Config::archive_to_bytes` and `archive_to_writer` preserve binary OCIOZ data;
+the deprecated text methods reject binary output instead of silently truncating
+at NUL bytes. The writer avoids another archive-sized bridge buffer, although
+OCIO itself assembles the archive in memory.
 The exact-tag CI also runs behavior tests and
 all three API feature levels. DirectX and Vulkan test frameworks are upstream
 test infrastructure, not additional application-facing binding APIs.

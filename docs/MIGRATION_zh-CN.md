@@ -113,8 +113,10 @@ processor 提取元数据的行为。
 
 `Config::processor`、`Config::processor_with_context`、`Config::processor_from_configs` 现在调用真实 OCIO processor API。
 
-`Config::serialize()` 和 `Config::archive()` 现在返回 `Result<Option<String>>`。
-在 real OCIO build 中返回真实 OCIO 文本，在 stub 模式下返回 `Ok(None)`；OCIO 无法序列化或归档时返回 `Err`。
+`Config::serialize()` 返回 `Result<Option<String>>`，内容为 OCIO YAML。
+OCIOZ 归档是二进制数据，应使用 `Config::archive_to_bytes()` 或
+`Config::archive_to_writer()`。已弃用的文本归档接口现在会对二进制数据报错，
+而不是静默截断。返回自有数据的接口在 stub 模式下返回 `Ok(None)`，并传播原生错误。
 
 `color_space_from_filepath_by_ref_type` 替换为：
 

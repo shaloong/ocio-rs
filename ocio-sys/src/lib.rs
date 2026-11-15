@@ -1100,7 +1100,14 @@ unsafe extern "C" {
     pub fn ocio_config_get_config_io_proxy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_is_archivable(handle: *mut c_void) -> bool;
     pub fn ocio_config_archive(handle: *mut c_void, ostream: *mut c_void) -> ();
+    /// Legacy C-string view: OCIOZ is binary and this cannot represent its full contents.
+    #[deprecated(note = "binary output is truncated; use ocio_config_archive_to_writer")]
     pub fn ocio_config_archive_to_string(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_archive_to_writer(
+        handle: *mut c_void,
+        context: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
 
     // --- FileRules ---
     pub fn ocio_file_rules_create() -> *mut c_void;

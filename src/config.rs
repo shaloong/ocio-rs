@@ -4384,27 +4384,101 @@ impl Config {
 
     // --- v2.5.1: Misc utilities ---
 
-    /// Archive the config to OCIO's textual archive representation.
-    ///
-    /// Returns `Ok(None)` in stub builds where no real OCIO archiver is linked.
+    /// Deprecated text conversion: OCIOZ is binary. Use [`Self::archive_to_bytes`].
+    #[deprecated(note = "OCIOZ is binary; use archive_to_bytes or archive_to_writer")]
     pub fn archive(&self) -> Result<Option<String>> {
+        #[allow(deprecated)]
         self.archive_to_string()
     }
 
-    /// Archive the config to OCIO's textual archive representation.
-    ///
-    /// Returns `Ok(None)` in stub builds where no real OCIO archiver is linked.
-    ///
-    /// Returns an error when OCIO cannot archive this config.
+    /// Deprecated text conversion; rejects non-UTF-8 or NUL-containing archives.
+    #[deprecated(note = "OCIOZ is binary; use archive_to_bytes or archive_to_writer")]
     pub fn archive_to_string(&self) -> Result<Option<String>> {
-        crate::clear_last_error();
-        let text = unsafe {
-            cstr_from_mut(ocio_sys::ocio_config_archive_to_string(
-                self.handle.as_ptr(),
-            ))
+        self.archive_to_bytes()?
+            .map(|bytes| {
+                if bytes.contains(&0) {
+                    return Err(OcioError::InvalidInput(
+                        "OCIOZ is binary; use archive_to_bytes or archive_to_writer".into(),
+                    ));
+                }
+                String::from_utf8(bytes).map_err(|_| {
+                    OcioError::InvalidInput(
+                        "OCIOZ is binary; use archive_to_bytes or archive_to_writer".into(),
+                    )
+                })
+            })
+            .transpose()
+    }
+
+    /// Write the binary OCIOZ archive to a writer without an extra archive-sized
+    /// bridge buffer. OCIO itself constructs the archive in memory. The writer
+    /// is not flushed; partial output remains on error. Do not reenter this
+    /// config from the callback. Stub builds write nothing.
+    pub fn archive_to_writer<W: std::io::Write + ?Sized>(&self, writer: &mut W) -> Result<()> {
+        struct State<'a, W: ?Sized> {
+            writer: &'a mut W,
+            error: Option<OcioError>,
+        }
+        unsafe extern "C" fn write<W: std::io::Write + ?Sized>(
+            context: *mut c_void,
+            data: *const u8,
+            len: usize,
+        ) -> bool {
+            let state = unsafe { &mut *context.cast::<State<'_, W>>() };
+            if state.error.is_some() {
+                return false;
+            }
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let bytes = if len == 0 {
+                    &[]
+                } else {
+                    unsafe { std::slice::from_raw_parts(data, len) }
+                };
+                state.writer.write_all(bytes)
+            }));
+            match result {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    state.error = Some(OcioError::Ocio(error.to_string()));
+                    false
+                }
+                Err(_) => {
+                    state.error = Some(OcioError::Ocio("Archive output writer panicked".into()));
+                    false
+                }
+            }
+        }
+        let mut state = State {
+            writer,
+            error: None,
         };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_config_archive_to_writer(
+                self.handle.as_ptr(),
+                (&mut state as *mut State<'_, W>).cast(),
+                write::<W>,
+            )
+        };
+        if let Some(error) = state.error {
+            return Err(error);
+        }
         crate::ocio_call_status()?;
-        Ok(text)
+        if !ok {
+            return Err(OcioError::Ocio("Archive output writer failed".into()));
+        }
+        Ok(())
+    }
+
+    /// Archive to owned binary OCIOZ bytes, or `None` in stub builds.
+    pub fn archive_to_bytes(&self) -> Result<Option<Vec<u8>>> {
+        if crate::is_stub_build() {
+            crate::clear_last_error();
+            return Ok(None);
+        }
+        let mut bytes = Vec::new();
+        self.archive_to_writer(&mut bytes)?;
+        Ok(Some(bytes))
     }
 
     /// Return the attached typed config IO proxy when it originated from a Rust-managed proxy.
@@ -4779,18 +4853,18 @@ mod tests {
     fn archive_no_crash() {
         let config = Config::raw().unwrap();
         if crate::is_stub_build() {
-            assert!(config.archive().unwrap().is_none());
+            assert!(config.archive_to_bytes().unwrap().is_none());
         } else if config.is_archivable() {
             let archived = config
-                .archive()
+                .archive_to_bytes()
                 .unwrap()
                 .expect("real archivable config should archive");
             assert!(
-                !archived.trim().is_empty(),
+                !archived.is_empty(),
                 "real OCIO config archive should not be empty"
             );
         } else {
-            assert!(matches!(config.archive(), Err(OcioError::Ocio(_))));
+            assert!(matches!(config.archive_to_bytes(), Err(OcioError::Ocio(_))));
         }
     }
 

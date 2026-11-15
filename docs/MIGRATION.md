@@ -192,9 +192,11 @@ an edited copy with the respective setter. `try_const_file_rules` and
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
-`Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.
-They return the real OCIO text output in a real OCIO build, `Ok(None)` in stub
-mode, and `Err` when OCIO cannot serialize or archive the config.
+`Config::serialize()` returns `Result<Option<String>>` containing OCIO YAML.
+OCIOZ archives are binary: use `Config::archive_to_bytes()` or
+`Config::archive_to_writer()`. The deprecated text archive methods now return
+an error for binary data rather than silently truncating it. The owned-output
+methods return `Ok(None)` in stub mode and surface native errors.
 
 `color_space_from_filepath_by_ref_type` has been replaced by:
 

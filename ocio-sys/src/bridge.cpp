@@ -4981,6 +4981,36 @@ void* ocio_config_archive_to_string(void* handle) {
 #endif
 }
 
+bool ocio_config_archive_to_writer(void* handle, void* context, ocio_proxy_write_callback write) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)write;
+  return true;
+#else
+  try {
+    if (!handle || !write) throw std::invalid_argument("invalid archive writer");
+    class CallbackStreambuf final : public std::streambuf {
+      void* context;
+      ocio_proxy_write_callback write;
+    protected:
+      std::streamsize xsputn(const char* data, std::streamsize count) override {
+        return count > 0 && !write(context, reinterpret_cast<const unsigned char*>(data), static_cast<size_t>(count)) ? 0 : count;
+      }
+      int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) return traits_type::not_eof(ch);
+        const char byte = traits_type::to_char_type(ch);
+        return write(context, reinterpret_cast<const unsigned char*>(&byte), 1) ? ch : traits_type::eof();
+      }
+    public:
+      CallbackStreambuf(void* c, ocio_proxy_write_callback w) : context(c), write(w) {}
+    } buffer(context, write);
+    std::ostream stream(&buffer);
+    ocio_rs_bridge::get_real_config(handle)->archive(stream);
+    if (!stream) throw ocio::Exception("Archive output writer failed");
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
 
 // --- FileRules ---
 

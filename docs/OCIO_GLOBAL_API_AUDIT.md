@@ -15,7 +15,7 @@ namespaces, other headers, or prove complete behavioral equivalence.
 | `const char * GetEnvVariable(const char *)`; `void SetEnvVariable(const char *, const char *)`; `void UnsetEnvVariable(const char *)`; `bool IsEnvVariablePresent(const char *)` | `get_env_variable`, `set_env_variable`, `unset_env_variable`, `is_env_variable_present` | Unsafe: OCIO and other process environment users must be externally synchronized. The getter copies OCIO's transient buffer. |
 | `ConstConfigRcPtr GetCurrentConfig()`; `void SetCurrentConfig(const ConstConfigRcPtr &)` | `try_const_current_config`, `try_set_const_current_config`; editable convenience variants also exist | `const_current_config_behavior_tests`; shared getters retain a snapshot, while OCIO copies the input when installing it. |
 | `const char * ResolveConfigPath(const char *) noexcept` | `resolve_config_path` | `runtime_helpers_behavior_tests`; the result is copied into owned Rust text. |
-| `void ExtractOCIOZArchive(const char *, const char *)` | `extract_ocioz_archive` | Error-path tests exist; a successful extraction and its filesystem semantics still need explicit cross-version verification. |
+| `void ExtractOCIOZArchive(const char *, const char *)` | `extract_ocioz_archive` | Error-path and archive creation/load/extraction round-trip tests exist; broader filesystem boundary cases need further verification. |
 
 The listed behavioral tests include stub branches; real-native verification
 must be assessed separately for each version and platform. This inventory is

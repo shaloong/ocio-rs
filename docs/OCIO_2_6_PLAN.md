@@ -63,7 +63,7 @@ The current inventory and runtime validation are incomplete; the status in
   run representative 2.6 native tests and the existing Arch zlib-ng integration.
   The 2.6 PR selection exercises new-version behavior, app helpers, CPU image
   layouts, config I/O proxies, baking, grading splines, and GPU descriptors with the highest interface level,
-  not all combinations.
+  plus configuration and OCIOZ archive round trips, not all combinations.
   Feature-branch pushes are checked through their PR rather than triggering a
   duplicate push workflow; branches without a PR can use manual dispatch.
 - **Scheduled and manual:** exact minimum-version builds, full bundled platform

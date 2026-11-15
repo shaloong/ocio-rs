@@ -608,13 +608,79 @@ fn config_archive_returns_payload_for_archivable_file_behavior() {
     assert!(config.is_archivable(), "context_test1 should be archivable");
 
     let archived = config
-        .archive()
+        .archive_to_bytes()
         .expect("archive config")
         .expect("real archived config");
     assert!(
-        !archived.trim().is_empty(),
+        archived.starts_with(b"PK\x03\x04") && archived.contains(&0),
         "archive payload should not be empty"
     );
+    let root = std::env::temp_dir().join(format!(
+        "ocio-rs-archive-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir(&root).unwrap();
+    let archive_path = root.join("roundtrip.ocioz");
+    std::fs::write(&archive_path, &archived).unwrap();
+    let reloaded = Config::from_file(archive_path.to_string_lossy()).expect("load archived config");
+    assert_eq!(config.serialize().unwrap(), reloaded.serialize().unwrap());
+    let extracted = root.join("extracted");
+    ocio_rs::extract_ocioz_archive(archive_path.to_string_lossy(), extracted.to_string_lossy())
+        .unwrap();
+    let unpacked = Config::from_file(extracted.join("config.ocio").to_string_lossy()).unwrap();
+    assert_eq!(config.serialize().unwrap(), unpacked.serialize().unwrap());
+    let mut outputs = Vec::new();
+    for candidate in [&config, &reloaded, &unpacked] {
+        let mut pixel = [0.1, 0.2, 0.3, 1.0];
+        candidate
+            .processor("shot1_lut1_cs", "reference")
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        outputs.push(pixel);
+    }
+    assert_eq!(outputs[0], outputs[1]);
+    assert_eq!(outputs[0], outputs[2]);
+    std::fs::remove_dir_all(&root).unwrap();
+
+    #[allow(deprecated)]
+    {
+        assert!(config.archive_to_string().is_err());
+    }
+    struct FailingWriter;
+    impl std::io::Write for FailingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("intentional archive failure"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(config
+        .archive_to_writer(&mut FailingWriter)
+        .unwrap_err()
+        .to_string()
+        .contains("intentional archive failure"));
+    struct PanickingWriter;
+    impl std::io::Write for PanickingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            panic!("intentional writer panic")
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(config
+        .archive_to_writer(&mut PanickingWriter)
+        .unwrap_err()
+        .to_string()
+        .contains("panicked"));
 }
 
 #[test]
@@ -628,7 +694,7 @@ fn config_unarchivable_archive_surfaces_ocio_error_behavior() {
     let config = Config::raw().expect("raw config");
     assert!(!config.is_archivable());
     let err = config
-        .archive()
+        .archive_to_bytes()
         .expect_err("unarchivable config must report an OCIO error");
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }

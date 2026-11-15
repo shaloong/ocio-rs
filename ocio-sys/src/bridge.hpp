@@ -192,6 +192,7 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
 // --- ConfigIOProxy ---
 void* ocio_config_io_proxy_create(void);
 typedef bool (*ocio_proxy_write_callback)(void* destination, const unsigned char* data, size_t len);
+bool ocio_config_archive_to_writer(void* handle, void* context, ocio_proxy_write_callback write);
 typedef bool (*ocio_proxy_read_callback)(void* context, int kind, const char* path,
                                         void* destination, ocio_proxy_write_callback write);
 // Takes ownership of context on all return paths.
