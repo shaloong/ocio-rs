@@ -14945,6 +14945,58 @@ void* ocio_group_transform_create(void) {
 #endif
 }
 
+void* ocio_group_transform_create_deep_copy(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native group transform required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null group transform");
+    auto source = ocio_rs_bridge::get_real_group_transform(handle);
+    if (!source) throw std::invalid_argument("null group transform");
+    const auto make_group = [](const ocio::GroupTransformRcPtr& original) {
+      auto copy = ocio::GroupTransform::Create();
+      copy->setDirection(original->getDirection());
+      copy->getFormatMetadata() = original->getFormatMetadata();
+      return copy;
+    };
+    auto result = make_group(source);
+    struct Frame { ocio::GroupTransformRcPtr source, copy; int next; };
+    std::vector<Frame> stack{{source, result, 0}};
+    std::unordered_map<const ocio::Transform*, ocio::TransformRcPtr> copies;
+    std::unordered_set<const ocio::Transform*> active;
+    copies.emplace(source.get(), result);
+    active.insert(source.get());
+    while (!stack.empty()) {
+      auto& frame = stack.back();
+      if (frame.next == frame.source->getNumTransforms()) {
+        active.erase(frame.source.get());
+        stack.pop_back();
+        continue;
+      }
+      auto child = frame.source->getTransform(frame.next++);
+      if (!child) throw std::invalid_argument("group contains a null transform");
+      if (active.find(child.get()) != active.end()) throw std::invalid_argument("group transform cycle");
+      auto existing = copies.find(child.get());
+      if (existing != copies.end()) { frame.copy->appendTransform(existing->second); continue; }
+      auto nested = std::dynamic_pointer_cast<ocio::GroupTransform>(child);
+      if (nested) {
+        auto nested_copy = make_group(nested);
+        copies.emplace(child.get(), nested_copy);
+        frame.copy->appendTransform(nested_copy);
+        active.insert(child.get());
+        stack.push_back(Frame{std::move(nested), std::move(nested_copy), 0});
+      } else {
+        auto copy = child->createEditableCopy();
+        if (!copy || copy.get() == child.get()) throw std::invalid_argument("native transform did not provide an independent copy");
+        copies.emplace(child.get(), copy);
+        frame.copy->appendTransform(copy);
+      }
+    }
+    return ocio_rs_bridge::wrap_editable_transform_copy(result);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_group_transform_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GroupTransformHandle*>(handle);
 }

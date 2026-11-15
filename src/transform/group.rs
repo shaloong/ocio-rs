@@ -113,10 +113,24 @@ impl GroupTransform {
         crate::ocio_call_status()
     }
 
-    /// Create an editable copy that is independent from the original transform.
+    /// Copy the group container and metadata using OCIO's native operation.
+    /// Child transforms remain shared with the original. Use
+    /// [`Self::create_deep_copy`] to independently copy the graph.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    /// Deep-copy the built-in transform graph while preserving sharing within
+    /// the copy. Group nodes are reconstructed as native OCIO groups; other
+    /// nodes use their native editable-copy method. Custom native subclasses
+    /// may have additional state or copy semantics not represented by this API.
+    /// Cycles and null children from external native interop are rejected.
+    pub fn create_deep_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_group_transform_create_deep_copy(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 

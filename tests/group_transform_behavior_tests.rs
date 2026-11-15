@@ -21,6 +21,15 @@ fn group_transform_test_lock() -> MutexGuard<'static, ()> {
 }
 
 #[test]
+#[cfg(ocio_stub)]
+fn group_deep_copy_reports_stub_unavailability() {
+    assert!(GroupTransform::create()
+        .unwrap()
+        .create_deep_copy()
+        .is_err());
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_returns_concrete_handles_for_supported_transform_types() {
     use ocio_rs::transform::*;
@@ -36,6 +45,11 @@ fn group_returns_concrete_handles_for_supported_transform_types() {
                     group.try_transform(0).unwrap(),
                     Some(Transform::$variant(_))
                 ),
+                stringify!($variant)
+            );
+            let deep = group.create_deep_copy().unwrap();
+            assert!(
+                matches!(deep.try_transform(0).unwrap(), Some(Transform::$variant(_))),
                 stringify!($variant)
             );
             let look = ocio_rs::Look::create().unwrap();
@@ -168,6 +182,65 @@ fn group_removal_rebuilds_wrapper_without_mutating_existing_shared_group() {
     child.clear_transforms().unwrap();
     assert_eq!(child.num_transforms(), 0);
     assert_eq!(old_shared.num_transforms(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_deep_copy_is_independent_and_preserves_internal_sharing() {
+    let _guard = group_transform_test_lock();
+    let leaf = scale_matrix([2.0, 1.0, 1.0, 1.0]);
+    let inner = GroupTransform::create().unwrap();
+    inner.append_transform(&leaf).unwrap();
+    let root = GroupTransform::create().unwrap();
+    root.set_direction(TransformDirection::Inverse);
+    root.format_metadata()
+        .unwrap()
+        .add_attribute("origin", "source")
+        .unwrap();
+    root.append_transform(&leaf).unwrap();
+    root.append_transform(&inner).unwrap();
+    root.append_transform(&inner).unwrap();
+
+    let shallow = root.create_editable_copy().unwrap();
+    let Some(Transform::Matrix(shallow_leaf)) = shallow.try_transform(0).unwrap() else {
+        panic!("matrix expected")
+    };
+    shallow_leaf.set_offset(&[0.1, 0.0, 0.0, 0.0]).unwrap();
+    assert_eq!(leaf.offset()[0], 0.1); // Native copy shares children.
+
+    let deep = root.create_deep_copy().unwrap();
+    assert_eq!(deep.direction(), TransformDirection::Inverse);
+    let deep_metadata = deep.format_metadata().unwrap();
+    assert_eq!(
+        deep_metadata.attribute_value("origin").as_deref(),
+        Some("source")
+    );
+    deep_metadata.add_attribute("origin", "copy").unwrap();
+    assert_eq!(
+        root.format_metadata()
+            .unwrap()
+            .attribute_value("origin")
+            .as_deref(),
+        Some("source")
+    );
+    let Some(Transform::Matrix(deep_leaf)) = deep.try_transform(0).unwrap() else {
+        panic!("matrix expected")
+    };
+    let Some(Transform::Group(deep_inner)) = deep.try_transform(1).unwrap() else {
+        panic!("group expected")
+    };
+    let Some(Transform::Group(deep_inner_alias)) = deep.try_transform(2).unwrap() else {
+        panic!("group expected")
+    };
+    let Some(Transform::Matrix(nested_leaf)) = deep_inner.try_transform(0).unwrap() else {
+        panic!("nested matrix expected")
+    };
+    deep_leaf.set_offset(&[0.7, 0.0, 0.0, 0.0]).unwrap();
+    assert_eq!(nested_leaf.offset()[0], 0.7);
+    assert_eq!(leaf.offset()[0], 0.1);
+    deep_inner.set_direction(TransformDirection::Inverse);
+    assert_eq!(deep_inner_alias.direction(), TransformDirection::Inverse);
+    assert_eq!(inner.direction(), TransformDirection::Forward);
 }
 
 #[test]

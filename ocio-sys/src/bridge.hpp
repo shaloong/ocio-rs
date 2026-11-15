@@ -1359,6 +1359,7 @@ void ocio_grading_tone_transform_make_non_dynamic(void* handle);
 
 // --- GroupTransform ---
 void* ocio_group_transform_create(void);
+void* ocio_group_transform_create_deep_copy(void* handle);
 void ocio_group_transform_destroy(void* handle);
 
 void* ocio_group_transform_get_format_metadata(void* handle);

@@ -2848,6 +2848,7 @@ unsafe extern "C" {
 
     // --- GroupTransform ---
     pub fn ocio_group_transform_create() -> *mut c_void;
+    pub fn ocio_group_transform_create_deep_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_destroy(handle: *mut c_void);
     pub fn ocio_group_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;

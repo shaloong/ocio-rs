@@ -122,6 +122,10 @@ and view-transform ownership and diagnostic stream behavior.
 Group child insertion and replacement reject direct or indirect cycles while
 retaining native sharing for acyclic graphs. Cycle checks occur on edits, not
 in the CPU or GPU pixel-processing path.
+Native group editable copies share their child transforms; opt into
+`GroupTransform::create_deep_copy` for a separate graph with internal sharing
+preserved. See [the group audit](OCIO_GROUP_TRANSFORM_AUDIT.md) for the remaining
+in-place removal limitation.
 Editable transforms returned from color spaces, named items and groups use
 type-correct native bridge handles. Group children retain native sharing;
 look, view and color-space accessors documented as copies remain independent.
