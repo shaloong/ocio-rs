@@ -16,7 +16,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters | Concrete descriptor access only; no custom creator implementation. |
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
 | `getCacheID() const noexcept` | `GpuShaderCreator::try_cache_id`, `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |
-| `begin(uid)`, `finalize()`, `end()` | Synchronous or persistent lifecycle notifications; `ShaderFinalizeControl` optionally replaces synchronous finalization | Begin/end remain notifications; this is not full native subclassing. |
+| `begin(uid)`, `finalize()`, `end()` | Synchronous or persistent lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization in either mode | Begin/end remain notifications; this is not full native subclassing. |
 | `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Creator virtual access, synchronous hooks and `PersistentPolicyCreator` with retained Rust policy | Arbitrary Rust subclassing and custom clone remain absent. Policy widths must avoid OCIO's known LUT packing bug. |
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; synchronous or persistent `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
@@ -57,6 +57,9 @@ Windows; this does not establish hardware execution or full creator parity.
   first callback error is retained even if the subsequent `End` hook also fails.
   `create_with_assembler` additionally retains shader assembly, using the same
   ownership and error rules; its `None` result preserves native Vulkan wrapping.
+  `create_with_finalizer` can replace finalization or delegate to native
+  finalization and the assembler; replacement bypasses the assembler and must
+  supply language-specific wrappers itself.
 
 - `ShaderTexturePolicy` can supply the two texture-policy virtual getters on
   each query during synchronous extraction, alongside texture/uniform storage

@@ -2517,6 +2517,7 @@ struct PersistentPolicyState<P> {
     error: Option<OcioError>,
     code_output: Option<std::ffi::CString>,
     assembly_output: Option<std::ffi::CString>,
+    finalizer_output: Option<std::ffi::CString>,
 }
 
 unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
@@ -2626,6 +2627,29 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
+    /// Retain all resource, lifecycle, code, assembly and finalization hooks.
+    /// Returning `None` from finalization delegates to OCIO, which then calls
+    /// the assembler. Returning shader text bypasses both native finalization
+    /// and the assembler; the caller must supply any Vulkan uniform wrapper.
+    pub fn create_with_finalizer(
+        template: &GpuShaderDesc,
+        policy: P,
+        cache_id: &std::ffi::CStr,
+    ) -> Result<Self>
+    where
+        P: ShaderTextureControl + ShaderFinalizeControl,
+    {
+        let creator = Self::create_with_assembler(template, policy, cache_id)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_persistent_finalizer(
+                creator.creator.handle.as_ptr(),
+                persistent_finalizer_callback::<P>,
+            );
+        }
+        crate::ocio_call_status()?;
+        Ok(creator)
+    }
     /// Retain resource controls, hooks, and the optional shader assembler.
     /// `assemble` may return `None` to use OCIO's native assembly, including
     /// Vulkan uniform wrapping. A replacement must provide any required wrapper.
@@ -2733,6 +2757,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             error: None,
             code_output: None,
             assembly_output: None,
+            finalizer_output: None,
         });
         crate::clear_last_error();
         let raw = unsafe {
@@ -3220,6 +3245,58 @@ unsafe extern "C" fn persistent_assembler_callback<
             state
                 .error
                 .get_or_insert(OcioError::InvalidInput("shader assembler panicked".into()));
+            false
+        }
+    }
+}
+
+unsafe extern "C" fn persistent_finalizer_callback<
+    P: ShaderTexturePolicy + ShaderFinalizeControl,
+>(
+    context: *mut c_void,
+    output: *mut *const i8,
+) -> bool {
+    if context.is_null() {
+        return false;
+    }
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+        || -> Result<Option<std::ffi::CString>> {
+            if output.is_null() {
+                return Err(OcioError::InvalidInput(
+                    "null shader finalizer output".into(),
+                ));
+            }
+            state
+                .policy
+                .finalize_shader()?
+                .map(std::ffi::CString::new)
+                .transpose()
+                .map_err(|_| OcioError::InteriorNul)
+        },
+    ));
+    match result {
+        Ok(Ok(text)) => {
+            state.finalizer_output = text;
+            unsafe {
+                *output = state
+                    .finalizer_output
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr())
+            };
+            true
+        }
+        Ok(Err(error)) => {
+            state.error.get_or_insert(error);
+            false
+        }
+        Err(_) => {
+            state
+                .error
+                .get_or_insert(OcioError::InvalidInput("shader finalizer panicked".into()));
             false
         }
     }

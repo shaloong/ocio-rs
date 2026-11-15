@@ -9717,6 +9717,19 @@ void ocio_gpu_shader_creator_set_persistent_assembler(void* creator, ocio_shader
 #endif
 }
 
+void ocio_gpu_shader_creator_set_persistent_finalizer(void* creator, ocio_shader_finalize_callback finalizer) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)finalizer; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !finalizer) throw std::invalid_argument("invalid persistent shader finalizer");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    desc->setFinalizeControl(finalizer);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_gpu_shader_creator_detach_persistent_policy(void* creator) {
 #ifdef OCIO_RS_STUB
   (void)creator;

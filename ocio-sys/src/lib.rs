@@ -1670,6 +1670,10 @@ unsafe extern "C" {
         context: *mut c_void,
     ) -> *mut c_void;
     pub fn ocio_gpu_shader_creator_detach_persistent_policy(creator: *mut c_void);
+    pub fn ocio_gpu_shader_creator_set_persistent_finalizer(
+        creator: *mut c_void,
+        finalizer: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+    );
     pub fn ocio_gpu_shader_creator_set_persistent_assembler(
         creator: *mut c_void,
         assembler: unsafe extern "C" fn(

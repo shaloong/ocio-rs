@@ -542,6 +542,19 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
             }
         }
     }
+    impl ocio_rs::ShaderFinalizeControl for Policy {
+        fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+            match self.mode {
+                12 => Ok(Some("// persistent finalizer\nvoid custom() {}".into())),
+                13 => Err(ocio_rs::OcioError::InvalidInput(
+                    "finalizer rejected".into(),
+                )),
+                14 => panic!("finalizer panic"),
+                15 => Ok(Some("invalid\0shader".into())),
+                _ => Ok(None),
+            }
+        }
+    }
     let _guard = gpu_shader_desc_test_lock();
     let transform = MatrixTransform::scale(&[0.8, 0.7, 0.6, 1.]).unwrap();
     let gpu = ocio_rs::Config::raw()
@@ -551,28 +564,43 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
         .default_gpu_processor()
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
-    for mode in 0..=10 {
+    for mode in 0..=15 {
         let policy = Policy {
             events: Vec::new(),
             mode,
             assemblies: 0,
         };
-        let mut creator = if mode >= 6 {
+        let mut creator = if mode >= 11 {
+            PersistentPolicyCreator::create_with_finalizer(&template, policy, c"persistent-hooks")
+        } else if mode >= 6 {
             PersistentPolicyCreator::create_with_assembler(&template, policy, c"persistent-hooks")
         } else {
             PersistentPolicyCreator::create_with_hooks(&template, policy, c"persistent-hooks")
         }
         .unwrap();
         let result = creator.try_extract(&gpu);
-        if mode == 0 || mode == 6 || mode == 7 {
+        if mode == 0 || mode == 6 || mode == 7 || mode == 11 || mode == 12 {
             result.unwrap();
-            assert!(creator
-                .try_shader_text()
-                .unwrap()
-                .unwrap()
-                .contains("// persistent hook"));
+            assert!(
+                mode == 12
+                    || creator
+                        .try_shader_text()
+                        .unwrap()
+                        .unwrap()
+                        .contains("// persistent hook")
+            );
             assert_eq!(creator.policy_mut().events, ["begin", "finalized", "end"]);
-            assert_eq!(creator.policy_mut().assemblies, usize::from(mode >= 6));
+            assert_eq!(
+                creator.policy_mut().assemblies,
+                usize::from(mode >= 6 && mode != 12)
+            );
+            if mode == 12 {
+                assert!(creator
+                    .try_shader_text()
+                    .unwrap()
+                    .unwrap()
+                    .contains("// persistent finalizer"));
+            }
             if mode == 6 {
                 assert!(creator
                     .try_shader_text()
@@ -584,10 +612,14 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
             }
         } else {
             let error = result.unwrap_err();
-            if mode == 4 {
+            if mode == 4 || mode == 15 {
                 assert!(matches!(error, ocio_rs::OcioError::InteriorNul));
             } else {
-                let expected = if mode == 10 {
+                let expected = if mode == 14 {
+                    "shader finalizer panicked"
+                } else if mode == 13 {
+                    "finalizer rejected"
+                } else if mode == 10 {
                     "assembled shader contains a NUL byte"
                 } else if mode == 9 {
                     "shader assembler panicked"

@@ -42,6 +42,8 @@ exposure uniform using the persistent uniform controller.
 These cases also pass generated shader fragments through persistent lifecycle
 and code hooks and a persistent custom assembler before execution, including
 an explicitly constructed Vulkan uniform block when needed.
+Another mixed-resource case replaces persistent finalization itself and runs
+the resulting shader with a dynamic uniform before and after an update.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support

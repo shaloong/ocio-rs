@@ -97,6 +97,8 @@ fn validate_case(
             body_seen: bool,
             footer_modified: bool,
             assembly_count: usize,
+            sections: [String; 7],
+            custom_finalize: bool,
         }
         impl ShaderTexturePolicy for Policy {
             fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -145,18 +147,32 @@ fn validate_case(
                 section: ShaderCodeSection,
                 code: &str,
             ) -> ocio_rs::Result<Option<String>> {
-                if section == ShaderCodeSection::Body {
+                let replacement = if section == ShaderCodeSection::Body {
                     self.body_seen = true;
-                    return Ok(Some(format!("// persistent GPU hook\n{code}")));
-                }
-                if section == ShaderCodeSection::Footer && code.contains("return outColor;") {
+                    Some(format!("// persistent GPU hook\n{code}"))
+                } else if section == ShaderCodeSection::Footer && code.contains("return outColor;")
+                {
                     self.footer_modified = true;
-                    return Ok(Some(code.replace(
+                    Some(code.replace(
                         "return outColor;",
                         "outColor.rgb *= 0.5;\n  return outColor;",
-                    )));
+                    ))
+                } else {
+                    None
+                };
+                if self.custom_finalize {
+                    let index = match section {
+                        ShaderCodeSection::Declarations => 0,
+                        ShaderCodeSection::Parameters => 1,
+                        ShaderCodeSection::Textures => 2,
+                        ShaderCodeSection::Helpers => 3,
+                        ShaderCodeSection::Header => 4,
+                        ShaderCodeSection::Body => 5,
+                        ShaderCodeSection::Footer => 6,
+                    };
+                    self.sections[index].push_str(replacement.as_deref().unwrap_or(code));
                 }
-                Ok(None)
+                Ok(replacement)
             }
             fn assemble(
                 &mut self,
@@ -197,19 +213,48 @@ fn validate_case(
                 Ok(ShaderUniformAction::ExternalAdded)
             }
         }
-        let mut creator = PersistentPolicyCreator::create_with_assembler(
-            &desc,
-            Policy {
-                seen: 0,
-                external: Vec::new(),
-                uniform: None,
-                lifecycle: 0,
-                body_seen: false,
-                footer_modified: false,
-                assembly_count: 0,
-            },
-            c"persistent-control-gpu-validation",
-        )?;
+        impl ShaderFinalizeControl for Policy {
+            fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
+                let mut result = String::from("// persistent GPU finalizer\n");
+                result.push_str(&self.sections[0]);
+                if !self.sections[1].is_empty() {
+                    result.push_str(
+                        "layout (set = 0, binding = 0) uniform ocio_transform_Parameters\n{\n",
+                    );
+                    result.push_str(&self.sections[1]);
+                    result.push_str("\n};\n");
+                }
+                for section in &self.sections[2..] {
+                    result.push_str(section);
+                }
+                Ok(Some(result))
+            }
+        }
+        let custom_finalize = name.contains("finalizer");
+        let policy = Policy {
+            seen: 0,
+            external: Vec::new(),
+            uniform: None,
+            lifecycle: 0,
+            body_seen: false,
+            footer_modified: false,
+            assembly_count: 0,
+            sections: std::array::from_fn(|_| String::new()),
+            custom_finalize,
+        };
+        let mut creator = if custom_finalize {
+            PersistentPolicyCreator::create_with_finalizer(
+                &desc,
+                policy,
+                c"persistent-control-gpu-validation",
+            )?
+        } else {
+            PersistentPolicyCreator::create_with_assembler(
+                &desc,
+                policy,
+                c"persistent-control-gpu-validation",
+            )?
+        };
         creator.try_extract(&gpu)?;
         if creator.policy_mut().seen != 2 {
             return Err("expected two persistent texture registrations".into());
@@ -217,7 +262,7 @@ fn validate_case(
         if creator.policy_mut().lifecycle != 3
             || !creator.policy_mut().body_seen
             || !creator.policy_mut().footer_modified
-            || creator.policy_mut().assembly_count != 1
+            || creator.policy_mut().assembly_count != usize::from(!custom_finalize)
         {
             return Err("persistent shader hooks did not run".into());
         }
@@ -225,7 +270,12 @@ fn validate_case(
         external_uniform = creator.policy_mut().uniform.take();
         desc = creator.finish()?;
         if !desc.try_shader_text()?.is_some_and(|s| {
-            s.contains("// persistent GPU hook") && s.contains("// persistent GPU assembler")
+            s.contains("// persistent GPU hook")
+                && s.contains(if custom_finalize {
+                    "// persistent GPU finalizer"
+                } else {
+                    "// persistent GPU assembler"
+                })
         }) {
             return Err("persistent shader code was not applied".into());
         }
@@ -1056,6 +1106,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             true,
         )?;
         if dynamic && !reverse {
+            validate_case(
+                &device,
+                &queue,
+                "persistent control finalizer external 2D + retained 3D",
+                &processor,
+                Some(1.1),
+                TextureKind::Mixed,
+                5e-3,
+                None,
+                false,
+            )?;
             validate_case(
                 &device,
                 &queue,
