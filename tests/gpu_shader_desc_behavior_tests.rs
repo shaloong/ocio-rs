@@ -1215,6 +1215,11 @@ fn texture_control_mixes_native_and_external_resources() {
             if self.fail == 2 {
                 panic!("persistent texture panic");
             }
+            if self.fail == 3 && !self.seen.is_empty() {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "second texture rejected".into(),
+                ));
+            }
             let external = self.seen.is_empty() == self.external_first;
             let binding = self.binding_base.map(|base| base + self.seen.len() as u32);
             self.seen.push((
@@ -1290,6 +1295,28 @@ fn texture_control_mixes_native_and_external_resources() {
         creator.try_extract(&gpu).unwrap();
         assert_eq!(creator.policy_mut().seen.len(), 2);
     }
+    let policy = PersistentControl {
+        external_first: true,
+        seen: Vec::new(),
+        fail: 3,
+        binding_base: None,
+    };
+    let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+        &template,
+        policy,
+        c"persistent-partial-failure",
+    )
+    .unwrap();
+    assert!(
+        matches!(creator.try_extract(&gpu), Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "second texture rejected")
+    );
+    // The application still owns the first external resource after failure.
+    assert_eq!(creator.policy_mut().seen.len(), 1);
+    assert_eq!(
+        creator.try_num_textures().unwrap() + creator.try_num_3d_textures().unwrap(),
+        0
+    );
+    drop(creator);
     #[cfg(feature = "v2_5")]
     {
         let vk_template = GpuShaderDesc::create().unwrap();

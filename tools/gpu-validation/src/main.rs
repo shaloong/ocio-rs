@@ -6,8 +6,9 @@ use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, PersistentPolicyCreator, Processor,
     ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
-    ShaderTexture, ShaderTextureAction, ShaderTexturePolicy, ShaderUniformAction,
-    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
+    ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
+    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -86,6 +87,62 @@ fn validate_case(
         if creator.policy_mut().queries == 0 {
             return Err("persistent texture policy was not queried".into());
         }
+        desc = creator.finish()?;
+    } else if name.starts_with("persistent control") {
+        struct Policy {
+            seen: usize,
+            external: Vec<LutTexture>,
+        }
+        impl ShaderTexturePolicy for Policy {
+            fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+                Ok(1024)
+            }
+            fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+                Ok(false)
+            }
+        }
+        impl ShaderTextureControl for Policy {
+            fn register_texture(
+                &mut self,
+                texture: ShaderTexture<'_>,
+            ) -> ocio_rs::Result<ShaderTextureAction> {
+                self.seen += 1;
+                let binding = Some(40 + self.seen as u32);
+                if self.seen != 1 {
+                    return Ok(ShaderTextureAction::StoreInDescriptor { binding });
+                }
+                let kind = match texture.dimensions {
+                    Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
+                    Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
+                    None => TextureKind::ThreeD,
+                };
+                self.external.push(LutTexture {
+                    sampler: texture.sampler_name.to_owned(),
+                    binding: binding.unwrap(),
+                    width: texture.width,
+                    height: texture.height,
+                    depth: texture.depth,
+                    kind,
+                    channel: texture.channel,
+                    interpolation: texture.interpolation,
+                    values: texture.values.to_vec(),
+                });
+                Ok(ShaderTextureAction::External { binding })
+            }
+        }
+        let mut creator = PersistentPolicyCreator::create_with_texture_control(
+            &desc,
+            Policy {
+                seen: 0,
+                external: Vec::new(),
+            },
+            c"persistent-control-gpu-validation",
+        )?;
+        creator.try_extract(&gpu)?;
+        if creator.policy_mut().seen != 2 {
+            return Err("expected two persistent texture registrations".into());
+        }
+        streamed_lut = std::mem::take(&mut creator.policy_mut().external);
         desc = creator.finish()?;
     } else if use_hooks {
         if name != "dynamic texture policy" {
@@ -882,6 +939,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mixed.append_transform(&lut3d)?;
         }
         let processor = config.processor_from_transform(&mixed, TransformDirection::Forward)?;
+        validate_case(
+            &device,
+            &queue,
+            if reverse {
+                "persistent control external 3D + retained 2D"
+            } else {
+                "persistent control external 2D + retained 3D"
+            },
+            &processor,
+            dynamic.then_some(1.1),
+            TextureKind::Mixed,
+            5e-3,
+            None,
+            false,
+        )?;
         validate_case(
             &device,
             &queue,

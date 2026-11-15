@@ -47,6 +47,8 @@ Windows; this does not establish hardware execution or full creator parity.
   controller in the same policy state. It may upload borrowed texels directly,
   select descriptor or external storage, and choose bindings where supported.
   External uploads are not rolled back on failure; the caller owns cleanup.
+  The manual Vulkan validation covers mixed external/retained 2D and 3D LUTs
+  in both registration orders, including dynamic uniforms and explicit bindings.
 
 - `ShaderTexturePolicy` can supply the two texture-policy virtual getters on
   each query during synchronous extraction, alongside texture/uniform storage

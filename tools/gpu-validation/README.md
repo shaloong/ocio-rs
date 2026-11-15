@@ -35,6 +35,9 @@ texture by Rust's native virtual getter callbacks, checks setter events, and
 compares GPU with CPU.
 The persistent-policy case also extracts through a retained Rust policy,
 detaches it into a native descriptor, and executes the result on the GPU.
+Persistent texture-control cases additionally use explicit bindings and mix
+external and descriptor-owned 2D/3D textures in both registration orders;
+each order is tested with and without an updated dynamic exposure uniform.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
 and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
