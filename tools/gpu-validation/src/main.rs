@@ -187,7 +187,7 @@ fn validate_case(
         if streamed_lut.len() != 1 {
             return Err("expected one external LUT".into());
         }
-        let expected_external = if name == "mixed external 3D + retained 2D" {
+        let expected_external = if name.contains("external 3D") {
             TextureKind::ThreeD
         } else {
             TextureKind::TwoD
@@ -731,8 +731,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lut = Lut1DTransform::create()?;
     lut.set_length(3)?;
     lut.set_values(&[0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 1.0, 1.0, 1.0])?;
-    for reverse in [false, true] {
+    for (reverse, dynamic) in [(false, false), (true, false), (false, true), (true, true)] {
         let mixed = GroupTransform::create()?;
+        if dynamic {
+            mixed.append_transform(&exposure)?;
+        }
         if reverse {
             mixed.append_transform(&lut3d)?;
             mixed.append_transform(&lut)?;
@@ -744,13 +747,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         validate_case(
             &device,
             &queue,
-            if reverse {
-                "mixed external 3D + retained 2D"
-            } else {
-                "mixed external 2D + retained 3D"
+            match (reverse, dynamic) {
+                (false, false) => "mixed external 2D + retained 3D",
+                (true, false) => "mixed external 3D + retained 2D",
+                (false, true) => "dynamic uniform + external 2D + retained 3D",
+                (true, true) => "dynamic uniform + external 3D + retained 2D",
             },
             &processor,
-            None,
+            dynamic.then_some(1.1),
             TextureKind::Mixed,
             5e-3,
             None,

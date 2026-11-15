@@ -157,6 +157,61 @@ fn texture_control_mixes_native_and_external_resources() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn texture_control_keeps_uniform_getter_alive_when_texture_callback_fails() {
+    use ocio_rs::{
+        ShaderExtractionHooks, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+        ShaderUniformRegistration,
+    };
+    #[derive(Default)]
+    struct Hooks(Option<ShaderUniformGetter>);
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            uniform: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            self.0 = Some(uniform.getter);
+            Ok(ShaderUniformAction::ExternalAdded)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&lut).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut retained = Vec::new();
+    for panic in [false, true] {
+        let mut hooks = Hooks::default();
+        let err = gpu.try_extract_with_texture_control(&template, &mut hooks, None, |_| {
+            assert!(!panic, "intentional texture callback panic");
+            Err(ocio_rs::OcioError::InvalidInput("texture rejected".into()))
+        });
+        assert!(err.is_err());
+        assert_eq!(hooks.0.as_mut().unwrap().double().unwrap(), Some(0.5));
+        retained.push(hooks.0.take().unwrap());
+    }
+    drop(gpu);
+    drop(template);
+    for getter in &mut retained {
+        assert_eq!(getter.double().unwrap(), Some(0.5));
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_shader_hooks_can_rewrite_sections_and_preserve_cleanup() {
     use ocio_rs::transform::{GroupTransform, Lut1DTransform};
     use ocio_rs::{
