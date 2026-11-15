@@ -17,7 +17,7 @@ Windows; this does not establish hardware execution or full creator parity.
 | Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
 | `getCacheID() const noexcept` | `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |
 | `begin(uid)`, `finalize()`, `end()` | Lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization | Begin/end remain notifications; this is not full native subclassing. |
-| `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Descriptor setters/getters, extraction template, and synchronous `ShaderTexturePolicy` getters | Dynamic getters are scoped to extraction; setter overrides and a persistent arbitrary Rust subclass remain absent. Policy widths must avoid OCIO's known LUT packing bug. |
+| `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Descriptor setters/getters and synchronous `ShaderTexturePolicy` setter events and dynamic getters | Callbacks are scoped to extraction; setter events may reject but do not replace descriptor storage. A persistent arbitrary Rust subclass remains absent. Policy widths must avoid OCIO's known LUT packing bug. |
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
 | `addDynamicProperty`, count, index/type lookup and presence | Descriptor `add_dynamic_property` and dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | These methods are non-virtual in OCIO; they use its creator-owned store rather than a replaceable subclass hook. |
@@ -45,6 +45,9 @@ Windows; this does not establish hardware execution or full creator parity.
   The unchecked variant requires callers to account for the native packing bug.
   A nonempty caller-supplied cache ID is mandatory and must change with the
   policy/output; otherwise OCIO resource keys can collide across extractions.
+  Policy setter events receive template values before extraction; a rejection
+  or panic aborts before native `begin`. Post-extraction descriptor setters no
+  longer call Rust. Accepted values are also stored in the native descriptor.
 
 - The native 2.4.1 and 2.6.0 LUT shader generator divides by the configured
   texture width and uses `width - 1` as a loop step, without setter validation.

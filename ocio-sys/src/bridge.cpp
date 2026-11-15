@@ -9163,14 +9163,24 @@ public:
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
-  void setTextureMaxWidth(unsigned v) override { resources->setTextureMaxWidth(v); }
+  void setTextureMaxWidth(unsigned v) override {
+    uint32_t value = v;
+    if (policy_callback && !policy_callback(context, 2, &value))
+      throw ocio::Exception("Rust texture width setter failed");
+    resources->setTextureMaxWidth(v);
+  }
   unsigned getTextureMaxWidth() const noexcept override {
     if (!policy_callback) return resources->getTextureMaxWidth();
     uint32_t value = 1048577;
     if (!policy_callback(context, 0, &value) || value < 2) { policy_failed = true; return 1048577; }
     return value;
   }
-  void setAllowTexture1D(bool v) override { resources->setAllowTexture1D(v); }
+  void setAllowTexture1D(bool v) override {
+    uint32_t value = v ? 1u : 0u;
+    if (policy_callback && !policy_callback(context, 3, &value))
+      throw ocio::Exception("Rust texture dimension setter failed");
+    resources->setAllowTexture1D(v);
+  }
   bool getAllowTexture1D() const override {
     if (!policy_callback) return resources->getAllowTexture1D();
     uint32_t value = 0;

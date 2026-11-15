@@ -2262,6 +2262,9 @@ pub trait ShaderFinalizeControl: ShaderUniformControl {
 /// are safe for every generated LUT. For a conservative probe see
 /// [`GPUProcessor::try_extract_with_texture_policy_checked`]. No callback runs
 /// in the GPU pixel loop.
+/// Setter events update caller-owned policy state and are not rolled back if
+/// extraction later fails. A checked extraction performs its probe before
+/// forwarding the template's setter events.
 ///
 /// ```
 /// # use ocio_rs::{ShaderTexturePolicy, Result};
@@ -2272,6 +2275,16 @@ pub trait ShaderFinalizeControl: ShaderUniformControl {
 /// }
 /// ```
 pub trait ShaderTexturePolicy {
+    /// Observe or reject a native width setter. The default accepts it.
+    /// Called with the template's setting before extraction begins.
+    fn set_texture_max_width(&mut self, _width: u32) -> Result<()> {
+        Ok(())
+    }
+    /// Observe or reject a native 1D setting. The default accepts it.
+    /// Called with the template's setting before extraction begins.
+    fn set_allow_texture_1d(&mut self, _allowed: bool) -> Result<()> {
+        Ok(())
+    }
     /// Maximum native texture width for the current query.
     fn texture_max_width(&mut self) -> Result<u32>;
     /// Whether OCIO may emit 1D textures for the current query.
@@ -2903,9 +2916,11 @@ impl GPUProcessor {
         let storage = std::cell::Cell::new(true);
         let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
         let mut finalizer = || hooks.borrow_mut().finalize_shader();
-        let mut query = |kind| match kind {
+        let mut query = |kind, input| match kind {
             0 => policy.texture_max_width(),
             1 => policy.allow_texture_1d().map(u32::from),
+            2 => policy.set_texture_max_width(input).map(|()| input),
+            3 => policy.set_allow_texture_1d(input != 0).map(|()| input),
             _ => Err(OcioError::InvalidInput(
                 "invalid texture policy query".into(),
             )),
@@ -2969,6 +2984,12 @@ impl GPUProcessor {
             lengths: &'a [usize],
         }
         impl<P: ShaderTexturePolicy + ?Sized> ShaderTexturePolicy for CheckedPolicy<'_, P> {
+            fn set_texture_max_width(&mut self, width: u32) -> Result<()> {
+                self.policy.set_texture_max_width(width)
+            }
+            fn set_allow_texture_1d(&mut self, allowed: bool) -> Result<()> {
+                self.policy.set_allow_texture_1d(allowed)
+            }
             fn texture_max_width(&mut self) -> Result<u32> {
                 let width = self.policy.texture_max_width()?;
                 if width < 2 {
@@ -3062,7 +3083,7 @@ impl GPUProcessor {
         code: &mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
         notify_code: bool,
         mut finalizer: Option<&mut dyn FnMut() -> Result<Option<String>>>,
-        mut policy: Option<&mut dyn FnMut(i32) -> Result<u32>>,
+        mut policy: Option<&mut dyn FnMut(i32, u32) -> Result<u32>>,
     ) -> Result<GpuShaderDesc>
     where
         F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -3078,7 +3099,7 @@ impl GPUProcessor {
             registration:
                 &'a mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
             finalizer: Option<&'a mut dyn FnMut() -> Result<Option<String>>>,
-            policy: Option<&'a mut dyn FnMut(i32) -> Result<u32>>,
+            policy: Option<&'a mut dyn FnMut(i32, u32) -> Result<u32>>,
             output: Option<std::ffi::CString>,
             code_output: Option<std::ffi::CString>,
             finalizer_output: Option<std::ffi::CString>,
@@ -3099,7 +3120,7 @@ impl GPUProcessor {
             }
             let result =
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
-                    if value.is_null() || !(0..=1).contains(&kind) {
+                    if value.is_null() || !(0..=3).contains(&kind) {
                         return Err(OcioError::InvalidInput(
                             "invalid texture policy event".into(),
                         ));
@@ -3108,7 +3129,13 @@ impl GPUProcessor {
                         .policy
                         .as_mut()
                         .ok_or_else(|| OcioError::InvalidInput("missing texture policy".into()))?;
-                    let result = policy(kind)?;
+                    let input = unsafe { *value };
+                    if kind == 3 && input > 1 {
+                        return Err(OcioError::InvalidInput(
+                            "invalid texture policy setter value".into(),
+                        ));
+                    }
+                    let result = policy(kind, input)?;
                     if (kind == 0 && result < 2) || (kind == 1 && result > 1) {
                         return Err(OcioError::InvalidInput(
                             "invalid texture policy value".into(),
@@ -3592,7 +3619,7 @@ impl GPUProcessor {
                 .map(|f| &mut **f as &mut dyn FnMut() -> Result<Option<String>>),
             policy: policy
                 .as_mut()
-                .map(|p| &mut **p as &mut dyn FnMut(i32) -> Result<u32>),
+                .map(|p| &mut **p as &mut dyn FnMut(i32, u32) -> Result<u32>),
             output: None,
             code_output: None,
             finalizer_output: None,

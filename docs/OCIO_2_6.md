@@ -183,7 +183,7 @@ externally managed uniforms are not included in descriptor buffer offsets.
 retained in the descriptor or handled externally, while keeping a global binding
 sequence across texture types on OCIO 2.5+.
 `try_extract_with_texture_policy` also delegates native texture-width and 1D
-policy getters to synchronous Rust callbacks during extraction. These are
+policy getters and setter notifications to synchronous Rust callbacks during extraction. These are
 detached on return; callback errors use a conservative temporary native fallback
 and are returned to the caller. The opt-in checked variant probes optimized
 texture lengths then validates each dynamic width; it has the extra extraction,

@@ -133,6 +133,109 @@ fn custom_texture_policy_controls_native_virtual_getters_and_detaches() {
         desc
     };
     assert_eq!(desc.try_texture_max_width().unwrap(), 2048);
+    struct SetterPolicy {
+        events: Vec<(u8, u32)>,
+        failure: u8,
+        width: u32,
+        allow_1d: bool,
+    }
+    impl ShaderTexturePolicy for SetterPolicy {
+        fn set_texture_max_width(&mut self, width: u32) -> ocio_rs::Result<()> {
+            self.events.push((0, width));
+            if self.failure == 1 {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "width setter rejected".into(),
+                ));
+            }
+            assert_ne!(self.failure, 2, "width setter panic");
+            self.width = width;
+            Ok(())
+        }
+        fn set_allow_texture_1d(&mut self, allowed: bool) -> ocio_rs::Result<()> {
+            self.events.push((1, u32::from(allowed)));
+            if self.failure == 3 {
+                return Err(ocio_rs::OcioError::InvalidInput(
+                    "dimension setter rejected".into(),
+                ));
+            }
+            assert_ne!(self.failure, 4, "dimension setter panic");
+            self.allow_1d = allowed;
+            Ok(())
+        }
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(self.width)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(self.allow_1d)
+        }
+    }
+    for checked in [false, true] {
+        let mut policy = SetterPolicy {
+            events: Vec::new(),
+            failure: 0,
+            width: 0,
+            allow_1d: false,
+        };
+        let desc = if checked {
+            gpu.try_extract_with_texture_policy_checked(
+                &template,
+                &mut Hooks,
+                &mut policy,
+                c"setter-checked",
+                |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+            )
+            .unwrap()
+        } else {
+            gpu.try_extract_with_texture_policy(
+                &template,
+                &mut Hooks,
+                &mut policy,
+                c"setter-direct",
+                |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+            )
+            .unwrap()
+        };
+        assert_eq!(policy.events, [(0, 2048), (1, 1)]);
+        assert_eq!(
+            desc.texture_2d(0).unwrap().dimensions,
+            GpuTextureDimensions::Texture1D
+        );
+        desc.set_texture_max_width(512).unwrap();
+        desc.set_allow_texture_1d(false).unwrap();
+        assert_eq!(policy.events, [(0, 2048), (1, 1)]);
+        assert_eq!(desc.try_texture_max_width().unwrap(), 512);
+    }
+    for failure in [1, 2, 3, 4] {
+        let mut policy = SetterPolicy {
+            events: Vec::new(),
+            failure,
+            width: 0,
+            allow_1d: false,
+        };
+        let mut delivered = 0;
+        let error = gpu
+            .try_extract_with_texture_policy(
+                &template,
+                &mut Hooks,
+                &mut policy,
+                c"setter-error",
+                |_| {
+                    delivered += 1;
+                    Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+                },
+            )
+            .err()
+            .expect("setter failure");
+        assert!(
+            error.to_string().contains(if failure % 2 == 0 {
+                "panicked"
+            } else {
+                "rejected"
+            }),
+            "{error}"
+        );
+        assert_eq!(delivered, 0);
+    }
     let mut unsafe_policy = Policy {
         widths: 0,
         dimensions: 0,

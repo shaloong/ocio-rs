@@ -740,7 +740,8 @@ typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_te
 typedef bool (*ocio_shader_texture_control_callback)(void* context, const ocio_shader_texture_event* event,
     bool* store, bool* override_binding, uint32_t* binding);
 typedef bool (*ocio_shader_finalize_callback)(void* context, const char** shader_text);
-// Returns a policy value in `value`; kind 0 is maximum width, kind 1 is allow-1D.
+// Kinds 0/1 query maximum width/allow-1D; kinds 2/3 notify their setters.
+// For setter events `value` contains the requested input (allow-1D is 0 or 1).
 typedef bool (*ocio_shader_texture_policy_callback)(void* context, int kind, uint32_t* value);
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);

@@ -178,8 +178,18 @@ fn validate_case(
             struct Policy {
                 width_queries: usize,
                 dimension_queries: usize,
+                width_set: Option<u32>,
+                dimension_set: Option<bool>,
             }
             impl ShaderTexturePolicy for Policy {
+                fn set_texture_max_width(&mut self, width: u32) -> ocio_rs::Result<()> {
+                    self.width_set = Some(width);
+                    Ok(())
+                }
+                fn set_allow_texture_1d(&mut self, allow: bool) -> ocio_rs::Result<()> {
+                    self.dimension_set = Some(allow);
+                    Ok(())
+                }
                 fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
                     self.width_queries += 1;
                     Ok(1024)
@@ -192,7 +202,10 @@ fn validate_case(
             let mut policy = Policy {
                 width_queries: 0,
                 dimension_queries: 0,
+                width_set: None,
+                dimension_set: None,
             };
+            let template_width = desc.try_texture_max_width()?;
             let result = gpu.try_extract_with_texture_policy_checked(
                 &desc,
                 &mut hooks,
@@ -200,7 +213,11 @@ fn validate_case(
                 c"gpu-validation-texture-policy",
                 |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
             )?;
-            if policy.width_queries == 0 || policy.dimension_queries == 0 {
+            if policy.width_queries == 0
+                || policy.dimension_queries == 0
+                || policy.width_set != Some(template_width)
+                || policy.dimension_set != Some(true)
+            {
                 return Err("native texture policy was not queried".into());
             }
             result
