@@ -108,8 +108,23 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert!(!value.equals(&original).unwrap());
     let transform = GradingRGBCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
+    let shared_value = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
+    shared_value.validate().unwrap();
+    assert_eq!(
+        shared_value.is_identity().unwrap(),
+        value.is_identity().unwrap()
+    );
+    let shared_child = shared_value.curve_shared(RGBCurveType::Red).unwrap();
+    assert!(shared_value
+        .create_editable_copy()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
     let copy = GradingRGBCurve::from_transform(&transform).unwrap();
     assert!(copy.equals(&value).unwrap());
+    drop(transform);
+    drop(shared_value);
+    assert_eq!(shared_child.view().slope(0).unwrap(), 0.37);
     drop(value);
     assert_eq!(red.slope(0).unwrap(), 0.37);
     drop(red);
@@ -146,9 +161,25 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     view.validate().unwrap();
     let transform = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
     value.set_transform(&transform).unwrap();
+    let shared_value = ocio_rs::SharedGradingHueCurve::from_transform(&transform).unwrap();
+    assert!(shared_value.draw_curve_only().unwrap());
+    shared_value.validate().unwrap();
+    assert_eq!(
+        shared_value.is_identity().unwrap(),
+        value.is_identity().unwrap()
+    );
+    let shared_child = shared_value.curve_shared(HueCurveType::HueFx).unwrap();
+    assert!(shared_value
+        .create_editable_copy()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
     let copy = GradingHueCurve::from_transform(&transform).unwrap();
     assert!(copy.draw_curve_only().unwrap());
     assert!(copy.equals(&value).unwrap());
+    drop(transform);
+    drop(shared_value);
+    assert_eq!(shared_child.view().slope(0).unwrap(), 0.37);
     drop(curve);
     assert_eq!(shared.view().slope(0).unwrap(), 0.37);
     let curves: Vec<_> = [

@@ -83,11 +83,12 @@ mod spline;
 mod system_monitors;
 #[cfg(feature = "v2_5")]
 pub use spline::BSplineType;
-#[cfg(feature = "v2_5")]
-pub use spline::GradingHueCurve;
 pub use spline::{
     ConstGradingBSplineCurve, GradingBSplineCurve, GradingRGBCurve, SharedGradingBSplineCurve,
+    SharedGradingRGBCurve,
 };
+#[cfg(feature = "v2_5")]
+pub use spline::{GradingHueCurve, SharedGradingHueCurve};
 pub use system_monitors::SystemMonitors;
 mod baker;
 pub use app_helpers::{

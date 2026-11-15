@@ -44,10 +44,7 @@ pub struct SharedGradingBSplineCurve {
     data: NonNull<c_void>,
 }
 impl SharedGradingBSplineCurve {
-    fn from_parent(parent: NonNull<c_void>, kind: i32, hue: bool) -> Result<Self> {
-        crate::clear_last_error();
-        let owner =
-            unsafe { ocio_sys::ocio_grading_curve_const_shared(parent.as_ptr(), kind, hue) };
+    fn from_owner(owner: *mut c_void) -> Result<Self> {
         let owner = crate::handle_result(owner)?;
         let data = unsafe { ocio_sys::ocio_grading_spline_shared_data(owner.as_ptr()) };
         let Some(data) = NonNull::new(data.cast_mut()) else {
@@ -56,12 +53,156 @@ impl SharedGradingBSplineCurve {
         };
         Ok(Self { owner, data })
     }
+    fn from_parent(parent: NonNull<c_void>, kind: i32, hue: bool) -> Result<Self> {
+        crate::clear_last_error();
+        let owner =
+            unsafe { ocio_sys::ocio_grading_curve_const_shared(parent.as_ptr(), kind, hue) };
+        Self::from_owner(owner)
+    }
     /// Borrow this shared spline without another allocation or reference increment.
     pub fn view(&self) -> ConstGradingBSplineCurve<'_> {
         ConstGradingBSplineCurve {
             handle: self.data,
             owner: std::marker::PhantomData,
         }
+    }
+}
+
+/// A retained read-only OCIO RGB curve value, without a deep copy.
+///
+/// This retains the value returned by OCIO. Replacing the source value does not
+/// retarget this handle. Native aliases must not be accessed concurrently.
+pub struct SharedGradingRGBCurve {
+    pub(crate) handle: NonNull<c_void>,
+}
+impl SharedGradingRGBCurve {
+    /// Check OCIO identity without making an editable copy.
+    pub fn is_identity(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_identity(self.handle.as_ptr(), false)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Validate all native splines without making an editable copy.
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_grading_curve_value_shared_validate(self.handle.as_ptr(), false) };
+        crate::ocio_call_status()
+    }
+    /// Retain a transform's current native value without copying its splines.
+    pub fn from_transform(transform: &crate::transform::GradingRGBCurveTransform) -> Result<Self> {
+        use crate::transform::TransformHandle;
+        Self::from_source(transform.as_ptr(), 0)
+    }
+    pub(crate) fn from_source(source: *mut c_void, kind: i32) -> Result<Self> {
+        crate::clear_last_error();
+        Ok(Self {
+            handle: crate::handle_result(unsafe {
+                ocio_sys::ocio_grading_curve_value_shared(source, kind)
+            })?,
+        })
+    }
+    /// Retain one read-only child spline independently.
+    pub fn curve_shared(&self, kind: crate::RGBCurveType) -> Result<SharedGradingBSplineCurve> {
+        crate::clear_last_error();
+        SharedGradingBSplineCurve::from_owner(unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_spline(
+                self.handle.as_ptr(),
+                kind as i32,
+                false,
+            )
+        })
+    }
+    /// Copy into an independent editable value.
+    pub fn create_editable_copy(&self) -> Result<GradingRGBCurve> {
+        crate::clear_last_error();
+        Ok(GradingRGBCurve {
+            handle: crate::handle_result(unsafe {
+                ocio_sys::ocio_grading_curve_value_shared_copy(self.handle.as_ptr(), false)
+            })?,
+        })
+    }
+}
+impl Drop for SharedGradingRGBCurve {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_grading_curve_value_shared_destroy(self.handle.as_ptr(), false) }
+    }
+}
+
+/// A retained read-only OCIO hue curve value, without a deep copy.
+///
+/// Replacing the source value does not retarget this handle. Native aliases
+/// must not be accessed concurrently.
+#[cfg(feature = "v2_5")]
+pub struct SharedGradingHueCurve {
+    pub(crate) handle: NonNull<c_void>,
+}
+#[cfg(feature = "v2_5")]
+impl SharedGradingHueCurve {
+    /// Read the native draw-only flag without making an editable copy.
+    pub fn draw_curve_only(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_grading_hue_curve_value_shared_draw_only(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Check OCIO identity without making an editable copy.
+    pub fn is_identity(&self) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_identity(self.handle.as_ptr(), true)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    /// Validate all native splines without making an editable copy.
+    pub fn validate(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_grading_curve_value_shared_validate(self.handle.as_ptr(), true) };
+        crate::ocio_call_status()
+    }
+    /// Retain a transform's current native value without copying its splines.
+    pub fn from_transform(transform: &crate::transform::GradingHueCurveTransform) -> Result<Self> {
+        use crate::transform::TransformHandle;
+        Self::from_source(transform.as_ptr(), 2)
+    }
+    pub(crate) fn from_source(source: *mut c_void, kind: i32) -> Result<Self> {
+        crate::clear_last_error();
+        Ok(Self {
+            handle: crate::handle_result(unsafe {
+                ocio_sys::ocio_grading_curve_value_shared(source, kind)
+            })?,
+        })
+    }
+    /// Retain one read-only child spline independently.
+    pub fn curve_shared(&self, kind: crate::HueCurveType) -> Result<SharedGradingBSplineCurve> {
+        crate::clear_last_error();
+        SharedGradingBSplineCurve::from_owner(unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_spline(
+                self.handle.as_ptr(),
+                kind as i32,
+                true,
+            )
+        })
+    }
+    /// Copy into an independent editable value.
+    pub fn create_editable_copy(&self) -> Result<GradingHueCurve> {
+        crate::clear_last_error();
+        Ok(GradingHueCurve {
+            handle: crate::handle_result(unsafe {
+                ocio_sys::ocio_grading_curve_value_shared_copy(self.handle.as_ptr(), true)
+            })?,
+        })
+    }
+}
+#[cfg(feature = "v2_5")]
+impl Drop for SharedGradingHueCurve {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_grading_curve_value_shared_destroy(self.handle.as_ptr(), true) }
     }
 }
 impl Drop for SharedGradingBSplineCurve {

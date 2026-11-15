@@ -5612,6 +5612,23 @@ pub struct DynamicProperty {
 }
 
 impl DynamicProperty {
+    /// Retain the current RGB curve value without a deep copy.
+    pub fn grading_rgb_curve_shared(&self) -> Result<crate::SharedGradingRGBCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingRgbCurve,
+            "DynamicProperty::grading_rgb_curve_shared",
+        )?;
+        crate::SharedGradingRGBCurve::from_source(self.handle.as_ptr(), 1)
+    }
+    /// Retain the current hue curve value without a deep copy.
+    #[cfg(feature = "v2_5")]
+    pub fn grading_hue_curve_shared(&self) -> Result<crate::SharedGradingHueCurve> {
+        self.require_property_type(
+            DynamicPropertyType::GradingHueCurve,
+            "DynamicProperty::grading_hue_curve_shared",
+        )?;
+        crate::SharedGradingHueCurve::from_source(self.handle.as_ptr(), 3)
+    }
     /// Return an independent native RGB curve value, including its non-point state.
     pub fn grading_rgb_curve_object(&self) -> Result<crate::GradingRGBCurve> {
         self.require_property_type(

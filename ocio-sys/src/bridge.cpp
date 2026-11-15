@@ -19276,6 +19276,113 @@ void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h) {
 #endif
 }
 
+void* ocio_grading_curve_value_shared(void* source, int kind) {
+#ifdef OCIO_RS_STUB
+  (void)source; (void)kind; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!source) throw std::invalid_argument("null curve source");
+    if (kind == 0 || kind == 1) {
+      auto value = kind == 0 ? ocio_rs_bridge::get_real_grading_rgb_curve_transform(source)->getValue()
+                             : ocio::DynamicPropertyValue::AsGradingRGBCurve(ocio_rs_bridge::get_real_dynamic_property(source))->getValue();
+      if (!value) throw ocio::Exception("null grading RGB curve value");
+      return new ocio::ConstGradingRGBCurveRcPtr(std::move(value));
+    }
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    if (kind == 2 || kind == 3) {
+      auto value = kind == 2 ? ocio_rs_bridge::get_real_grading_hue_curve_transform(source)->getValue()
+                             : ocio::DynamicPropertyValue::AsGradingHueCurve(ocio_rs_bridge::get_real_dynamic_property(source))->getValue();
+      if (!value) throw ocio::Exception("null grading hue curve value");
+      return new ocio::ConstGradingHueCurveRcPtr(std::move(value));
+    }
+#endif
+    throw std::invalid_argument("unknown grading curve source");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void ocio_grading_curve_value_shared_destroy(void* value, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue;
+#else
+  if (!hue) delete static_cast<ocio::ConstGradingRGBCurveRcPtr*>(value);
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+  else delete static_cast<ocio::ConstGradingHueCurveRcPtr*>(value);
+#endif
+#endif
+}
+void* ocio_grading_curve_value_shared_spline(void* value, int kind, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)kind; (void)hue; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!value) throw std::invalid_argument("null curve value");
+    if (!hue) return new ocio::ConstGradingBSplineCurveRcPtr((*static_cast<ocio::ConstGradingRGBCurveRcPtr*>(value))->getCurve(static_cast<ocio::RGBCurveType>(kind)));
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    return new ocio::ConstGradingBSplineCurveRcPtr((*static_cast<ocio::ConstGradingHueCurveRcPtr*>(value))->getCurve(static_cast<ocio::HueCurveType>(kind)));
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_grading_curve_value_shared_copy(void* value, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!value) throw std::invalid_argument("null curve value");
+    if (!hue) return new CurveObjectrgb((*static_cast<ocio::ConstGradingRGBCurveRcPtr*>(value))->createEditableCopy());
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    return new CurveObjecthue((*static_cast<ocio::ConstGradingHueCurveRcPtr*>(value))->createEditableCopy());
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+bool ocio_grading_curve_value_shared_identity(void* value, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return false;
+#else
+  try {
+    if (!value) throw std::invalid_argument("null curve value");
+    if (!hue) return (*static_cast<ocio::ConstGradingRGBCurveRcPtr*>(value))->isIdentity();
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    return (*static_cast<ocio::ConstGradingHueCurveRcPtr*>(value))->isIdentity();
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+void ocio_grading_curve_value_shared_validate(void* value, bool hue) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+#else
+  try {
+    if (!value) throw std::invalid_argument("null curve value");
+    if (!hue) { (*static_cast<ocio::ConstGradingRGBCurveRcPtr*>(value))->validate(); return; }
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    (*static_cast<ocio::ConstGradingHueCurveRcPtr*>(value))->validate();
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+bool ocio_grading_hue_curve_value_shared_draw_only(void* value) {
+#ifdef OCIO_RS_STUB
+  (void)value; ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO"); return false;
+#else
+  try {
+    if (!value) throw std::invalid_argument("null curve value");
+    return (*static_cast<ocio::ConstGradingHueCurveRcPtr*>(value))->getDrawCurveOnly();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+#endif
+
 void ocio_dynamic_property_grading_rgb_curve_object_set(void* h, void* value) {
 #ifdef OCIO_RS_STUB
   (void)h; (void)value;

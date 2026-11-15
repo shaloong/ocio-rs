@@ -18,8 +18,11 @@ tests for representative validation.
 | Curve-set identity, validation, equality and hue draw-only flag | Corresponding Rust methods | Equality and native version differences need continued behavioral verification. |
 | Native diagnostic stream operators | `serialize` on splines, borrowed spline views and curve sets | Native diagnostic output is not a stable interchange format. |
 
-Transform `getValue` returns a native const curve set. The typed
-`from_transform` and legacy raw-value paths create independent editable copies;
+Transform and dynamic-property `getValue` return native const curve sets.
+`SharedGradingRGBCurve` and `SharedGradingHueCurve` retain those values without
+deep copying, and can retain child splines or make explicit editable copies.
+Replacing the source value does not retarget a retained value. The typed
+editable `from_transform` and legacy raw-value paths create independent copies;
 `set_transform` delegates native validation and copying. Native callbacks,
 shared mutable aliases, and arbitrary external FFI users remain subject to the
 documented thread confinement and ownership requirements.

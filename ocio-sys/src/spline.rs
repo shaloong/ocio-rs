@@ -1,6 +1,18 @@
 use std::ffi::c_void;
 
 unsafe extern "C" {
+    pub fn ocio_grading_curve_value_shared(source: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_destroy(value: *mut c_void, hue: bool);
+    pub fn ocio_grading_curve_value_shared_spline(
+        value: *mut c_void,
+        kind: i32,
+        hue: bool,
+    ) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_copy(value: *mut c_void, hue: bool) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_identity(value: *mut c_void, hue: bool) -> bool;
+    pub fn ocio_grading_curve_value_shared_validate(value: *mut c_void, hue: bool);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_value_shared_draw_only(value: *mut c_void) -> bool;
     pub fn ocio_grading_curve_serialize(
         handle: *const c_void,
         kind: i32,

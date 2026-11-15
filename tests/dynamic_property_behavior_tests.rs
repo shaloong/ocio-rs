@@ -72,6 +72,39 @@ fn dynamic_grading_rgb_curve_processor() -> Option<ocio_rs::Processor> {
         .ok()
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn shared_rgb_value_retains_previous_native_value_after_replacement() {
+    let _guard = dynamic_property_test_lock();
+    let property = dynamic_grading_rgb_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .unwrap();
+    let old = property.grading_rgb_curve_shared().unwrap();
+    let old_child = old.curve_shared(RGBCurveType::Red).unwrap();
+    let old_slope = old_child.view().slope(0).unwrap();
+    let mut replacement = old.create_editable_copy().unwrap();
+    replacement
+        .curve(RGBCurveType::Red)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    property.set_grading_rgb_curve_object(&replacement).unwrap();
+    let new = property.grading_rgb_curve_shared().unwrap();
+    assert_eq!(
+        new.curve_shared(RGBCurveType::Red)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
+    drop(property);
+    drop(old);
+    drop(new);
+    assert_eq!(old_child.view().slope(0).unwrap(), old_slope);
+}
+
 #[cfg(feature = "v2_5")]
 fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
     let config = create_test_config()?;
@@ -145,9 +178,31 @@ fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
         .set_slope(0, 0.37)
         .unwrap();
     hue.set_grading_hue_curve_object(&value).unwrap();
+    let retained_hue = hue.grading_hue_curve_shared().unwrap();
     let result = hue.grading_hue_curve_object().unwrap();
     assert!(result.draw_curve_only().unwrap());
     assert!(result.equals(&value).unwrap());
+    assert!(retained_hue
+        .create_editable_copy()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
+    value
+        .curve(HueCurveType::HueFx)
+        .unwrap()
+        .set_slope(0, 0.58)
+        .unwrap();
+    hue.set_grading_hue_curve_object(&value).unwrap();
+    assert_eq!(
+        hue.grading_hue_curve_shared()
+            .unwrap()
+            .curve_shared(HueCurveType::HueFx)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.58
+    );
 
     let rgb = dynamic_grading_rgb_curve_processor()
         .unwrap()
@@ -160,12 +215,34 @@ fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
         .set_slope(0, 0.37)
         .unwrap();
     rgb.set_grading_rgb_curve_object(&value).unwrap();
+    let retained_rgb = rgb.grading_rgb_curve_shared().unwrap();
     assert!(rgb
         .grading_rgb_curve_object()
         .unwrap()
         .equals(&value)
         .unwrap());
     assert!(rgb.grading_hue_curve_object().is_err());
+    assert!(rgb.grading_hue_curve_shared().is_err());
+    drop(rgb);
+    drop(hue);
+    assert_eq!(
+        retained_rgb
+            .curve_shared(RGBCurveType::Red)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
+    assert_eq!(
+        retained_hue
+            .curve_shared(HueCurveType::HueFx)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
 }
 
 #[test]
