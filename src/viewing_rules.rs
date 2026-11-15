@@ -34,7 +34,7 @@ impl ViewingRules {
         unsafe { ocio_sys::ocio_viewing_rules_get_num_entries(self.handle.as_ptr()) as u64 }
     }
 
-    /// Look up the index for a rule name.
+    /// Look up the index for a rule name using OCIO's case-insensitive matching.
     ///
     /// This compatibility method returns `u64::MAX` when OCIO rejects the name.
     /// Prefer [`Self::try_index_for_rule`] to preserve the OCIO error, or
@@ -62,12 +62,7 @@ impl ViewingRules {
     /// Returns `None` when the rule is absent or the rule name is not a valid
     /// C string for the OCIO ABI.
     pub fn rule_index(&self, rule_name: impl AsRef<str>) -> Option<u64> {
-        let rule_name = rule_name.as_ref();
-        let index = self.try_index_for_rule(rule_name).ok()?;
-        match self.name(index) {
-            Some(found_name) if found_name == rule_name => Some(index),
-            _ => None,
-        }
+        self.try_index_for_rule(rule_name).ok()
     }
 
     /// Return the authored name for a rule index.

@@ -11,6 +11,14 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::FileRules;
 
+#[test]
+#[cfg(ocio_stub)]
+fn stub_rule_lookup_reports_unavailable() {
+    let rules = FileRules::create().expect("file_rules create");
+    assert!(rules.try_index_for_rule("anything").is_err());
+    assert_eq!(rules.rule_index("anything"), None);
+}
+
 fn file_rules_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
@@ -62,6 +70,7 @@ fn file_rules_insert_rule_round_trip_behavior() {
         0
     );
     assert_eq!(rules.rule_index("UnitRule"), Some(0));
+    assert_eq!(rules.rule_index("unitrule"), Some(0));
     assert!(matches!(
         rules.try_index_for_rule("DefinitelyMissingRule"),
         Err(ocio_rs::OcioError::Ocio(_))

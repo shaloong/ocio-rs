@@ -5068,6 +5068,7 @@ size_t ocio_file_rules_get_num_entries(void* handle) {
 size_t ocio_file_rules_get_index_for_rule(void* handle, const char* ruleName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)ruleName;
+  ocio_rs_bridge::capture_error_message("Native file rules required");
   return 0;
 #else
   try {
@@ -5371,6 +5372,7 @@ size_t ocio_viewing_rules_get_num_entries(void* handle) {
 size_t ocio_viewing_rules_get_index_for_rule(void* handle, const char* ruleName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)ruleName;
+  ocio_rs_bridge::capture_error_message("Native viewing rules required");
   return 0;
 #else
   try {
