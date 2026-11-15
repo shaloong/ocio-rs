@@ -200,6 +200,9 @@ fn grading_hue_curve_raw_value_handle_survives_parent_drop() {
     unsafe {
         let handle = wrapper.raw_value_handle();
         assert!(!handle.is_null(), "raw grading hue curve handle");
+        wrapper
+            .set_control_point(HueCurveType::HueHue, 1, 0.25, 0.4)
+            .unwrap();
         drop(wrapper);
 
         let target =

@@ -159,6 +159,9 @@ fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
     unsafe {
         let handle = wrapper.raw_value_handle();
         assert!(!handle.is_null(), "raw grading rgb curve handle");
+        wrapper
+            .set_control_point(RGBCurveType::Red, 1, 0.5, 0.7)
+            .unwrap();
         drop(wrapper);
 
         let target =

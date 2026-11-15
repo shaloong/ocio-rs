@@ -13304,7 +13304,7 @@ void* ocio_grading_rgb_curve_transform_get_value(void* handle) {
     auto result = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getValue();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GradingRGBCurveHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::GradingRGBCurve>(result);
+    auto result_unconst = result->createEditableCopy();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGradingRGBCurve>(ocio_rs_bridge::RealGradingRGBCurve{result_unconst});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
@@ -13600,7 +13600,7 @@ void* ocio_grading_hue_curve_transform_get_value(void* handle) {
     auto result = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getValue();
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GradingHueCurveHandle>();
-    auto result_unconst = std::const_pointer_cast<ocio::GradingHueCurve>(result);
+    auto result_unconst = result->createEditableCopy();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealGradingHueCurve>(ocio_rs_bridge::RealGradingHueCurve{result_unconst});
     return out_handle.release();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }

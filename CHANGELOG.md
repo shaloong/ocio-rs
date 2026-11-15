@@ -145,6 +145,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Legacy raw grading-curve value handles now contain independent editable
+  snapshots instead of mutable aliases to OCIO's read-only curve values.
 - `Baker::bake` writes the full native byte output; `bake_to_string` now reports
   invalid UTF-8 instead of silently truncating or replacing data.
 - Synchronize shared in-memory config I/O proxy access and retain immutable LUT
