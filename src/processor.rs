@@ -2239,7 +2239,8 @@ pub enum ShaderLifecycle<'a> {
     Begin { unique_id: &'a str },
     /// OCIO has finalized and assembled the shader.
     Finalized,
-    /// OCIO has ended collection, including after an extraction error.
+    /// OCIO has ended collection, including after an extraction error once
+    /// `Begin` returned successfully. A failed `Begin` has no `End` event.
     End,
 }
 

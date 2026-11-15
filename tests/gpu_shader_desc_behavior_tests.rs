@@ -277,6 +277,34 @@ fn custom_shader_lifecycle_preserves_order_and_first_error() {
         matches!(error, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message.contains("panicked"))
     );
     assert_eq!(events.into_inner(), [false]);
+    for panic_at_end in [false, true] {
+        let events = RefCell::new(Vec::new());
+        let error = gpu.try_extract_with_lifecycle_callbacks(
+            &template,
+            |_| Ok(String::new()),
+            |_| Ok(None),
+            |_| Ok(()),
+            |event| {
+                match event {
+                    ShaderLifecycle::Begin { .. } => events.borrow_mut().push("begin"),
+                    ShaderLifecycle::Finalized => events.borrow_mut().push("finalized"),
+                    ShaderLifecycle::End => {
+                        events.borrow_mut().push("end");
+                        if panic_at_end {
+                            panic!("end callback panic");
+                        }
+                        return Err(ocio_rs::OcioError::InvalidInput("end rejected".into()));
+                    }
+                }
+                Ok(())
+            },
+        );
+        assert!(
+            matches!(error, Err(ocio_rs::OcioError::InvalidInput(ref message))
+            if message == "end rejected" || (panic_at_end && message.contains("panicked")))
+        );
+        assert_eq!(events.into_inner(), ["begin", "finalized", "end"]);
+    }
     assert!(gpu
         .try_extract_with_assembler(&template, |p| Ok(format!(
             "{}{}{}{}{}{}",

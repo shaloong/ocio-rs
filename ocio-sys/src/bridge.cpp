@@ -8813,7 +8813,7 @@ public:
   }
   void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
   void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
-  void end() override { notifyLifecycle(2); ocio::GpuShaderCreator::end(); }
+  void end() override { ocio::GpuShaderCreator::end(); notifyLifecycle(2); }
   void finalize() override { ocio::GpuShaderCreator::finalize(); notifyLifecycle(1); }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void addToParameterDeclareShaderCode(const char* code) override { ocio::GpuShaderCreator::addToParameterDeclareShaderCode(filterCode(1, code)); }

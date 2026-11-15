@@ -36,7 +36,9 @@ the bridge selects the native ABI separately.
   code must not access those properties concurrently without synchronization.
 - Registration callback errors and panics are contained, and callback contexts
   are disabled on success and failure, even if a getter retains the native
-  creator. Do not reenter extraction on the same processor from a callback.
+  creator. Native `end` is called after a successful `begin` even when extraction
+  fails with an OCIO exception; a failing `begin` does not receive `end`.
+  Do not reenter extraction on the same processor from a callback.
 - The 2.4 and 2.5+ virtual method ABIs differ. Test both actual native versions,
   not only a feature flag against one build, and compare generated shader and
   resources with OCIO's native descriptor. Cover failure, duplicate resources,
