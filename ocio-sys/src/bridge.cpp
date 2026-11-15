@@ -1940,6 +1940,41 @@ void* ocio_const_config_get_processor_named(void* handle, void* context, const c
 #endif
 }
 
+void* ocio_const_config_get_processor_spaces(void* handle, void* context, void* source, void* destination) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)source; (void)destination; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !source || !destination) throw std::invalid_argument("invalid color space processor arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto src = *static_cast<ocio::ConstColorSpaceRcPtr*>(source);
+    auto dst = *static_cast<ocio::ConstColorSpaceRcPtr*>(destination);
+    auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
+      return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), src, dst)
+                     : cfg->getProcessor(src, dst);
+    };
+    return ocio_rs_const_config_processor(config, build);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_const_config_get_processor_named_object(void* handle, void* context, void* named, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)context; (void)named; (void)direction; return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!handle || !named) throw std::invalid_argument("invalid named transform processor arguments");
+    auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    auto value = *static_cast<ocio::ConstNamedTransformRcPtr*>(named);
+    auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
+      return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), value, dir)
+                     : cfg->getProcessor(value, dir);
+    };
+    return ocio_rs_const_config_processor(config, build);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_set_current_config(void* config) {
 #ifdef OCIO_RS_STUB
   (void)config;

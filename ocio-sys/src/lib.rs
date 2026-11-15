@@ -178,6 +178,18 @@ unsafe extern "C" {
         name: *const i8,
         direction: i32,
     ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_spaces(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *mut c_void,
+        destination: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_named_object(
+        handle: *mut c_void,
+        context: *mut c_void,
+        named: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
     pub fn ocio_const_named_item_text(
         handle: *mut c_void,
         kind: i32,

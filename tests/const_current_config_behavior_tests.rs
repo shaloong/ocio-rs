@@ -30,6 +30,19 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     assert!(shared.cache_id().unwrap().is_some());
     assert!(shared.try_const_current_context().unwrap().is_some());
     let shared_context = shared.try_const_current_context().unwrap().unwrap();
+    let raw = shared.try_const_color_space(c"raw").unwrap().unwrap();
+    for context in [None, Some(&shared_context)] {
+        let processor = shared
+            .processor_from_const_color_spaces(&raw, &raw, context)
+            .unwrap();
+        let mut pixel = [0.2, 0.4, 0.6, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        assert_eq!(pixel, [0.2, 0.4, 0.6, 1.0]);
+    }
     assert!(shared
         .processor_with_const_context(c"raw", c"raw", &shared_context)
         .is_ok());
@@ -136,7 +149,43 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     try_set_current_config(&dynamic_config).unwrap();
     let snapshot = try_const_current_config().unwrap().unwrap();
     let context = snapshot.try_const_current_context().unwrap().unwrap();
+    let source = snapshot
+        .try_const_color_space(c"dynamic-input")
+        .unwrap()
+        .unwrap();
+    let destination = snapshot
+        .try_const_color_space(c"reference")
+        .unwrap()
+        .unwrap();
+    let named_object = snapshot
+        .try_const_named_transform(c"dynamic-named")
+        .unwrap()
+        .unwrap();
     for ctx in [None, Some(&context)] {
+        let make_spaces = || snapshot.processor_from_const_color_spaces(&source, &destination, ctx);
+        let make_named = || {
+            snapshot.processor_from_const_named_transform(
+                &named_object,
+                ocio_rs::TransformDirection::Forward,
+                ctx,
+            )
+        };
+        for make in [&make_spaces as &dyn Fn() -> _, &make_named] {
+            let left = make().unwrap();
+            let right = make().unwrap();
+            left.dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+                .unwrap()
+                .set_double_value(1.25)
+                .unwrap();
+            assert_eq!(
+                right
+                    .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+                    .unwrap()
+                    .double_value()
+                    .unwrap(),
+                0.0
+            );
+        }
         let first = snapshot
             .processor_named_transform(c"dynamic-named", ocio_rs::TransformDirection::Forward, ctx)
             .unwrap();
