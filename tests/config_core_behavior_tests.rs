@@ -87,6 +87,39 @@ fn color_space_and_named_transform_indices_preserve_missing_and_errors() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn default_file_rule_query_preserves_match_and_bridge_errors() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    let rules = ocio_rs::FileRules::create().unwrap();
+    rules.insert_rule(0, "EXR", "raw", "*", "exr").unwrap();
+    config.set_file_rules(&rules).unwrap();
+    assert!(config
+        .try_filepath_only_matches_default_rule("image.dpx")
+        .unwrap());
+    assert!(!config
+        .try_filepath_only_matches_default_rule_cstr(c"image.exr")
+        .unwrap());
+    assert!(config
+        .try_filepath_only_matches_default_rule("bad\0path")
+        .is_err());
+    assert!(!config.filepath_only_matches_default_rule("bad\0path"));
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert!(
+            !ocio_rs::ocio_sys::ocio_config_filepath_only_matches_default_rule(
+                std::ptr::null_mut(),
+                c"image.exr".as_ptr()
+            )
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert!(config
+        .try_filepath_only_matches_default_rule_cstr(c"image.dpx")
+        .unwrap());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn color_space_linearity_distinguishes_native_errors_from_false() {
     let _guard = config_core_test_lock();
     let config = Config::raw().unwrap();

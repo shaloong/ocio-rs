@@ -4382,8 +4382,9 @@ bool ocio_config_filepath_only_matches_default_rule(void* handle, const char* fi
   return false;
 #else
   try {
+    if (!handle || !filePath) throw std::invalid_argument("invalid file-rule lookup arguments");
     return ocio_rs_bridge::get_real_config(handle)->filepathOnlyMatchesDefaultRule(filePath);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 

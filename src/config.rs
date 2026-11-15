@@ -4544,18 +4544,34 @@ impl Config {
         let _ = crate::ocio_call_status();
     }
 
-    /// Return whether a file path matches only the default file rule.
+    /// Return whether a file path matches only the default rule, or false on error.
     pub fn filepath_only_matches_default_rule(&self, filepath: impl AsRef<str>) -> bool {
-        let fp = match cstring(filepath) {
-            Ok(f) => f,
-            Err(_) => return false,
-        };
-        unsafe {
+        self.try_filepath_only_matches_default_rule(filepath)
+            .unwrap_or(false)
+    }
+
+    /// Determine whether only the default rule matches, preserving native errors.
+    pub fn try_filepath_only_matches_default_rule(
+        &self,
+        filepath: impl AsRef<str>,
+    ) -> Result<bool> {
+        self.try_filepath_only_matches_default_rule_cstr(&cstring(filepath)?)
+    }
+
+    /// Determine whether only the default rule matches using a native path.
+    pub fn try_filepath_only_matches_default_rule_cstr(
+        &self,
+        filepath: &std::ffi::CStr,
+    ) -> Result<bool> {
+        crate::clear_last_error();
+        let result = unsafe {
             ocio_sys::ocio_config_filepath_only_matches_default_rule(
                 self.handle.as_ptr(),
-                fp.as_ptr().cast(),
+                filepath.as_ptr(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
     }
 
     // --- v2.5.1: Processor cache flags ---

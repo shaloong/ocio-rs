@@ -81,6 +81,8 @@ space; alias authoring materializes the vector required by the C++ API.
 of conflating them with a negative linearity result.
 Color-space and named-transform index queries also offer fallible `&CStr`
 variants; a missing entry returns OCIO's `-1`, distinct from bridge errors.
+The fallible default-file-rule query likewise distinguishes native evaluation
+errors from a non-default match, including when using a reusable `&CStr` path.
 Reuse the built-in config passed to matching to retain its native cache.
 
 The parity checker measures its recognized API surface, not every overload,
