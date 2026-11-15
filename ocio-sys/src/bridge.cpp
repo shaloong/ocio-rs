@@ -6779,6 +6779,42 @@ void ocio_const_color_space_set_destroy(void* handle) {
   delete static_cast<ocio::ConstColorSpaceSetRcPtr*>(handle);
 #endif
 }
+void* ocio_color_space_set_ref_get_const_color_space(void* handle, bool is_const, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; (void)name; return nullptr;
+#else
+  try {
+    auto space = ocio_rs_set_ref(handle, is_const)->getColorSpace(name);
+    return space ? new ocio::ConstColorSpaceRcPtr(std::move(space)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_color_space_set_ref_get_const_color_space_by_index(void* handle, bool is_const, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; (void)index; return nullptr;
+#else
+  try {
+    auto space = ocio_rs_set_ref(handle, is_const)->getColorSpaceByIndex(index);
+    return space ? new ocio::ConstColorSpaceRcPtr(std::move(space)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+int ocio_color_space_set_ref_get_color_space_index(void* handle, bool is_const, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; (void)name; return -1;
+#else
+  try { return ocio_rs_set_ref(handle, is_const)->getColorSpaceIndex(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
+#endif
+}
+bool ocio_color_space_set_ref_has_color_space(void* handle, bool is_const, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; (void)name; return false;
+#else
+  try { return ocio_rs_set_ref(handle, is_const)->hasColorSpace(name); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
 int ocio_const_color_space_set_get_num_color_spaces(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; return 0;

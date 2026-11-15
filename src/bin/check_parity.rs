@@ -271,6 +271,10 @@ fn classify_ocio_func(name: &str) -> (String, String) {
                 | "clear_color_spaces"
                 | "create_editable_copy"
                 | "get_const_color_space"
+                | "ref_get_const_color_space"
+                | "ref_get_const_color_space_by_index"
+                | "ref_get_color_space_index"
+                | "ref_has_color_space"
                 | "operation"
                 | "equal"
         );
@@ -709,6 +713,13 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("operation", "union"),
         ("equal", "try_equals"),
         ("get_const_color_space", "try_const_color_space"),
+        ("ref_get_const_color_space", "try_const_color_space"),
+        (
+            "ref_get_const_color_space_by_index",
+            "try_const_color_space_by_index",
+        ),
+        ("ref_get_color_space_index", "try_color_space_index"),
+        ("ref_has_color_space", "try_has_color_space"),
         ("get_const_named_item", "try_const_look"),
         (
             "get_processor_from_const_named_transform",

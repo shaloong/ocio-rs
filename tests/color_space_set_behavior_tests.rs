@@ -196,6 +196,49 @@ fn const_color_spaces_survive_parent_drop_and_copy_independently() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn set_shared_color_space_lookups_keep_native_values_alive() {
+    let set = ColorSpaceSet::create().unwrap();
+    let source = named_color_space("Stable", &[]);
+    source.add_alias("StableAlias").unwrap();
+    set.add_color_space(&source);
+    assert_eq!(set.try_color_space_index("stablealias").unwrap(), 0);
+    assert!(set.try_has_color_space("stablealias").unwrap());
+    assert!(set.try_color_space_index("bad\0name").is_err());
+    let indexed = set.try_const_color_space_by_index(0).unwrap().unwrap();
+    assert!(set.try_const_color_space_by_index(-1).unwrap().is_none());
+    let other = ColorSpaceSet::create().unwrap();
+    let read_only = set.union(&other).unwrap();
+    assert_eq!(read_only.try_color_space_index("stablealias").unwrap(), 0);
+    assert_eq!(read_only.try_color_space_index("missing").unwrap(), -1);
+    assert!(read_only.try_has_color_space("stablealias").unwrap());
+    assert!(!read_only.try_has_color_space("missing").unwrap());
+    let named = read_only.try_const_color_space("Stable").unwrap().unwrap();
+    let indexed_const = read_only
+        .try_const_color_space_by_index(0)
+        .unwrap()
+        .unwrap();
+    assert!(read_only
+        .try_const_color_space("missing")
+        .unwrap()
+        .is_none());
+    assert!(read_only.try_const_color_space("bad\0name").is_err());
+    assert!(read_only
+        .try_const_color_space_by_index(-1)
+        .unwrap()
+        .is_none());
+    set.clear_color_spaces();
+    drop(set);
+    drop(read_only);
+    for view in [&indexed, &named, &indexed_const] {
+        assert_eq!(view.name().unwrap().to_bytes(), b"Stable");
+        let copy = view.create_editable_copy().unwrap();
+        copy.set_name("Changed").unwrap();
+        assert_eq!(view.name().unwrap().to_bytes(), b"Stable");
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn const_color_space_reads_native_metadata_and_allocation() {
     use ocio_rs::{Allocation, BitDepth, ReferenceSpaceType};
     let config = Config::raw().unwrap();
