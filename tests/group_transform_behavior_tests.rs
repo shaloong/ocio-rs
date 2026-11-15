@@ -20,6 +20,90 @@ fn group_transform_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_returns_concrete_handles_for_supported_transform_types() {
+    use ocio_rs::transform::*;
+    use ocio_rs::{FixedFunctionStyle, GradingStyle};
+    let _guard = group_transform_test_lock();
+    macro_rules! check {
+        ($transform:expr, $variant:ident) => {{
+            let group = GroupTransform::create().unwrap();
+            let value = $transform;
+            group.append_transform(&value).unwrap();
+            assert!(
+                matches!(
+                    group.try_transform(0).unwrap(),
+                    Some(Transform::$variant(_))
+                ),
+                stringify!($variant)
+            );
+            let look = ocio_rs::Look::create().unwrap();
+            look.try_set_transform(&value).unwrap();
+            assert!(
+                matches!(look.try_transform().unwrap(), Some(Transform::$variant(_))),
+                stringify!($variant)
+            );
+            let shared = look.try_const_transform().unwrap().unwrap();
+            assert!(
+                matches!(
+                    shared.create_editable_copy().unwrap(),
+                    Transform::$variant(_)
+                ),
+                stringify!($variant)
+            );
+        }};
+    }
+    check!(AllocationTransform::create().unwrap(), Allocation);
+    check!(BuiltinTransform::create().unwrap(), Builtin);
+    check!(CDLTransform::create().unwrap(), CDL);
+    check!(ColorSpaceTransform::create().unwrap(), ColorSpace);
+    check!(DisplayViewTransform::create().unwrap(), DisplayView);
+    check!(ExponentTransform::create().unwrap(), Exponent);
+    check!(
+        ExponentWithLinearTransform::create().unwrap(),
+        ExponentWithLinear
+    );
+    check!(
+        ExposureContrastTransform::create().unwrap(),
+        ExposureContrast
+    );
+    check!(FileTransform::create().unwrap(), File);
+    check!(
+        FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap(),
+        FixedFunction
+    );
+    #[cfg(feature = "v2_5")]
+    check!(
+        GradingHueCurveTransform::create(GradingStyle::Log).unwrap(),
+        GradingHueCurve
+    );
+    check!(
+        GradingPrimaryTransform::create(GradingStyle::Log).unwrap(),
+        GradingPrimary
+    );
+    check!(
+        GradingRGBCurveTransform::create(GradingStyle::Log).unwrap(),
+        GradingRGBCurve
+    );
+    check!(
+        GradingToneTransform::create(GradingStyle::Log).unwrap(),
+        GradingTone
+    );
+    check!(GroupTransform::create().unwrap(), Group);
+    check!(LogAffineTransform::create().unwrap(), LogAffine);
+    check!(
+        LogCameraTransform::create(&[0.01, 0.01, 0.01]).unwrap(),
+        LogCamera
+    );
+    check!(LogTransform::create().unwrap(), Log);
+    check!(LookTransform::create().unwrap(), Look);
+    check!(Lut1DTransform::create().unwrap(), Lut1D);
+    check!(Lut3DTransform::create().unwrap(), Lut3D);
+    check!(MatrixTransform::create().unwrap(), Matrix);
+    check!(RangeTransform::create().unwrap(), Range);
+}
+
 fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
     MatrixTransform::scale(&scale).expect("scale matrix")
 }
@@ -58,6 +142,11 @@ fn group_rejects_direct_and_indirect_cycles_without_mutation() {
         panic!("expected shared group");
     };
     assert_eq!(shared.num_transforms(), 2);
+    shared.set_direction(TransformDirection::Inverse);
+    assert_eq!(child.direction(), TransformDirection::Inverse);
+    shared.clear_transforms().unwrap();
+    assert_eq!(shared.num_transforms(), 0);
+    assert_eq!(child.num_transforms(), 2);
 }
 
 #[test]

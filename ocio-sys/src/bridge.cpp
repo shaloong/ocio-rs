@@ -176,19 +176,19 @@ struct FixedFunctionTransformHandle : TransformHandleBase { std::shared_ptr<void
 #endif
 };
 struct GradingPrimaryTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
-  int get_transform_type_tag() const override { return 10; }
-#ifndef OCIO_RS_STUB
-  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
-#endif
-};
-struct GradingRGBCurveTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 11; }
 #ifndef OCIO_RS_STUB
   OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
 #endif
 };
-struct GradingHueCurveTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+struct GradingRGBCurveTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
   int get_transform_type_tag() const override { return 12; }
+#ifndef OCIO_RS_STUB
+  OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
+#endif
+};
+struct GradingHueCurveTransformHandle : TransformHandleBase { std::shared_ptr<void> inner;
+  int get_transform_type_tag() const override { return 10; }
 #ifndef OCIO_RS_STUB
   OCIO_NAMESPACE::TransformRcPtr get_ocio_transform() override;
 #endif
@@ -1543,34 +1543,40 @@ static void* wrap_transform_copy_as(const ocio::TransformRcPtr& transform) {
 
 static void* wrap_editable_transform_copy(const ocio::TransformRcPtr& transform) {
   if (!transform) return nullptr;
-  if (auto* h = wrap_transform_copy_as<AllocationTransformHandle, RealAllocationTransform, ocio::AllocationTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<BuiltinTransformHandle, RealBuiltinTransform, ocio::BuiltinTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<CDLTransformHandle, RealCDLTransform, ocio::CDLTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<ColorSpaceTransformHandle, RealColorSpaceTransform, ocio::ColorSpaceTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<DisplayViewTransformHandle, RealDisplayViewTransform, ocio::DisplayViewTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<ExponentTransformHandle, RealExponentTransform, ocio::ExponentTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<ExponentWithLinearTransformHandle, RealExponentWithLinearTransform, ocio::ExponentWithLinearTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<ExposureContrastTransformHandle, RealExposureContrastTransform, ocio::ExposureContrastTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<FileTransformHandle, RealFileTransform, ocio::FileTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<FixedFunctionTransformHandle, RealFixedFunctionTransform, ocio::FixedFunctionTransform>(transform)) return h;
+  // A native type tag selects one checked cast; this does not copy the native
+  // transform and avoids a linear sequence of RTTI probes on every retrieval.
+#define OCIO_RS_WRAP_TRANSFORM(TAG, NAME) case ocio::TRANSFORM_TYPE_##TAG: \
+  if (auto* h = wrap_transform_copy_as<NAME##Handle, Real##NAME, ocio::NAME>(transform)) return h; break;
+  switch (transform->getTransformType()) {
+    OCIO_RS_WRAP_TRANSFORM(ALLOCATION, AllocationTransform)
+    OCIO_RS_WRAP_TRANSFORM(BUILTIN, BuiltinTransform)
+    OCIO_RS_WRAP_TRANSFORM(CDL, CDLTransform)
+    OCIO_RS_WRAP_TRANSFORM(COLORSPACE, ColorSpaceTransform)
+    OCIO_RS_WRAP_TRANSFORM(DISPLAY_VIEW, DisplayViewTransform)
+    OCIO_RS_WRAP_TRANSFORM(EXPONENT, ExponentTransform)
+    OCIO_RS_WRAP_TRANSFORM(EXPONENT_WITH_LINEAR, ExponentWithLinearTransform)
+    OCIO_RS_WRAP_TRANSFORM(EXPOSURE_CONTRAST, ExposureContrastTransform)
+    OCIO_RS_WRAP_TRANSFORM(FILE, FileTransform)
+    OCIO_RS_WRAP_TRANSFORM(FIXED_FUNCTION, FixedFunctionTransform)
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
-  if (auto* h = wrap_transform_copy_as<GradingHueCurveTransformHandle, RealGradingHueCurveTransform, ocio::GradingHueCurveTransform>(transform)) return h;
+    OCIO_RS_WRAP_TRANSFORM(GRADING_HUE_CURVE, GradingHueCurveTransform)
 #endif
-  if (auto* h = wrap_transform_copy_as<GradingPrimaryTransformHandle, RealGradingPrimaryTransform, ocio::GradingPrimaryTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<GradingRGBCurveTransformHandle, RealGradingRGBCurveTransform, ocio::GradingRGBCurveTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<GradingToneTransformHandle, RealGradingToneTransform, ocio::GradingToneTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<GroupTransformHandle, RealGroupTransform, ocio::GroupTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<LogAffineTransformHandle, RealLogAffineTransform, ocio::LogAffineTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<LogCameraTransformHandle, RealLogCameraTransform, ocio::LogCameraTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<LogTransformHandle, RealLogTransform, ocio::LogTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<LookTransformHandle, RealLookTransform, ocio::LookTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<Lut1DTransformHandle, RealLut1DTransform, ocio::Lut1DTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<Lut3DTransformHandle, RealLut3DTransform, ocio::Lut3DTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<MatrixTransformHandle, RealMatrixTransform, ocio::MatrixTransform>(transform)) return h;
-  if (auto* h = wrap_transform_copy_as<RangeTransformHandle, RealRangeTransform, ocio::RangeTransform>(transform)) return h;
-  auto handle = std::make_unique<TransformHandle>();
-  handle->inner = std::make_shared<RealTransform>(RealTransform{transform});
-  return handle.release();
+    OCIO_RS_WRAP_TRANSFORM(GRADING_PRIMARY, GradingPrimaryTransform)
+    OCIO_RS_WRAP_TRANSFORM(GRADING_RGB_CURVE, GradingRGBCurveTransform)
+    OCIO_RS_WRAP_TRANSFORM(GRADING_TONE, GradingToneTransform)
+    OCIO_RS_WRAP_TRANSFORM(GROUP, GroupTransform)
+    OCIO_RS_WRAP_TRANSFORM(LOG_AFFINE, LogAffineTransform)
+    OCIO_RS_WRAP_TRANSFORM(LOG_CAMERA, LogCameraTransform)
+    OCIO_RS_WRAP_TRANSFORM(LOG, LogTransform)
+    OCIO_RS_WRAP_TRANSFORM(LOOK, LookTransform)
+    OCIO_RS_WRAP_TRANSFORM(LUT1D, Lut1DTransform)
+    OCIO_RS_WRAP_TRANSFORM(LUT3D, Lut3DTransform)
+    OCIO_RS_WRAP_TRANSFORM(MATRIX, MatrixTransform)
+    OCIO_RS_WRAP_TRANSFORM(RANGE, RangeTransform)
+    default: break;
+  }
+#undef OCIO_RS_WRAP_TRANSFORM
+  throw std::invalid_argument("unsupported or inconsistent native transform type");
 }
 
 #endif // OCIO_RS_STUB
@@ -6125,10 +6131,7 @@ void* ocio_color_space_get_transform(void* handle, int dir) {
   try {
     auto result = ocio_rs_bridge::get_real_color_space(handle)->getTransform(static_cast<ocio::ColorSpaceDirection>(dir));
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    auto editable = result->createEditableCopy();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{editable});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -6726,9 +6729,7 @@ void* ocio_const_color_space_copy_transform(void* handle, int direction) {
   try {
     auto transform = (*static_cast<ocio::ConstColorSpaceRcPtr*>(handle))->getTransform(static_cast<ocio::ColorSpaceDirection>(direction));
     if (!transform) return nullptr;
-    auto out = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    out->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{transform->createEditableCopy()});
-    return out.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(transform->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -7293,10 +7294,7 @@ void* ocio_look_get_transform(void* handle) {
   try {
     auto result = ocio_rs_bridge::get_real_look(handle)->getTransform();
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    auto editable = result->createEditableCopy();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{editable});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -7324,10 +7322,7 @@ void* ocio_look_get_inverse_transform(void* handle) {
   try {
     auto result = ocio_rs_bridge::get_real_look(handle)->getInverseTransform();
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    auto editable = result->createEditableCopy();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{editable});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -7698,10 +7693,7 @@ void* ocio_named_transform_get_transform(void* handle, int dir) {
   try {
     auto result = ocio_rs_bridge::get_real_named_transform(handle)->getTransform(static_cast<ocio::TransformDirection>(dir));
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    auto editable = result->createEditableCopy();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{editable});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -7985,10 +7977,7 @@ void* ocio_view_transform_get_transform(void* handle, int dir) {
   try {
     auto result = ocio_rs_bridge::get_real_view_transform(handle)->getTransform(static_cast<ocio::ViewTransformDirection>(dir));
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    auto editable = result->createEditableCopy();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{editable});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result->createEditableCopy());
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -14980,10 +14969,8 @@ void* ocio_group_transform_get_transform(void* handle, int index) {
   try {
     auto result = ocio_rs_bridge::get_real_group_transform(handle)->getTransform(index);
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::Transform>(result);
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result_unconst});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result_unconst);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -14996,9 +14983,7 @@ void* ocio_group_transform_get_transform_v1(void* handle, int index) {
   try {
     auto result = ocio_rs_bridge::get_real_group_transform(handle)->getTransform(index);
     if (!result) return nullptr;
-    auto out_handle = std::make_unique<ocio_rs_bridge::TransformHandle>();
-    out_handle->inner = std::make_shared<ocio_rs_bridge::RealTransform>(ocio_rs_bridge::RealTransform{result});
-    return out_handle.release();
+    return ocio_rs_bridge::wrap_editable_transform_copy(result);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
