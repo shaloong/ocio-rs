@@ -35,4 +35,26 @@ bool ocio_bench_apply_batch(void* handle, float* pixels, long count) noexcept {
 }
 
 int ocio_bench_compiled_version() noexcept { return OCIO_VERSION_HEX; }
+
+void* ocio_bench_curve_create() noexcept {
+    try {
+        auto transform = OCIO::GradingRGBCurveTransform::Create(OCIO::GRADING_LIN);
+        return new OCIO::ConstGradingRGBCurveRcPtr(transform->getValue());
+    } catch (...) { return nullptr; }
+}
+void ocio_bench_curve_destroy(void* handle) noexcept {
+    delete static_cast<OCIO::ConstGradingRGBCurveRcPtr*>(handle);
+}
+bool ocio_bench_curve_read(void* handle, bool copy, float* out) noexcept {
+    try {
+        const auto& value = *static_cast<OCIO::ConstGradingRGBCurveRcPtr*>(handle);
+        if (copy) {
+            auto editable = value->createEditableCopy();
+            *out = editable->getCurve(OCIO::RGB_RED)->getSlope(0);
+        } else {
+            *out = value->getCurve(OCIO::RGB_RED)->getSlope(0);
+        }
+        return true;
+    } catch (...) { return false; }
+}
 }

@@ -15,6 +15,16 @@ region. Results are diagnostic, not a pass/fail performance threshold or a
 claim that other transforms, input sizes, machines, or builds have the same
 overhead. Use a quiet machine, repeat the run, and compare release builds.
 
+It also compares reading a retained RGB grading spline via a borrowed Rust view
+with a C ABI trampoline calling native `getCurve` and `getSlope`, and compares
+the corresponding editable-copy-and-read paths. These are separate workloads:
+the Rust borrow uses two FFI calls and checked results; the direct trampoline
+uses one call. Neither measures pure inlined C++, nor does it measure acquisition
+of the retained curve value itself. No allocation-free or zero-cost claim is
+implied by the ratio.
+The single-call Rust slope accessor is measured separately against the same
+native trampoline to isolate the cost of splitting the borrow and read calls.
+
 The tool requires OCIO 2.6 source for the `bundled` feature and an installed
 matching OCIO include directory containing the generated `OpenColorABI.h`.
 It checks that the compiled headers' version equals the linked runtime.
