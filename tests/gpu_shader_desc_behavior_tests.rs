@@ -28,6 +28,135 @@ fn gpu_shader_desc_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn texture_control_mixes_native_and_external_resources() {
+    use ocio_rs::{
+        ShaderExtractionHooks, ShaderTextureAction, ShaderUniformAction, ShaderUniformControl,
+        ShaderUniformRegistration,
+    };
+    struct Hooks;
+    impl ShaderExtractionHooks for Hooks {}
+    impl ShaderUniformControl for Hooks {
+        fn register_uniform(
+            &mut self,
+            _: ShaderUniformRegistration,
+        ) -> ocio_rs::Result<ShaderUniformAction> {
+            Ok(ShaderUniformAction::StoreInDescriptor)
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let lut1d = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut1d.set_length(3).unwrap();
+    lut1d
+        .set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let lut3d = ocio_rs::transform::Lut3DTransform::create().unwrap();
+    lut3d.set_grid_size(2).unwrap();
+    for r in 0..2 {
+        for g in 0..2 {
+            for b in 0..2 {
+                lut3d
+                    .set_value(r, g, b, [r as f32 * 0.8, g as f32 * 0.7, b as f32 * 0.6])
+                    .unwrap();
+            }
+        }
+    }
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&lut1d).unwrap();
+    group.append_transform(&lut3d).unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&group, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let reference = gpu.try_extract_with_hooks(&template, &mut Hooks).unwrap();
+    for external_first in [false, true] {
+        let mut seen = Vec::new();
+        let desc = gpu
+            .try_extract_with_texture_control(&template, &mut Hooks, None, |texture| {
+                let external = seen.is_empty() == external_first;
+                seen.push((
+                    texture.dimensions,
+                    texture.suggested_binding,
+                    texture.values.to_vec(),
+                ));
+                Ok(if external {
+                    ShaderTextureAction::External { binding: None }
+                } else {
+                    ShaderTextureAction::StoreInDescriptor { binding: None }
+                })
+            })
+            .unwrap();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(desc.shader_text(), reference.shader_text());
+        assert_eq!(desc.num_textures() + desc.num_3d_textures(), 1);
+        let stored = &seen[usize::from(external_first)];
+        let actual = if stored.0.is_some() {
+            desc.texture_values(0)
+        } else {
+            desc.texture_3d_values(0)
+        };
+        assert_eq!(actual, stored.2);
+        #[cfg(feature = "v2_5")]
+        if let Some(binding) = stored.1 {
+            let actual_binding = if stored.0.is_some() {
+                desc.texture_shader_binding_index(0)
+            } else {
+                desc.texture_3d_shader_binding_index(0)
+            };
+            assert_eq!(actual_binding, Some(binding));
+            assert_ne!(seen[0].1, seen[1].1);
+        }
+    }
+    let err = gpu.try_extract_with_texture_control(&template, &mut Hooks, None, |_| {
+        Err(ocio_rs::OcioError::InvalidInput("texture rejected".into()))
+    });
+    assert!(
+        matches!(err, Err(ocio_rs::OcioError::InvalidInput(ref message)) if message == "texture rejected")
+    );
+    assert!(gpu
+        .try_extract_with_texture_control(&template, &mut Hooks, None, |_| {
+            panic!("texture control panic")
+        })
+        .is_err());
+    assert!(gpu
+        .try_extract_with_texture_control(&template, &mut Hooks, None, |_| {
+            Ok(ShaderTextureAction::External { binding: Some(42) })
+        })
+        .is_err());
+    #[cfg(feature = "v2_5")]
+    {
+        template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+        let mut binding = 41;
+        let desc = gpu
+            .try_extract_with_texture_control(&template, &mut Hooks, None, |_| {
+                binding += 1;
+                Ok(if binding == 42 {
+                    ShaderTextureAction::External {
+                        binding: Some(binding),
+                    }
+                } else {
+                    ShaderTextureAction::StoreInDescriptor {
+                        binding: Some(binding),
+                    }
+                })
+            })
+            .unwrap();
+        let text = desc.shader_text().unwrap();
+        assert!(text.contains("binding = 42") && text.contains("binding = 43"));
+        let stored_binding = if desc.num_textures() == 1 {
+            desc.texture_shader_binding_index(0)
+        } else {
+            desc.texture_3d_shader_binding_index(0)
+        };
+        assert_eq!(stored_binding, Some(43));
+    }
+    assert!(gpu.try_extract_with_hooks(&template, &mut Hooks).is_ok());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn custom_shader_hooks_can_rewrite_sections_and_preserve_cleanup() {
     use ocio_rs::transform::{GroupTransform, Lut1DTransform};
     use ocio_rs::{

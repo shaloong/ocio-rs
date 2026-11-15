@@ -19,7 +19,7 @@ the bridge selects the native ABI separately.
 | `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
 | `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
 | `addDynamicProperty`, count, index/type lookup and presence | Descriptor `add_dynamic_property` and dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | These methods are non-virtual in OCIO; they use its creator-owned store rather than a replaceable subclass hook. |
-| `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; optional streaming sink | 2.4 returns `void`, 2.5+ returns a binding. Rust may choose streamed storage and 2.5+ binding but cannot replace all creator methods. |
+| `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; streaming sink; per-texture `ShaderTextureAction` | 2.4 returns `void`, 2.5+ returns a binding. Other creator virtual methods remain non-customizable. |
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | Helper, function header/body/footer append methods | Descriptor methods and code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
@@ -43,3 +43,31 @@ the bridge selects the native ABI separately.
   not only a feature flag against one build, and compare generated shader and
   resources with OCIO's native descriptor. Cover failure, duplicate resources,
   property lifetime, binding conflicts and actual GPU execution where relevant.
+
+## Per-texture storage design
+
+`try_extract_with_texture_control` chooses native descriptor storage or external
+storage independently for each registration, without copying external textures.
+It is opt-in; existing hooks keep their original callback timing and return
+values. The following constraints govern the implementation and remaining tests:
+
+- Invoke the storage decision before asking the native descriptor to copy a
+  texture. The callback receives the native data only for the duration of the
+  call; external upload and rollback remain caller responsibilities.
+- On 2.5+, track one logical registration sequence shared by 1D/2D and 3D
+  textures, including externally stored entries. The generic OCIO descriptor
+  counts only textures actually stored in it, so its proposed binding cannot be
+  used as the global default after an external entry. Keep explicit per-kind
+  binding maps for the stored entries and reject collisions with any earlier
+  external or stored binding. Apply the chosen binding to generated code.
+- On 2.4, preserve the void texture-registration ABI and reject binding
+  overrides; storage selection itself does not require a binding index.
+- A failed callback or duplicate binding aborts extraction, and retained
+  getters must never retain the synchronous callback context. As with the
+  existing streaming API, successfully uploaded external resources cannot be
+  rolled back automatically.
+- Test alternating stored and external 1D/2D and 3D textures, both insertion
+  orders, explicit and default bindings, collisions, callback errors/panics,
+  descriptor queries after extraction, retained getter lifetime, and shader
+  execution. Reuse the existing native version jobs and hardware validation
+  tool rather than adding a new CI matrix.

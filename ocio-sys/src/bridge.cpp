@@ -8706,6 +8706,7 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   ocio::GpuShaderDescRcPtr resources = ocio::GpuShaderDesc::CreateShaderDesc();
   ocio_shader_assemble_callback callback;
   ocio_shader_texture_callback texture_callback;
+  ocio_shader_texture_control_callback texture_control_callback = nullptr;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
   ocio_shader_code_callback code_callback;
@@ -8763,6 +8764,25 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   std::vector<unsigned> used_bindings;
   uint64_t streamed_texture_count = 0;
 #endif
+  unsigned controlTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
+                          TextureType channel, int dimensions, ocio::Interpolation interpolation,
+                          const float* values, bool has_binding, unsigned proposed, bool& store) {
+    size_t count = 0;
+    const size_t channels = channel == TEXTURE_RED_CHANNEL ? 1 : 3;
+    if (!n || !*n || !s || !*s || !values ||
+        !ocio_rs_texture_count(w, h, d, channels, count) || count == 0)
+      throw ocio::Exception("Invalid texture data in shader callback");
+    ocio_shader_texture_event event{n, s, w, h, d, static_cast<int>(channel), dimensions,
+        static_cast<int>(interpolation), values, count, has_binding, proposed};
+    bool replace = false;
+    uint32_t binding = proposed;
+    store = true;
+    if (!texture_control_callback(context, &event, &store, &replace, &binding))
+      throw ocio::Exception("Rust texture control callback failed");
+    if (replace && !has_binding) throw ocio::Exception("Texture binding override requires OpenColorIO 2.5");
+    if (replace && binding == 0) throw ocio::Exception("Texture binding zero is reserved");
+    return replace ? binding : proposed;
+  }
   unsigned notifyTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
                          TextureType channel, int dimensions, ocio::Interpolation interpolation,
                          const float* values, bool has_binding, unsigned proposed) {
@@ -8808,10 +8828,11 @@ public:
   void setCacheIDOverride(const char* value) {
     if (value) { cache_id_override = value; has_cache_id_override = true; }
   }
+  void setTextureControl(ocio_shader_texture_control_callback cb) { texture_control_callback = cb; }
   const char* getCacheID() const noexcept override {
     return has_cache_id_override ? cache_id_override.c_str() : ocio::GpuShaderCreator::getCacheID();
   }
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
   void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { ocio::GpuShaderCreator::end(); notifyLifecycle(2); }
   void finalize() override { ocio::GpuShaderCreator::finalize(); notifyLifecycle(1); }
@@ -8864,6 +8885,15 @@ public:
   }
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
+    if (texture_control_callback) {
+      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
+      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
+      bool store = true;
+      const auto binding = recordBinding(controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, static_cast<unsigned>(next), store));
+      if (store) { resources->addTexture(n, s, w, h, c, d, i, v); texture_bindings.push_back(binding); }
+      ++streamed_texture_count;
+      return binding;
+    }
     if (stream_textures) {
       const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
       if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
@@ -8879,6 +8909,15 @@ public:
   }
   unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                         const float* v) override {
+    if (texture_control_callback) {
+      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
+      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
+      bool store = true;
+      const auto binding = recordBinding(controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, static_cast<unsigned>(next), store));
+      if (store) { resources->add3DTexture(n, s, e, i, v); texture3d_bindings.push_back(binding); }
+      ++streamed_texture_count;
+      return binding;
+    }
     if (stream_textures) {
       const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
       if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
@@ -8909,6 +8948,12 @@ public:
   }
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                   TextureDimensions d, ocio::Interpolation i, const float* v) override {
+    if (texture_control_callback) {
+      bool store = true;
+      controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0, store);
+      if (store) resources->addTexture(n, s, w, h, c, d, i, v);
+      return;
+    }
     if (stream_textures) {
       notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0);
       return;
@@ -8918,6 +8963,12 @@ public:
   }
   void add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                     const float* v) override {
+    if (texture_control_callback) {
+      bool store = true;
+      controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0, store);
+      if (store) resources->add3DTexture(n, s, e, i, v);
+      return;
+    }
     if (stream_textures) {
       notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0);
       return;
@@ -8971,9 +9022,10 @@ static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* temp
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,
     ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
     ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
-    void* context, bool stream_textures, const char* cache_id_override) {
+    void* context, bool stream_textures, const char* cache_id_override,
+    ocio_shader_texture_control_callback texture_control = nullptr) {
 #ifdef OCIO_RS_STUB
-  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)registration; (void)context; (void)stream_textures; (void)cache_id_override;
+  (void)handle; (void)template_desc; (void)callback; (void)texture; (void)uniform; (void)lifecycle; (void)code; (void)registration; (void)context; (void)stream_textures; (void)cache_id_override; (void)texture_control;
   ocio_rs_bridge::capture_error_message("custom shader assembly requires native OpenColorIO");
   return nullptr;
 #else
@@ -8981,6 +9033,7 @@ static void* ocio_gpu_processor_extract_with_hooks_impl(void* handle, void* temp
     if (!handle || !template_desc || !callback || (stream_textures && !texture)) throw std::invalid_argument("invalid shader assembler arguments");
     auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
     auto desc = std::make_shared<OcioRsAssemblingDesc>(callback, texture, uniform, lifecycle, code, registration, context, stream_textures);
+    desc->setTextureControl(texture_control);
     // Retained getters may keep desc alive after either success or failure;
     // never leave the synchronous Rust callback context attached to it.
     struct CallbackReset {
@@ -9034,6 +9087,15 @@ void* ocio_gpu_processor_extract_with_creator_options(void* handle, void* templa
     bool stream_textures, const char* cache_id_override, void* context) {
   if (!registration) { ocio_rs_bridge::capture_error_message("uniform registration callback required"); return nullptr; }
   return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, texture, uniform, lifecycle, code, registration, context, stream_textures, cache_id_override);
+}
+void* ocio_gpu_processor_extract_with_texture_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    const char* cache_id_override, void* context) {
+  if (!texture) { ocio_rs_bridge::capture_error_message("texture control callback required"); return nullptr; }
+  return ocio_gpu_processor_extract_with_hooks_impl(handle, template_desc, callback, nullptr, uniform,
+      lifecycle, code, registration, context, false, cache_id_override, texture);
 }
 void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, ocio_shader_texture_callback texture,

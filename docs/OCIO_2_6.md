@@ -128,6 +128,9 @@ must own or upload the data before returning; the resulting descriptor does
 not enumerate the streamed textures. `ShaderUniformControl` can retain native
 getters and control registration results, including alongside streamed textures;
 externally managed uniforms are not included in descriptor buffer offsets.
+`try_extract_with_texture_control` additionally allows each texture to be
+retained in the descriptor or handled externally, while keeping a global binding
+sequence across texture types on OCIO 2.5+.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
 an external dynamic uniform, including combined uniform-plus-LUT pipelines.
 These hooks do not

@@ -2088,6 +2088,15 @@ pub struct ShaderTexture<'a> {
     pub suggested_binding: Option<u32>,
 }
 
+/// Storage and optional binding choice for one native texture registration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShaderTextureAction {
+    /// Copy the texture into the returned native descriptor.
+    StoreInDescriptor { binding: Option<u32> },
+    /// The caller copied or uploaded the texture; do not retain it in the descriptor.
+    External { binding: Option<u32> },
+}
+
 /// A uniform registered by OCIO during custom shader extraction.
 pub struct ShaderUniform<'a> {
     /// Name used by the generated shader.
@@ -2346,6 +2355,7 @@ impl GPUProcessor {
             template,
             false,
             None,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| assemble(parts).map(Some),
@@ -2394,6 +2404,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
@@ -2444,6 +2455,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
@@ -2498,6 +2510,7 @@ impl GPUProcessor {
             template,
             false,
             None,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| assemble(parts).map(Some),
@@ -2526,6 +2539,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
@@ -2578,6 +2592,7 @@ impl GPUProcessor {
             template,
             true,
             None,
+            None,
             &mut |_| Ok(ShaderUniformAction::StoreInDescriptor),
             false,
             |parts| hooks.borrow_mut().assemble(parts),
@@ -2609,6 +2624,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             false,
+            None,
             None,
             &mut registration,
             true,
@@ -2646,6 +2662,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             true,
+            None,
             None,
             &mut registration,
             true,
@@ -2685,6 +2702,7 @@ impl GPUProcessor {
         self.try_extract_with_callbacks(
             template,
             options.stream_textures,
+            None,
             options.cache_id_override,
             &mut registration,
             true,
@@ -2700,11 +2718,62 @@ impl GPUProcessor {
         )
     }
 
+    /// Choose storage separately for each texture and control uniform registration.
+    ///
+    /// External textures are not returned by the descriptor; their data must be
+    /// copied or uploaded before the callback returns. On 2.5+, bindings are
+    /// shared across all texture types, including external textures. A binding
+    /// override is not supported on 2.4. Callback errors and panics abort
+    /// extraction; external resources already created remain the caller's responsibility.
+    /// The hooks object's `texture` method is not called. Do not reenter extraction.
+    pub fn try_extract_with_texture_control<H, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        cache_id_override: Option<&std::ffi::CStr>,
+        mut texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderUniformControl,
+        T: FnMut(ShaderTexture<'_>) -> Result<ShaderTextureAction>,
+    {
+        let hooks = std::cell::RefCell::new(hooks);
+        let storage = std::cell::Cell::new(true);
+        let mut registration = |uniform| hooks.borrow_mut().register_uniform(uniform);
+        self.try_extract_with_callbacks(
+            template,
+            false,
+            Some(&storage),
+            cache_id_override,
+            &mut registration,
+            true,
+            |parts| hooks.borrow_mut().assemble(parts),
+            |event| match texture(event)? {
+                ShaderTextureAction::StoreInDescriptor { binding } => {
+                    storage.set(true);
+                    Ok(binding)
+                }
+                ShaderTextureAction::External { binding } => {
+                    storage.set(false);
+                    Ok(binding)
+                }
+            },
+            true,
+            &mut |uniform| hooks.borrow_mut().uniform(uniform),
+            true,
+            &mut |event| hooks.borrow_mut().lifecycle(event),
+            true,
+            &mut |section, code| hooks.borrow_mut().code(section, code),
+            true,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn try_extract_with_callbacks<F, G>(
         &self,
         template: &GpuShaderDesc,
         stream_textures: bool,
+        texture_storage: Option<&std::cell::Cell<bool>>,
         cache_id_override: Option<&std::ffi::CStr>,
         registration: &mut dyn FnMut(ShaderUniformRegistration) -> Result<ShaderUniformAction>,
         has_registration: bool,
@@ -2725,6 +2794,7 @@ impl GPUProcessor {
         struct State<'a, F, G> {
             function: &'a mut F,
             texture: &'a mut G,
+            texture_storage: Option<&'a std::cell::Cell<bool>>,
             uniform: &'a mut dyn FnMut(ShaderUniform<'_>) -> Result<()>,
             lifecycle: &'a mut dyn FnMut(ShaderLifecycle<'_>) -> Result<()>,
             code: &'a mut dyn FnMut(ShaderCodeSection, &str) -> Result<Option<String>>,
@@ -3034,6 +3104,31 @@ impl GPUProcessor {
                 }
             }
         }
+        unsafe extern "C" fn texture_control_callback<F, G>(
+            context: *mut c_void,
+            event: *const ocio_sys::OcioShaderTextureEvent,
+            store: *mut bool,
+            replace: *mut bool,
+            binding: *mut u32,
+        ) -> bool
+        where
+            F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
+            G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
+        {
+            if store.is_null() {
+                return false;
+            }
+            if !unsafe { texture_callback::<F, G>(context, event, replace, binding) } {
+                return false;
+            }
+            let state = unsafe { &*context.cast::<State<'_, F, G>>() };
+            if let Some(storage) = state.texture_storage {
+                unsafe { *store = storage.get() };
+                true
+            } else {
+                false
+            }
+        }
         unsafe extern "C" fn registration_callback<F, G>(
             context: *mut c_void,
             name: *const i8,
@@ -3107,6 +3202,7 @@ impl GPUProcessor {
         let mut state = State {
             function: &mut assemble,
             texture: &mut texture,
+            texture_storage,
             uniform,
             lifecycle,
             code,
@@ -3124,7 +3220,20 @@ impl GPUProcessor {
             } else {
                 ocio_sys::ocio_gpu_processor_extract_with_hooks
             };
-            if let Some(cache_id) = cache_id_override {
+            if texture_storage.is_some() {
+                ocio_sys::ocio_gpu_processor_extract_with_texture_control(
+                    self.handle.as_ptr(),
+                    template.handle.as_ptr(),
+                    callback::<F, G>,
+                    texture_control_callback::<F, G>,
+                    notify_uniform.then_some(uniform_callback::<F, G>),
+                    notify_lifecycle.then_some(lifecycle_callback::<F, G>),
+                    notify_code.then_some(code_callback::<F, G>),
+                    has_registration.then_some(registration_callback::<F, G>),
+                    cache_id_override.map_or(std::ptr::null(), |id| id.as_ptr()),
+                    context,
+                )
+            } else if let Some(cache_id) = cache_id_override {
                 debug_assert!(has_registration);
                 ocio_sys::ocio_gpu_processor_extract_with_creator_options(
                     self.handle.as_ptr(),
