@@ -9063,6 +9063,7 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   unsigned controlTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
                           TextureType channel, int dimensions, ocio::Interpolation interpolation,
                           const float* values, bool has_binding, unsigned proposed, bool& store) {
+    if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
     size_t count = 0;
     const size_t channels = channel == TEXTURE_RED_CHANNEL ? 1 : 3;
     if (!n || !*n || !s || !*s || !values ||

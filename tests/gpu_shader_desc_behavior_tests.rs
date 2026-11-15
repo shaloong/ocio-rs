@@ -60,6 +60,7 @@ fn custom_texture_policy_controls_native_virtual_getters_and_detaches() {
                 1 => Err(ocio_rs::OcioError::InvalidInput("policy failed".into())),
                 2 => panic!("policy panic"),
                 3 => Ok(1),
+                6 => Ok(2),
                 _ => Ok(1024),
             }
         }
@@ -132,6 +133,42 @@ fn custom_texture_policy_controls_native_virtual_getters_and_detaches() {
         desc
     };
     assert_eq!(desc.try_texture_max_width().unwrap(), 2048);
+    let mut unsafe_policy = Policy {
+        widths: 0,
+        dimensions: 0,
+        failure: 6,
+    };
+    let mut delivered = 0;
+    let error = gpu
+        .try_extract_with_texture_policy_checked(
+            &template,
+            &mut Hooks,
+            &mut unsafe_policy,
+            c"checked-unsafe",
+            |_| {
+                delivered += 1;
+                Ok(ShaderTextureAction::External { binding: None })
+            },
+        )
+        .err()
+        .expect("unsafe width rejected");
+    assert!(error.to_string().contains("padding"), "{error}");
+    assert_eq!(delivered, 0);
+    let mut safe_policy = Policy {
+        widths: 0,
+        dimensions: 0,
+        failure: 0,
+    };
+    let checked = gpu
+        .try_extract_with_texture_policy_checked(
+            &template,
+            &mut Hooks,
+            &mut safe_policy,
+            c"checked-safe",
+            |_| Ok(ShaderTextureAction::StoreInDescriptor { binding: None }),
+        )
+        .unwrap();
+    assert!(checked.num_textures() > 0);
     for failure in [1, 2, 3, 4, 5] {
         let mut policy = Policy {
             widths: 0,
@@ -232,6 +269,38 @@ fn custom_texture_policy_controls_native_virtual_getters_and_detaches() {
     assert_eq!(
         desc.try_cache_id().unwrap().as_deref(),
         Some("policy-switching")
+    );
+    struct UnsafeSecond {
+        calls: usize,
+    }
+    impl ShaderTexturePolicy for UnsafeSecond {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            self.calls += 1;
+            Ok(if self.calls == 1 { 1024 } else { 2 })
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let mut unsafe_second = UnsafeSecond { calls: 0 };
+    let mut delivered = 0;
+    let error = two_luts
+        .try_extract_with_texture_policy_checked(
+            &template,
+            &mut Hooks,
+            &mut unsafe_second,
+            c"unsafe-second",
+            |_| {
+                delivered += 1;
+                Ok(ShaderTextureAction::External { binding: None })
+            },
+        )
+        .err()
+        .expect("second width rejected");
+    assert!(error.to_string().contains("padding"), "{error}");
+    assert_eq!(
+        delivered, 1,
+        "previously uploaded resources remain caller-owned"
     );
 
     struct Retaining {

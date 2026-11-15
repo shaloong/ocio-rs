@@ -63,7 +63,9 @@ fn validate_case(
     let mut streamed_lut = Vec::new();
     let mut external_uniform = None;
     if use_hooks {
-        gpu.validate_shader_texture_layout(&desc)?;
+        if name != "dynamic texture policy" {
+            gpu.validate_shader_texture_layout(&desc)?;
+        }
         struct MarkBody {
             seen: bool,
             modified_footer: bool,
@@ -191,7 +193,7 @@ fn validate_case(
                 width_queries: 0,
                 dimension_queries: 0,
             };
-            let result = gpu.try_extract_with_texture_policy(
+            let result = gpu.try_extract_with_texture_policy_checked(
                 &desc,
                 &mut hooks,
                 &mut policy,

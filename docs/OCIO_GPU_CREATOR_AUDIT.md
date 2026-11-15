@@ -38,8 +38,11 @@ Windows; this does not establish hardware execution or full creator parity.
   finishes or aborts native extraction, then reports the first Rust error.
   External resources created before failure remain the caller's responsibility.
   The returned descriptor resumes the template's texture settings, not the
-  transient policy. A changing policy cannot be proven safe by the existing
-  template-only layout probe; callers must account for the native packing bug.
+  transient policy. `try_extract_with_texture_policy_checked` probes optimized
+  texture lengths then conservatively checks every width returned by the policy;
+  this generates the shader twice, may reject non-LUT resources, and assumes
+  resource-generating processor state is unchanged across the two extractions.
+  The unchecked variant requires callers to account for the native packing bug.
   A nonempty caller-supplied cache ID is mandatory and must change with the
   policy/output; otherwise OCIO resource keys can collide across extractions.
 

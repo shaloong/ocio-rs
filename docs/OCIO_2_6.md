@@ -185,8 +185,9 @@ sequence across texture types on OCIO 2.5+.
 `try_extract_with_texture_policy` also delegates native texture-width and 1D
 policy getters to synchronous Rust callbacks during extraction. These are
 detached on return; callback errors use a conservative temporary native fallback
-and are returned to the caller. Dynamic widths require special care with the
-known OCIO LUT packing bug and cannot be validated by a static template probe.
+and are returned to the caller. The opt-in checked variant probes optimized
+texture lengths then validates each dynamic width; it has the extra extraction,
+false-positive and unchanged-resource-state limitations documented by the API.
 The caller must provide a nonempty cache ID that changes whenever the policy or
 output changes, since OCIO's template-derived ID cannot describe dynamic policy.
 The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and

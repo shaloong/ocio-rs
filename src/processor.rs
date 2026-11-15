@@ -2259,7 +2259,9 @@ pub trait ShaderFinalizeControl: ShaderUniformControl {
 /// detached before the resulting descriptor is returned. Its maximum width
 /// must be at least two; supported OCIO versions have a separate LUT padding
 /// bug for certain width/length pairs, so the caller must ensure its policies
-/// are safe for every generated LUT. No callback runs in the GPU pixel loop.
+/// are safe for every generated LUT. For a conservative probe see
+/// [`GPUProcessor::try_extract_with_texture_policy_checked`]. No callback runs
+/// in the GPU pixel loop.
 ///
 /// ```
 /// # use ocio_rs::{ShaderTexturePolicy, Result};
@@ -2876,7 +2878,7 @@ impl GPUProcessor {
     /// original error. Other callbacks and external uploads may have occurred
     /// before failure and their cleanup remains the caller's responsibility.
     /// Policy values may vary during extraction, so a template-only layout probe
-    /// cannot prove them safe; see [`ShaderTexturePolicy`].
+    /// cannot prove them safe; consider [`Self::try_extract_with_texture_policy_checked`].
     /// `cache_id` must be nonempty and uniquely represent the policy and output;
     /// update it whenever they change to avoid native resource-key collisions.
     pub fn try_extract_with_texture_policy<H, P, T>(
@@ -2936,6 +2938,64 @@ impl GPUProcessor {
             Some(&mut finalizer),
             Some(&mut query),
         )
+    }
+
+    /// Conservatively probe optimized texture lengths, then validate every
+    /// width returned by `policy` against every probed length before OCIO uses it.
+    ///
+    /// This generates the shader twice and may reject non-LUT 1D/2D resources.
+    /// It relies on the native 2.4–2.6 LUT length limit and does not validate
+    /// newer versions or arbitrary native creators. The processor and any state
+    /// capable of changing generated resources must remain unchanged across the
+    /// probe and actual extraction, including inside user callbacks. External
+    /// resources created before a later policy error remain caller-owned.
+    /// `cache_id` has the same requirements as on
+    /// [`Self::try_extract_with_texture_policy`].
+    pub fn try_extract_with_texture_policy_checked<H, P, T>(
+        &self,
+        template: &GpuShaderDesc,
+        hooks: &mut H,
+        policy: &mut P,
+        cache_id: &std::ffi::CStr,
+        texture: T,
+    ) -> Result<GpuShaderDesc>
+    where
+        H: ShaderFinalizeControl + ?Sized,
+        P: ShaderTexturePolicy + ?Sized,
+        T: FnMut(ShaderTexture<'_>) -> Result<ShaderTextureAction>,
+    {
+        struct CheckedPolicy<'a, P: ?Sized> {
+            policy: &'a mut P,
+            lengths: &'a [usize],
+        }
+        impl<P: ShaderTexturePolicy + ?Sized> ShaderTexturePolicy for CheckedPolicy<'_, P> {
+            fn texture_max_width(&mut self) -> Result<u32> {
+                let width = self.policy.texture_max_width()?;
+                if width < 2 {
+                    return Err(OcioError::InvalidInput(
+                        "texture maximum width must be at least 2".into(),
+                    ));
+                }
+                for &length in self.lengths {
+                    GpuShaderDesc::validate_lut_texture_width(width, length)?;
+                }
+                Ok(width)
+            }
+            fn allow_texture_1d(&mut self) -> Result<bool> {
+                self.policy.allow_texture_1d()
+            }
+        }
+        if cache_id.to_bytes().is_empty() {
+            return Err(OcioError::InvalidInput(
+                "texture policy requires a nonempty cache ID".into(),
+            ));
+        }
+        let lengths = self.probe_shader_texture_lengths(template)?;
+        let mut checked = CheckedPolicy {
+            policy,
+            lengths: &lengths,
+        };
+        self.try_extract_with_texture_policy(template, hooks, &mut checked, cache_id, texture)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -3759,6 +3819,14 @@ impl GPUProcessor {
     /// # Ok(()) }
     /// ```
     pub fn validate_shader_texture_layout(&self, shader_desc: &GpuShaderDesc) -> Result<()> {
+        let lengths = self.probe_shader_texture_lengths(shader_desc)?;
+        for length in lengths {
+            shader_desc.validate_lut_texture_layout(length)?;
+        }
+        Ok(())
+    }
+
+    fn probe_shader_texture_lengths(&self, shader_desc: &GpuShaderDesc) -> Result<Vec<usize>> {
         struct ProbeHooks;
         impl ShaderExtractionHooks for ProbeHooks {}
         let probe = shader_desc.try_clone_desc()?;
@@ -3771,10 +3839,7 @@ impl GPUProcessor {
             }
             Ok(None)
         })?;
-        for length in lengths {
-            shader_desc.validate_lut_texture_layout(length)?;
-        }
-        Ok(())
+        Ok(lengths)
     }
 
     #[doc(hidden)]
@@ -4599,12 +4664,16 @@ impl GpuShaderDesc {
     /// does not establish that an arbitrary GPU processor is safe to extract.
     /// A caller must validate every LUT length that reaches native extraction.
     pub fn validate_lut_texture_layout(&self, length: usize) -> Result<()> {
+        Self::validate_lut_texture_width(self.try_texture_max_width()?, length)
+    }
+
+    fn validate_lut_texture_width(max_width: u32, length: usize) -> Result<()> {
         if length < 2 {
             return Err(OcioError::InvalidInput(
                 "LUT length must be at least 2".into(),
             ));
         }
-        let maximum = u128::from(self.try_texture_max_width()?);
+        let maximum = u128::from(max_width);
         if maximum < 2 {
             return Err(OcioError::InvalidInput(
                 "texture maximum width must be at least 2".into(),
