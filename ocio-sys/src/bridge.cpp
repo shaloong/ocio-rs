@@ -6988,6 +6988,42 @@ void ocio_color_space_set_add_color_space(void* handle, void* cs) {
 #endif
 }
 
+void ocio_color_space_set_add_color_space_ref(void* handle, void* cs, bool cs_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)cs; (void)cs_const;
+#else
+  try {
+    if (!cs) throw std::invalid_argument("null color space");
+    ocio::ConstColorSpaceRcPtr space = cs_const
+      ? *static_cast<ocio::ConstColorSpaceRcPtr*>(cs)
+      : ocio_rs_bridge::get_real_color_space(cs);
+    ocio_rs_bridge::get_real_color_space_set(handle)->addColorSpace(space);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_color_space_set_add_color_spaces_ref(void* handle, void* cs, bool cs_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)cs; (void)cs_const;
+#else
+  try { ocio_rs_bridge::get_real_color_space_set(handle)->addColorSpaces(ocio_rs_set_ref(cs, cs_const)); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_color_space_set_remove_color_spaces_ref(void* handle, void* cs, bool cs_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)cs; (void)cs_const;
+#else
+  try {
+    auto target = ocio_rs_bridge::get_real_color_space_set(handle);
+    auto source = ocio_rs_set_ref(cs, cs_const);
+    if (target.get() == source.get()) target->clearColorSpaces();
+    else target->removeColorSpaces(source);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_color_space_set_add_color_spaces(void* handle, void* cs) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)cs;
@@ -7020,7 +7056,9 @@ void ocio_color_space_set_remove_color_spaces(void* handle, void* cs) {
   try {
     auto* _cs_h = static_cast<ocio_rs_bridge::ColorSpaceSetHandle*>(cs);
     auto cs_ptr = std::static_pointer_cast<ocio_rs_bridge::RealColorSpaceSet>(_cs_h->inner)->set;
-    ocio_rs_bridge::get_real_color_space_set(handle)->removeColorSpaces(cs_ptr);
+    auto target = ocio_rs_bridge::get_real_color_space_set(handle);
+    if (target.get() == cs_ptr.get()) target->clearColorSpaces();
+    else target->removeColorSpaces(cs_ptr);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }

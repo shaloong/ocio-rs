@@ -429,6 +429,23 @@ impl ColorSpaceSet {
         crate::ocio_call_status()
     }
 
+    /// Add an editable or read-only color space. OCIO stores an independent copy.
+    pub fn try_add_color_space_ref<'a>(
+        &self,
+        color_space: impl Into<crate::ColorSpaceRef<'a>>,
+    ) -> Result<()> {
+        let (space, is_const) = color_space.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_space_ref(
+                self.handle.as_ptr(),
+                space,
+                is_const,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Insert every color space from `other` into the set.
     pub fn add_color_spaces(&self, other: &ColorSpaceSet) {
         self.try_add_color_spaces(other)
@@ -444,6 +461,20 @@ impl ColorSpaceSet {
                 other.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Add copies of the color spaces in an editable or read-only set.
+    /// As in OCIO, a conflict can leave preceding entries already added.
+    pub fn try_add_color_spaces_ref<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<()> {
+        let (set, is_const) = other.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_spaces_ref(self.handle.as_ptr(), set, is_const)
+        };
         crate::ocio_call_status()
     }
 
@@ -475,6 +506,24 @@ impl ColorSpaceSet {
                 other.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Remove entries named by an editable or read-only set.
+    /// Removing this set from itself clears it safely.
+    pub fn try_remove_color_spaces_ref<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<()> {
+        let (set, is_const) = other.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_remove_color_spaces_ref(
+                self.handle.as_ptr(),
+                set,
+                is_const,
+            )
+        };
         crate::ocio_call_status()
     }
 

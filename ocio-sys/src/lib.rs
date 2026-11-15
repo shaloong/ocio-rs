@@ -1391,6 +1391,21 @@ unsafe extern "C" {
     pub fn ocio_color_space_set_get_color_space_index(handle: *mut c_void, name: *const i8) -> i32;
     pub fn ocio_color_space_set_has_color_space(handle: *mut c_void, name: *const i8) -> bool;
     pub fn ocio_color_space_set_add_color_space(handle: *mut c_void, cs: *mut c_void) -> ();
+    pub fn ocio_color_space_set_add_color_space_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
+    pub fn ocio_color_space_set_add_color_spaces_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
+    pub fn ocio_color_space_set_remove_color_spaces_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
     pub fn ocio_color_space_set_add_color_spaces(handle: *mut c_void, cs: *mut c_void) -> ();
     pub fn ocio_color_space_set_remove_color_space(handle: *mut c_void, name: *const i8) -> ();
     pub fn ocio_color_space_set_remove_color_spaces(handle: *mut c_void, cs: *mut c_void) -> ();

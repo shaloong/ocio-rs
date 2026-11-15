@@ -11,8 +11,8 @@ All operations below exist in each of those native versions.
 | Count, name by index | Both set types expose count and copied names | Mutable count currently has only an infallible convenience method. |
 | `getColorSpace` / `getColorSpaceByIndex` | Both set types provide retained `ConstColorSpace` handles, or explicit editable copies | The retained handle keeps the native object alive independently of its set. |
 | `getColorSpaceIndex`, `hasColorSpace` | Fallible name and alias lookups on both set types | Existing mutable convenience methods discard input and bridge errors. |
-| `addColorSpace`, `addColorSpaces` | Editable set accepts editable color-space and set handles; OCIO stores copies | Direct arguments from const color-space and const set handles are not yet exposed. |
-| `removeColorSpace`, `removeColorSpaces`, `clearColorSpaces` | Editable set exposes fallible variants | Bulk removal cannot yet take a const set directly. |
+| `addColorSpace`, `addColorSpaces` | Editable set accepts editable or const color-space and set handles; OCIO stores copies | Bulk addition preserves OCIO's non-transactional error behavior. |
+| `removeColorSpace`, `removeColorSpaces`, `clearColorSpaces` | Editable set exposes fallible variants and accepts either set type for bulk removal | Self-removal is handled as clearing the set to avoid native iterator invalidation. |
 | Union, intersection, difference | Both set types accept editable or const operands and return native const sets | No extra editable copy is made by the Rust wrapper. |
 
 `tests/color_space_set_behavior_tests.rs` covers lookup, copy independence,
