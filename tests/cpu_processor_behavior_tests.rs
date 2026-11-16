@@ -544,6 +544,43 @@ fn packed_rgb_short_tail_matches_padded_native_buffer() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rgba_short_tail_matches_padded_for_float_and_integer() {
+    use ocio_rs::{transform::MatrixTransform, BitDepth, Config, TransformDirection};
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[0.5, 1.0, 0.75, 0.5]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let cpu = processor.default_cpu_processor().unwrap();
+    let mut short = [0.2, 0.4, 0.6, 0.8, 99., 0.4, 0.6, 0.8, 1.0];
+    let mut padded = [
+        0.2, 0.4, 0.6, 0.8, 99., 0.4, 0.6, 0.8, 1.0, 99., 99., 99., 99.,
+    ];
+    cpu.try_apply_rgba_pixels(&mut short, 2, 5).unwrap();
+    cpu.try_apply_rgba_pixels(&mut padded, 2, 5).unwrap();
+    assert_eq!(short, padded[..9]);
+    assert_eq!(&padded[9..], &[99.; 4]);
+    let mut one = [0.2, 0.4, 0.6, 0.8];
+    cpu.try_apply_rgba_pixels(&mut one, 1, 5).unwrap();
+    assert_eq!(one, short[..4]);
+
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    let mut short = [20, 40, 60, 80, 99, 100, 120, 140, 160];
+    let mut padded = [20, 40, 60, 80, 99, 100, 120, 140, 160, 99, 99, 99, 99];
+    cpu.try_apply_rgba_packed_bit_depth(&mut short, BitDepth::Uint8, 2, 5)
+        .unwrap();
+    cpu.try_apply_rgba_packed_bit_depth(&mut padded, BitDepth::Uint8, 2, 5)
+        .unwrap();
+    assert_eq!(short, padded[..9]);
+    assert_eq!(&padded[9..], &[99; 4]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgb_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {

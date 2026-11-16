@@ -1594,6 +1594,52 @@ impl CPUProcessor {
             stride,
             4,
         )?;
+        if num_pixels > 0 {
+            let pixels = num_pixels as usize;
+            let step = normalized_stride("CPUProcessor::apply_rgba_pixels", stride, 4)?;
+            let enough_for_final_step = pixels
+                .checked_mul(step)
+                .and_then(|n| n.checked_add(3))
+                .is_some_and(|n| n <= rgba.len());
+            // Tightly packed RGBA uses OCIO's packed fast path, which does not
+            // advance four individual channel pointers.
+            if step != 4 && !enough_for_final_step {
+                let last = (pixels - 1) * step;
+                if pixels > 1 {
+                    let ok = unsafe {
+                        ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
+                            self.handle.as_ptr(),
+                            rgba.as_mut_ptr(),
+                            num_pixels - 1,
+                            stride,
+                        )
+                    };
+                    if !ok {
+                        crate::ocio_call_status()?;
+                        return Err(OcioError::Ocio(
+                            "OpenColorIO pixel processing failed without an error message".into(),
+                        ));
+                    }
+                }
+                let mut tail = [rgba[last], rgba[last + 1], rgba[last + 2], rgba[last + 3]];
+                let ok = unsafe {
+                    ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
+                        self.handle.as_ptr(),
+                        tail.as_mut_ptr(),
+                        1,
+                        4,
+                    )
+                };
+                if !ok {
+                    crate::ocio_call_status()?;
+                    return Err(OcioError::Ocio(
+                        "OpenColorIO pixel processing failed without an error message".into(),
+                    ));
+                }
+                rgba[last..last + 4].copy_from_slice(&tail);
+                return Ok(());
+            }
+        }
         let ok = unsafe {
             ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
                 self.handle.as_ptr(),
@@ -1728,6 +1774,53 @@ impl CPUProcessor {
             bit_depth,
             num_pixels,
         )?;
+        if num_pixels > 0 {
+            let pixels = num_pixels as usize;
+            let step = normalized_stride("CPUProcessor::apply_rgba_packed_bit_depth", stride, 4)?;
+            let sample = bit_depth_bytes_per_channel(
+                "CPUProcessor::apply_rgba_packed_bit_depth",
+                bit_depth,
+            )?;
+            let enough_for_final_step = pixels
+                .checked_mul(step)
+                .and_then(|n| n.checked_add(3))
+                .and_then(|n| n.checked_mul(sample))
+                .is_some_and(|n| n <= rgba.len());
+            if step != 4 && !enough_for_final_step {
+                let last = (pixels - 1) * step * sample;
+                if pixels > 1 {
+                    crate::clear_last_error();
+                    unsafe {
+                        ocio_sys::ocio_cpu_processor_apply_rgba_packed(
+                            self.handle.as_ptr(),
+                            rgba.as_mut_ptr().cast(),
+                            bit_depth as i32,
+                            num_pixels - 1,
+                            stride,
+                        );
+                    }
+                    crate::ocio_call_status()?;
+                }
+                #[repr(align(4))]
+                struct AlignedTail([u8; 16]);
+                let mut tail = AlignedTail([0; 16]);
+                let pixel_bytes = 4 * sample;
+                tail.0[..pixel_bytes].copy_from_slice(&rgba[last..last + pixel_bytes]);
+                crate::clear_last_error();
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_rgba_packed(
+                        self.handle.as_ptr(),
+                        tail.0.as_mut_ptr().cast(),
+                        bit_depth as i32,
+                        1,
+                        4,
+                    );
+                }
+                crate::ocio_call_status()?;
+                rgba[last..last + pixel_bytes].copy_from_slice(&tail.0[..pixel_bytes]);
+                return Ok(());
+            }
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgba_packed(
