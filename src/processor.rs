@@ -66,6 +66,11 @@ fn validate_stride_byte_width(
             "{api}: byte stride exceeds the C++ ptrdiff_t range"
         )));
     }
+    if channels_per_pixel == 4 && byte_stride > std::ffi::c_int::MAX as usize {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: RGBA byte stride exceeds the native packed-layout limit"
+        )));
+    }
     Ok(())
 }
 
@@ -737,6 +742,9 @@ fn packed_image_descriptor(
         || !layout.origin.is_multiple_of(size)
         || !(data.as_ptr() as usize).is_multiple_of(size)
         || layout.channel_stride > isize::MAX as usize
+        || (layout.channel_order == ChannelOrdering::Rgba
+            && (x > std::ffi::c_int::MAX as usize
+                || layout.channel_stride > std::ffi::c_int::MAX as usize))
     {
         return Err(invalid());
     }
@@ -8126,6 +8134,65 @@ mod tests {
         let limit = (std::ffi::c_int::MAX / 4) as i64;
         assert!(required_scalar_len("test", limit, 0, 3).is_ok());
         assert!(required_scalar_len("test", limit + 1, 0, 3).is_err());
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn rgba_stride_validation_rejects_native_int_truncation() {
+        let stride = i64::from(i32::MAX) / 4 + 1;
+        assert!(validate_stride_byte_width("test", stride, 4, 4).is_err());
+        assert!(validate_stride_byte_width("test", stride, 3, 4).is_ok());
+        assert!(validate_stride_byte_width("test", 4, 4, 4).is_ok());
+    }
+
+    #[cfg(all(target_pointer_width = "64", not(ocio_stub)))]
+    #[test]
+    fn native_packed_entrypoints_reject_truncated_rgba_stride() {
+        let mut channel = 0.0_f32;
+        let ptr = std::ptr::addr_of_mut!(channel);
+        // The low 32 bits resemble a tightly packed float RGBA stride.
+        let bytes = (1_i64 << 32) + 16;
+        let desc = ocio_sys::OcioPackedBuffer {
+            data: ptr.cast(),
+            width: 1,
+            height: 1,
+            channel_stride: 4,
+            x_stride: bytes,
+            y_stride: bytes,
+            bit_depth: BitDepth::F32 as i32,
+            channel_order: ChannelOrdering::Rgba as i32,
+        };
+        unsafe {
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_packed_image(std::ptr::null_mut(), &desc);
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid packed"));
+            crate::clear_last_error();
+            assert!(!ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
+                std::ptr::null_mut(),
+                ptr,
+                1,
+                bytes / 4,
+            ));
+            assert!(crate::last_error_message().unwrap().contains("stride"));
+            crate::clear_last_error();
+            ocio_sys::ocio_cpu_processor_apply_packed_convert(
+                std::ptr::null_mut(),
+                ptr.cast(),
+                ptr.cast(),
+                1,
+                4,
+                BitDepth::F32 as i32,
+                BitDepth::F32 as i32,
+                bytes,
+                16,
+            );
+            assert!(crate::last_error_message()
+                .unwrap()
+                .contains("invalid packed"));
+            crate::clear_last_error();
+        }
     }
 
     #[cfg(not(ocio_stub))]

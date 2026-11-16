@@ -8336,7 +8336,8 @@ void ocio_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixe
   return;
 #else
   try {
-    if (!rgba || numPixels <= 0 || numPixels > std::numeric_limits<int>::max() / 4) return;
+    if (!rgba || numPixels <= 0 || numPixels > std::numeric_limits<int>::max() / 4 ||
+        (stride > 0 && stride > std::numeric_limits<int>::max() / static_cast<int64_t>(sizeof(float)))) return;
     auto cpu = ocio_rs_bridge::get_real_processor(handle)->getDefaultCPUProcessor();
     if (!cpu) return;
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
@@ -8770,6 +8771,8 @@ bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t
     if (!rgba || numPixels <= 0) return true;
     if (numPixels > std::numeric_limits<int>::max() / 4)
       throw std::invalid_argument("pixel count exceeds the native scanline limit");
+    if (stride > 0 && stride > std::numeric_limits<int>::max() / static_cast<int64_t>(sizeof(float)))
+      throw std::invalid_argument("RGBA stride exceeds the native packed-layout limit");
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
@@ -8876,7 +8879,11 @@ void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green,
 static void ocio_rs_check_packed_image(const OcioPackedBuffer& d) {
   if (!d.data || !ocio_rs_valid_planar_strides(d.width, d.height, d.x_stride, d.y_stride) ||
       d.channel_stride <= 0 || d.channel_stride > std::numeric_limits<ptrdiff_t>::max() ||
-      d.channel_order < 0 || d.channel_order > 4)
+      d.channel_order < 0 || d.channel_order > 4 ||
+      (d.channel_order == ocio::CHANNEL_ORDERING_RGBA &&
+       (d.channel_stride > std::numeric_limits<int>::max() ||
+        d.x_stride > std::numeric_limits<int>::max() ||
+        d.x_stride < -static_cast<int64_t>(std::numeric_limits<int>::max()))))
     throw std::invalid_argument("invalid packed image descriptor");
 }
 static ocio::PackedImageDesc ocio_rs_packed_image(const OcioPackedBuffer& d) {
@@ -8939,6 +8946,8 @@ void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void
   try {
     if (!src || !dst || count <= 0 || count > std::numeric_limits<int>::max() / 4 ||
         (channels != 3 && channels != 4) || input_stride <= 0 || output_stride <= 0 ||
+        (channels == 4 && (input_stride > std::numeric_limits<int>::max() ||
+                           output_stride > std::numeric_limits<int>::max())) ||
         input_stride > std::numeric_limits<ptrdiff_t>::max() / count ||
         output_stride > std::numeric_limits<ptrdiff_t>::max() / count)
       throw std::invalid_argument("invalid packed conversion layout");
@@ -9069,6 +9078,8 @@ void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth
          || bitDepth == ocio::BIT_DEPTH_UINT10 || bitDepth == ocio::BIT_DEPTH_UINT12
          || bitDepth == ocio::BIT_DEPTH_UINT14) ? 2u
       : (bitDepth == ocio::BIT_DEPTH_UINT32) ? 4u : 1u;
+    if (stride > 0 && stride > std::numeric_limits<int>::max() / static_cast<int64_t>(bytesPerChannel))
+      throw std::invalid_argument("RGBA stride exceeds the native packed-layout limit");
     const ptrdiff_t channelStride = static_cast<ptrdiff_t>(bytesPerChannel);
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(bytesPerChannel));
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,

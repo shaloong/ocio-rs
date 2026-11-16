@@ -60,10 +60,10 @@ The current inventory and runtime validation are incomplete; the status in
    RGB retains the native version-dependent missing-alpha behavior. Tight RGBA
    stays on the native fast path. This does not yet cover arbitrary layouts,
    conversions, or other processor entry points.
-   The native packed-layout optimization also narrows channel and x strides to
-   `int` before testing tight packing; large byte strides can be misclassified.
-   Audit and guard or safely split every affected entry point, including cases
-   with a small slice and a single logical pixel.
+   The native packed-layout optimization narrows RGBA channel and x strides to
+   `int` before testing tight packing. Affected entry points conservatively
+   reject strides outside that range, including single-pixel inputs. A future
+   safe split path should support those extreme layouts without misclassification.
    Image entry points conservatively reject a scanline wider than `INT_MAX / 4`
    because native generic scanline loops multiply `int` pixel indices by four.
    This also limits optimized layouts that may not allocate that buffer; support
