@@ -14,7 +14,8 @@ strides because no second pixel is accessed.
 Positive-stride planar conversion and in-place APIs support unpadded planes by
 splitting only necessary tail regions without copying image data. A failure in
 a later region may leave earlier destination regions modified. Signed-stride
-planar APIs still require pointer-step padding.
+in-place processing also supports unpadded planes; signed conversions still
+require pointer-step padding.
 
 ## Unreleased: transform handle safety
 

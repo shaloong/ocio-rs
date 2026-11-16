@@ -1000,6 +1000,80 @@ fn planar_u8_uses_explicit_native_cpu_bit_depth() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn signed_planar_unpadded_matches_padded_for_all_stride_signs() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, SignedPlanarByteLayout, SignedPlanarBytesMut,
+        TransformDirection,
+    };
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[0.5, 1.0, 0.75, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    for (width, height) in [(1, 1), (3, 1), (1, 3), (3, 2)] {
+        for sx in [2_isize, -2] {
+            for sy in [(width * 2 + 1) as isize, -((width * 2 + 1) as isize)] {
+                let dx = (width - 1) * 2;
+                let dy = (height - 1) * sy.unsigned_abs();
+                let origin = if sx < 0 { dx } else { 0 } + if sy < 0 { dy } else { 0 };
+                let len = dx + dy + 1;
+                let layout = SignedPlanarByteLayout {
+                    width,
+                    height,
+                    origin,
+                    x_stride: sx,
+                    y_stride: sy,
+                    bit_depth: BitDepth::Uint8,
+                };
+                let mut short = [vec![40; len], vec![60; len], vec![80; len], vec![100; len]];
+                let mut padded = [
+                    vec![99; len + 4],
+                    vec![99; len + 4],
+                    vec![99; len + 4],
+                    vec![99; len + 4],
+                ];
+                for (dst, src) in padded.iter_mut().zip(short.iter()) {
+                    dst[2..2 + len].copy_from_slice(src);
+                }
+                let [r, g, b, a] = &mut short;
+                cpu.try_apply_planar_signed(SignedPlanarBytesMut {
+                    red: r,
+                    green: g,
+                    blue: b,
+                    alpha: Some(a),
+                    layout,
+                })
+                .unwrap();
+                let [r, g, b, a] = &mut padded;
+                cpu.try_apply_planar_signed(SignedPlanarBytesMut {
+                    red: r,
+                    green: g,
+                    blue: b,
+                    alpha: Some(a),
+                    layout: SignedPlanarByteLayout {
+                        origin: origin + 2,
+                        ..layout
+                    },
+                })
+                .unwrap();
+                for (actual, expected) in short.iter().zip(padded.iter()) {
+                    assert_eq!(
+                        &actual[..],
+                        &expected[2..2 + len],
+                        "{width}x{height}, {sx}, {sy}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn planar_conversion_without_pointer_padding_matches_padded() {
     use ocio_rs::{
         transform::MatrixTransform, BitDepth, Config, PlanarByteLayout, PlanarBytes,
@@ -1456,7 +1530,7 @@ fn signed_planar_strides_convert_and_process_in_place() {
     .unwrap();
     assert_eq!(red, [99, 20, 40, 99, 60, 100, 99]);
     let invalid = SignedPlanarByteLayout {
-        origin: 4,
+        origin: 3,
         ..input_layout
     };
     assert!(cpu
