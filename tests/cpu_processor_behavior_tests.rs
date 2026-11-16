@@ -498,6 +498,52 @@ fn rgb_tail_without_padding_matches_native_alpha_semantics() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn packed_rgb_short_tail_matches_padded_native_buffer() {
+    use ocio_rs::{transform::MatrixTransform, BitDepth, Config, TransformDirection};
+    let processor = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[0.5, 1.0, 0.75, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let cpu = processor
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
+        .unwrap();
+    let mut short = [50, 80, 120, 99, 160, 180, 200];
+    let mut padded = [50, 80, 120, 99, 160, 180, 200, 99, 99, 99];
+    cpu.try_apply_rgb_packed_bit_depth(&mut short, BitDepth::Uint8, 2, 4)
+        .unwrap();
+    cpu.try_apply_rgb_packed_bit_depth(&mut padded, BitDepth::Uint8, 2, 4)
+        .unwrap();
+    assert_eq!(short, padded[..7]);
+    assert_eq!(&padded[7..], &[99; 3]);
+
+    fn bytes(words: &mut [u16]) -> &mut [u8] {
+        // SAFETY: the byte view covers the same exclusively borrowed storage.
+        unsafe {
+            std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), std::mem::size_of_val(words))
+        }
+    }
+    for depth in [BitDepth::Uint16, BitDepth::F16] {
+        let cpu = processor
+            .optimized_cpu_processor_bit_depth(depth, depth, 0)
+            .unwrap();
+        let mut short = [0x3800, 0x3a00, 0x3c00, 0x7bff, 0x3400, 0x3800, 0x3a00];
+        let mut padded = [
+            0x3800, 0x3a00, 0x3c00, 0x7bff, 0x3400, 0x3800, 0x3a00, 0x7bff, 0x7bff, 0x7bff,
+        ];
+        cpu.try_apply_rgb_packed_bit_depth(bytes(&mut short), depth, 2, 4)
+            .unwrap();
+        cpu.try_apply_rgb_packed_bit_depth(bytes(&mut padded), depth, 2, 4)
+            .unwrap();
+        assert_eq!(short, padded[..7], "{depth:?}");
+        assert_eq!(&padded[7..], &[0x7bff; 3]);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgb_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {

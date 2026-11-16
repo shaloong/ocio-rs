@@ -1801,6 +1801,53 @@ impl CPUProcessor {
             bit_depth,
             num_pixels,
         )?;
+        if num_pixels > 0 {
+            let pixels = num_pixels as usize;
+            let step = normalized_stride("CPUProcessor::apply_rgb_packed_bit_depth", stride, 3)?;
+            let sample =
+                bit_depth_bytes_per_channel("CPUProcessor::apply_rgb_packed_bit_depth", bit_depth)?;
+            let enough_for_final_step = pixels
+                .checked_mul(step)
+                .and_then(|n| n.checked_add(2))
+                .and_then(|n| n.checked_mul(sample))
+                .is_some_and(|n| n <= rgb.len());
+            if !enough_for_final_step {
+                let last = (pixels - 1) * step * sample;
+                if pixels > 1 {
+                    crate::clear_last_error();
+                    unsafe {
+                        ocio_sys::ocio_cpu_processor_apply_rgb_packed(
+                            self.handle.as_ptr(),
+                            rgb.as_mut_ptr().cast(),
+                            bit_depth as i32,
+                            num_pixels - 1,
+                            stride,
+                        );
+                    }
+                    crate::ocio_call_status()?;
+                }
+                // The native descriptor performs the same bit-depth conversion
+                // and missing-alpha handling as for the rest of the image.
+                #[repr(align(4))]
+                struct AlignedTail([u8; 20]);
+                let mut tail = AlignedTail([0; 20]);
+                let pixel_bytes = 3 * sample;
+                tail.0[..pixel_bytes].copy_from_slice(&rgb[last..last + pixel_bytes]);
+                crate::clear_last_error();
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_rgb_packed(
+                        self.handle.as_ptr(),
+                        tail.0.as_mut_ptr().cast(),
+                        bit_depth as i32,
+                        1,
+                        3,
+                    );
+                }
+                crate::ocio_call_status()?;
+                rgb[last..last + pixel_bytes].copy_from_slice(&tail.0[..pixel_bytes]);
+                return Ok(());
+            }
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_packed(

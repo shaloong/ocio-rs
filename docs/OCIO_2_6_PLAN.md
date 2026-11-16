@@ -55,10 +55,11 @@ The current inventory and runtime validation are incomplete; the status in
    first-channel pointer step, not every packed channel's final pointer step.
    Resolve this without assuming padding outside the caller's slice or imposing
    a full-image copy on the common path; verify native fast and generic paths.
-   `CPUProcessor::try_apply_rgb_pixels` handles a short tail separately in a
-   five-float stack buffer, preserving OCIO's version-dependent missing-alpha
-   semantics by using the same native RGB-image path. This does not yet cover
-   the other packed APIs or arbitrary layouts and conversions.
+   `CPUProcessor::try_apply_rgb_pixels` and `try_apply_rgb_packed_bit_depth`
+   handle a short tail in an aligned five-sample stack buffer, preserving
+   bit-depth and version-dependent missing-alpha semantics by using the same
+   native RGB-image path. This does not yet cover the other packed APIs or
+   arbitrary layouts and conversions.
    Image entry points conservatively reject a scanline wider than `INT_MAX / 4`
    because native generic scanline loops multiply `int` pixel indices by four.
    This also limits optimized layouts that may not allocate that buffer; support
