@@ -1636,6 +1636,46 @@ impl CPUProcessor {
             stride,
             3,
         )?;
+        if num_pixels > 0 {
+            let pixels = num_pixels as usize;
+            let step = normalized_stride("CPUProcessor::apply_rgb_pixels", stride, 3)?;
+            // OCIO's generic RGB packer advances all three channel pointers
+            // after the last pixel. The blue pointer advances furthest.
+            let enough_for_final_step = pixels
+                .checked_mul(step)
+                .and_then(|n| n.checked_add(2))
+                .is_some_and(|n| n <= rgb.len());
+            if !enough_for_final_step {
+                let last = (pixels - 1) * step;
+                if pixels > 1 {
+                    crate::clear_last_error();
+                    unsafe {
+                        ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
+                            self.handle.as_ptr(),
+                            rgb.as_mut_ptr(),
+                            num_pixels - 1,
+                            stride,
+                        );
+                    }
+                    crate::ocio_call_status()?;
+                }
+                // Preserve the native image path (including version-dependent
+                // missing-alpha semantics); applyRGB has different semantics.
+                let mut tail = [rgb[last], rgb[last + 1], rgb[last + 2], 0.0, 0.0];
+                crate::clear_last_error();
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
+                        self.handle.as_ptr(),
+                        tail.as_mut_ptr(),
+                        1,
+                        3,
+                    );
+                }
+                crate::ocio_call_status()?;
+                rgb[last..last + 3].copy_from_slice(&tail[..3]);
+                return Ok(());
+            }
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb_pixels(

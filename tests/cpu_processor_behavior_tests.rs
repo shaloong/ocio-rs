@@ -462,6 +462,42 @@ fn cpu_rgba_pixels_stride_preserves_padding_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn rgb_tail_without_padding_matches_native_alpha_semantics() {
+    use ocio_rs::{transform::MatrixTransform, Config, TransformDirection};
+    let matrix = MatrixTransform::create().unwrap();
+    matrix
+        .set_matrix(&[
+            1., 0., 0., 1., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
+        ])
+        .unwrap();
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_transform(&matrix, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+
+    let mut short = [0.2, 0.3, 0.4, 99., 99., 0.5, 0.6, 0.7];
+    let mut padded = [0.2, 0.3, 0.4, 99., 99., 0.5, 0.6, 0.7, 99., 99., 99., 99.];
+    cpu.try_apply_rgb_pixels(&mut short, 2, 5).unwrap();
+    cpu.try_apply_rgb_pixels(&mut padded, 2, 5).unwrap();
+    assert_eq!(short, padded[..8]);
+    assert_eq!(&padded[8..], &[99.; 4]);
+    let alpha = if ocio_rs::version_hex() >= 0x02060000 {
+        1.
+    } else {
+        0.
+    };
+    assert_close(short[0] as f64, 0.2 + alpha, 1e-6);
+    assert_close(short[5] as f64, 0.5 + alpha, 1e-6);
+
+    let mut single = [0.2, 0.3, 0.4];
+    cpu.try_apply_rgb_pixels(&mut single, 1, 0).unwrap();
+    assert_close(single[0] as f64, 0.2 + alpha, 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cpu_rgb_pixels_stride_preserves_padding_behavior() {
     let _guard = cpu_processor_test_lock();
     if is_stub() {
