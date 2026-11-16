@@ -2824,6 +2824,39 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
         self.descriptor.set_custom_cache_id(Some(id))
     }
 
+    /// Copy the current native creator cache ID.
+    pub fn try_cache_id(&self) -> Result<Option<String>> {
+        self.creator.try_cache_id()
+    }
+
+    /// Change the shader language. Update the cache ID when output changes;
+    /// previously generated code and resources are not cleared.
+    pub fn set_language(&mut self, language: GpuLanguage) -> Result<()> {
+        self.descriptor.set_language(language)
+    }
+
+    /// Change the generated function name. Update the cache ID when output changes.
+    pub fn set_function_name(&mut self, name: impl AsRef<str>) -> Result<()> {
+        self.descriptor.set_function_name(name)
+    }
+
+    /// Change the shader pixel variable name. Update the cache ID when output changes.
+    pub fn set_pixel_name(&mut self, name: impl AsRef<str>) -> Result<()> {
+        self.descriptor.set_pixel_name(name)
+    }
+
+    /// Change the resource prefix. Existing resources are not renamed; update
+    /// the cache ID when subsequent output changes.
+    pub fn set_resource_prefix(&mut self, prefix: impl AsRef<str>) -> Result<()> {
+        self.descriptor.set_resource_prefix(prefix)
+    }
+
+    /// Set the native unique ID. Extraction may update this ID; update the
+    /// cache ID if the change affects generated output.
+    pub fn set_unique_id(&mut self, id: impl AsRef<str>) -> Result<()> {
+        self.descriptor.set_unique_id(id)
+    }
+
     /// Extract into the same native creator, retaining the policy after return.
     pub fn try_extract(&mut self, processor: &GPUProcessor) -> Result<()> {
         self.state.error = None;

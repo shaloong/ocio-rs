@@ -165,9 +165,28 @@ fn persistent_texture_policy_survives_calls_and_reports_callback_errors() {
     creator.try_set_allow_texture_1d(false).unwrap();
     assert_eq!(allow_set.get(), Some(false));
     assert!(!creator.try_allow_texture_1d().unwrap());
+    assert_eq!(
+        creator.try_cache_id().unwrap().as_deref(),
+        Some("policy-v1")
+    );
+    creator.set_language(ocio_rs::GpuLanguage::Glsl4_0).unwrap();
+    creator.set_function_name("updatedPolicyFunction").unwrap();
+    creator.set_pixel_name("updatedPixel").unwrap();
+    creator.set_resource_prefix("updated_").unwrap();
+    creator.set_unique_id("updated-id").unwrap();
+    assert!(creator.set_function_name("bad\0name").is_err());
     creator.set_cache_id(c"policy-v2").unwrap();
+    assert_eq!(
+        creator.try_cache_id().unwrap().as_deref(),
+        Some("policy-v2")
+    );
     creator.try_extract(&gpu).unwrap();
-    assert!(creator.shader_text_ref().unwrap().is_some());
+    assert!(creator
+        .shader_text_ref()
+        .unwrap()
+        .unwrap()
+        .to_string_lossy()
+        .contains("updatedPolicyFunction"));
     assert_eq!(creator.try_num_textures().unwrap(), 1);
     assert!(creator.try_texture_2d(0).unwrap().is_some());
     assert_eq!(creator.try_num_uniforms().unwrap(), 0);
@@ -177,6 +196,22 @@ fn persistent_texture_policy_survives_calls_and_reports_callback_errors() {
     assert!(calls.get() > before_second);
     assert_eq!(creator.try_num_textures().unwrap(), 2);
     let detached = creator.finish().unwrap();
+    assert_eq!(
+        detached.try_language().unwrap(),
+        ocio_rs::GpuLanguage::Glsl4_0
+    );
+    assert_eq!(
+        detached.try_function_name().unwrap().as_deref(),
+        Some("updatedPolicyFunction")
+    );
+    assert_eq!(
+        detached.try_pixel_name().unwrap().as_deref(),
+        Some("updatedPixel")
+    );
+    assert_eq!(
+        detached.try_resource_prefix().unwrap().as_deref(),
+        Some("updated_")
+    );
     assert!(dropped.get());
     let after_detach = calls.get();
     assert_eq!(detached.try_texture_max_width().unwrap(), 64);
