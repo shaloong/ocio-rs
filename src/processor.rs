@@ -672,8 +672,9 @@ pub struct PlanarF32Layout {
 
 /// Positive byte strides and native channel bit depth for a planar image.
 ///
-/// Each plane must include the full final pixel stride, even when the last
-/// sample itself occupies fewer bytes than `x_stride`.
+/// Conversion APIs currently require each plane to include the full final
+/// pixel stride, even when the last sample occupies fewer bytes than `x_stride`.
+/// In-place byte processing also accepts planes ending at the final sample.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanarByteLayout {
     /// Number of pixels per row.
@@ -1341,8 +1342,8 @@ impl CPUProcessor {
     ///
     /// All pointers and strides must be aligned for the selected storage type.
     /// The binding validates the layout and passes the original buffers to OCIO.
-    /// Each plane must include a full pixel stride after the last sample so
-    /// OCIO's final pointer increment stays within or one past the slice.
+    /// Unpadded final samples are handled in up to three native regions, with
+    /// no pixel copy. A later error may leave earlier regions modified.
     pub fn try_apply_planar_bytes(
         &self,
         red: &mut [u8],
@@ -1351,6 +1352,89 @@ impl CPUProcessor {
         alpha: Option<&mut [u8]>,
         layout: PlanarByteLayout,
     ) -> Result<()> {
+        let size =
+            bit_depth_bytes_per_channel("CPUProcessor::try_apply_planar_bytes", layout.bit_depth)?;
+        let invalid =
+            || OcioError::InvalidInput("invalid, unaligned or overflowing planar layout".into());
+        let PlanarByteLayout {
+            width,
+            height,
+            x_stride,
+            y_stride,
+            ..
+        } = layout;
+        if width == 0
+            || height == 0
+            || x_stride < size
+            || y_stride == 0
+            || !x_stride.is_multiple_of(size)
+            || !y_stride.is_multiple_of(size)
+            || x_stride > y_stride / width
+        {
+            return Err(invalid());
+        }
+        let row = (height - 1).checked_mul(y_stride).ok_or_else(invalid)?;
+        let last = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|v| v.checked_add(row))
+            .ok_or_else(invalid)?;
+        let end = last.checked_add(size).ok_or_else(invalid)?;
+        let required = width.checked_mul(x_stride).and_then(|v| row.checked_add(v));
+        let mut needs_split = false;
+        for plane in [&*red, &*green, &*blue].into_iter().chain(alpha.as_deref()) {
+            if plane.len() < end || !(plane.as_ptr() as usize).is_multiple_of(size) {
+                return Err(invalid());
+            }
+            needs_split |= required.is_none_or(|n| plane.len() < n);
+        }
+        if needs_split {
+            let long_max = std::ffi::c_long::MAX as u128;
+            if width > std::ffi::c_int::MAX as usize / 4
+                || height as u128 > long_max
+                || (width as u128) * (height as u128) > long_max
+                || x_stride > isize::MAX as usize
+                || y_stride > isize::MAX as usize
+            {
+                return Err(invalid());
+            }
+            let [Ok(w), Ok(h), Ok(x), Ok(y)] =
+                [width, height, x_stride, y_stride].map(i64::try_from)
+            else {
+                return Err(invalid());
+            };
+            let r = red.as_mut_ptr();
+            let g = green.as_mut_ptr();
+            let b = blue.as_mut_ptr();
+            let a = alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr());
+            let apply_region =
+                |offset: usize, width: i64, height: i64, x: i64, y: i64| -> Result<()> {
+                    crate::clear_last_error();
+                    // SAFETY: every accessed sample and final pointer step is within
+                    // its exclusively borrowed, aligned plane or one past it.
+                    unsafe {
+                        ocio_sys::ocio_cpu_processor_apply_planar_bytes(
+                            self.handle.as_ptr(),
+                            r.add(offset).cast(),
+                            g.add(offset).cast(),
+                            b.add(offset).cast(),
+                            if a.is_null() { a } else { a.add(offset) }.cast(),
+                            width,
+                            height,
+                            x,
+                            y,
+                            layout.bit_depth as i32,
+                        );
+                    }
+                    crate::ocio_call_status()
+                };
+            if height > 1 {
+                apply_region(0, w, h - 1, x, y)?;
+            }
+            if width > 1 {
+                apply_region(row, w - 1, 1, x, y)?;
+            }
+            return apply_region(last, 1, 1, size as i64, size as i64);
+        }
         let [width, height, x_stride, y_stride] =
             validate_planar_buffer(layout, &[red, green, blue])?;
         if let Some(alpha) = alpha.as_deref() {

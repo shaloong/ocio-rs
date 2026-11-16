@@ -887,14 +887,101 @@ fn planar_u8_uses_explicit_native_cpu_bit_depth() {
     let mut red = [50, 255, 100, 255, 255, 25, 255, 60, 255];
     let mut green = [40, 255, 50, 255, 255, 60, 255, 70, 255];
     let mut blue = [100, 255, 200, 255, 255, 40, 255, 80, 255];
-    assert!(cpu
-        .try_apply_planar_bytes(&mut red[..8], &mut green, &mut blue, None, layout)
-        .is_err());
+    let mut short_r = red;
+    let mut short_g = green;
+    let mut short_b = blue;
+    cpu.try_apply_planar_bytes(
+        &mut short_r[..8],
+        &mut short_g[..8],
+        &mut short_b[..8],
+        None,
+        layout,
+    )
+    .unwrap();
     cpu.try_apply_planar_bytes(&mut red, &mut green, &mut blue, None, layout)
         .unwrap();
     assert_eq!(red, [100, 255, 200, 255, 255, 50, 255, 120, 255]);
     assert_eq!(green, [40, 255, 50, 255, 255, 60, 255, 70, 255]);
     assert_eq!(blue, [50, 255, 100, 255, 255, 20, 255, 40, 255]);
+    assert_eq!(&short_r[..8], &red[..8]);
+    assert_eq!(&short_g[..8], &green[..8]);
+    assert_eq!(&short_b[..8], &blue[..8]);
+    for (width, height) in [(1, 1), (3, 1), (1, 3), (3, 2)] {
+        let x = 3;
+        let y = width * x + 2;
+        let end = (height - 1) * y + (width - 1) * x + 1;
+        let full = (height - 1) * y + width * x;
+        let mut planes = [
+            vec![40; full],
+            vec![50; full],
+            vec![60; full],
+            vec![70; full],
+        ];
+        let mut expected = planes.clone();
+        let [r, g, b, a] = &mut planes;
+        let layout = PlanarByteLayout {
+            width,
+            height,
+            x_stride: x,
+            y_stride: y,
+            bit_depth: BitDepth::Uint8,
+        };
+        cpu.try_apply_planar_bytes(
+            &mut r[..end],
+            &mut g[..end],
+            &mut b[..end],
+            Some(&mut a[..end]),
+            layout,
+        )
+        .unwrap();
+        let [r, g, b, a] = &mut expected;
+        cpu.try_apply_planar_bytes(r, g, b, Some(a), layout)
+            .unwrap();
+        for (actual, expected) in planes.iter().zip(expected.iter()) {
+            assert_eq!(&actual[..end], &expected[..end], "{width}x{height}");
+        }
+    }
+    fn words_as_bytes(words: &mut [u16]) -> &mut [u8] {
+        // SAFETY: the bytes cover the same exclusively borrowed word slice.
+        unsafe {
+            std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), std::mem::size_of_val(words))
+        }
+    }
+    for depth in [BitDepth::Uint16, BitDepth::F16] {
+        let cpu = processor
+            .optimized_cpu_processor_bit_depth(depth, depth, 0)
+            .unwrap();
+        let mut planes = [[0x3800u16; 9]; 4];
+        let mut expected = planes;
+        let layout = PlanarByteLayout {
+            width: 2,
+            height: 2,
+            x_stride: 4,
+            y_stride: 10,
+            bit_depth: depth,
+        };
+        let [r, g, b, a] = &mut planes;
+        cpu.try_apply_planar_bytes(
+            words_as_bytes(&mut r[..8]),
+            words_as_bytes(&mut g[..8]),
+            words_as_bytes(&mut b[..8]),
+            Some(words_as_bytes(&mut a[..8])),
+            layout,
+        )
+        .unwrap();
+        let [r, g, b, a] = &mut expected;
+        cpu.try_apply_planar_bytes(
+            words_as_bytes(r),
+            words_as_bytes(g),
+            words_as_bytes(b),
+            Some(words_as_bytes(a)),
+            layout,
+        )
+        .unwrap();
+        for (actual, expected) in planes.iter().zip(expected.iter()) {
+            assert_eq!(&actual[..8], &expected[..8], "{depth:?}");
+        }
+    }
     let incorrect = PlanarByteLayout {
         bit_depth: BitDepth::F32,
         x_stride: 4,
