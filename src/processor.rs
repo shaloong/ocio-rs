@@ -932,6 +932,51 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     Ok(values)
 }
 
+#[derive(Clone, Copy)]
+struct PlanarRegion {
+    source_offset: usize,
+    destination_offset: usize,
+    width: i64,
+    height: i64,
+    final_pixel: bool,
+}
+
+// Extents and arithmetic are checked before calling this helper. The first
+// region ends before the last row, the second before the last pixel, and the
+// final region uses compact strides. No heap allocation or pixel copy.
+fn planar_tail_regions(
+    width: usize,
+    height: usize,
+    source: (usize, usize),
+    destination: (usize, usize),
+) -> [Option<PlanarRegion>; 3] {
+    let src_row = (height - 1) * source.1;
+    let dst_row = (height - 1) * destination.1;
+    [
+        (height > 1).then_some(PlanarRegion {
+            source_offset: 0,
+            destination_offset: 0,
+            width: width as i64,
+            height: height as i64 - 1,
+            final_pixel: false,
+        }),
+        (width > 1).then_some(PlanarRegion {
+            source_offset: src_row,
+            destination_offset: dst_row,
+            width: width as i64 - 1,
+            height: 1,
+            final_pixel: false,
+        }),
+        Some(PlanarRegion {
+            source_offset: src_row + (width - 1) * source.0,
+            destination_offset: dst_row + (width - 1) * destination.0,
+            width: 1,
+            height: 1,
+            final_pixel: true,
+        }),
+    ]
+}
+
 fn validate_planar_sample_bounds(
     layout: PlanarByteLayout,
     planes: &[&[u8]],
@@ -1337,26 +1382,37 @@ impl CPUProcessor {
                     }
                     crate::ocio_call_status()
                 };
-            if ih > 1 {
-                apply_region(0, 0, iw, ih - 1, ix, iy, ox, oy)?;
+            for part in planar_tail_regions(
+                iw as usize,
+                ih as usize,
+                (ix as usize, iy as usize),
+                (ox as usize, oy as usize),
+            )
+            .into_iter()
+            .flatten()
+            {
+                let (in_x, in_y) = if part.final_pixel {
+                    (input_size as i64, input_size as i64)
+                } else {
+                    (ix, iy)
+                };
+                let (out_x, out_y) = if part.final_pixel {
+                    (output_size as i64, output_size as i64)
+                } else {
+                    (ox, oy)
+                };
+                apply_region(
+                    part.source_offset,
+                    part.destination_offset,
+                    part.width,
+                    part.height,
+                    in_x,
+                    in_y,
+                    out_x,
+                    out_y,
+                )?;
             }
-            let src_row = (ih as usize - 1) * iy as usize;
-            let dst_row = (oh as usize - 1) * oy as usize;
-            if iw > 1 {
-                apply_region(src_row, dst_row, iw - 1, 1, ix, iy, ox, oy)?;
-            }
-            let src_last = src_row + (iw as usize - 1) * ix as usize;
-            let dst_last = dst_row + (ow as usize - 1) * ox as usize;
-            return apply_region(
-                src_last,
-                dst_last,
-                1,
-                1,
-                input_size as i64,
-                input_size as i64,
-                output_size as i64,
-                output_size as i64,
-            );
+            return Ok(());
         }
         crate::clear_last_error();
         // SAFETY: Both descriptors have validated extents and alignment. The source
@@ -1495,7 +1551,7 @@ impl CPUProcessor {
             {
                 return Err(invalid());
             }
-            let [Ok(w), Ok(h), Ok(x), Ok(y)] =
+            let [Ok(_w), Ok(_h), Ok(x), Ok(y)] =
                 [width, height, x_stride, y_stride].map(i64::try_from)
             else {
                 return Err(invalid());
@@ -1525,13 +1581,19 @@ impl CPUProcessor {
                     }
                     crate::ocio_call_status()
                 };
-            if height > 1 {
-                apply_region(0, w, h - 1, x, y)?;
+            for part in
+                planar_tail_regions(width, height, (x_stride, y_stride), (x_stride, y_stride))
+                    .into_iter()
+                    .flatten()
+            {
+                let (x, y) = if part.final_pixel {
+                    (size as i64, size as i64)
+                } else {
+                    (x, y)
+                };
+                apply_region(part.source_offset, part.width, part.height, x, y)?;
             }
-            if width > 1 {
-                apply_region(row, w - 1, 1, x, y)?;
-            }
-            return apply_region(last, 1, 1, size as i64, size as i64);
+            return Ok(());
         }
         let [width, height, x_stride, y_stride] =
             validate_planar_buffer(layout, &[red, green, blue])?;
@@ -1643,13 +1705,19 @@ impl CPUProcessor {
                 }
                 crate::ocio_call_status()
             };
-            if height > 1 {
-                apply_region(0, native_width, native_height - 1, native_x, native_y)?;
+            for part in
+                planar_tail_regions(width, height, (x_stride, y_stride), (x_stride, y_stride))
+                    .into_iter()
+                    .flatten()
+            {
+                let (x, y) = if part.final_pixel {
+                    (1, 1)
+                } else {
+                    (native_x, native_y)
+                };
+                apply_region(part.source_offset, part.width, part.height, x, y)?;
             }
-            if width > 1 {
-                apply_region(last_row, native_width - 1, 1, native_x, native_y)?;
-            }
-            return apply_region(last, 1, 1, 1, 1);
+            return Ok(());
         }
         crate::clear_last_error();
         unsafe {
@@ -8362,6 +8430,37 @@ impl Drop for DynamicProperty {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn planar_tail_regions_cover_every_pixel_with_independent_offsets() {
+        for (width, height) in [(1, 1), (3, 1), (1, 3), (3, 2)] {
+            let source = (2, width * 2 + 1);
+            let destination = (4, width * 4 + 2);
+            let regions = planar_tail_regions(width, height, source, destination);
+            let mut pixels = Vec::new();
+            for part in regions.into_iter().flatten() {
+                for y in 0..part.height as usize {
+                    for x in 0..part.width as usize {
+                        let in_offset = part.source_offset + y * source.1 + x * source.0;
+                        let out_offset =
+                            part.destination_offset + y * destination.1 + x * destination.0;
+                        pixels.push((in_offset, out_offset));
+                    }
+                }
+            }
+            let expected: Vec<_> = (0..height)
+                .flat_map(|y| {
+                    (0..width).map(move |x| {
+                        (
+                            y * source.1 + x * source.0,
+                            y * destination.1 + x * destination.0,
+                        )
+                    })
+                })
+                .collect();
+            assert_eq!(pixels, expected);
+        }
+    }
 
     #[cfg(all(target_os = "windows", not(ocio_stub)))]
     #[test]

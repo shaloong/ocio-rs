@@ -1076,6 +1076,59 @@ fn planar_conversion_without_pointer_padding_matches_padded() {
     for (actual, expected) in short.iter().zip(padded.iter()) {
         assert_eq!(&actual[..8], &expected[..8]);
     }
+    for (short_source, short_destination, source_alpha, destination_alpha) in [
+        (true, false, false, true),
+        (false, true, true, false),
+        (true, true, false, false),
+    ] {
+        let mut result = [[0xaaaau16; 9]; 4];
+        let mut reference = result;
+        let src = if short_source {
+            &input[..8]
+        } else {
+            &input[..]
+        };
+        let out_len = if short_destination { 8 } else { 9 };
+        let [r, g, b, a] = &mut result;
+        cpu.try_apply_planar_convert(
+            PlanarBytes {
+                red: src,
+                green: src,
+                blue: src,
+                alpha: source_alpha.then_some(src),
+                layout: input_layout,
+            },
+            PlanarBytesMut {
+                red: bytes(&mut r[..out_len]),
+                green: bytes(&mut g[..out_len]),
+                blue: bytes(&mut b[..out_len]),
+                alpha: destination_alpha.then(|| bytes(&mut a[..out_len])),
+                layout: output_layout,
+            },
+        )
+        .unwrap();
+        let [r, g, b, a] = &mut reference;
+        cpu.try_apply_planar_convert(
+            PlanarBytes {
+                red: &input,
+                green: &input,
+                blue: &input,
+                alpha: source_alpha.then_some(&input[..]),
+                layout: input_layout,
+            },
+            PlanarBytesMut {
+                red: bytes(r),
+                green: bytes(g),
+                blue: bytes(b),
+                alpha: destination_alpha.then(|| bytes(a)),
+                layout: output_layout,
+            },
+        )
+        .unwrap();
+        for (actual, expected) in result.iter().zip(reference.iter()) {
+            assert_eq!(&actual[..8], &expected[..8]);
+        }
+    }
 }
 
 #[test]
