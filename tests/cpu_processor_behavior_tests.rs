@@ -779,14 +779,59 @@ fn planar_strides_preserve_padding_and_reject_overflow() {
     let mut r = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
     let mut g = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
     let mut b = [1., 99., 2., 99., 99., 3., 99., 4., 99.];
-    assert!(cpu
-        .try_apply_planar_strided_f32(&mut r[..8], &mut g, &mut b, None, layout)
-        .is_err());
+    let mut short_r = r;
+    let mut short_g = g;
+    let mut short_b = b;
+    cpu.try_apply_planar_strided_f32(
+        &mut short_r[..8],
+        &mut short_g[..8],
+        &mut short_b[..8],
+        None,
+        layout,
+    )
+    .unwrap();
     cpu.try_apply_planar_strided_f32(&mut r, &mut g, &mut b, None, layout)
         .unwrap();
     assert_eq!(r, [2., 99., 4., 99., 99., 6., 99., 8., 99.]);
     assert_eq!(g, [1., 99., 2., 99., 99., 3., 99., 4., 99.]);
     assert_eq!(b, [0.5, 99., 1., 99., 99., 1.5, 99., 2., 99.]);
+    assert_eq!(&short_r[..8], &r[..8]);
+    assert_eq!(&short_g[..8], &g[..8]);
+    assert_eq!(&short_b[..8], &b[..8]);
+    for (width, height) in [(1, 1), (3, 1), (1, 3), (3, 2)] {
+        let x = 3;
+        let y = width * x + 2;
+        let end = (height - 1) * y + (width - 1) * x + 1;
+        let full = (height - 1) * y + width * x;
+        let mut planes = [
+            vec![0.4; full],
+            vec![0.5; full],
+            vec![0.6; full],
+            vec![0.7; full],
+        ];
+        let mut expected = planes.clone();
+        let [r, g, b, a] = &mut planes;
+        let layout = PlanarF32Layout {
+            width,
+            height,
+            x_stride: x,
+            y_stride: y,
+        };
+        cpu.try_apply_planar_strided_f32(
+            &mut r[..end],
+            &mut g[..end],
+            &mut b[..end],
+            Some(&mut a[..end]),
+            layout,
+        )
+        .unwrap();
+        let [r, g, b, a] = &mut expected;
+        cpu.try_apply_planar_strided_f32(r, g, b, Some(a), layout)
+            .unwrap();
+        for (actual, expected) in planes.iter().zip(expected.iter()) {
+            assert_eq!(&actual[..end], &expected[..end], "{width}x{height}");
+        }
+    }
     assert!(cpu
         .try_apply_planar_strided_f32(
             &mut r,

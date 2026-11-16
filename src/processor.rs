@@ -1377,8 +1377,10 @@ impl CPUProcessor {
     ///
     /// Strides are measured in F32 elements and must be positive. As required
     /// by OCIO, the row stride must be at least the pixel stride times the
-    /// width, even for a single row. Each plane must include a full pixel
-    /// stride after its last sample for OCIO's pointer increment. Alpha may be omitted.
+    /// width, even for a single row. Alpha may be omitted. If a plane ends
+    /// immediately after its last sample, the image is processed in up to
+    /// three regions to keep OCIO's pointer increments within the slices.
+    /// If a later region fails, earlier regions may already be modified.
     pub fn try_apply_planar_strided_f32(
         &self,
         red: &mut [f32],
@@ -1401,21 +1403,72 @@ impl CPUProcessor {
         if x_stride > y_stride / width {
             return Err(invalid());
         }
-        let required = (height - 1)
-            .checked_mul(y_stride)
-            .and_then(|v| v.checked_add(row_span))
+        let last_row = (height - 1).checked_mul(y_stride).ok_or_else(invalid)?;
+        let last = (width - 1)
+            .checked_mul(x_stride)
+            .and_then(|v| v.checked_add(last_row))
             .ok_or_else(invalid)?;
+        let sample_end = last.checked_add(1).ok_or_else(invalid)?;
+        let required = last_row.checked_add(row_span);
         if [red.len(), green.len(), blue.len()]
             .iter()
-            .any(|&n| n < required)
-            || alpha.as_ref().is_some_and(|plane| plane.len() < required)
+            .any(|&n| n < sample_end)
+            || alpha.as_ref().is_some_and(|plane| plane.len() < sample_end)
         {
             return Err(invalid());
         }
+        let needs_split = required.is_none_or(|n| {
+            [red.len(), green.len(), blue.len()]
+                .iter()
+                .any(|&len| len < n)
+                || alpha.as_ref().is_some_and(|plane| plane.len() < n)
+        });
         let values = [width, height, x_stride, y_stride].map(i64::try_from);
-        let [Ok(width), Ok(height), Ok(x_stride), Ok(y_stride)] = values else {
+        let [Ok(native_width), Ok(native_height), Ok(native_x), Ok(native_y)] = values else {
             return Err(invalid());
         };
+        if needs_split {
+            // Apply the same native range checks before any region mutates data.
+            let long_max = std::ffi::c_long::MAX as u128;
+            if width > std::ffi::c_int::MAX as usize / 4
+                || height as u128 > long_max
+                || (width as u128) * (height as u128) > long_max
+                || x_stride > isize::MAX as usize / 4
+                || y_stride > isize::MAX as usize / 4
+            {
+                return Err(invalid());
+            }
+            let r = red.as_mut_ptr();
+            let g = green.as_mut_ptr();
+            let b = blue.as_mut_ptr();
+            let a = alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr());
+            let apply_region = |offset: usize, w: i64, h: i64, x: i64, y: i64| -> Result<()> {
+                crate::clear_last_error();
+                // SAFETY: the validated slices contain every region and its
+                // final pointer step; all planes remain exclusively borrowed.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_planar_strided_f32(
+                        self.handle.as_ptr(),
+                        r.add(offset),
+                        g.add(offset),
+                        b.add(offset),
+                        if a.is_null() { a } else { a.add(offset) },
+                        w,
+                        h,
+                        x,
+                        y,
+                    );
+                }
+                crate::ocio_call_status()
+            };
+            if height > 1 {
+                apply_region(0, native_width, native_height - 1, native_x, native_y)?;
+            }
+            if width > 1 {
+                apply_region(last_row, native_width - 1, 1, native_x, native_y)?;
+            }
+            return apply_region(last, 1, 1, 1, 1);
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_planar_strided_f32(
@@ -1424,10 +1477,10 @@ impl CPUProcessor {
                 green.as_mut_ptr(),
                 blue.as_mut_ptr(),
                 alpha.map_or(std::ptr::null_mut(), |plane| plane.as_mut_ptr()),
-                width,
-                height,
-                x_stride,
-                y_stride,
+                native_width,
+                native_height,
+                native_x,
+                native_y,
             )
         };
         crate::ocio_call_status()
