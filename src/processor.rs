@@ -672,9 +672,8 @@ pub struct PlanarF32Layout {
 
 /// Positive byte strides and native channel bit depth for a planar image.
 ///
-/// Conversion APIs currently require each plane to include the full final
-/// pixel stride, even when the last sample occupies fewer bytes than `x_stride`.
-/// In-place byte processing also accepts planes ending at the final sample.
+/// Positive-stride in-place and conversion APIs accept planes ending at the
+/// final sample; they split the tail if native pointer stepping requires it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanarByteLayout {
     /// Number of pixels per row.
@@ -924,6 +923,19 @@ fn validate_signed_planar(layout: SignedPlanarByteLayout, planes: &[&[u8]]) -> R
 }
 
 fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
+    let (values, needs_split) = validate_planar_sample_bounds(layout, planes)?;
+    if needs_split {
+        return Err(OcioError::InvalidInput(
+            "planar pointer-step padding is required".into(),
+        ));
+    }
+    Ok(values)
+}
+
+fn validate_planar_sample_bounds(
+    layout: PlanarByteLayout,
+    planes: &[&[u8]],
+) -> Result<([i64; 4], bool)> {
     let PlanarByteLayout {
         width,
         height,
@@ -948,13 +960,16 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     if x_stride > y_stride / width {
         return Err(invalid());
     }
-    let required = (height - 1)
-        .checked_mul(y_stride)
-        .and_then(|n| n.checked_add(row_span))
+    let row = (height - 1).checked_mul(y_stride).ok_or_else(invalid)?;
+    let end = (width - 1)
+        .checked_mul(x_stride)
+        .and_then(|n| row.checked_add(n))
+        .and_then(|n| n.checked_add(size))
         .ok_or_else(invalid)?;
+    let required = row.checked_add(row_span);
     if planes
         .iter()
-        .any(|p| p.len() < required || !(p.as_ptr() as usize).is_multiple_of(size))
+        .any(|p| p.len() < end || !(p.as_ptr() as usize).is_multiple_of(size))
     {
         return Err(invalid());
     }
@@ -962,7 +977,8 @@ fn validate_planar_buffer(layout: PlanarByteLayout, planes: &[&[u8]]) -> Result<
     else {
         return Err(invalid());
     };
-    Ok([w, h, x, y])
+    let needs_split = required.is_none_or(|n| planes.iter().any(|p| p.len() < n));
+    Ok(([w, h, x, y], needs_split))
 }
 
 fn signed_planar_source(image: &SignedPlanarBytes<'_>) -> Result<ocio_sys::OcioPlanarBuffer> {
@@ -1209,6 +1225,8 @@ impl CPUProcessor {
     /// dimensions. Alpha may be present independently on either side; see
     /// [`Self::try_convert_packed_to_planar`] for missing-alpha behavior. Buffers are borrowed
     /// directly without copying; strides are in bytes and must be positive and aligned.
+    /// Unpadded tails may require multiple native calls; a later error may leave
+    /// earlier destination regions modified.
     pub fn try_apply_planar_convert(
         &self,
         source: PlanarBytes<'_>,
@@ -1221,17 +1239,17 @@ impl CPUProcessor {
                 "planar dimensions must match".into(),
             ));
         }
-        let [iw, ih, ix, iy] =
-            validate_planar_buffer(source.layout, &[source.red, source.green, source.blue])?;
-        let [ow, oh, ox, oy] = validate_planar_buffer(
+        let ([iw, ih, ix, iy], mut split_input) =
+            validate_planar_sample_bounds(source.layout, &[source.red, source.green, source.blue])?;
+        let ([ow, oh, ox, oy], mut split_output) = validate_planar_sample_bounds(
             destination.layout,
             &[destination.red, destination.green, destination.blue],
         )?;
         if let Some(input) = source.alpha {
-            validate_planar_buffer(source.layout, &[input])?;
+            split_input |= validate_planar_sample_bounds(source.layout, &[input])?.1;
         }
         if let Some(output) = destination.alpha.as_deref() {
-            validate_planar_buffer(destination.layout, &[output])?;
+            split_output |= validate_planar_sample_bounds(destination.layout, &[output])?.1;
         }
         let input = ocio_sys::OcioPlanarBuffer {
             red: source.red.as_ptr().cast_mut().cast(),
@@ -1260,6 +1278,86 @@ impl CPUProcessor {
             y_stride: oy,
             bit_depth: destination.layout.bit_depth as i32,
         };
+        if split_input || split_output {
+            let long_max = std::ffi::c_long::MAX as i64;
+            if iw > i64::from(std::ffi::c_int::MAX) / 4
+                || ih > long_max
+                || iw > long_max / ih
+                || ix > isize::MAX as i64
+                || iy > isize::MAX as i64
+                || ox > isize::MAX as i64
+                || oy > isize::MAX as i64
+            {
+                return Err(OcioError::InvalidInput(
+                    "planar layout exceeds native limits".into(),
+                ));
+            }
+            let input_size =
+                bit_depth_bytes_per_channel("planar conversion", source.layout.bit_depth)?;
+            let output_size =
+                bit_depth_bytes_per_channel("planar conversion", destination.layout.bit_depth)?;
+            let region = |base: &ocio_sys::OcioPlanarBuffer,
+                          offset: usize,
+                          width: i64,
+                          height: i64,
+                          x: i64,
+                          y: i64| {
+                let advance = |p: *mut c_void| {
+                    if p.is_null() {
+                        p
+                    } else {
+                        p.cast::<u8>().wrapping_add(offset).cast()
+                    }
+                };
+                ocio_sys::OcioPlanarBuffer {
+                    red: advance(base.red),
+                    green: advance(base.green),
+                    blue: advance(base.blue),
+                    alpha: advance(base.alpha),
+                    width,
+                    height,
+                    x_stride: x,
+                    y_stride: y,
+                    bit_depth: base.bit_depth,
+                }
+            };
+            let apply_region =
+                |src_offset, dst_offset, width, height, in_x, in_y, out_x, out_y| -> Result<()> {
+                    let src = region(&input, src_offset, width, height, in_x, in_y);
+                    let dst = region(&output, dst_offset, width, height, out_x, out_y);
+                    crate::clear_last_error();
+                    // SAFETY: each validated region's samples and final pointer
+                    // increments fit the corresponding source/destination planes.
+                    unsafe {
+                        ocio_sys::ocio_cpu_processor_apply_planar_convert(
+                            self.handle.as_ptr(),
+                            &src,
+                            &dst,
+                        );
+                    }
+                    crate::ocio_call_status()
+                };
+            if ih > 1 {
+                apply_region(0, 0, iw, ih - 1, ix, iy, ox, oy)?;
+            }
+            let src_row = (ih as usize - 1) * iy as usize;
+            let dst_row = (oh as usize - 1) * oy as usize;
+            if iw > 1 {
+                apply_region(src_row, dst_row, iw - 1, 1, ix, iy, ox, oy)?;
+            }
+            let src_last = src_row + (iw as usize - 1) * ix as usize;
+            let dst_last = dst_row + (ow as usize - 1) * ox as usize;
+            return apply_region(
+                src_last,
+                dst_last,
+                1,
+                1,
+                input_size as i64,
+                input_size as i64,
+                output_size as i64,
+                output_size as i64,
+            );
+        }
         crate::clear_last_error();
         // SAFETY: Both descriptors have validated extents and alignment. The source
         // is read-only during apply, and the destination planes are exclusively borrowed.

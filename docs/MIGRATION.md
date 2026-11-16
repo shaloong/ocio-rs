@@ -11,15 +11,10 @@ strides because no second pixel is accessed.
 
 ## Unreleased: planar image padding
 
-Positive-stride planar byte conversion now
-require every channel slice to include the complete pixel stride following the
-last sample. Previously a slice ending immediately after the final sample was
-accepted even when the stride was larger than one sample; OCIO's generic loop
-then formed a pointer beyond that slice. Add trailing padding to such planes,
-or use contiguous planes. This is a conservative safety restriction pending a
-zero-copy common-path strategy for unpadded strided images.
-The strided F32 and byte in-place APIs support unpadded planes by splitting
-only the necessary tail regions, without copying image data.
+Positive-stride planar conversion and in-place APIs support unpadded planes by
+splitting only necessary tail regions without copying image data. A failure in
+a later region may leave earlier destination regions modified. Signed-stride
+planar APIs still require pointer-step padding.
 
 ## Unreleased: transform handle safety
 

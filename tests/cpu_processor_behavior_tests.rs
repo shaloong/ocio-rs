@@ -1000,6 +1000,86 @@ fn planar_u8_uses_explicit_native_cpu_bit_depth() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn planar_conversion_without_pointer_padding_matches_padded() {
+    use ocio_rs::{
+        transform::MatrixTransform, BitDepth, Config, PlanarByteLayout, PlanarBytes,
+        PlanarBytesMut, TransformDirection,
+    };
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_transform(
+            &MatrixTransform::scale(&[0.5, 1.0, 0.75, 1.0]).unwrap(),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint16, 0)
+        .unwrap();
+    fn bytes(words: &mut [u16]) -> &mut [u8] {
+        // SAFETY: same exclusive word allocation viewed as bytes.
+        unsafe {
+            std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), std::mem::size_of_val(words))
+        }
+    }
+    let input_layout = PlanarByteLayout {
+        width: 2,
+        height: 2,
+        x_stride: 2,
+        y_stride: 5,
+        bit_depth: BitDepth::Uint8,
+    };
+    let output_layout = PlanarByteLayout {
+        width: 2,
+        height: 2,
+        x_stride: 4,
+        y_stride: 10,
+        bit_depth: BitDepth::Uint16,
+    };
+    let input = [20, 99, 40, 99, 99, 60, 99, 80, 99];
+    let mut short = [[0xaaaau16; 9]; 4];
+    let mut padded = short;
+    let [r, g, b, a] = &mut short;
+    cpu.try_apply_planar_convert(
+        PlanarBytes {
+            red: &input[..8],
+            green: &input[..8],
+            blue: &input[..8],
+            alpha: Some(&input[..8]),
+            layout: input_layout,
+        },
+        PlanarBytesMut {
+            red: bytes(&mut r[..8]),
+            green: bytes(&mut g[..8]),
+            blue: bytes(&mut b[..8]),
+            alpha: Some(bytes(&mut a[..8])),
+            layout: output_layout,
+        },
+    )
+    .unwrap();
+    let [r, g, b, a] = &mut padded;
+    cpu.try_apply_planar_convert(
+        PlanarBytes {
+            red: &input,
+            green: &input,
+            blue: &input,
+            alpha: Some(&input),
+            layout: input_layout,
+        },
+        PlanarBytesMut {
+            red: bytes(r),
+            green: bytes(g),
+            blue: bytes(b),
+            alpha: Some(bytes(a)),
+            layout: output_layout,
+        },
+    )
+    .unwrap();
+    for (actual, expected) in short.iter().zip(padded.iter()) {
+        assert_eq!(&actual[..8], &expected[..8]);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn packed_conversion_changes_bit_depth_without_touching_padding() {
     use ocio_rs::{
         transform::MatrixTransform, BitDepth, Config, PackedConversionLayout, TransformDirection,
