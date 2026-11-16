@@ -2,10 +2,12 @@
 
 ## Unreleased: extreme RGBA strides
 
-RGBA byte strides above the native C++ `int` maximum are rejected instead of
+RGBA byte strides above the native C++ `int` maximum are generally rejected instead of
 being narrowed by OCIO's packed-layout optimization. This prevents extremely
 large strides from being mistaken for tightly packed pixels. Supporting these
 layouts without this conservative restriction requires a separate safe path.
+The single-pixel float and packed-byte APIs normalize otherwise valid extreme
+strides because no second pixel is accessed.
 
 ## Unreleased: planar image padding
 

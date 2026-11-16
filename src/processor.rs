@@ -74,6 +74,33 @@ fn validate_stride_byte_width(
     Ok(())
 }
 
+fn rgba_single_pixel_native_stride(
+    api: &str,
+    pixels: i64,
+    stride: i64,
+    sample: usize,
+) -> Result<i64> {
+    if pixels != 1 {
+        return Ok(stride);
+    }
+    let step = normalized_stride(api, stride, 4)?;
+    let bytes = step
+        .checked_mul(sample)
+        .filter(|&n| n <= isize::MAX as usize)
+        .ok_or_else(|| {
+            OcioError::InvalidInput(format!(
+                "{api}: byte stride exceeds the C++ ptrdiff_t range"
+            ))
+        })?;
+    // No second pixel exists; avoid OCIO's lossy int cast without changing
+    // the layout of any accessed channel or weakening stride validation.
+    Ok(if bytes > std::ffi::c_int::MAX as usize {
+        4
+    } else {
+        stride
+    })
+}
+
 fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> Result<usize> {
     match bit_depth {
         BitDepth::Uint8 => Ok(1),
@@ -1595,6 +1622,12 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) -> Result<()> {
+        let stride = rgba_single_pixel_native_stride(
+            "CPUProcessor::apply_rgba_pixels",
+            num_pixels,
+            stride,
+            std::mem::size_of::<f32>(),
+        )?;
         validate_scalar_buffer_len(
             "CPUProcessor::apply_rgba_pixels",
             rgba.len(),
@@ -1768,6 +1801,14 @@ impl CPUProcessor {
         num_pixels: i64,
         stride: i64,
     ) -> Result<()> {
+        let sample =
+            bit_depth_bytes_per_channel("CPUProcessor::apply_rgba_packed_bit_depth", bit_depth)?;
+        let stride = rgba_single_pixel_native_stride(
+            "CPUProcessor::apply_rgba_packed_bit_depth",
+            num_pixels,
+            stride,
+            sample,
+        )?;
         validate_packed_buffer_len(
             "CPUProcessor::apply_rgba_packed_bit_depth",
             rgba.len(),

@@ -62,8 +62,9 @@ The current inventory and runtime validation are incomplete; the status in
    conversions, or other processor entry points.
    The native packed-layout optimization narrows RGBA channel and x strides to
    `int` before testing tight packing. Affected entry points conservatively
-   reject strides outside that range, including single-pixel inputs. A future
-   safe split path should support those extreme layouts without misclassification.
+   reject strides outside that range, except that the single-pixel float and
+   packed-byte APIs normalize them when representable as `ptrdiff_t`. A future
+   safe split path should support other extreme layouts without misclassification.
    Image entry points conservatively reject a scanline wider than `INT_MAX / 4`
    because native generic scanline loops multiply `int` pixel indices by four.
    This also limits optimized layouts that may not allocate that buffer; support

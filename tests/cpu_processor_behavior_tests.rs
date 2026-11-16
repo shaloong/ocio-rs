@@ -565,6 +565,14 @@ fn rgba_short_tail_matches_padded_for_float_and_integer() {
     let mut one = [0.2, 0.4, 0.6, 0.8];
     cpu.try_apply_rgba_pixels(&mut one, 1, 5).unwrap();
     assert_eq!(one, short[..4]);
+    #[cfg(target_pointer_width = "64")]
+    {
+        let mut huge_stride = [0.2, 0.4, 0.6, 0.8];
+        cpu.try_apply_rgba_pixels(&mut huge_stride, 1, i64::from(i32::MAX) / 4 + 1)
+            .unwrap();
+        assert_eq!(huge_stride, one);
+        assert!(cpu.try_apply_rgba_pixels(&mut huge_stride, 1, 3).is_err());
+    }
 
     let cpu = processor
         .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
@@ -577,6 +585,18 @@ fn rgba_short_tail_matches_padded_for_float_and_integer() {
         .unwrap();
     assert_eq!(short, padded[..9]);
     assert_eq!(&padded[9..], &[99; 4]);
+    #[cfg(target_pointer_width = "64")]
+    {
+        let mut huge_stride = [20, 40, 60, 80];
+        cpu.try_apply_rgba_packed_bit_depth(
+            &mut huge_stride,
+            BitDepth::Uint8,
+            1,
+            i64::from(i32::MAX) + 1,
+        )
+        .unwrap();
+        assert_eq!(huge_stride, short[..4]);
+    }
 }
 
 #[test]
