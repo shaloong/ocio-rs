@@ -95,6 +95,24 @@ fn configured_look_transform_config() -> Config {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn result_color_space_uses_native_look_resolution() {
+    let _guard = look_transform_test_lock();
+    let config = configured_look_transform_config();
+    let context = config.try_const_current_context().unwrap().unwrap();
+    assert_eq!(
+        LookTransform::result_color_space(&config, &context, "").unwrap(),
+        ""
+    );
+    assert_eq!(
+        LookTransform::result_color_space(&config, &context, "UnitLook").unwrap(),
+        "UnitLookProcess"
+    );
+    assert!(LookTransform::result_color_space(&config, &context, "missing").is_err());
+    assert!(LookTransform::result_color_space(&config, &context, "UnitLook\0bad").is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn look_transform_field_copy_and_validate_behavior() {
     let _guard = look_transform_test_lock();
     if is_stub() {

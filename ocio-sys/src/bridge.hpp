@@ -1536,6 +1536,7 @@ void ocio_look_transform_set_src(void* handle, const char* src);
 void* ocio_look_transform_get_dst(void* handle);
 void ocio_look_transform_set_dst(void* handle, const char* dst);
 void* ocio_look_transform_get_looks(void* handle);
+const char* ocio_look_transform_get_result_color_space(void* config, const void* context, const char* looks);
 void ocio_look_transform_set_looks(void* handle, const char* looks);
 bool ocio_look_transform_get_skip_color_space_conversion(void* handle);
 void ocio_look_transform_set_skip_color_space_conversion(void* handle, bool skip);

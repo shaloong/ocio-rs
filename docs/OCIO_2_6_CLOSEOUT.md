@@ -45,11 +45,17 @@ four selected log/range classes and the absent camera-slope buffer fix.
 [The Baker and processor metadata audit](OCIO_BAKER_PROCESSOR_METADATA_AUDIT.md)
 maps two more classes and the shared output callback fixes.
 
-On this worktree, the checker unit tests (7) passed. L1 matched all 1,569
-bridge declaration names; L2 matched all 1,371 checked wrappers; selected
+On this worktree, the checker unit tests (7) passed. L1 matched all 1,570
+bridge declaration names; L2 matched all 1,372 checked wrappers; selected
 L3 name matches were 865/865 (2.4.1), 1,005/1,005 (2.5.2), and
 1,013/1,013 (2.6.0). The explicit cache-ID entry is counted through the
 existing public context query rather than requiring another public method.
+
+`LookTransform::GetLooksResultColorSpace` is now directly exposed with a
+retained read-only context and an owned Rust result. Native look resolution,
+empty input, invalid look and invalid C string cases passed on Windows with
+2.4.1, 2.5.2 and 2.6.0. This static method was absent despite name-only L3
+matching other LookTransform methods.
 
 Confirmed processor ABI fix: the six legacy processor-building functions
 with signed C `int` flags now preserve the published 32-bit mask, including

@@ -16879,6 +16879,21 @@ void ocio_look_transform_set_dst(void* handle, const char* dst) {
 #endif
 }
 
+const char* ocio_look_transform_get_result_color_space(void* config, const void* context, const char* looks) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)looks;
+  ocio_rs_bridge::capture_error_message("Look result color space requires native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    if (!config || !context || !looks) throw std::invalid_argument("null look result argument");
+    return ocio::LookTransform::GetLooksResultColorSpace(
+        ocio_rs_bridge::get_real_config(config),
+        *static_cast<const ocio::ConstContextRcPtr*>(context), looks);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_look_transform_get_looks(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; 

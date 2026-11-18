@@ -10,6 +10,27 @@ pub struct LookTransform {
 }
 
 impl LookTransform {
+    /// Resolve the final process space of a look expression, including OCIO's fallbacks.
+    /// An empty expression returns an empty string, as in native OCIO.
+    pub fn result_color_space(
+        config: &crate::Config,
+        context: &crate::ConstContext,
+        looks: impl AsRef<str>,
+    ) -> Result<String> {
+        let looks = cstring(looks)?;
+        crate::clear_last_error();
+        let result = unsafe {
+            ocio_sys::ocio_look_transform_get_result_color_space(
+                config.handle.as_ptr(),
+                context.handle.as_ptr(),
+                looks.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        unsafe { cstr_to_opt_string(result) }
+            .ok_or_else(|| OcioError::Ocio("null look result color space".into()))
+    }
+
     /// Create a look transform with default settings.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();

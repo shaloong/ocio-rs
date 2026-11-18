@@ -3188,6 +3188,13 @@ unsafe extern "C" {
     pub fn ocio_look_transform_get_dst(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_look_transform_set_dst(handle: *mut c_void, dst: *const i8) -> ();
     pub fn ocio_look_transform_get_looks(handle: *mut c_void) -> *mut c_void;
+    /// Borrow OCIO's result until the config or its color spaces are mutated.
+    /// `config` and `context` must be live editable-config and const-context handles.
+    pub fn ocio_look_transform_get_result_color_space(
+        config: *mut c_void,
+        context: *const c_void,
+        looks: *const std::ffi::c_char,
+    ) -> *const std::ffi::c_char;
     pub fn ocio_look_transform_set_looks(handle: *mut c_void, looks: *const i8) -> ();
     pub fn ocio_look_transform_get_skip_color_space_conversion(handle: *mut c_void) -> bool;
     pub fn ocio_look_transform_set_skip_color_space_conversion(

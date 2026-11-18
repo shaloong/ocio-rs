@@ -922,6 +922,7 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
                     // The editable and read-only APIs share a private dispatcher.
                     "ocio_config_get_cache_id_explicit" => Some("try_cache_id_for_const_context"),
                     "ocio_format_metadata_stream" => Some("to_native_string"),
+                    "ocio_look_transform_get_result_color_space" => Some("result_color_space"),
                     _ => None,
                 };
                 exact_override
