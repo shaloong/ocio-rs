@@ -58,8 +58,10 @@ directions, inferred and explicit interchange, default and explicit contexts,
 invalid interchange, dynamic processor independence for identical and
 distinct source/destination configs, and both directions of built-in
 conversion. Explicit interchange tests use different source and destination
-aliases so a swapped argument cannot accidentally pass. The editable-config test suite also
-exercises distinct context variables resolving LUTs. No new CI job is needed.
+aliases so a swapped argument cannot accidentally pass. The config behavior
+suite also exercises distinct context variables resolving LUTs for editable and
+read-only configs, including dynamic processor isolation. It runs in the
+existing 2.6 PR job; no new CI job is needed.
 Together these suites passed on Windows: 13 tests with native 2.4.1 and
 16 each with native 2.5.2 and 2.6.0.
 

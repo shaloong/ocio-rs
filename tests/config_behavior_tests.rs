@@ -309,6 +309,132 @@ fn cross_config_processors_use_their_respective_contexts_for_luts() {
             "output"
         )
         .is_err());
+
+    // Distinct context-owned variables make a source/destination swap observable
+    // on the read-only cross-config overloads as well.
+    let src_context_config = Config::create().unwrap();
+    let dst_context_config = Config::create().unwrap();
+    for config in [&src_context_config, &dst_context_config] {
+        config
+            .set_working_dir(working_dir.to_str().unwrap())
+            .unwrap();
+    }
+    src_context_config
+        .add_environment_var("SRC_LUT_DIR", "shot1")
+        .unwrap();
+    dst_context_config
+        .add_environment_var("DST_LUT_DIR", "shot4")
+        .unwrap();
+    let src_const_context = src_context_config
+        .try_const_current_context()
+        .unwrap()
+        .unwrap();
+    let dst_const_context = dst_context_config
+        .try_const_current_context()
+        .unwrap()
+        .unwrap();
+    let src_const = ocio_rs::ColorSpaceMenuParameters::create(&source)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let dst_const = ocio_rs::ColorSpaceMenuParameters::create(&destination)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    use ocio_rs::ConfigProcessorTarget as Target;
+    for target in [
+        Target::ColorSpace(c"output"),
+        Target::DisplayView {
+            display: c"Screen",
+            view: c"View",
+            direction: ocio_rs::TransformDirection::Forward,
+        },
+    ] {
+        for interchange in [None, Some((c"src_ref", c"dst_ref"))] {
+            let processor = src_const
+                .processor_to_config(
+                    c"input",
+                    &dst_const,
+                    target,
+                    Some((&src_const_context, &dst_const_context)),
+                    interchange,
+                )
+                .unwrap();
+            let mut pixel = [0.001, 0.002, 0.003, 1.0];
+            processor
+                .optimized_cpu_processor(0)
+                .unwrap()
+                .try_apply_rgba(&mut pixel)
+                .unwrap();
+            for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+                assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+            }
+        }
+    }
+    assert!(src_const
+        .processor_to_config(
+            c"input",
+            &dst_const,
+            Target::ColorSpace(c"output"),
+            Some((&dst_const_context, &src_const_context)),
+            None,
+        )
+        .is_err());
+
+    // Dynamic processor isolation rebuilds against editable config copies; it
+    // must still use the caller-supplied source and destination contexts.
+    let dynamic_source = source.create_editable_copy().unwrap();
+    let dynamic_space = dynamic_source.try_color_space("input").unwrap().unwrap();
+    let file = FileTransform::create().unwrap();
+    file.set_src("${SRC_LUT_DIR}/lut1.clf").unwrap();
+    let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.try_make_exposure_dynamic().unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&file).unwrap();
+    dynamic_space
+        .try_set_transform(&group, ColorSpaceDirection::ToReference)
+        .unwrap();
+    dynamic_source.try_add_color_space(&dynamic_space).unwrap();
+    let dynamic_const = ocio_rs::ColorSpaceMenuParameters::create(&dynamic_source)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let build = || {
+        dynamic_const
+            .processor_to_config(
+                c"input",
+                &dst_const,
+                Target::ColorSpace(c"output"),
+                Some((&src_const_context, &dst_const_context)),
+                Some((c"src_ref", c"dst_ref")),
+            )
+            .unwrap()
+    };
+    let first = build();
+    let second = build();
+    let mut pixel = [0.001, 0.002, 0.003, 1.0];
+    second
+        .optimized_cpu_processor(0)
+        .unwrap()
+        .try_apply_rgba(&mut pixel)
+        .unwrap();
+    for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+        assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+    }
+    first
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(1.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
 }
 
 #[test]
