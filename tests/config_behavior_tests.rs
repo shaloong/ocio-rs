@@ -742,3 +742,30 @@ fn config_static_color_space_identification_preserves_errors() {
     )
     .is_err());
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_interchange_identification_preserves_source_and_destination() {
+    use ocio_rs::ColorSpace;
+    let _guard = config_test_lock();
+    let source = Config::create().unwrap();
+    let builtin = Config::create().unwrap();
+    for (config, name) in [
+        (&source, "source_interchange"),
+        (&builtin, "builtin_interchange"),
+    ] {
+        let space = ColorSpace::create().unwrap();
+        space.set_name(name).unwrap();
+        config.try_add_color_space(&space).unwrap();
+        config.set_role("aces_interchange", name).unwrap();
+    }
+    let (src, dst) = Config::try_identify_interchange_space(
+        &source,
+        "source_interchange",
+        &builtin,
+        "builtin_interchange",
+    )
+    .unwrap();
+    assert_eq!(src.as_deref(), Some("source_interchange"));
+    assert_eq!(dst.as_deref(), Some("builtin_interchange"));
+}
