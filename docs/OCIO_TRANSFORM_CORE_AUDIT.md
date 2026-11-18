@@ -21,6 +21,18 @@ the common transform handle covers direction, validation, type and copying.
 
 ### Individual factory and buffer checks
 
+* The 2.6 `ColorSpaceTransform` instance fields are source, destination and
+  data-bypass; `DisplayViewTransform` adds display, view and looks-bypass.
+  Their Rust setters forward the native fields, and the common transform path
+  supplies type, direction, validation and copying. `FileTransform` forwards
+  source, CCC ID, CDL style and interpolation, and exposes the four native
+  reader-format queries. `ExposureContrastTransform` forwards style,
+  exposure/contrast/gamma, their three independent dynamic toggles, pivot,
+  log exposure step and log mid-gray, plus equality and metadata. Legacy
+  infallible getters retain their existing fallback behavior; this audit does
+  not claim that those getters surface every native error. The four real-native
+  2.6 behavior suites passed on Windows (13 tests total), covering representative
+  processor, field, copy, dynamic and validation paths.
 * `CDLTransform::Create`, `CreateFromFile(src, cccId)`, and
   `CreateGroupFromFile(src)` map to the three corresponding Rust factories.
   File selection and group loading have native behavior tests. Slope, offset,
