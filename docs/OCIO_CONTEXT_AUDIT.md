@@ -20,3 +20,6 @@ tests exercise known and unknown discriminants. The suite covers representative
 paths and variables, not every environment, filesystem, proxy or concurrent
 native interop configuration. Existing CI already runs this suite; no additional
 job is needed.
+Nested string-variable resolution additionally checks that both editable and
+shared contexts populate the caller's used-context on a cache hit, including
+recursive variables and preservation of existing entries.

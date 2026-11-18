@@ -22,6 +22,64 @@ fn context_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn resolve_nested_variables_updates_used_context_on_cache_hit() {
+    let _guard = context_test_lock();
+    let context = Context::create().unwrap();
+    context
+        .set_string_var("OCIO_RS_OUTER", "${OCIO_RS_INNER}/nested")
+        .unwrap();
+    context.set_string_var("OCIO_RS_INNER", "root").unwrap();
+    context.set_string_var("OCIO_RS_UNUSED", "ignored").unwrap();
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        used.set_string_var("OCIO_RS_EXISTING", "preserved")
+            .unwrap();
+        let result = context
+            .try_resolve_string_var_with_used_context("${OCIO_RS_OUTER}/file", &mut used)
+            .unwrap();
+        assert_eq!(result.as_deref(), Some("root/nested/file"));
+        assert_eq!(
+            used.try_string_var("OCIO_RS_OUTER").unwrap().as_deref(),
+            Some("${OCIO_RS_INNER}/nested")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_INNER").unwrap().as_deref(),
+            Some("root")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_EXISTING").unwrap().as_deref(),
+            Some("preserved")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_UNUSED").unwrap().as_deref(),
+            Some("")
+        );
+    }
+    let config = ocio_rs::Config::create().unwrap();
+    config
+        .add_environment_var("OCIO_RS_OUTER", "${OCIO_RS_INNER}/nested")
+        .unwrap();
+    config.add_environment_var("OCIO_RS_INNER", "root").unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        let result = shared
+            .resolve_string_var_with_used_context(c"${OCIO_RS_OUTER}/file", &mut used)
+            .unwrap();
+        assert_eq!(result.as_deref(), Some("root/nested/file"));
+        assert_eq!(
+            used.try_string_var("OCIO_RS_INNER").unwrap().as_deref(),
+            Some("root")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_OUTER").unwrap().as_deref(),
+            Some("${OCIO_RS_INNER}/nested")
+        );
+    }
+}
+
 fn unique_test_dir(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
