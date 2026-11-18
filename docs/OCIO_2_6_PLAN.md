@@ -33,6 +33,14 @@ Work is prioritized by missing capabilities, safety, and application impact.
 
 The current inventory and runtime validation are incomplete; the status in
 `OCIO_2_6.md` must not be read as a full-library coverage claim.
+
+## Historical validation notes
+
+The following notes describe the revisions and worktrees that were current
+when each check was run. References to the "current" tree below are historical,
+not claims about the latest commit. Use the closeout ledger and the actual CI
+run for candidate-specific evidence.
+
 Native 2.5.0 baseline compatibility was tested on Windows with an isolated
 bundled source build. Its GPU descriptor suite passed 63 tests after fixing
 2.5.1-only virtual method guards and distinguishing 2.5.0 per-kind texture
