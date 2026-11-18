@@ -29,8 +29,9 @@ is not a gap until the callable native surface has been checked.
 | Public value types, constructors, and stream operators | Check values used as native inputs or outputs. Checked Rust constructors that produce the same native state are sufficient. Diagnostic formatting need not reproduce every C++ insertion operator. |
 | Grading primary and tone values | Rust constructors match the native defaults, including distinct log and video tone windows. Standalone validation delegates to native `GradingPrimary::validate(style)` and `GradingTone::validate()` using the existing value representation, without allocating a transform. |
 
-The first five rows account for the 66 `class OCIOEXPORT` names found in
-the 2.6.0 headers (53 selected and 13 excluded). This is a fixed review
+The selected class inventory and explicitly reviewed excluded classes account
+for the 66 `class OCIOEXPORT` names found in the 2.6.0 headers (53 selected
+and 13 excluded). This is a fixed review
 boundary, not a verified percentage or a new parity gate. Keep L1/L2/L3
 as cheap name checks, not signature or behavior claims.
 
@@ -44,8 +45,8 @@ four selected log/range classes and the absent camera-slope buffer fix.
 [The Baker and processor metadata audit](OCIO_BAKER_PROCESSOR_METADATA_AUDIT.md)
 maps two more classes and the shared output callback fixes.
 
-On this worktree, the checker unit tests (7) passed. L1 matched all 1,564
-bridge declaration names; L2 matched all 1,369 checked wrappers; selected
+On this worktree, the checker unit tests (7) passed. L1 matched all 1,569
+bridge declaration names; L2 matched all 1,371 checked wrappers; selected
 L3 name matches were 865/865 (2.4.1), 1,005/1,005 (2.5.2), and
 1,013/1,013 (2.6.0). The explicit cache-ID entry is counted through the
 existing public context query rather than requiring another public method.
@@ -162,3 +163,9 @@ validation against OCIO 2.6.0 on an NVIDIA RTX 3050 Laptop GPU. The tested
 matrix, dynamic uniforms, LUTs, callbacks and HMJ cases stayed within their
 documented tolerances. This is targeted hardware coverage, not a full GPU
 surface or cross-platform certification.
+
+For candidate `d93ca8213379963a5d687b92074308bc0e462427`, PR CI run
+44251694276 and manual CI run 44252059110 passed. The manual matrix included
+Linux/macOS/Windows bundled, exact 2.4.1 and 2.5.1, the 2.5.0 ABI boundary,
+and 2.6 interface levels plus installed shared-library discovery. Release
+Audit run 44252066445 passed. These checks do not replace signature review.

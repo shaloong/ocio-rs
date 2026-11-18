@@ -133,8 +133,10 @@ test infrastructure, not additional application-facing binding APIs.
 
 ## Remaining full-library parity work
 
-This is not a full-library parity claim. In particular, the existing checker
-does not account for all application helpers in `OpenColorAppHelpers.h`.
+This is not a full-library parity claim. The checker now includes the seven
+application-helper classes, but checks selected method names rather than all
+overloads, signatures, ownership and behavior. The separate
+[app-helper audit](OCIO_APP_HELPERS_AUDIT.md) records those distinctions.
 See [the Context audit](OCIO_CONTEXT_AUDIT.md) for ownership, resolution and
 the native variable-clear cache invalidation workaround.
 The [named-item audit](OCIO_NAMED_ITEMS_AUDIT.md) records look, named transform,
@@ -259,6 +261,7 @@ The Vulkan GPU validation tool exercises streamed 1D, 2D, and 3D resources and
 an external dynamic uniform, including combined uniform-plus-LUT pipelines.
 It also executes mixed external and descriptor-owned 2D/3D texture pipelines
 in both registration orders.
-These hooks do not
-replace the full native `GpuShaderCreator` subclass interface: Rust callers
-cannot yet implement every virtual method or control all resource storage.
+These hooks do not replace the full native `GpuShaderCreator` subclass
+interface: Rust callers cannot implement every virtual method. Importing a
+native C++ creator remains available through low-level interop; reimplementing
+all native subclasses in Rust is outside the thin-FFI completion boundary.
