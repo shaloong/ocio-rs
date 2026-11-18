@@ -38,6 +38,8 @@ subclass behavior or a complete cross-platform runtime matrix.
 
 `const_config_item_behavior_tests` verifies copied/shared ownership, retained
 transforms, direction handling and diagnostic output. The bridge rejects null
-Look transform pointers before native OCIO can dereference them. It is part of the existing
-2.6 PR job. Individual method coverage does not prove every combination or
+Look transform pointers before native OCIO can dereference them. In contrast,
+the raw ColorSpace and NamedTransform setters accept null to clear either native
+direction, matching OCIO; both paths have native 2.4.1 and 2.6.0 regressions.
+The suite is part of the existing 2.6 PR job. Individual method coverage does not prove every combination or
 substitute for a full native signature and behavior audit of `Config`.

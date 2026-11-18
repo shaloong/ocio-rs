@@ -6360,8 +6360,11 @@ void ocio_color_space_set_transform(void* handle, void* transform, int dir) {
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
-    auto transform_ptr = _transform_h->get_ocio_transform();
+    ocio::TransformRcPtr transform_ptr;
+    if (transform) {
+      auto* transform_handle = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+      transform_ptr = transform_handle->get_ocio_transform();
+    }
     ocio_rs_bridge::get_real_color_space(handle)->setTransform(transform_ptr, static_cast<ocio::ColorSpaceDirection>(dir));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -8015,8 +8018,11 @@ void ocio_named_transform_set_transform(void* handle, void* transform, int dir) 
   return;
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
-    auto transform_ptr = _transform_h->get_ocio_transform();
+    ocio::TransformRcPtr transform_ptr;
+    if (transform) {
+      auto* transform_handle = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
+      transform_ptr = transform_handle->get_ocio_transform();
+    }
     ocio_rs_bridge::get_real_named_transform(handle)->setTransform(transform_ptr, static_cast<ocio::TransformDirection>(dir));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif

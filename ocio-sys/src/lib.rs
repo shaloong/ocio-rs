@@ -1428,6 +1428,7 @@ unsafe extern "C" {
         vars: *mut c_void,
     ) -> ();
     pub fn ocio_color_space_get_transform(handle: *mut c_void, dir: i32) -> *mut c_void;
+    /// A null `transform` clears the selected native direction.
     pub fn ocio_color_space_set_transform(
         handle: *mut c_void,
         transform: *mut c_void,
@@ -1608,6 +1609,7 @@ unsafe extern "C" {
     pub fn ocio_named_transform_get_encoding(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_named_transform_set_encoding(handle: *mut c_void, encoding: *const i8) -> ();
     pub fn ocio_named_transform_get_transform(handle: *mut c_void, dir: i32) -> *mut c_void;
+    /// A null `transform` clears the selected native direction.
     pub fn ocio_named_transform_set_transform(
         handle: *mut c_void,
         transform: *mut c_void,

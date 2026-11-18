@@ -37,6 +37,46 @@ fn raw_look_setters_reject_null_without_crashing() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_color_space_and_named_transform_setters_clear_null_transforms() {
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let matrix = sys::ocio_matrix_transform_create();
+        let color_space = sys::ocio_color_space_create();
+        let named = sys::ocio_named_transform_create();
+        assert!(!matrix.is_null() && !color_space.is_null() && !named.is_null());
+        for (handle, setter, getter) in [
+            (
+                color_space,
+                sys::ocio_color_space_set_transform as unsafe extern "C" fn(_, _, _),
+                sys::ocio_color_space_get_transform as unsafe extern "C" fn(_, _) -> _,
+            ),
+            (
+                named,
+                sys::ocio_named_transform_set_transform as unsafe extern "C" fn(_, _, _),
+                sys::ocio_named_transform_get_transform as unsafe extern "C" fn(_, _) -> _,
+            ),
+        ] {
+            for direction in [0, 1] {
+                sys::ocio_error_clear_last();
+                setter(handle, matrix, direction);
+                assert!(sys::ocio_error_get_last().is_null());
+                let copy: *mut std::ffi::c_void = getter(handle, direction);
+                assert!(!copy.is_null());
+                sys::ocio_matrix_transform_destroy(copy);
+                setter(handle, std::ptr::null_mut(), direction);
+                assert!(sys::ocio_error_get_last().is_null());
+                assert!(getter(handle, direction).is_null());
+                assert!(sys::ocio_error_get_last().is_null());
+            }
+        }
+        sys::ocio_color_space_destroy(color_space);
+        sys::ocio_named_transform_destroy(named);
+        sys::ocio_matrix_transform_destroy(matrix);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_named_items_are_copied_or_shared_read_only() {
     let config = Config::raw().unwrap();
     let matrix = MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
