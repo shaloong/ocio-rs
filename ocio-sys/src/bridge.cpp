@@ -15050,6 +15050,10 @@ void ocio_fixed_function_transform_set_params(void* handle, const double* params
   return;
 #else
   try {
+    // OCIO 2.4 forms params + num even when the input range is empty.
+    const double empty_params = 0.0;
+    if (num == 0) params = &empty_params;
+    else if (!params) throw std::invalid_argument("null fixed-function parameter buffer");
     ocio_rs_bridge::get_real_fixed_function_transform(handle)->setParams(params, num);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif

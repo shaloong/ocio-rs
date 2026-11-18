@@ -139,6 +139,9 @@ fn fixed_function_empty_parameter_buffers_use_native_factory_safely() {
     let via_default = FixedFunctionTransform::create(style).unwrap();
     assert!(via_empty_slice.equals(&via_default));
     assert_eq!(via_default.try_num_params_usize().unwrap(), 0);
+    via_default.set_params(&[1.0]).unwrap();
+    via_default.set_params(&[]).unwrap();
+    assert_eq!(via_default.try_num_params_usize().unwrap(), 0);
 
     // The low-level API also accepts a null pointer for an empty range.
     unsafe {
@@ -148,6 +151,16 @@ fn fixed_function_empty_parameter_buffers_use_native_factory_safely() {
             0,
         );
         assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_fixed_function_transform_set_params(handle, std::ptr::null(), 0);
+        assert!(ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_fixed_function_transform_set_params(handle, std::ptr::null(), 1);
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        assert_eq!(
+            ocio_sys::ocio_fixed_function_transform_get_num_params(handle),
+            0
+        );
         ocio_sys::ocio_fixed_function_transform_destroy(handle);
 
         // A non-empty range must never be forwarded with a null pointer.
