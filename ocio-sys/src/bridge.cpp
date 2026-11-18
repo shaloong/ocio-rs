@@ -1721,6 +1721,15 @@ static void* ocio_rs_wrap_const_processor(const ocio::ConstProcessorRcPtr& proce
   return out.release();
 }
 
+// OCIO's named-transform resolver dereferences the opposite direction when
+// the requested direction is missing. An entirely empty transform must be
+// rejected before invoking that resolver.
+static void ocio_rs_check_named_transform(const ocio::ConstNamedTransformRcPtr& value) {
+  if (!value || (!value->getTransform(ocio::TRANSFORM_DIR_FORWARD) &&
+                 !value->getTransform(ocio::TRANSFORM_DIR_INVERSE)))
+    throw std::invalid_argument("named transform has no forward or inverse transform");
+}
+
 // Keep dynamic-property isolation consistent across every ConstConfig
 // processor overload, while preserving native caching for static processors.
 template<typename Build>
@@ -2155,6 +2164,7 @@ void* ocio_const_config_get_processor_named_object(void* handle, void* context, 
     if (!handle || !named) throw std::invalid_argument("invalid named transform processor arguments");
     auto config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
     auto value = *static_cast<ocio::ConstNamedTransformRcPtr*>(named);
+    ocio_rs_check_named_transform(value);
     auto dir = static_cast<ocio::TransformDirection>(direction);
     auto build = [&](const ocio::ConstConfigRcPtr& cfg) {
       return context ? cfg->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context), value, dir)
@@ -4791,8 +4801,10 @@ void* ocio_config_get_processor_v6(void* handle, void* namedTransform, int direc
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!namedTransform) throw std::invalid_argument("null named transform");
     auto* _namedTransform_h = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
     auto namedTransform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(_namedTransform_h->inner)->transform;
+    ocio_rs_check_named_transform(namedTransform_ptr);
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(namedTransform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -4809,10 +4821,12 @@ void* ocio_config_get_processor_v7(void* handle, void* context, void* namedTrans
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!context || !namedTransform) throw std::invalid_argument("null context or named transform");
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     auto* _namedTransform_h = static_cast<ocio_rs_bridge::NamedTransformHandle*>(namedTransform);
     auto namedTransform_ptr = std::static_pointer_cast<ocio_rs_bridge::RealNamedTransform>(_namedTransform_h->inner)->transform;
+    ocio_rs_check_named_transform(namedTransform_ptr);
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, namedTransform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -6671,8 +6685,10 @@ void* ocio_config_get_processor_from_const_named_transform(void* config, void* c
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!named) throw std::invalid_argument("null named transform");
     auto cfg = ocio_rs_bridge::get_real_config(config);
     auto& value = *static_cast<ocio::ConstNamedTransformRcPtr*>(named);
+    ocio_rs_check_named_transform(value);
     auto dir = static_cast<ocio::TransformDirection>(direction);
     auto processor = context ? cfg->getProcessor(ocio_rs_bridge::get_real_context(context), value, dir)
                              : cfg->getProcessor(value, dir);

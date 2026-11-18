@@ -41,6 +41,31 @@ fn configured_named_transform() -> NamedTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn empty_named_transform_processor_reports_error() {
+    let _guard = named_transform_test_lock();
+    let config = Config::raw().unwrap();
+    let context = config.try_current_context().unwrap().unwrap();
+    let named = NamedTransform::create().unwrap();
+    for direction in [TransformDirection::Forward, TransformDirection::Inverse] {
+        assert!(config.processor_named_transform(&named, direction).is_err());
+        assert!(config
+            .processor_named_transform_with_context(&context, &named, direction)
+            .is_err());
+    }
+    let inverse = MatrixTransform::scale(&[0.5, 1.0, 1.0, 1.0]).unwrap();
+    named
+        .try_set_transform(&inverse, TransformDirection::Inverse)
+        .unwrap();
+    assert!(config
+        .processor_named_transform(&named, TransformDirection::Forward)
+        .is_ok());
+    assert!(config
+        .processor_named_transform_with_context(&context, &named, TransformDirection::Inverse)
+        .is_ok());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_metadata_alias_category_round_trip_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {

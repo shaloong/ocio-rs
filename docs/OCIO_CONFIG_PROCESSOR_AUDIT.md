@@ -67,6 +67,10 @@ null transform or, on the explicitly contextual overload, a null context.
 Both editable and const transform-handle bridge paths have native 2.4.1 and
 2.6.0 regressions; passing an absent context to an overload that explicitly
 uses it as the default-context selector remains supported.
+When constructing a processor from a `NamedTransform` object, the bridge
+also rejects an object with neither direction set: native OCIO's inverse
+fallback dereferences the missing opposite transform in that case. A transform
+with either direction remains valid and retains OCIO's inverse fallback.
 
 ## Cache controls
 

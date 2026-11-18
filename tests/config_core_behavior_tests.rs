@@ -31,9 +31,10 @@ fn raw_processor_transform_overloads_report_null_arguments() {
         let config = sys::ocio_config_create_raw();
         let context = sys::ocio_context_create();
         let matrix = sys::ocio_matrix_transform_create();
-        assert!(!config.is_null() && !context.is_null() && !matrix.is_null());
+        let named = sys::ocio_named_transform_create();
+        assert!(!config.is_null() && !context.is_null() && !matrix.is_null() && !named.is_null());
         let null = std::ptr::null_mut();
-        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 6] = [
+        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 10] = [
             Box::new(|| sys::ocio_config_get_processor_v10(config, null)),
             Box::new(|| sys::ocio_config_get_processor_v11(config, null, 0)),
             Box::new(|| sys::ocio_config_get_processor_v12(config, context, null, 0)),
@@ -44,6 +45,12 @@ fn raw_processor_transform_overloads_report_null_arguments() {
                 )
             }),
             Box::new(|| sys::ocio_config_get_processor_from_const_transform(config, null, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v6(config, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v7(config, context, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v7(config, null, named, 0)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_from_const_named_transform(config, null, null, 0)
+            }),
         ];
         for call in calls {
             sys::ocio_error_clear_last();
@@ -52,6 +59,7 @@ fn raw_processor_transform_overloads_report_null_arguments() {
         }
         sys::ocio_error_clear_last();
         sys::ocio_matrix_transform_destroy(matrix);
+        sys::ocio_named_transform_destroy(named);
         sys::ocio_context_destroy(context);
         sys::ocio_config_destroy(config);
     }
