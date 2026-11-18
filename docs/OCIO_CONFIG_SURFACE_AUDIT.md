@@ -26,6 +26,15 @@ third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps
 to `add_display_view_detailed`, which includes those additional fields.
 
+The filtered color-space count and indexed-name overloads use
+`try_num_color_spaces_filtered` and `try_color_space_name_by_index_filtered`;
+their reference-space and visibility selectors are passed directly to OCIO.
+The named-transform visibility overloads use
+`try_num_named_transforms_filtered` and `try_named_transform_name_by_index_filtered`.
+Indexed lookups convert OCIO's empty out-of-range result to `None` and retain
+native errors separately. These paths do not construct a color-space set or
+copy native configuration objects.
+
 The old Rust methods named `*_by_reference_space` and the old virtual-view
 queries remain compatible for the two valid legacy discriminants:
 `Scene` selects shared views and `Display` selects display-defined views.

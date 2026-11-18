@@ -3,9 +3,10 @@ use std::ptr::NonNull;
 
 use crate::transform::TransformHandle;
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, ConfigIOProxy, Context,
-    FileRules, Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
-    SearchReferenceSpaceType, TransformDirection, ViewTransform, ViewType, ViewingRules,
+    cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, ColorSpaceVisibility,
+    ConfigIOProxy, Context, FileRules, Look, NamedTransform, NamedTransformVisibility, OcioError,
+    Processor, ReferenceSpaceType, Result, SearchReferenceSpaceType, TransformDirection,
+    ViewTransform, ViewType, ViewingRules,
 };
 use ocio_sys;
 
@@ -655,11 +656,49 @@ impl Config {
 
     // --- Color spaces ---
 
-    /// Return the total number of color spaces registered in this config.
+    /// Return the number of active color spaces in this config.
     pub fn num_color_spaces(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_color_spaces_v1(self.handle.as_ptr() as *mut c_void)
         }
+    }
+
+    /// Count color spaces matching OCIO's reference-space and visibility filters.
+    pub fn try_num_color_spaces_filtered(
+        &self,
+        reference: SearchReferenceSpaceType,
+        visibility: ColorSpaceVisibility,
+    ) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_config_get_num_color_spaces(
+                self.handle.as_ptr(),
+                reference as i32,
+                visibility as i32,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Return a filtered color-space name, or `None` for an invalid index.
+    pub fn try_color_space_name_by_index_filtered(
+        &self,
+        reference: SearchReferenceSpaceType,
+        visibility: ColorSpaceVisibility,
+        index: i32,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
+            cstr_from_mut(ocio_sys::ocio_config_get_color_space_name_by_index(
+                self.handle.as_ptr(),
+                reference as i32,
+                visibility as i32,
+                index,
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(name.filter(|name| !name.is_empty()))
     }
 
     #[doc(hidden)]
@@ -3606,11 +3645,42 @@ impl Config {
 
     // --- Named transforms ---
 
-    /// Return the total number of named transforms in the config.
+    /// Return the number of active named transforms in the config.
     pub fn num_named_transforms(&self) -> i32 {
         unsafe {
             ocio_sys::ocio_config_get_num_named_transforms_v1(self.handle.as_ptr() as *mut c_void)
         }
+    }
+
+    /// Count named transforms matching OCIO's visibility filter.
+    pub fn try_num_named_transforms_filtered(
+        &self,
+        visibility: NamedTransformVisibility,
+    ) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_config_get_num_named_transforms(self.handle.as_ptr(), visibility as i32)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Return a filtered named-transform name, or `None` for an invalid index.
+    pub fn try_named_transform_name_by_index_filtered(
+        &self,
+        visibility: NamedTransformVisibility,
+        index: i32,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
+            cstr_from_mut(ocio_sys::ocio_config_get_named_transform_name_by_index(
+                self.handle.as_ptr(),
+                visibility as i32,
+                index,
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(name.filter(|name| !name.is_empty()))
     }
 
     #[doc(hidden)]

@@ -3234,7 +3234,7 @@ int ocio_config_get_num_color_spaces(void* handle, int searchReferenceType, int 
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumColorSpaces(static_cast<ocio::SearchReferenceSpaceType>(searchReferenceType), static_cast<ocio::ColorSpaceVisibility>(visibility));
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3245,7 +3245,7 @@ void* ocio_config_get_color_space_name_by_index(void* handle, int searchReferenc
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getColorSpaceNameByIndex(static_cast<ocio::SearchReferenceSpaceType>(searchReferenceType), static_cast<ocio::ColorSpaceVisibility>(visibility), index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -4462,7 +4462,7 @@ int ocio_config_get_num_named_transforms(void* handle, int visibility) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getNumNamedTransforms(static_cast<ocio::NamedTransformVisibility>(visibility));
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -4473,7 +4473,7 @@ void* ocio_config_get_named_transform_name_by_index(void* handle, int visibility
 #else
   try {
     return (void*)ocio_rs_bridge::get_real_config(handle)->getNamedTransformNameByIndex(static_cast<ocio::NamedTransformVisibility>(visibility), index);
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 

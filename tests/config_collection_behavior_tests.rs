@@ -12,7 +12,8 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{
-    Allocation, ColorSpace, ColorSpaceDirection, Config, Look, NamedTransform, ReferenceSpaceType,
+    Allocation, ColorSpace, ColorSpaceDirection, ColorSpaceVisibility, Config, Look,
+    NamedTransform, NamedTransformVisibility, ReferenceSpaceType, SearchReferenceSpaceType,
     TransformDirection, ViewTransform, ViewTransformDirection,
 };
 
@@ -374,4 +375,103 @@ fn config_name_lists_enumerate_native_objects() {
         assert_eq!(config.try_looks().unwrap(), "UnitLookA,UnitLookB");
         assert_eq!(config.looks().as_deref(), Some("UnitLookA,UnitLookB"));
     }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_filtered_enumeration_retains_native_visibility_and_reference_space() {
+    let _guard = config_collection_test_lock();
+    let config = Config::create().unwrap();
+    for (name, reference) in [
+        ("ActiveScene", ReferenceSpaceType::Scene),
+        ("InactiveScene", ReferenceSpaceType::Scene),
+        ("ActiveDisplay", ReferenceSpaceType::Display),
+    ] {
+        let space = ColorSpace::create_with_reference_space(reference).unwrap();
+        space.set_name(name).unwrap();
+        config.try_add_color_space(&space).unwrap();
+    }
+    config
+        .try_add_named_transform(&scaling_named_transform("ActiveNamed"))
+        .unwrap();
+    config
+        .try_add_named_transform(&scaling_named_transform("InactiveNamed"))
+        .unwrap();
+    config
+        .set_inactive_color_spaces("InactiveScene,InactiveNamed")
+        .unwrap();
+
+    for (reference, visibility, expected) in [
+        (
+            SearchReferenceSpaceType::Scene,
+            ColorSpaceVisibility::Active,
+            "ActiveScene",
+        ),
+        (
+            SearchReferenceSpaceType::Scene,
+            ColorSpaceVisibility::Inactive,
+            "InactiveScene",
+        ),
+        (
+            SearchReferenceSpaceType::Display,
+            ColorSpaceVisibility::Active,
+            "ActiveDisplay",
+        ),
+    ] {
+        assert_eq!(
+            config
+                .try_num_color_spaces_filtered(reference, visibility)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            config
+                .try_color_space_name_by_index_filtered(reference, visibility, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+        assert_eq!(
+            config
+                .try_color_space_name_by_index_filtered(reference, visibility, 1)
+                .unwrap(),
+            None
+        );
+    }
+    assert_eq!(
+        config
+            .try_num_color_spaces_filtered(SearchReferenceSpaceType::All, ColorSpaceVisibility::All)
+            .unwrap(),
+        3
+    );
+    for (visibility, expected) in [
+        (NamedTransformVisibility::Active, "ActiveNamed"),
+        (NamedTransformVisibility::Inactive, "InactiveNamed"),
+    ] {
+        assert_eq!(
+            config
+                .try_num_named_transforms_filtered(visibility)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            config
+                .try_named_transform_name_by_index_filtered(visibility, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+        assert_eq!(
+            config
+                .try_named_transform_name_by_index_filtered(visibility, -1)
+                .unwrap(),
+            None
+        );
+    }
+    assert_eq!(
+        config
+            .try_num_named_transforms_filtered(NamedTransformVisibility::All)
+            .unwrap(),
+        2
+    );
 }
