@@ -52,6 +52,21 @@ shared-view and display-view writers. Ownership review also found that reading
 children of a retained const group formerly required copying the container;
 the [group audit](OCIO_GROUP_TRANSFORM_AUDIT.md) records the direct const path.
 
+A separate case-sensitive scan of 2.6.0 class declarations also found 59
+same-name families. The manual review grouped their callable shapes as follows:
+
+| Families | Evidence |
+| --- | --- |
+| Config enumeration, view lookup and authoring, roles, search paths, cache ID, file matching, and processor construction | [Config surface](OCIO_CONFIG_SURFACE_AUDIT.md) and [processor overloads](OCIO_CONFIG_PROCESSOR_AUDIT.md); aliases include both 2.6 writers. |
+| Processor optimization, CPU image application, GPU extraction and creator uniforms/properties | Processor notes below, [image descriptors](OCIO_IMAGE_DESC_AUDIT.md), and [GPU creator](OCIO_GPU_CREATOR_AUDIT.md). |
+| Context resolution and search paths; app-helper processor, slider and merge results | [Context](OCIO_CONTEXT_AUDIT.md) and [app helpers](OCIO_APP_HELPERS_AUDIT.md). |
+| Color-space, LUT, fixed-function and grading-curve factories; file-rule insertion | [Color space](OCIO_COLOR_SPACE_AUDIT.md), [LUT and matrix](OCIO_LUT_MATRIX_EXPONENT_AUDIT.md), [core transforms](OCIO_TRANSFORM_CORE_AUDIT.md), [grading curves](OCIO_GRADING_CURVE_AUDIT.md), and file-rule notes below. |
+| Attribute/child access, group children, and per-transform or Baker format metadata | [Format metadata](OCIO_FORMAT_METADATA_AUDIT.md), [group ownership](OCIO_GROUP_TRANSFORM_AUDIT.md), and [Baker](OCIO_BAKER_PROCESSOR_METADATA_AUDIT.md). |
+
+This scan groups declarations by spelling, not ABI signature; it may miss
+constructors, inline declarations, operators or parser-unrecognized forms. It
+is not a claim that all instance signatures or native behaviors are proven.
+
 The public static entry points in the 2.6 `Config`, transform, and application
 helper class declarations were also inventoried separately. Their factories,
 registries, processor construction, CDL file loading, look resolution, format
