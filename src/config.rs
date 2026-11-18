@@ -4018,7 +4018,8 @@ impl Config {
     /// Config fields are copied, but group transforms inside color spaces,
     /// looks, named transforms and view transforms may retain shared children.
     /// Mutating shared transforms can affect both configs. Coordinate such
-    /// mutations and clear affected processor caches before rebuilding processors.
+    /// mutations and clear affected processor caches before rebuilding processors;
+    /// already-created processors do not automatically adopt the changes.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {

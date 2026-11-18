@@ -22,6 +22,8 @@ applies when a group is copied through a transform getter, setter, or config
 copy. Changes to shared children can affect both configs; coordinate mutation
 and clear affected processor caches before rebuilding processors. Use
 `GroupTransform::create_deep_copy` for an independent built-in transform graph.
+Already-created processors do not automatically adopt later changes to a
+shared transform.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and
 `v2.6.0`. The `v2_6` feature adds to `v2_5`; it does not change the

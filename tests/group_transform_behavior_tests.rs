@@ -330,6 +330,44 @@ fn group_children_remain_shared_through_config_copies() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn shared_group_change_rebuilds_processor_after_cache_clear() {
+    let _guard = group_transform_test_lock();
+    let leaf = scale_matrix([2.0, 1.0, 1.0, 1.0]);
+    let group = GroupTransform::create().unwrap();
+    group.append_transform(&leaf).unwrap();
+    let source = ocio_rs::ColorSpace::create().unwrap();
+    source.set_name("source").unwrap();
+    source
+        .try_set_transform(&group, ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap();
+    let destination = ocio_rs::ColorSpace::create().unwrap();
+    destination.set_name("destination").unwrap();
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    config.try_add_color_space(&source).unwrap();
+    config.try_add_color_space(&destination).unwrap();
+    let copied = config.create_editable_copy().unwrap();
+    let old_cpu = copied
+        .processor("source", "destination")
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    leaf.set_offset(&[0.375, 0.0, 0.0, 0.0]).unwrap();
+    copied.try_clear_processor_cache().unwrap();
+    let new_cpu = copied
+        .processor("source", "destination")
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut old_pixel = [0.1, 0.0, 0.0, 1.0];
+    let mut new_pixel = old_pixel;
+    old_cpu.try_apply_rgba(&mut old_pixel).unwrap();
+    new_cpu.try_apply_rgba(&mut new_pixel).unwrap();
+    assert!((old_pixel[0] - 0.2).abs() < 1e-6);
+    assert!((new_pixel[0] - 0.575).abs() < 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_order_copy_and_mutation_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {
