@@ -756,12 +756,13 @@ impl Config {
         Ok(names.join(","))
     }
 
-    /// Return the canonical name for the given color-space name, or `None` if not found.
+    /// Resolve a color-space name, role, alias, or named-transform name to its
+    /// canonical name, or return `None` if it is not found.
     pub fn canonical_name(&self, name: impl AsRef<str>) -> Option<String> {
         self.try_canonical_name(name).ok().flatten()
     }
 
-    /// Return the canonical name for a color-space name, preserving bridge failures.
+    /// Resolve a color-space or named-transform name, preserving bridge failures.
     pub fn try_canonical_name(&self, name: impl AsRef<str>) -> Result<Option<String>> {
         let name = cstring(name)?;
         crate::clear_last_error();
