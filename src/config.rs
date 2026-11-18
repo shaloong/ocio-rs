@@ -1014,7 +1014,7 @@ impl Config {
         self.set_active_displays(display)
     }
 
-    /// Return the total number of displays registered in this config.
+    /// Return the number of active displays in this config.
     pub fn num_displays(&self) -> i32 {
         unsafe { ocio_sys::ocio_config_get_num_displays(self.handle.as_ptr() as *mut c_void) }
     }

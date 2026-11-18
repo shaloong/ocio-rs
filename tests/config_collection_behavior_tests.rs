@@ -253,7 +253,7 @@ fn config_collection_remove_and_clear_behavior() {
     assert_eq!(config.num_displays_all(), 0);
     assert!(config.color_space("UnitConfigUsedColorSpace").is_none());
     assert_eq!(config.num_displays(), 0);
-    assert_eq!(config.display(0).as_deref(), Some(""));
+    assert_eq!(config.display(0), None);
 }
 
 #[test]
