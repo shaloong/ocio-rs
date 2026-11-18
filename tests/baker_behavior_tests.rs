@@ -93,6 +93,31 @@ fn baker_configuration_isolation_and_shared_const_lifetime() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_copy_preserves_display_view_and_independent_metadata() {
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_display_view("display", "view").unwrap();
+    let metadata = baker.format_metadata().unwrap();
+    metadata.add_child_element("Comment", "original").unwrap();
+
+    let copy = baker.create_editable_copy().unwrap();
+    assert_eq!(copy.display().as_deref(), Some("display"));
+    assert_eq!(copy.view().as_deref(), Some("view"));
+    let copied_metadata = copy.format_metadata().unwrap();
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    metadata.clear();
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    copy.set_display_view("other display", "other view")
+        .unwrap();
+    assert_eq!(baker.display().as_deref(), Some("display"));
+    drop(baker);
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    assert!(copy.const_config().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_static_format_registry_contains_resolve_cube_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
