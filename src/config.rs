@@ -2942,25 +2942,30 @@ impl Config {
 
     // --- Display/view management ---
 
+    /// Add or replace a display view using a color-space name and looks.
+    ///
+    /// `looks` is the OCIO look expression and may be empty. It is not a
+    /// viewing-rule name; use [`Self::add_display_view_detailed`] when a
+    /// view transform, viewing rule, or description is needed.
     pub fn add_display(
         &self,
         display: impl AsRef<str>,
         view: impl AsRef<str>,
-        transform_name: impl AsRef<str>,
-        rule: impl AsRef<str>,
+        color_space_name: impl AsRef<str>,
+        looks: impl AsRef<str>,
     ) -> Result<()> {
         let display = cstring(display)?;
         let view = cstring(view)?;
-        let transform_name = cstring(transform_name)?;
-        let rule = cstring(rule)?;
+        let color_space_name = cstring(color_space_name)?;
+        let looks = cstring(looks)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_add_display_view_v1(
                 self.handle.as_ptr(),
                 display.as_ptr().cast(),
                 view.as_ptr().cast(),
-                transform_name.as_ptr().cast(),
-                rule.as_ptr().cast(),
+                color_space_name.as_ptr().cast(),
+                looks.as_ptr().cast(),
             );
         }
         crate::ocio_call_status()

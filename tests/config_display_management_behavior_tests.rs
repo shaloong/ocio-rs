@@ -35,6 +35,28 @@ fn identity_view_transform(name: &str) -> ViewTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn basic_display_view_arguments_are_color_space_and_looks() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    config
+        .add_display("BasicDisplay", "BasicView", "raw", "+film")
+        .unwrap();
+    assert_eq!(
+        config
+            .display_view_color_space_name("BasicDisplay", "BasicView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .display_view_looks("BasicDisplay", "BasicView")
+            .as_deref(),
+        Some("+film")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn view_type_selects_shared_and_display_defined_views() {
     let _guard = config_display_management_test_lock();
     let config = create_test_config().unwrap();

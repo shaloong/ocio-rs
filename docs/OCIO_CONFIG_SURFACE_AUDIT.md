@@ -21,6 +21,11 @@ alias-aware authoring and queries, canonical names, resolved view color
 spaces, and display descriptions. These use the existing version-gated
 paths; the HDR compatibility check is an app-helper namespace operation.
 
+The short `addDisplayView` overload maps to `Config::add_display`: its
+third and fourth arguments are the color-space name and looks expression,
+not a view-transform name and viewing rule. The longer native overload maps
+to `add_display_view_detailed`, which includes those additional fields.
+
 The old Rust methods named `*_by_reference_space` and the old virtual-view
 queries remain compatible for the two valid legacy discriminants:
 `Scene` selects shared views and `Display` selects display-defined views.
