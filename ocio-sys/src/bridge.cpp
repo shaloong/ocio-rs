@@ -14893,6 +14893,11 @@ void* ocio_fixed_function_transform_create_with_params(int style, const double* 
   return ocio_rs_bridge::make_stub_fixed_function_transform().release();
 #else
   try {
+    // OCIO 2.4 computes params + num even for an empty range. Supply a
+    // valid pointer for that case instead of relying on null arithmetic.
+    const double empty_params = 0.0;
+    if (num == 0) params = &empty_params;
+    else if (!params) throw std::invalid_argument("null fixed-function parameter buffer");
     auto result = ocio::FixedFunctionTransform::Create(fixed_function_style_to_native(style), params, num);
     if (!result) return nullptr;
     auto handle = std::make_unique<ocio_rs_bridge::FixedFunctionTransformHandle>();

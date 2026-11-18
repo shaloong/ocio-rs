@@ -30,9 +30,11 @@ the common transform handle covers direction, validation, type and copying.
   supplies direction, validation, type and editable copying.
 * Both `FixedFunctionTransform::Create` shapes are callable through `create`
   and `create_with_params`. The former uses the bridge's parameterized native
-  overload with an empty list. In the checked 2.5.2 and 2.6.0 implementations,
+  overload with an empty list. In the checked 2.4.1, 2.5.2 and 2.6.0 implementations,
   both no-parameter construction paths initialize the same empty parameter
-  vector and validate it; this is not a claim about unexamined releases.
+  vector and validate it. OCIO 2.4.1 performs pointer arithmetic even for an
+  empty range, so the bridge substitutes a valid address when the count is
+  zero and rejects a null pointer for a nonempty range before calling OCIO.
   The native `size_t` count is retained by `try_num_params_usize`, input
   parameters use a slice, and `try_params_into` verifies the caller's buffer
   length before the native write. Style, equality, metadata and common

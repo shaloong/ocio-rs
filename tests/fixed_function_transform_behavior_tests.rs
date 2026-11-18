@@ -132,6 +132,38 @@ fn fixed_function_invalid_params_surface_real_error_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn fixed_function_empty_parameter_buffers_use_native_factory_safely() {
+    let _guard = fixed_function_test_lock();
+    let style = FixedFunctionStyle::RgbToHsv;
+    let via_empty_slice = FixedFunctionTransform::create_with_params(style, &[]).unwrap();
+    let via_default = FixedFunctionTransform::create(style).unwrap();
+    assert!(via_empty_slice.equals(&via_default));
+    assert_eq!(via_default.try_num_params_usize().unwrap(), 0);
+
+    // The low-level API also accepts a null pointer for an empty range.
+    unsafe {
+        let handle = ocio_sys::ocio_fixed_function_transform_create_with_params(
+            style as i32,
+            std::ptr::null(),
+            0,
+        );
+        assert!(!handle.is_null());
+        ocio_sys::ocio_fixed_function_transform_destroy(handle);
+
+        // A non-empty range must never be forwarded with a null pointer.
+        let invalid = ocio_sys::ocio_fixed_function_transform_create_with_params(
+            style as i32,
+            std::ptr::null(),
+            1,
+        );
+        assert!(invalid.is_null());
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_set_params_uses_ocio_delayed_validation() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
