@@ -19,6 +19,27 @@ the common transform handle covers direction, validation, type and copying.
 | GradingPrimaryTransform and GradingToneTransform | Native style/value, dynamic state/toggles, metadata and equality; values use the corresponding Rust value structures and native validation. |
 | LookTransform | Source/destination, look expression, bypass flag and static result-color-space resolution using the native context and look parsing. |
 
+### Individual factory and buffer checks
+
+* `CDLTransform::Create`, `CreateFromFile(src, cccId)`, and
+  `CreateGroupFromFile(src)` map to the three corresponding Rust factories.
+  File selection and group loading have native behavior tests. Slope, offset,
+  power and luma use three doubles; SOP uses nine. Style, saturation, ID,
+  first SOP description, equality, and both metadata access modes are covered
+  by the typed or existing const/raw handle paths. The shared transform path
+  supplies direction, validation, type and editable copying.
+* Both `FixedFunctionTransform::Create` shapes are callable through `create`
+  and `create_with_params`. The former uses the bridge's parameterized native
+  overload with an empty list. In the checked 2.5.2 and 2.6.0 implementations,
+  both no-parameter construction paths initialize the same empty parameter
+  vector and validate it; this is not a claim about unexamined releases.
+  The native `size_t` count is retained by `try_num_params_usize`, input
+  parameters use a slice, and `try_params_into` verifies the caller's buffer
+  length before the native write. Style, equality, metadata and common
+  transform operations are also exposed. Existing native tests exercise
+  parameter round trips, error handling and processor execution; they do not
+  exhaust every style or every possible parameter value.
+
 Existing typed and read-only handles cover immutable access where native
 objects are const. Raw calls retain their documented pointer/length contracts;
 safe methods use fixed arrays or validate output capacity before crossing the
