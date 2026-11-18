@@ -418,6 +418,35 @@ fn rgba_fast_path_clears_stale_native_errors_and_validates_buffers() {
         .unwrap()
         .optimized_cpu_processor_bit_depth(BitDepth::Uint8, BitDepth::Uint8, 0)
         .unwrap();
+    let mut rgba_pixel = [0.8, 0.5, 0.25, 1.0];
+    let original_rgba = rgba_pixel;
+    assert!(integer_cpu.try_apply_rgba(&mut rgba_pixel).is_err());
+    assert_eq!(rgba_pixel, original_rgba);
+    let mut rgb_pixel = [0.8, 0.5, 0.25];
+    let original_rgb = rgb_pixel;
+    assert!(integer_cpu.try_apply_rgb(&mut rgb_pixel).is_err());
+    assert_eq!(rgb_pixel, original_rgb);
+    for (input, output) in [
+        (BitDepth::Uint8, BitDepth::F32),
+        (BitDepth::F32, BitDepth::Uint8),
+    ] {
+        let mixed_cpu = scaled_processor([0.5, 1.0, 1.0, 1.0])
+            .unwrap()
+            .optimized_cpu_processor_bit_depth(input, output, 0)
+            .unwrap();
+        assert!(mixed_cpu.try_apply_rgba(&mut rgba_pixel).is_err());
+        assert_eq!(rgba_pixel, original_rgba);
+        assert!(mixed_cpu.try_apply_rgb(&mut rgb_pixel).is_err());
+        assert_eq!(rgb_pixel, original_rgb);
+    }
+    let explicit_f32 = scaled_processor([0.5, 1.0, 1.0, 1.0])
+        .unwrap()
+        .optimized_cpu_processor_bit_depth(BitDepth::F32, BitDepth::F32, 0)
+        .unwrap();
+    explicit_f32.try_apply_rgba(&mut rgba_pixel).unwrap();
+    explicit_f32.try_apply_rgb(&mut rgb_pixel).unwrap();
+    assert_close(rgba_pixel[0] as f64, 0.4, 1e-6);
+    assert_close(rgb_pixel[0] as f64, 0.4, 1e-6);
     assert!(integer_cpu
         .try_apply_rgba_pixels(&mut pixels, 2, 4)
         .is_err());

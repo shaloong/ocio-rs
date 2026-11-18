@@ -113,6 +113,13 @@ processor. CPU exposes the same status queries plus identity and bit depths;
 single-pixel RGB/RGBA and both `ImageDesc` overloads dispatch directly to
 native OCIO. Raw descriptors and safe descriptors/slices cover different
 layout ownership contracts (see the [image audit](OCIO_IMAGE_DESC_AUDIT.md)).
+Safe single-pixel calls reject CPU processors whose input or output is not
+F32 before modifying the pixel. OCIO requires F32 for those calls but does not
+enforce it itself. The binding records compatibility at processor construction,
+so successful calls do not make extra native bit-depth queries. On Windows
+with native 2.6.0, one diagnostic release benchmark measured 10.56 ns per Rust
+single-pixel call versus 7.55 ns for a C ABI trampoline, and 1.02x for the
+1024-pixel batch. These are machine-specific observations, not guarantees.
 GPU exposes the three status/identity queries in its header and both shader
 extraction overloads via the descriptor and creator paths, including raw
 interop as described in the [GPU creator audit](OCIO_GPU_CREATOR_AUDIT.md).

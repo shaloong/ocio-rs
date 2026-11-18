@@ -291,6 +291,7 @@ impl Processor {
         };
         Ok(CPUProcessor {
             handle: crate::handle_result(handle)?,
+            f32_pixel_io: input == BitDepth::F32 && output == BitDepth::F32,
         })
     }
     /// Return whether the processor is an identity/no-op pipeline.
@@ -345,7 +346,10 @@ impl Processor {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_default_cpu_processor(self.handle.as_ptr() as *mut c_void)
         };
-        crate::handle_result(handle).map(|handle| CPUProcessor { handle })
+        crate::handle_result(handle).map(|handle| CPUProcessor {
+            handle,
+            f32_pixel_io: true,
+        })
     }
 
     /// Create an optimized CPU execution path for this processor.
@@ -355,7 +359,10 @@ impl Processor {
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags)
         };
-        crate::handle_result(handle).map(|handle| CPUProcessor { handle })
+        crate::handle_result(handle).map(|handle| CPUProcessor {
+            handle,
+            f32_pixel_io: true,
+        })
     }
 
     #[doc(hidden)]
@@ -637,14 +644,18 @@ impl Drop for Processor {
 /// [`BitDepth`]: crate::BitDepth
 pub struct CPUProcessor {
     handle: NonNull<c_void>,
+    // OCIO's single-pixel APIs require F32 input and output but do not check it.
+    // Set once at construction so the pixel hot path avoids two native queries.
+    f32_pixel_io: bool,
 }
 
 /// A CPU processor proven to contain no dynamic properties.
 ///
 /// This wrapper can be shared across threads to process independent image
-/// buffers. Its one-time validation does not add a lock or check to pixel
-/// processing. OCIO native interop must not mutate or replace its underlying
-/// processor concurrently.
+/// buffers. Its one-time dynamic-property validation adds no lock to pixel
+/// processing. Single-pixel calls still check the processor's cached bit-depth
+/// compatibility. OCIO native interop must not mutate or replace its
+/// underlying processor concurrently.
 ///
 /// ```no_run
 /// # use ocio_rs::{CPUProcessor, Result};
@@ -2704,7 +2715,11 @@ impl CPUProcessor {
     }
 
     /// Apply the processor in place to one RGBA pixel.
+    ///
+    /// Both processor bit depths must be F32, as required by OCIO's
+    /// single-pixel API. A mismatch returns an error without changing `rgba`.
     pub fn try_apply_rgba(&self, rgba: &mut [f32; 4]) -> Result<()> {
+        self.require_f32_pixel_io()?;
         let ok = unsafe {
             ocio_sys::ocio_cpu_processor_try_apply_rgba(
                 self.handle.as_ptr(),
@@ -2728,7 +2743,11 @@ impl CPUProcessor {
     }
 
     /// Apply the processor in place to one RGB pixel.
+    ///
+    /// Both processor bit depths must be F32, as required by OCIO's
+    /// single-pixel API. A mismatch returns an error without changing `rgb`.
     pub fn try_apply_rgb(&self, rgb: &mut [f32; 3]) -> Result<()> {
+        self.require_f32_pixel_io()?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_rgb(
@@ -2737,6 +2756,17 @@ impl CPUProcessor {
             );
         }
         crate::ocio_call_status()
+    }
+
+    #[inline]
+    fn require_f32_pixel_io(&self) -> Result<()> {
+        if self.f32_pixel_io {
+            Ok(())
+        } else {
+            Err(OcioError::InvalidInput(
+                "single-pixel RGB/RGBA requires F32 input and output bit depths".into(),
+            ))
+        }
     }
 
     /// Apply the processor to an RGBA float buffer with an explicit scalar stride.

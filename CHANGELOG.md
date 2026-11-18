@@ -152,6 +152,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
+- Reject non-F32 CPU processors for safe single-pixel RGB/RGBA calls before
+  modifying the input; OCIO requires F32 but does not enforce this constraint.
 - Return `None`, as documented, for missing canonical/display/view names and
   out-of-range color-space, display, and look indices rather than returning
   an empty string.
