@@ -57,7 +57,8 @@ The existing current-config test covers both target types, both display
 directions, inferred and explicit interchange, default and explicit contexts,
 invalid interchange, dynamic processor independence for identical and
 distinct source/destination configs, and both directions of built-in
-conversion. The editable-config test suite also
+conversion. Explicit interchange tests use different source and destination
+aliases so a swapped argument cannot accidentally pass. The editable-config test suite also
 exercises distinct context variables resolving LUTs. No new CI job is needed.
 Together these suites passed on Windows: 13 tests with native 2.4.1 and
 16 each with native 2.5.2 and 2.6.0.

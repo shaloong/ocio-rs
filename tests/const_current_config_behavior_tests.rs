@@ -419,12 +419,25 @@ fn check_cross_config_processors(dynamic: &ocio_rs::ConstConfig) {
 
     let src = Config::create().unwrap();
     let dst = Config::create().unwrap();
-    for (config, name, factor, direction) in [
-        (&src, "input", 2.0, ColorSpaceDirection::ToReference),
-        (&dst, "output", 3.0, ColorSpaceDirection::FromReference),
+    for (config, name, factor, direction, interchange_alias) in [
+        (
+            &src,
+            "input",
+            2.0,
+            ColorSpaceDirection::ToReference,
+            "source-interchange",
+        ),
+        (
+            &dst,
+            "output",
+            3.0,
+            ColorSpaceDirection::FromReference,
+            "destination-interchange",
+        ),
     ] {
         let reference = ColorSpace::create().unwrap();
         reference.set_name("reference").unwrap();
+        reference.add_alias(interchange_alias).unwrap();
         config.try_add_color_space(&reference).unwrap();
         config.set_role("aces_interchange", "reference").unwrap();
         let color = ColorSpace::create().unwrap();
@@ -472,7 +485,10 @@ fn check_cross_config_processors(dynamic: &ocio_rs::ConstConfig) {
         direction,
     };
     for contexts in [None, Some((&src_context, &dst_context))] {
-        for interchange in [None, Some((c"reference", c"reference"))] {
+        for interchange in [
+            None,
+            Some((c"source-interchange", c"destination-interchange")),
+        ] {
             for (target, input, expected) in [
                 (Target::ColorSpace(c"output"), 0.125, 0.75),
                 (display_target(TransformDirection::Forward), 0.125, 0.75),
