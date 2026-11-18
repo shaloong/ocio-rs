@@ -8447,7 +8447,9 @@ void ocio_transform_destroy(void* handle) {
 
 #ifndef OCIO_RS_STUB
 struct ConstProcessorFormatMetadata {
-  ocio::ConstProcessorRcPtr owner;
+  // May retain a processor or a const transform; callers creating a handle
+  // from an aliased transform must uphold its mutation/lifetime contract.
+  std::shared_ptr<const void> owner;
   const ocio::FormatMetadata* metadata;
 };
 extern "C++" {
@@ -17917,7 +17919,63 @@ static ocio::FormatMetadata* get_format_metadata_from_transform(const ocio::Tran
   if (auto t = std::dynamic_pointer_cast<ocio::RangeTransform>(transform)) return &t->getFormatMetadata();
   return nullptr;
 }
+
+static const ocio::FormatMetadata* get_const_format_metadata_from_transform(const ocio::ConstTransformRcPtr& transform) {
+#define OCIO_RS_CONST_METADATA(TAG, NAME) case ocio::TRANSFORM_TYPE_##TAG: { \
+  auto t = std::dynamic_pointer_cast<const ocio::NAME>(transform); \
+  if (!t) throw std::invalid_argument("inconsistent native transform type"); \
+  return &t->getFormatMetadata(); }
+  switch (transform->getTransformType()) {
+    OCIO_RS_CONST_METADATA(CDL, CDLTransform)
+    OCIO_RS_CONST_METADATA(EXPONENT, ExponentTransform)
+    OCIO_RS_CONST_METADATA(EXPONENT_WITH_LINEAR, ExponentWithLinearTransform)
+    OCIO_RS_CONST_METADATA(EXPOSURE_CONTRAST, ExposureContrastTransform)
+    OCIO_RS_CONST_METADATA(FIXED_FUNCTION, FixedFunctionTransform)
+    OCIO_RS_CONST_METADATA(GRADING_PRIMARY, GradingPrimaryTransform)
+    OCIO_RS_CONST_METADATA(GRADING_RGB_CURVE, GradingRGBCurveTransform)
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+    OCIO_RS_CONST_METADATA(GRADING_HUE_CURVE, GradingHueCurveTransform)
 #endif
+    OCIO_RS_CONST_METADATA(GRADING_TONE, GradingToneTransform)
+    OCIO_RS_CONST_METADATA(GROUP, GroupTransform)
+    OCIO_RS_CONST_METADATA(LOG_AFFINE, LogAffineTransform)
+    OCIO_RS_CONST_METADATA(LOG_CAMERA, LogCameraTransform)
+    OCIO_RS_CONST_METADATA(LOG, LogTransform)
+    OCIO_RS_CONST_METADATA(LUT1D, Lut1DTransform)
+    OCIO_RS_CONST_METADATA(LUT3D, Lut3DTransform)
+    OCIO_RS_CONST_METADATA(MATRIX, MatrixTransform)
+    OCIO_RS_CONST_METADATA(RANGE, RangeTransform)
+#define OCIO_RS_NO_CONST_METADATA(TAG, NAME) case ocio::TRANSFORM_TYPE_##TAG: \
+  if (!std::dynamic_pointer_cast<const ocio::NAME>(transform)) \
+    throw std::invalid_argument("inconsistent native transform type"); \
+  return nullptr;
+    OCIO_RS_NO_CONST_METADATA(ALLOCATION, AllocationTransform)
+    OCIO_RS_NO_CONST_METADATA(BUILTIN, BuiltinTransform)
+    OCIO_RS_NO_CONST_METADATA(COLORSPACE, ColorSpaceTransform)
+    OCIO_RS_NO_CONST_METADATA(DISPLAY_VIEW, DisplayViewTransform)
+    OCIO_RS_NO_CONST_METADATA(FILE, FileTransform)
+    OCIO_RS_NO_CONST_METADATA(LOOK, LookTransform)
+#undef OCIO_RS_NO_CONST_METADATA
+    default:
+      throw std::invalid_argument("unsupported native transform type");
+  }
+#undef OCIO_RS_CONST_METADATA
+}
+#endif
+
+void* ocio_const_transform_get_const_metadata(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native transform required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const transform handle");
+    const auto& owner = *static_cast<const ocio::ConstTransformRcPtr*>(handle);
+    if (!owner) throw std::invalid_argument("null native const transform");
+    const auto* metadata = get_const_format_metadata_from_transform(owner);
+    return metadata ? new ConstProcessorFormatMetadata{owner, metadata} : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 
 void* ocio_transform_get_format_metadata(void* transform) {
 #ifdef OCIO_RS_STUB

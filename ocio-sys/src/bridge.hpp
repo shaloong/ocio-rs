@@ -84,6 +84,9 @@ void* ocio_const_transform_create_editable_copy(void* handle);
 // Creates an owned typed handle to the same native transform. The caller must
 // use it only for native const operations and destroy it with ocio_transform_destroy.
 void* ocio_const_transform_create_readonly_handle(void* handle);
+// Returns a retained const metadata handle, or null if this transform type
+// has no metadata. Mutable aliases must not be accessed while it is in use.
+void* ocio_const_transform_get_const_metadata(void* handle);
 void* ocio_config_get_processor_from_const_transform(void* config, void* context, void* transform, int direction);
 
 typedef struct OcioImageDescInfo {

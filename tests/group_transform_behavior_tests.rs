@@ -59,6 +59,16 @@ fn group_returns_concrete_handles_for_supported_transform_types() {
                 stringify!($variant)
             );
             let shared = look.try_const_transform().unwrap().unwrap();
+            let has_metadata = !matches!(
+                stringify!($variant),
+                "Allocation" | "Builtin" | "ColorSpace" | "DisplayView" | "File" | "Look"
+            );
+            assert_eq!(
+                unsafe { shared.with_readonly_metadata(|metadata| metadata.is_some()) }.unwrap(),
+                has_metadata,
+                "const metadata dispatch for {}",
+                stringify!($variant)
+            );
             assert!(
                 matches!(
                     shared.create_editable_copy().unwrap(),
@@ -158,12 +168,19 @@ fn const_group_child_retains_the_native_transform() {
 fn const_group_child_supports_scoped_raw_reads_without_copying() {
     let lut = Lut3DTransform::create().unwrap();
     lut.set_value(0, 0, 0, [0.1, 0.2, 0.3]).unwrap();
+    let metadata = lut.format_metadata().unwrap();
+    metadata.set_name("first").unwrap();
+    metadata.add_child_element("Description", "detail").unwrap();
     let group = GroupTransform::create().unwrap();
     group.append_transform(&lut).unwrap();
+    let no_metadata = ocio_rs::transform::ColorSpaceTransform::create().unwrap();
+    group.append_transform(&no_metadata).unwrap();
     let look = ocio_rs::Look::create().unwrap();
     look.try_set_transform(&group).unwrap();
     let parent = look.try_const_transform().unwrap().unwrap();
     let child = parent.group_child(0).unwrap().unwrap();
+    let without_metadata = parent.group_child(1).unwrap().unwrap();
+    assert!(unsafe { without_metadata.with_readonly_metadata(|value| value.is_none()) }.unwrap());
     assert_eq!(
         child.type_tag().unwrap(),
         ocio_rs::TransformType::Lut3D as i32
@@ -189,15 +206,59 @@ fn const_group_child_supports_scoped_raw_reads_without_copying() {
             })
             .unwrap()
     };
+    let read_name = |value: &ocio_rs::transform::ConstTransform| unsafe {
+        value
+            .with_readonly_metadata(|metadata| {
+                let metadata = metadata.unwrap();
+                let child = metadata.child(0).unwrap().unwrap();
+                assert_eq!(
+                    child.element_value().unwrap().unwrap().to_bytes(),
+                    b"detail"
+                );
+                metadata.name().unwrap().unwrap().to_bytes().to_vec()
+            })
+            .unwrap()
+    };
     assert_eq!(read(&child), [0.1, 0.2, 0.3]);
+    assert_eq!(read_name(&child), b"first");
     // No read is in progress while the separately owned mutable alias changes.
     lut.set_value(0, 0, 0, [0.4, 0.5, 0.6]).unwrap();
+    metadata.set_name("second").unwrap();
     assert_eq!(read(&child), [0.4, 0.5, 0.6]);
+    assert_eq!(read_name(&child), b"second");
+    drop(metadata);
     drop(lut);
     drop(group);
     drop(look);
     drop(parent);
     assert_eq!(read(&child), [0.4, 0.5, 0.6]);
+    assert_eq!(read_name(&child), b"second");
+}
+
+#[test]
+#[cfg(not(feature = "v2_5"))]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baseline_interface_reports_newer_transform_metadata_as_unsupported() {
+    if ocio_rs::version_hex() < 0x0205_0000 {
+        return;
+    }
+    let config = Config::from_stream(
+        r#"ocio_profile_version: 2.5
+roles: {default: raw}
+colorspaces:
+  - !<ColorSpace>
+    name: raw
+    from_scene_reference: !<GradingHueCurveTransform> {style: log}
+"#,
+    )
+    .unwrap();
+    let space = config.try_const_color_space("raw").unwrap().unwrap();
+    let transform = space
+        .try_const_transform(ocio_rs::ColorSpaceDirection::FromReference)
+        .unwrap()
+        .unwrap();
+    assert_eq!(transform.type_tag().unwrap(), 10);
+    assert!(unsafe { transform.with_readonly_metadata(|_| ()) }.is_err());
 }
 
 fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {

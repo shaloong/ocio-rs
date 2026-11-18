@@ -395,6 +395,15 @@ unsafe extern "C" {
     /// with `ocio_transform_destroy`. Any descendant handles must also remain
     /// read-only and obey the native lifetime and synchronization requirements.
     pub fn ocio_const_transform_create_readonly_handle(handle: *mut c_void) -> *mut c_void;
+    /// Retains a const transform's native metadata, if that type has metadata.
+    /// Null means the type has no metadata or an error occurred; inspect the
+    /// bridge error slot to distinguish these cases.
+    ///
+    /// # Safety
+    /// `handle` must be a valid const transform handle. Prevent mutation of
+    /// the transform and metadata through all aliases while the result or its
+    /// descendants are in use. Release it with `ocio_const_format_metadata_destroy`.
+    pub fn ocio_const_transform_get_const_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_processor_from_const_transform(
         config: *mut c_void,
         context: *mut c_void,

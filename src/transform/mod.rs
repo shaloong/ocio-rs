@@ -142,6 +142,8 @@ impl ConstTransform {
     /// aliases concurrently. The handle, descendant handles and any pointers
     /// or references derived from them must not escape `read`. Native getters
     /// may have additional pointer, buffer, and synchronization requirements.
+    /// In particular, `ocio_transform_get_format_metadata` selects the native
+    /// mutable overload; use [`Self::with_readonly_metadata`] instead.
     pub unsafe fn with_readonly_raw_handle<R>(
         &self,
         read: impl FnOnce(*mut c_void) -> R,
@@ -158,6 +160,25 @@ impl ConstTransform {
             unsafe { ocio_sys::ocio_const_transform_create_readonly_handle(self.handle.as_ptr()) };
         let handle = RawHandle(crate::handle_result(handle)?);
         Ok(read(handle.0.as_ptr()))
+    }
+
+    /// Inspect native const metadata without copying the transform or metadata.
+    /// The callback receives `None` for transform types without metadata.
+    ///
+    /// # Safety
+    /// Do not mutate this transform or its metadata through any alias while
+    /// `read` runs. Neither borrowed metadata nor any child handles, pointers,
+    /// or references derived from it may escape the callback.
+    pub unsafe fn with_readonly_metadata<R>(
+        &self,
+        read: impl FnOnce(Option<&crate::ConstFormatMetadata>) -> R,
+    ) -> crate::Result<R> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_transform_get_const_metadata(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        let metadata = NonNull::new(handle).map(|handle| crate::ConstFormatMetadata { handle });
+        Ok(read(metadata.as_ref()))
     }
 }
 impl Drop for ConstTransform {
