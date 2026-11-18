@@ -3773,7 +3773,7 @@ impl GpuShaderCreator<'_> {
         self.dynamic_property_query(index, true)
     }
 
-    /// Share a property by kind; absent kinds return `None`.
+    /// Share a property by kind; an absent kind is reported as a native error.
     pub fn try_dynamic_property(
         &self,
         property_type: DynamicPropertyType,
@@ -9105,7 +9105,8 @@ impl GpuShaderDesc {
 
     /// Return the dynamic property for an OCIO property kind, preserving bridge failures.
     ///
-    /// `Ok(None)` means the descriptor has no property of `property_type`.
+    /// An absent property is reported as a native error. The legacy
+    /// [`Self::dynamic_property`] helper maps that error to `None`.
     pub fn try_dynamic_property(
         &self,
         property_type: DynamicPropertyType,

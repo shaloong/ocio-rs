@@ -195,6 +195,26 @@ fn native_creator_dynamic_properties_keep_shared_ownership() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_dynamic_property_preserves_native_error() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    assert!(desc
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .is_err());
+    assert!(desc
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .is_none());
+    let creator = desc.try_borrow_creator().unwrap();
+    assert!(!creator
+        .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+        .unwrap());
+    assert!(creator
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn native_creator_shader_sections_are_forwarded() {
     let _guard = gpu_shader_desc_test_lock();
     let mut desc = GpuShaderDesc::create().unwrap();
