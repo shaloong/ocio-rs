@@ -156,6 +156,16 @@ The stream insertion operators are diagnostics, not required operations.
 Windows tests for file rules, viewing rules, and const config items passed
 on each of 2.4.1, 2.5.2, and 2.6.0 (16 per version).
 
+The 2.6 declarations were also checked by argument shape: the file-rule
+insertion overloads accept `(index, name, color space, pattern, extension)`
+and `(index, name, color space, regex)` respectively; the path-search rule
+accepts only an index. Viewing-rule insertion accepts `(index, name)`, and
+its color-space and encoding removals each take a rule and selector index.
+The editable methods retain `u64` compatibility and check conversion to native
+`size_t`; const queries take `usize`. Index lookup preserves native missing-name
+errors through the fallible APIs. These checks do not establish 32-bit runtime
+behavior, where the conversion guard is particularly relevant.
+
 The vendored GPU generator now counts LUT rows using its interpolation stride
 of width minus one, fixing under-allocation without adding a second extraction.
 Unpatched system libraries and external source overrides retain the native
