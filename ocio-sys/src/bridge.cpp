@@ -9225,11 +9225,6 @@ void ocio_cpu_processor_apply_rgba(void* handle, void* pixel) {
 }
 
 bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)rgba; (void)numPixels; (void)stride;
-  ocio_rs_bridge::clear_last_error();
-  return true;
-#else
   ocio_rs_bridge::clear_last_error();
   try {
     if (!rgba || numPixels <= 0) return true;
@@ -9237,17 +9232,26 @@ bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t
       throw std::invalid_argument("pixel count exceeds the native scanline limit");
     if (stride > 0 && stride > std::numeric_limits<int>::max() / static_cast<int64_t>(sizeof(float)))
       throw std::invalid_argument("RGBA stride exceeds the native packed-layout limit");
-    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
     const ptrdiff_t xStride = static_cast<ptrdiff_t>((stride > 0 ? stride : 4) * static_cast<int64_t>(sizeof(float)));
+    // The individual limits above already keep the product within int64_t.
+    // Only narrower ptrdiff_t targets need a further check before conversion.
+    if constexpr (sizeof(ptrdiff_t) < sizeof(int64_t)) {
+      if (numPixels > std::numeric_limits<ptrdiff_t>::max() / xStride)
+        throw std::invalid_argument("RGBA row stride exceeds the native ptrdiff_t range");
+    }
+#ifdef OCIO_RS_STUB
+    (void)handle;
+#else
+    const ptrdiff_t channelStride = static_cast<ptrdiff_t>(sizeof(float));
     ocio::PackedImageDesc img(rgba, static_cast<long>(numPixels), 1L, ocio::CHANNEL_ORDERING_RGBA,
                               ocio::BIT_DEPTH_F32, channelStride, xStride, xStride * numPixels);
     ocio_rs_bridge::borrow_real_cpu_processor(handle)->apply(img);
+#endif
     return true;
   } catch (...) {
     ocio_rs_bridge::capture_current_exception();
     return false;
   }
-#endif
 }
 
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride) {

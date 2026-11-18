@@ -13,6 +13,40 @@ use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{BitDepth, CPUProcessor, Processor, TransformDirection};
 
 #[test]
+#[cfg(all(ocio_stub, target_pointer_width = "32"))]
+fn raw_rgba_rejects_row_stride_that_exceeds_ptrdiff() {
+    let mut pixel = [0.0f32; 4];
+    // The individual byte stride fits ptrdiff_t, but two strides do not.
+    // Stub mode ensures the preflight is exercised without accessing pixels.
+    let accepted = unsafe {
+        ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
+            std::ptr::null_mut(),
+            pixel.as_mut_ptr(),
+            2,
+            i64::from(i32::MAX) / 4,
+        )
+    };
+    assert!(!accepted);
+    let error = unsafe { ocio_sys::ocio_error_get_last() };
+    assert!(!error.is_null());
+    assert!(unsafe { std::ffi::CStr::from_ptr(error) }
+        .to_bytes()
+        .windows(b"row stride".len())
+        .any(|window| window == b"row stride"));
+    unsafe { ocio_sys::ocio_error_clear_last() };
+
+    // The largest whole-float stride whose two-pixel row fits remains valid.
+    assert!(unsafe {
+        ocio_sys::ocio_cpu_processor_try_apply_rgba_pixels(
+            std::ptr::null_mut(),
+            pixel.as_mut_ptr(),
+            2,
+            i64::from(i32::MAX) / 8,
+        )
+    });
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_buffers_can_back_owned_native_image_descriptors() {
     use ocio_rs::{
