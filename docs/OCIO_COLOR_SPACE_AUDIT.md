@@ -11,9 +11,16 @@ the library. The interop ID and interchange attributes require the relevant
 | Name, aliases, family, equality group, description | Editable accessors and mutation; borrowed const metadata | Several legacy editable getters are infallible convenience methods. |
 | Interop ID and interchange attributes | Editable accessors, const ID and individual const attribute; owned map snapshots on both handles | Snapshots preserve native errors and visit one native map rather than repeatedly rebuilding it. |
 | Bit depth, reference space, categories, encoding, data | Editable accessors and mutation; const readers | Legacy editable getters may collapse native errors. |
-| Allocation and variables | Editable vector access and setter; const buffer-based reads | Full caller-buffer read is currently available on const handles. |
+| Allocation and variables | Editable vector access and setter; caller-buffer reads on editable and const handles | `try_allocation_vars_into` and `ConstColorSpace::allocation_vars_into` require an exactly sized buffer; the native variable count is a signed `int`. |
 | `getTransform`, `setTransform` | Shared const and editable-copy getters; editable and const setters; directional clear | OCIO copies transforms when setting; retained const getters outlive their source. |
 
 `tests/color_space_behavior_tests.rs` checks representative metadata, native
 configuration/processor behavior and transform copy/clear ownership. It does
 not establish every error or lifetime combination.
+
+For the index and buffer signatures, OCIO uses `size_t` for alias count and
+index, but `int` for category count/index and allocation-variable count. The
+fallible alias and category queries preserve those respective widths. The
+allocation setter checks that the Rust slice length fits `int` before calling
+`setAllocationVars(count, values)`; both caller-buffer getters require the
+native count, rather than allowing OCIO to write beyond the provided slice.
