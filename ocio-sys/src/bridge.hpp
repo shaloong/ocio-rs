@@ -1795,6 +1795,7 @@ bool ocio_legacy_viewing_pipeline_get_looks_override_enabled(void* handle);
 void ocio_legacy_viewing_pipeline_set_looks_override_enabled(void* handle, bool enabled);
 void* ocio_legacy_viewing_pipeline_get_processor(void* handle, void* config);
 void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void* config, void* context);
+void* ocio_legacy_viewing_pipeline_get_processor_const(void* handle, const void* config, const void* context);
 
 void* ocio_config_get_display_view_helper_identity_processor(void* handle);
 

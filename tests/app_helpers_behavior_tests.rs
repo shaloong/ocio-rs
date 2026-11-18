@@ -232,7 +232,9 @@ fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
-    use ocio_rs::transform::{DisplayViewTransform, MatrixTransform, Transform};
+    use ocio_rs::transform::{
+        DisplayViewTransform, ExposureContrastTransform, MatrixTransform, Transform,
+    };
     use ocio_rs::LegacyViewingStage;
     use ocio_rs::{Context, LegacyViewingPipeline};
     let config = Config::from_stream(
@@ -310,10 +312,21 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
     pipeline.set_looks_override_enabled(true).unwrap();
     assert!(pipeline.looks_override_enabled().unwrap());
     assert_eq!(pipeline.looks_override().unwrap(), c"");
+    let const_config = ocio_rs::ColorSpaceMenuParameters::create(&config)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let const_context = const_config.try_const_current_context().unwrap().unwrap();
     for processor in [
         pipeline.processor(&config).unwrap(),
         pipeline
             .processor_with_context(&config, &Context::create().unwrap())
+            .unwrap(),
+        pipeline
+            .processor_with_const_config(&const_config, None)
+            .unwrap(),
+        pipeline
+            .processor_with_const_config(&const_config, Some(&const_context))
             .unwrap(),
     ] {
         let mut rgba = [0.25, 0.5, 0.75, 1.0];
@@ -357,6 +370,31 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
         .unwrap()
         .is_none());
     retained_correction.validate().unwrap();
+
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.try_set_exposure(0.5).unwrap();
+    exposure.try_make_exposure_dynamic().unwrap();
+    pipeline.set_linear_cc(Some(&Transform::ExposureContrast(exposure)));
+    let first = pipeline
+        .processor_with_const_config(&const_config, None)
+        .unwrap();
+    let second = pipeline
+        .processor_with_const_config(&const_config, Some(&const_context))
+        .unwrap();
+    let kind = ocio_rs::DynamicPropertyType::Exposure;
+    first
+        .dynamic_property(kind)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(kind)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.5
+    );
 }
 
 #[test]

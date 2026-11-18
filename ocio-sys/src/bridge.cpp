@@ -20047,6 +20047,24 @@ void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void
 #endif
 }
 
+void* ocio_legacy_viewing_pipeline_get_processor_const(void* handle, const void* config, const void* context) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config; (void)context;
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    if (!handle || !config) throw std::invalid_argument("null legacy viewing pipeline or config");
+    const auto& pipeline = viewing_pipeline(handle);
+    const auto& cfg = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    return ocio_rs_const_config_processor(cfg, [&](const ocio::ConstConfigRcPtr& current) {
+      return context ? pipeline->getProcessor(current, *static_cast<const ocio::ConstContextRcPtr*>(context))
+                     : pipeline->getProcessor(current);
+    });
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_config_get_display_view_helper_identity_processor(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

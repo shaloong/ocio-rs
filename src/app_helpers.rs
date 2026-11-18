@@ -938,6 +938,27 @@ impl LegacyViewingPipeline {
             handle: crate::handle_result(handle)?,
         })
     }
+
+    /// Build with a retained config and an explicit or config-owned context.
+    /// Static processors use the native config directly. Dynamic processors
+    /// are rebuilt from an independent copy to isolate mutable properties.
+    pub fn processor_with_const_config(
+        &self,
+        config: &ConstConfig,
+        context: Option<&crate::ConstContext>,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_processor_const(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+                context.map_or(std::ptr::null(), |ctx| ctx.handle.as_ptr().cast_const()),
+            )
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
 }
 
 impl Drop for LegacyViewingPipeline {
