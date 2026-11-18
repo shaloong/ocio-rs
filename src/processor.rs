@@ -9472,7 +9472,8 @@ impl GpuShaderDesc {
 
     /// Return a structured 3D texture resource, preserving bridge failures.
     ///
-    /// `Ok(None)` means no 3D texture exists at `index`.
+    /// An out-of-range `index` is returned as an OCIO error. `Ok(None)` means
+    /// OCIO did not report a usable texture resource without raising an error.
     pub fn try_texture_3d(&self, index: u32) -> Result<Option<GpuTexture3D>> {
         let mut info = ocio_sys::OcioGpuTexture3DInfo {
             texture_name: std::ptr::null(),
