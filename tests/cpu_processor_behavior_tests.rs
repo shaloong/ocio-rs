@@ -932,7 +932,7 @@ fn mixed_unpadded_multibyte_depths_and_orders_match_native() {
                 bit_depth: output_depth,
             };
             let mut input = Aligned([0; 512]);
-            for pair in input.0.chunks_exact_mut(2) {
+            for pair in input.0.as_chunks_mut::<2>().0 {
                 pair.copy_from_slice(&0x3800u16.to_ne_bytes());
             }
             let mut padded_input = Aligned([0; 512]);
