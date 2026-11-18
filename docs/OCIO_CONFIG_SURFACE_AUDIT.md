@@ -35,6 +35,15 @@ Indexed lookups convert OCIO's empty out-of-range result to `None` and retain
 native errors separately. These paths do not construct a color-space set or
 copy native configuration objects.
 
+A focused declaration-name scan of the 2.6 `Config` class found 172 distinct
+tokens, including its constructor and the `OCIO_DEPRECATED` macro token.
+The names without a straightforward `ocio_config_` snake-case spelling were
+checked separately: the 2.6 additions are declared in `ocio-sys/src/v2_6.rs`,
+several bridge names omit `get`, and the IO-proxy and ICC names split their
+acronyms. The deprecated parsing method has an explicit binding. This is a
+review aid, not a compiler-level proof of all declarations, overloads, argument
+widths, or runtime behavior; the overload and ownership audits remain required.
+
 The old Rust methods named `*_by_reference_space` and the old virtual-view
 queries remain compatible for the two valid legacy discriminants:
 `Scene` selects shared views and `Display` selects display-defined views.
