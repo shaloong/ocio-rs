@@ -295,6 +295,41 @@ fn group_children_remain_shared_through_look_transform_copies() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_children_remain_shared_through_config_copies() {
+    let _guard = group_transform_test_lock();
+    let leaf = scale_matrix([2.0, 1.0, 1.0, 1.0]);
+    let group = GroupTransform::create().unwrap();
+    group.append_transform(&leaf).unwrap();
+    let space = ocio_rs::ColorSpace::create().unwrap();
+    space.set_name("group-copy-space").unwrap();
+    space
+        .try_set_transform(&group, ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap();
+    let config = ocio_rs::Config::raw()
+        .unwrap()
+        .create_editable_copy()
+        .unwrap();
+    config.try_add_color_space(&space).unwrap();
+    let copied_config = config.create_editable_copy().unwrap();
+    leaf.set_offset(&[0.375, 0.0, 0.0, 0.0]).unwrap();
+    let copied_space = copied_config
+        .try_color_space("group-copy-space")
+        .unwrap()
+        .unwrap();
+    let Some(Transform::Group(copied_group)) = copied_space
+        .try_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+    else {
+        panic!("group expected")
+    };
+    let Some(Transform::Matrix(copied_leaf)) = copied_group.try_transform(0).unwrap() else {
+        panic!("matrix expected")
+    };
+    assert_eq!(copied_leaf.offset()[0], 0.375);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_order_copy_and_mutation_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {

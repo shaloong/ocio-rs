@@ -310,7 +310,8 @@ pub fn is_stub_build() -> bool {
 
 /// Returns the process-global current OCIO config, if one is installed.
 ///
-/// The returned config is an independent editable copy. This compatibility helper
+/// The returned config is an editable native copy; group-transform children may
+/// remain shared with the installed config. This compatibility helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
@@ -369,8 +370,8 @@ pub fn try_set_current_config(config: &Config) -> Result<()> {
 /// Install a shared read-only config as the process-global current config.
 ///
 /// This passes the existing native handle directly; OCIO itself creates an
-/// independent editable copy when installing it. See [`current_config`] for
-/// the process-global threading considerations.
+/// editable copy when installing it, subject to native group-child sharing.
+/// See [`current_config`] for the process-global threading considerations.
 pub fn try_set_const_current_config(config: &ConstConfig) -> Result<()> {
     clear_last_error();
     unsafe { ocio_sys::ocio_set_const_current_config(config.handle.as_ptr()) };

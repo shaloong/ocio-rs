@@ -303,7 +303,8 @@ impl ConstColorSpace {
         }
         Ok(unsafe { std::ffi::CStr::from_ptr(ptr) })
     }
-    /// Create an independently editable color space.
+    /// Create an editable color-space copy. Native group-transform copies may
+    /// retain children shared with the original.
     pub fn create_editable_copy(&self) -> Result<ColorSpace> {
         crate::clear_last_error();
         let handle =
@@ -341,7 +342,8 @@ impl ColorSpace {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an editable copy of this color space.
+    /// Create an editable copy. Native group-transform copies may retain
+    /// children shared with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =

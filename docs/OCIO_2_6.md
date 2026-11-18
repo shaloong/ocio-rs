@@ -18,7 +18,9 @@ view transforms and named transforms; OCIO copies them on assignment. View
 and named transforms may clear either direction with the const setter.
 These are native editable copies, not necessarily deep graph copies: OCIO
 copies a `GroupTransform` container while retaining its children. This also
-applies when a group is copied through a transform getter or setter. Use
+applies when a group is copied through a transform getter, setter, or config
+copy. Changes to shared children can affect both configs; coordinate mutation
+and clear affected processor caches before rebuilding processors. Use
 `GroupTransform::create_deep_copy` for an independent built-in transform graph.
 
 The comparison baseline is the public headers at upstream `v2.5.2` and

@@ -38,7 +38,8 @@ impl NamedTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an editable copy of this named transform.
+    /// Create an editable copy. Native group-transform copies may retain
+    /// children shared with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {

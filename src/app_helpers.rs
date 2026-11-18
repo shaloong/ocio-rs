@@ -63,7 +63,8 @@ impl ColorSpaceMenuParameters {
         }
     }
 
-    /// Return an independent editable copy of the retained native configuration.
+    /// Return an editable copy of the retained native configuration. Native
+    /// group-transform copies may retain children shared with the source.
     pub fn config(&self) -> Result<Config> {
         crate::clear_last_error();
         let handle =

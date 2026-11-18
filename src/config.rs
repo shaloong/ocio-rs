@@ -170,7 +170,9 @@ impl ConstConfig {
     pub fn default_display(&self) -> Result<Option<String>> {
         Ok(self.text(3)?.filter(|display| !display.is_empty()))
     }
-    /// Create a fully independent editable copy.
+    /// Create an editable config copy using OCIO's native semantics.
+    /// Group transforms within it may still share children with the source;
+    /// see [`Config::create_editable_copy`].
     pub fn create_editable_copy(&self) -> Result<Config> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_const_config_editable_copy(self.handle.as_ptr()) };
@@ -2735,10 +2737,11 @@ impl Config {
         )
     }
 
-    /// Look up an independent editable copy by name, role, or alias.
+    /// Look up an editable copy by name, role, or alias.
     ///
-    /// Mutating the copy does not update this config. Register it with
-    /// [`Self::try_add_color_space`] to apply changes to the config.
+    /// Register changes to the color-space object with [`Self::try_add_color_space`].
+    /// Native group-transform copies still share their children, so changes to
+    /// those shared nodes can affect the config without re-registering it.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.try_color_space(name).ok().flatten()
     }
@@ -2757,7 +2760,8 @@ impl Config {
         Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
     }
 
-    /// Look up an independent editable color-space copy, preserving failures.
+    /// Look up an editable color-space copy, preserving failures. Group
+    /// transform children may remain shared with the config.
     pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -2893,7 +2897,8 @@ impl Config {
         }
     }
 
-    /// Look up an independent editable `Look` copy by authored name.
+    /// Look up an editable `Look` copy by authored name. Group transform
+    /// children may remain shared with the config.
     pub fn look(&self, name: impl AsRef<str>) -> Option<Look> {
         self.try_look(name).ok().flatten()
     }
@@ -3709,7 +3714,8 @@ impl Config {
         self.named_transform_name_by_index(index)
     }
 
-    /// Look up an independent editable `NamedTransform` copy by name.
+    /// Look up an editable `NamedTransform` copy by name. Group transform
+    /// children may remain shared with the config.
     pub fn named_transform(&self, name: impl AsRef<str>) -> Option<NamedTransform> {
         self.try_named_transform(name).ok().flatten()
     }
@@ -3806,7 +3812,8 @@ impl Config {
         }
     }
 
-    /// Look up an independent editable `ViewTransform` copy by name.
+    /// Look up an editable `ViewTransform` copy by name. Group transform
+    /// children may remain shared with the config.
     pub fn view_transform(&self, name: impl AsRef<str>) -> Option<ViewTransform> {
         self.try_view_transform(name).ok().flatten()
     }
@@ -4006,7 +4013,12 @@ impl Config {
 
     // --- Editable copy ---
 
-    /// Create an editable clone of the config.
+    /// Create an editable config copy using OCIO's native semantics.
+    ///
+    /// Config fields are copied, but group transforms inside color spaces,
+    /// looks, named transforms and view transforms may retain shared children.
+    /// Mutating shared transforms can affect both configs. Coordinate such
+    /// mutations and clear affected processor caches before rebuilding processors.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {

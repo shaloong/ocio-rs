@@ -122,7 +122,8 @@ macro_rules! accessors {
             pub fn description(&self) -> Result<Option<&CStr>> {
                 self.0.text(1, 0, None)
             }
-            /// Create an independently editable copy.
+            /// Create an editable copy. Native group-transform copies may
+            /// retain children shared with the original.
             pub fn create_editable_copy(&self) -> Result<$editable> {
                 Ok($editable {
                     handle: self.0.copy()?,

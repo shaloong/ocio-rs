@@ -39,7 +39,8 @@ impl Baker {
         crate::ocio_call_status()
     }
 
-    /// Get an independent editable copy of the config attached to this baker.
+    /// Get an editable copy of the config attached to this baker. Native
+    /// group-transform copies may retain children shared with the source.
     /// Use [`Self::const_config`] to share the native read-only config instead.
     pub fn config(&self) -> Result<Config> {
         crate::clear_last_error();
