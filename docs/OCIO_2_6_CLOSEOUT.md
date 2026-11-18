@@ -35,6 +35,16 @@ and 13 excluded). This is a fixed review
 boundary, not a verified percentage or a new parity gate. Keep L1/L2/L3
 as cheap name checks, not signature or behavior claims.
 
+## Finite closeout checklist
+
+| Area | Evidence and disposition |
+| --- | --- |
+| 2.6.0 public class delta | A comment/whitespace-normalized comparison against 2.5.2 found public declaration changes only in `Config`. The [Config audit](OCIO_CONFIG_SURFACE_AUDIT.md) maps that delta; the [2.6 audit](OCIO_2_6.md) separately covers helper functions, enums, and runtime behavior. |
+| Existing signatures | The selected classes have signature-family records in this ledger or its linked audits. Confirm individual overload arguments and ownership where the records describe only a family; neither L3 nor the existence of a family record proves each signature. |
+| Not separate binding requirements | Deleted or protected constructors, explicit native destruction, equivalent diagnostic formatting and duplicate Rust ownership spellings. Native subclass instances must remain callable where the public OCIO contract accepts them; reimplementing C++ virtual tables in Rust is not required. |
+| Known native boundary | Unpatched external OCIO can reject some GPU LUT layouts; the vendored patch and opt-in checked path are documented. Group removal is a Rust convenience with replacement semantics, not a missing C++ operation. |
+| Runtime and packaging | [Complete native matrix](https://github.com/shaloong/ocio-rs/actions/runs/44261686973) passed on `7ad100a`; [PR CI](https://github.com/shaloong/ocio-rs/actions/runs/44262749190) and [offline release audit](https://github.com/shaloong/ocio-rs/actions/runs/44263176004) passed on `0b1fa81`. The difference does not touch binding code. These are baseline results; verify the final candidate before releasing. |
+
 Within the 53 selected classes, [the monitor and built-in registry
 audit](OCIO_REGISTRY_AUDIT.md) records the direct and raw paths for all three
 classes and the replacement for the removed default-config getter.
@@ -46,6 +56,9 @@ four selected log/range classes and the absent camera-slope buffer fix.
 maps two more classes and the shared output callback fixes.
 [The core transform audit](OCIO_TRANSFORM_CORE_AUDIT.md) maps eleven additional
 classes, including the look-result operation missed by name-only checking.
+[The grading curve audit](OCIO_GRADING_CURVE_AUDIT.md) maps the three curve
+value classes and the two curve transform classes, including full-width slope
+access in `ocio-sys` and direct forwarding of retained values.
 
 On this worktree, the checker unit tests (7) passed. L1 matched all 1,570
 bridge declaration names; L2 matched all 1,372 checked wrappers; selected
@@ -133,6 +146,11 @@ on a GPU.
    `ocio-sys` archive also built with Cargo offline and `bundled,v2_5`
    using its packaged OpenColorIO 2.5.2 source. This validates local package
    contents and linkage, not the exact candidate commit or other platforms.
+
+## Historical validation notes
+
+These entries describe earlier revisions. Use the closeout checklist above for
+the most recent recorded candidate evidence.
 
 After the subsequent Config, rules, processor, and CI changes, the complete
 Windows workspace tests passed again for stub `v2_5` and external-source

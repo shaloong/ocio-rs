@@ -5,7 +5,7 @@ tiers, and the criteria for claiming completeness.
 The [GPU creator signature-family audit](OCIO_GPU_CREATOR_AUDIT.md) records
 the current mappings and the gaps in custom creator ownership and callbacks.
 The [grading curve signature-family audit](OCIO_GRADING_CURVE_AUDIT.md) tracks
-its overloads, ownership, and outstanding read-only access.
+its overloads, ownership, and retained read-only access.
 The [global API audit](OCIO_GLOBAL_API_AUDIT.md) maps the global declarations
 and records remaining validation limitations.
 The [config IO proxy audit](OCIO_CONFIG_IO_PROXY_AUDIT.md) maps its virtual
@@ -51,8 +51,9 @@ The native enum inserts HMJ before the HSY variants. The bridge translates
 style values in both directions at the API boundary, not in the pixel loop.
 
 Independent B-spline and RGB/Hue curve set objects use native shared ownership.
-Transform value exchange creates a native editable copy, while a constituent
-spline handle keeps its native curve alive independently.
+Editable transform value getters create native copies. Retained read-only
+values can be passed to another transform's native setter without a bridge-side
+deep copy. A retained constituent spline can outlive its parent curve set.
 
 For rendering, build the processor once and pass the caller's mutable buffer
 to `CPUProcessor::try_apply_rgba_pixels`. Tightly packed RGBA uses one native

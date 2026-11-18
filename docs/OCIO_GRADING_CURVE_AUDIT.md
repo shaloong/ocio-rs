@@ -3,21 +3,24 @@
 Scope: public `GradingBSplineCurve`, `GradingRGBCurve`, `GradingHueCurve`,
 `GradingRGBCurveTransform`, and `GradingHueCurveTransform` declarations in
 OpenColorIO 2.4.1, 2.5.2, and 2.6.0. Hue curves are absent in 2.4.1;
-their API and the spline-type additions are gated by `v2_5`. This is a
-partial inventory; it does not establish full-library parity. See
+their API and the spline-type additions are gated by `v2_5`. This audit maps
+these five classes; it does not establish full-library parity. See
 `tests/grading_bspline_behavior_tests.rs` and the grading transform behavior
 tests for representative validation.
 
-| Native operation | Rust surface | Remaining concern |
+| Native operation | Rust surface | Semantics and limits |
 | --- | --- | --- |
-| Spline `Create(size)` and point-list constructor | `GradingBSplineCurve::create`, validated and `_unvalidated` point-list constructors | Deferred validation matches native construction; verify remaining boundary cases. |
+| Spline `Create(size)` and point-list constructor | `GradingBSplineCurve::create`, validated and `_unvalidated` point-list constructors | The bridge populates the native points in one call; the unvalidated form preserves native deferred validation. |
 | Spline type / hue-type constructor overloads | `create_with_spline_type`, `create_with_hue_type` and point-list variants (`v2_5`) | Exact 2.5.1 floor belongs in release validation. |
 | Editable copy, point count/coordinates, slopes, validation | `GradingBSplineCurve` methods; `copy_points_into` on editable and borrowed splines | Getters return values rather than native references; no borrowed mutable point view. The bulk reader uses caller-owned storage. |
 | Spline type get/set | `spline_type`, `set_spline_type` (`v2_5`) | Native 2.4 does not provide this API. |
-| RGB/Hue curve set constructors from style, copy, or constituent splines | `create`, `create_editable_copy`, `create_from_curves`, `create_from_shared_curves` | Explicitly test more constructor failures and native versions. |
+| RGB/Hue curve set constructors from style, copy, or constituent splines | `create`, `create_editable_copy`, `create_from_curves`, `create_from_shared_curves` | OCIO copies constituent splines itself; safe Rust cannot pass a null constituent. |
 | Curve-set `getCurve` mutable overload | `curve(&mut self)` returns an independently owned native shared handle | Repeated handles alias the same spline, as upstream; no cross-thread sharing. |
 | Curve-set `getCurve` const overload | `curve_ref(&self)` borrows without copying; `curve_shared(&self)` retains native shared ownership beyond the parent | Other previously acquired mutable aliases remain live; concurrent native access requires external synchronization. |
-| Curve-set identity, validation, equality and hue draw-only flag | Corresponding methods on editable and shared values | Equality and native version differences need continued behavioral verification. |
+| Curve-set identity, validation, equality, hue draw-only flag, and `GetBSplineTypeForHueCurveType` | Corresponding editable and shared queries, editable draw-only setter, and `b_spline_type_for_hue_curve_type` | Equality and validation dispatch to OCIO rather than comparing a Rust snapshot. |
+| Both transforms: factory, metadata, equality, style, dynamic toggles | Typed factories and accessors; base transform covers direction, type, validation and editable copy | RGB includes linear-to-log bypass; Hue includes RGB-to-HSY selection. |
+| Both transforms: `getSlope`, `setSlope`, `slopesAreDefault` | Checked typed methods and `ocio-sys` transform entry points | Legacy typed slope indices are `i32`; the direct FFI preserves the complete `size_t` domain (`usize`). |
+| Both transforms: `getValue`, `setValue` | `SharedGrading*Curve::from_transform` and `set_transform`; editable copies are opt-in | The shared setter passes the native const handle without a bridge-side copy. |
 | Native diagnostic stream operators | `serialize` on splines, borrowed spline views, editable and shared curve sets | Native diagnostic output is not a stable interchange format. |
 
 Transform and dynamic-property `getValue` return native const curve sets.
