@@ -111,6 +111,25 @@ fn shared_and_display_view_aliases_round_trip() {
         aliases,
     };
     config.add_shared_view_with_aliases(view()).unwrap();
+    let no_aliases = ViewWithAliases {
+        view: c"NoAliases",
+        aliases: &[],
+        ..view()
+    };
+    config.add_shared_view_with_aliases(no_aliases).unwrap();
+    assert_eq!(
+        config.num_display_view_aliases(c"", c"NoAliases").unwrap(),
+        0
+    );
+    assert_eq!(
+        config.display_view_alias(c"", c"NoAliases", 0).unwrap(),
+        None
+    );
+    let conflicting = ViewWithAliases {
+        view: c"Conflicting",
+        ..view()
+    };
+    assert!(config.add_shared_view_with_aliases(conflicting).is_err());
     assert_eq!(
         config.num_display_view_aliases(c"", c"Canonical").unwrap(),
         1
