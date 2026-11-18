@@ -44,6 +44,8 @@ maps five more classes and records the LLP64 LUT size/index fix.
 four selected log/range classes and the absent camera-slope buffer fix.
 [The Baker and processor metadata audit](OCIO_BAKER_PROCESSOR_METADATA_AUDIT.md)
 maps two more classes and the shared output callback fixes.
+[The core transform audit](OCIO_TRANSFORM_CORE_AUDIT.md) maps eleven additional
+classes, including the look-result operation missed by name-only checking.
 
 On this worktree, the checker unit tests (7) passed. L1 matched all 1,570
 bridge declaration names; L2 matched all 1,372 checked wrappers; selected
