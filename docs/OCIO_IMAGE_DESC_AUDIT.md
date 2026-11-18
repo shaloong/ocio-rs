@@ -18,11 +18,11 @@ behavior across versions.
 The safe owned descriptor methods require enough space for native pointer
 stepping. The existing slice-based CPU methods handle supported unpadded
 layouts separately; weakening descriptor validation is not a substitute.
-The low-level RGBA batch bridge checks that its generated row stride fits
-`ptrdiff_t` on narrower targets before converting it. A Windows i686 stub
-regression covers this preflight; it does not establish 32-bit native OCIO
-runtime behavior. On 64-bit targets the existing individual stride and count
-limits already bound the product, so this adds no runtime check there.
+The low-level RGB and RGBA batch bridges check byte and row strides before
+narrowing them to `ptrdiff_t`. Windows i686 and x86-64 stub regressions cover
+the preflight; they do not establish 32-bit native OCIO runtime behavior.
+The shared check uses a conservative fast bound to avoid division for ordinary
+strides and runs once per batch, not per pixel.
 The safe fixed-layout custom descriptor covers irregular interleaved layouts
 over one checked slice. For other layouts, `ImageDescProvider` implements
 every base getter in Rust. It is an unsafe trait because OCIO trusts the

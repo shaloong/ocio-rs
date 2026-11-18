@@ -13,6 +13,31 @@ use ocio_rs::transform::MatrixTransform;
 use ocio_rs::{BitDepth, CPUProcessor, Processor, TransformDirection};
 
 #[test]
+#[cfg(ocio_stub)]
+fn raw_pixel_batches_reject_unrepresentable_strides() {
+    let mut pixel = [0.0f32; 4];
+    let stride = i64::MAX / 4;
+    let handle = std::ptr::null_mut();
+    let ptr = pixel.as_mut_ptr();
+    for mode in 0..3 {
+        unsafe { ocio_sys::ocio_error_clear_last() };
+        unsafe {
+            match mode {
+                0 => ocio_sys::ocio_cpu_processor_apply_rgb_pixels(handle, ptr, 2, stride),
+                1 => {
+                    ocio_sys::ocio_cpu_processor_apply_rgb_packed(handle, ptr.cast(), 8, 2, stride)
+                }
+                _ => {
+                    ocio_sys::ocio_cpu_processor_apply_rgba_packed(handle, ptr.cast(), 8, 2, stride)
+                }
+            }
+        }
+        assert!(!unsafe { ocio_sys::ocio_error_get_last() }.is_null());
+    }
+    unsafe { ocio_sys::ocio_error_clear_last() };
+}
+
+#[test]
 #[cfg(all(ocio_stub, target_pointer_width = "32"))]
 fn raw_rgba_rejects_row_stride_that_exceeds_ptrdiff() {
     let mut pixel = [0.0f32; 4];
@@ -44,6 +69,40 @@ fn raw_rgba_rejects_row_stride_that_exceeds_ptrdiff() {
             i64::from(i32::MAX) / 8,
         )
     });
+
+    for mode in 0..3 {
+        unsafe {
+            match mode {
+                0 => ocio_sys::ocio_cpu_processor_apply_rgb_pixels(
+                    std::ptr::null_mut(),
+                    pixel.as_mut_ptr(),
+                    2,
+                    i64::from(i32::MAX) / 4,
+                ),
+                1 => ocio_sys::ocio_cpu_processor_apply_rgb_packed(
+                    std::ptr::null_mut(),
+                    pixel.as_mut_ptr().cast(),
+                    8,
+                    2,
+                    i64::from(i32::MAX) / 4,
+                ),
+                _ => ocio_sys::ocio_cpu_processor_apply_rgba_packed(
+                    std::ptr::null_mut(),
+                    pixel.as_mut_ptr().cast(),
+                    8,
+                    2,
+                    i64::from(i32::MAX) / 4,
+                ),
+            }
+        }
+        let error = unsafe { ocio_sys::ocio_error_get_last() };
+        assert!(!error.is_null());
+        assert!(unsafe { std::ffi::CStr::from_ptr(error) }
+            .to_bytes()
+            .windows(b"row stride".len())
+            .any(|window| window == b"row stride"));
+    }
+    unsafe { ocio_sys::ocio_error_clear_last() };
 }
 
 #[test]
