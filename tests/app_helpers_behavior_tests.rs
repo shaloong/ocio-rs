@@ -91,6 +91,68 @@ fn ociom_controller_round_trip_and_execute() {
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_multi_step_preserves_intermediate_and_final_results() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters};
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/ociom");
+    let dir = std::ffi::CString::new(fixture.to_str().unwrap()).unwrap();
+    let mut first = ConfigMergingParameters::create().unwrap();
+    first.set_base_config_name(c"base.ocio").unwrap();
+    first.set_input_config_name(c"input.ocio").unwrap();
+    first.set_output_name(c"stage-one").unwrap();
+    first.set_name(c"first result").unwrap();
+    first.set_adjust_input_reference_space(false).unwrap();
+    first.set_avoid_duplicates(false).unwrap();
+    let mut second = ConfigMergingParameters::create().unwrap();
+    second.set_base_config_name(c"stage-one").unwrap();
+    second.set_input_config_name(c"input.ocio").unwrap();
+    second.set_name(c"second result").unwrap();
+    second.set_adjust_input_reference_space(false).unwrap();
+    second.set_avoid_duplicates(false).unwrap();
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.set_working_dir(&dir).unwrap();
+    merger.add_params(&first).unwrap();
+    merger.add_params(&second).unwrap();
+    let result = merger.merge_configs().unwrap();
+    assert_eq!(result.num_merged_configs().unwrap(), 2);
+    assert_eq!(
+        result.merged_config(0).unwrap().unwrap().name().as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        result.merged_config(1).unwrap().unwrap().name().as_deref(),
+        Some("second result")
+    );
+    assert_eq!(
+        result.merged_config(-1).unwrap().unwrap().name().as_deref(),
+        Some("second result")
+    );
+    assert_eq!(
+        result
+            .merged_const_config(0)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        result
+            .merged_const_config(-1)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("second result")
+    );
+    assert!(result.merged_config(2).unwrap().is_none());
+    assert!(result.merged_config(-2).unwrap().is_none());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn ociom_raw_shared_parameters_update_the_merger() {
     unsafe {
         let merger = ocio_sys::ocio_config_merger_create();

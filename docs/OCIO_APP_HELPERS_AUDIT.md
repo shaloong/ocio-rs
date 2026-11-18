@@ -28,3 +28,5 @@ handles, mutation through the shared low-level handle, and invalid indices.
 The seven per-section merge-strategy setter/getter pairs were also tested
 individually on native 2.5.1, 2.5.2 and 2.6.0: updating one leaves the
 others unchanged, and an unspecified section inherits the default strategy.
+The multi-stage merger test also distinguishes the first result, second result,
+and final-result sentinel through editable and retained read-only config paths.
