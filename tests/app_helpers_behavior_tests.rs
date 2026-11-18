@@ -538,6 +538,41 @@ fn mixing_manager_retains_config_and_slider_round_trips() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn mixing_manager_uses_retained_const_config_without_copying() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    let parameters = ColorSpaceMenuParameters::create(&config).unwrap();
+    let retained = parameters.const_config().unwrap();
+
+    // A mutation after obtaining the shared handle must be visible at creation.
+    config.set_role("color_picking", "raw").unwrap();
+    let mut manager = ocio_rs::MixingColorSpaceManager::create_from_const(&retained).unwrap();
+    assert_eq!(manager.num_mixing_spaces(), 1);
+    assert!(manager
+        .mixing_space_ui_name(0)
+        .unwrap()
+        .to_bytes()
+        .ends_with(b"(raw)"));
+
+    // Refresh must use the same native config, not an editable snapshot.
+    config.remove_role("color_picking").unwrap();
+    manager.refresh_from_const(&retained).unwrap();
+    assert_eq!(manager.num_mixing_spaces(), 2);
+    drop(retained);
+    drop(parameters);
+    drop(config);
+
+    let cpu = manager
+        .processor(c"raw", c"", c"", ocio_rs::TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut rgba = [0.1, 0.2, 0.3, 0.4];
+    cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.1, 0.2, 0.3, 0.4]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn native_menu_filters_and_borrows_immutable_entries() {
     let config = Config::raw().unwrap().create_editable_copy().unwrap();
     let space = ColorSpace::create().unwrap();

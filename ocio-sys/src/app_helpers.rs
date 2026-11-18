@@ -119,6 +119,7 @@ unsafe extern "C" {
         name: *const c_char,
     ) -> *const c_char;
     pub fn ocio_mixing_color_space_manager_create(config: *mut c_void) -> *mut c_void;
+    pub fn ocio_mixing_color_space_manager_create_from_const(config: *mut c_void) -> *mut c_void;
     pub fn ocio_mixing_color_space_manager_destroy(handle: *mut c_void);
     pub fn ocio_mixing_color_space_manager_get_num_mixing_spaces(handle: *mut c_void) -> usize;
     pub fn ocio_mixing_color_space_manager_get_mixing_space_ui_name(
@@ -154,6 +155,10 @@ unsafe extern "C" {
         name: *const c_char,
     );
     pub fn ocio_mixing_color_space_manager_refresh(handle: *mut c_void, config: *mut c_void);
+    pub fn ocio_mixing_color_space_manager_refresh_from_const(
+        handle: *mut c_void,
+        config: *mut c_void,
+    );
     pub fn ocio_mixing_color_space_manager_get_processor(
         handle: *mut c_void,
         working: *const c_char,

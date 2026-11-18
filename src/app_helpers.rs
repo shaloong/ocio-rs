@@ -468,6 +468,17 @@ impl MixingColorSpaceManager {
         })
     }
 
+    /// Create from a retained read-only config without copying the config.
+    pub fn create_from_const(config: &ConstConfig) -> Result<Self> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_mixing_color_space_manager_create_from_const(config.handle.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
     /// Num mixing spaces using the native implementation.
     pub fn num_mixing_spaces(&self) -> usize {
         unsafe {
@@ -586,6 +597,18 @@ impl MixingColorSpaceManager {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_mixing_color_space_manager_refresh(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Refresh from a retained read-only config without copying the config.
+    pub fn refresh_from_const(&mut self, config: &ConstConfig) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_mixing_color_space_manager_refresh_from_const(
                 self.handle.as_ptr(),
                 config.handle.as_ptr(),
             )

@@ -19651,6 +19651,19 @@ void* ocio_mixing_color_space_manager_create(void* config) {
 #endif
 }
 
+void* ocio_mixing_color_space_manager_create_from_const(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  ocio_rs_bridge::capture_error_message("Mixing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    auto native = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    return new MixingManager(ocio::MixingColorSpaceManager::Create(native));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_mixing_color_space_manager_destroy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;
@@ -19778,6 +19791,17 @@ void ocio_mixing_color_space_manager_refresh(void* handle, void* config) {
 #else
   try {
     mixing_manager(handle)->refresh(ocio_rs_bridge::get_real_config(config));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
+#endif
+}
+
+void ocio_mixing_color_space_manager_refresh_from_const(void* handle, void* config) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config;
+  return;
+#else
+  try {
+    mixing_manager(handle)->refresh(*static_cast<const ocio::ConstConfigRcPtr*>(config));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }

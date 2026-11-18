@@ -1757,6 +1757,7 @@ const char* ocio_color_space_menu_helper_get_name_from_ui_name(void* handle, con
 const char* ocio_color_space_menu_helper_get_ui_name_from_name(void* handle, const char* name);
 
 void* ocio_mixing_color_space_manager_create(void* config);
+void* ocio_mixing_color_space_manager_create_from_const(void* config);
 void ocio_mixing_color_space_manager_destroy(void* handle);
 size_t ocio_mixing_color_space_manager_get_num_mixing_spaces(void* handle);
 const char* ocio_mixing_color_space_manager_get_mixing_space_ui_name(void* handle, size_t index);
@@ -1770,6 +1771,7 @@ size_t ocio_mixing_color_space_manager_get_selected_mixing_encoding_idx(void* ha
 void ocio_mixing_color_space_manager_set_selected_mixing_encoding_idx(void* handle, size_t index);
 void ocio_mixing_color_space_manager_set_selected_mixing_encoding(void* handle, const char* name);
 void ocio_mixing_color_space_manager_refresh(void* handle, void* config);
+void ocio_mixing_color_space_manager_refresh_from_const(void* handle, void* config);
 void* ocio_mixing_color_space_manager_get_processor(void* handle, const char* working, const char* display, const char* view, int direction);
 void* ocio_mixing_color_space_manager_get_slider(void* handle);
 void* ocio_mixing_color_space_manager_get_slider_with_edges(void* handle, float min, float max);
