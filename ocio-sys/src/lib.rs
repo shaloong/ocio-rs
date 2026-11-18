@@ -387,6 +387,14 @@ unsafe extern "C" {
     pub fn ocio_const_transform_validate(handle: *mut c_void);
     pub fn ocio_transform_diagnostic_text(handle: *mut c_void, is_const: bool) -> *const i8;
     pub fn ocio_const_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    /// Creates a typed handle sharing the original transform, without copying it.
+    ///
+    /// # Safety
+    /// `handle` must be a valid const transform handle. Use the result only for
+    /// const native operations, coordinate all mutable aliases, and release it
+    /// with `ocio_transform_destroy`. Any descendant handles must also remain
+    /// read-only and obey the native lifetime and synchronization requirements.
+    pub fn ocio_const_transform_create_readonly_handle(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_get_processor_from_const_transform(
         config: *mut c_void,
         context: *mut c_void,

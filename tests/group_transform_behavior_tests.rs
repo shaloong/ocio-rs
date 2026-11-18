@@ -10,7 +10,7 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::transform::{GroupTransform, MatrixTransform, Transform};
+use ocio_rs::transform::{GroupTransform, Lut3DTransform, MatrixTransform, Transform};
 use ocio_rs::{Config, TransformDirection};
 
 fn group_transform_test_lock() -> MutexGuard<'static, ()> {
@@ -151,6 +151,53 @@ fn const_group_child_retains_the_native_transform() {
     let mut pixel = [0.25, 0.5, 0.75, 1.0];
     cpu.try_apply_rgba(&mut pixel).unwrap();
     assert_eq!(pixel, [0.5, 0.5, 0.75, 1.0]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_group_child_supports_scoped_raw_reads_without_copying() {
+    let lut = Lut3DTransform::create().unwrap();
+    lut.set_value(0, 0, 0, [0.1, 0.2, 0.3]).unwrap();
+    let group = GroupTransform::create().unwrap();
+    group.append_transform(&lut).unwrap();
+    let look = ocio_rs::Look::create().unwrap();
+    look.try_set_transform(&group).unwrap();
+    let parent = look.try_const_transform().unwrap().unwrap();
+    let child = parent.group_child(0).unwrap().unwrap();
+    assert_eq!(
+        child.type_tag().unwrap(),
+        ocio_rs::TransformType::Lut3D as i32
+    );
+
+    let read = |value: &ocio_rs::transform::ConstTransform| unsafe {
+        value
+            .with_readonly_raw_handle(|handle| {
+                let mut rgb = [0.0f32; 3];
+                let output = rgb.as_mut_ptr();
+                ocio_sys::ocio_error_clear_last();
+                ocio_sys::ocio_lut3d_transform_get_value(
+                    handle,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    output.cast(),
+                    output.add(1).cast(),
+                    output.add(2).cast(),
+                );
+                assert!(ocio_sys::ocio_error_get_last().is_null());
+                rgb
+            })
+            .unwrap()
+    };
+    assert_eq!(read(&child), [0.1, 0.2, 0.3]);
+    // No read is in progress while the separately owned mutable alias changes.
+    lut.set_value(0, 0, 0, [0.4, 0.5, 0.6]).unwrap();
+    assert_eq!(read(&child), [0.4, 0.5, 0.6]);
+    drop(lut);
+    drop(group);
+    drop(look);
+    drop(parent);
+    assert_eq!(read(&child), [0.4, 0.5, 0.6]);
 }
 
 fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {

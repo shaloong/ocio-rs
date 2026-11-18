@@ -127,6 +127,38 @@ impl ConstTransform {
         transform_from_raw_handle(handle)
             .ok_or_else(|| crate::OcioError::Ocio("unsupported or null transform copy".into()))
     }
+
+    /// Access existing low-level getters without copying the native transform.
+    ///
+    /// This creates a temporary typed FFI handle sharing the same native
+    /// object; it is destroyed when `read` returns or unwinds. Use `type_tag`
+    /// to select getters for the concrete transform type. An unsupported or
+    /// inconsistent native type returns an error. Errors from FFI calls inside
+    /// `read` must be handled by the callback itself.
+    ///
+    /// # Safety
+    /// Call only FFI operations corresponding to native `const` methods. Do
+    /// not mutate the transform or its descendants, and do not access mutable
+    /// aliases concurrently. The handle, descendant handles and any pointers
+    /// or references derived from them must not escape `read`. Native getters
+    /// may have additional pointer, buffer, and synchronization requirements.
+    pub unsafe fn with_readonly_raw_handle<R>(
+        &self,
+        read: impl FnOnce(*mut c_void) -> R,
+    ) -> crate::Result<R> {
+        struct RawHandle(NonNull<c_void>);
+        impl Drop for RawHandle {
+            fn drop(&mut self) {
+                unsafe { ocio_sys::ocio_transform_destroy(self.0.as_ptr()) }
+            }
+        }
+
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_transform_create_readonly_handle(self.handle.as_ptr()) };
+        let handle = RawHandle(crate::handle_result(handle)?);
+        Ok(read(handle.0.as_ptr()))
+    }
 }
 impl Drop for ConstTransform {
     fn drop(&mut self) {

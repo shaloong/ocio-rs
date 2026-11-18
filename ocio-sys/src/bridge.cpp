@@ -7008,6 +7008,20 @@ void* ocio_const_transform_create_editable_copy(void* handle) {
   catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+void* ocio_const_transform_create_readonly_handle(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native transform required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const transform handle");
+    const auto& value = *static_cast<const ocio::ConstTransformRcPtr*>(handle);
+    if (!value) throw std::invalid_argument("null native const transform");
+    // The handle is only valid for const operations; its caller enforces that
+    // contract because the legacy typed FFI handles also support mutation.
+    return ocio_rs_bridge::wrap_editable_transform_copy(std::const_pointer_cast<ocio::Transform>(value));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 void* ocio_config_get_processor_from_const_transform(void* config, void* context, void* transform, int direction) {
 #ifdef OCIO_RS_STUB
   (void)config; (void)context; (void)transform; (void)direction;
