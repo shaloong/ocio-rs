@@ -24,7 +24,7 @@ fn config_core_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
-fn raw_processor_transform_overloads_report_null_arguments() {
+fn raw_processor_overloads_report_null_arguments() {
     let _guard = config_core_test_lock();
     unsafe {
         use ocio_rs::ocio_sys as sys;
@@ -32,9 +32,34 @@ fn raw_processor_transform_overloads_report_null_arguments() {
         let context = sys::ocio_context_create();
         let matrix = sys::ocio_matrix_transform_create();
         let named = sys::ocio_named_transform_create();
-        assert!(!config.is_null() && !context.is_null() && !matrix.is_null() && !named.is_null());
+        let space = sys::ocio_color_space_create();
+        assert!(
+            !config.is_null()
+                && !context.is_null()
+                && !matrix.is_null()
+                && !named.is_null()
+                && !space.is_null()
+        );
         let null = std::ptr::null_mut();
-        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 10] = [
+        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 17] = [
+            Box::new(|| sys::ocio_config_get_processor(config, null, space, space)),
+            Box::new(|| sys::ocio_config_get_processor(config, context, null, space)),
+            Box::new(|| sys::ocio_config_get_processor(config, context, space, null)),
+            Box::new(|| sys::ocio_config_get_processor_v1(config, null, space)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_v3(config, null, c"raw".as_ptr(), c"raw".as_ptr())
+            }),
+            Box::new(|| {
+                sys::ocio_config_get_processor_v5(
+                    config,
+                    null,
+                    c"raw".as_ptr(),
+                    c"display".as_ptr(),
+                    c"view".as_ptr(),
+                    0,
+                )
+            }),
+            Box::new(|| sys::ocio_config_get_processor_v9(config, null, c"name".as_ptr(), 0)),
             Box::new(|| sys::ocio_config_get_processor_v10(config, null)),
             Box::new(|| sys::ocio_config_get_processor_v11(config, null, 0)),
             Box::new(|| sys::ocio_config_get_processor_v12(config, context, null, 0)),
@@ -60,6 +85,7 @@ fn raw_processor_transform_overloads_report_null_arguments() {
         sys::ocio_error_clear_last();
         sys::ocio_matrix_transform_destroy(matrix);
         sys::ocio_named_transform_destroy(named);
+        sys::ocio_color_space_destroy(space);
         sys::ocio_context_destroy(context);
         sys::ocio_config_destroy(config);
     }

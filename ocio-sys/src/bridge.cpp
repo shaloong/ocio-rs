@@ -4691,6 +4691,7 @@ void* ocio_config_get_processor(void* handle, void* context, void* srcColorSpace
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!context || !srcColorSpace || !dstColorSpace) throw std::invalid_argument("null context or color space");
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     auto* _srcColorSpace_h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(srcColorSpace);
@@ -4713,6 +4714,7 @@ void* ocio_config_get_processor_v1(void* handle, void* srcColorSpace, void* dstC
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!srcColorSpace || !dstColorSpace) throw std::invalid_argument("null color space");
     auto* _srcColorSpace_h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(srcColorSpace);
     auto srcColorSpace_ptr = std::static_pointer_cast<ocio_rs_bridge::RealColorSpace>(_srcColorSpace_h->inner)->colorSpace;
     auto* _dstColorSpace_h = static_cast<ocio_rs_bridge::ColorSpaceHandle*>(dstColorSpace);
@@ -4749,6 +4751,7 @@ void* ocio_config_get_processor_v3(void* handle, void* context, const char* srcC
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!context) throw std::invalid_argument("null context");
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, srcColorSpaceName, dstColorSpaceName);
@@ -4783,6 +4786,7 @@ void* ocio_config_get_processor_v5(void* handle, void* context, const char* srcC
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!context) throw std::invalid_argument("null context");
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, srcColorSpaceName, display, view, static_cast<ocio::TransformDirection>(direction));
@@ -4859,6 +4863,7 @@ void* ocio_config_get_processor_v9(void* handle, void* context, const char* name
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
+    if (!context) throw std::invalid_argument("null context");
     auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
     auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, namedTransformName, static_cast<ocio::TransformDirection>(direction));
