@@ -94,6 +94,10 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert!(cs.try_allocation_vars_into(&mut wrong_length).is_err());
     assert_eq!(wrong_length, [42.0]);
     let empty_allocation = ocio_rs::ColorSpace::create().unwrap();
+    empty_allocation.set_allocation_vars(&[-8.0, 8.0]).unwrap();
+    empty_allocation.set_allocation_vars(&[]).unwrap();
+    assert_eq!(empty_allocation.try_allocation_num_vars().unwrap(), 0);
+    empty_allocation.try_allocation_vars_into(&mut []).unwrap();
     assert_eq!(
         empty_allocation.try_allocation_vars().unwrap(),
         Vec::<f32>::new()
