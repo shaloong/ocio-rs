@@ -457,4 +457,21 @@ fn static_matrix_helpers_report_stub_unavailability() {
     let mut matrix = [0.0; 16];
     let mut offset = [0.0; 4];
     assert!(MatrixTransform::scale_into(&mut matrix, &mut offset, &[1.0; 4]).is_err());
+    assert!(MatrixTransform::sat_into(&mut matrix, &mut offset, 0.5, &[0.2, 0.7, 0.1]).is_err());
+    assert!(MatrixTransform::view_into(
+        &mut matrix,
+        &mut offset,
+        &mut [1, 0, 0, 0],
+        &[0.2, 0.7, 0.1]
+    )
+    .is_err());
+    assert!(MatrixTransform::fit_into(
+        &mut matrix,
+        &mut offset,
+        &[0.0; 4],
+        &[1.0; 4],
+        &[0.0; 4],
+        &[1.0; 4]
+    )
+    .is_err());
 }

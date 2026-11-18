@@ -210,6 +210,7 @@ jobs:
             --test const_config_item_behavior_tests \
             --test config_core_behavior_tests --test context_behavior_tests --test format_metadata_behavior_tests \
             --test group_transform_behavior_tests \
+            --test matrix_op_tests \
             --test config_io_proxy_behavior_tests --test baker_behavior_tests \
             --test grading_bspline_behavior_tests \
             --test grading_rgb_curve_transform_behavior_tests \
