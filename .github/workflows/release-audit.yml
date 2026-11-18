@@ -17,8 +17,12 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install native dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build powershell
+      - name: Verify runner tooling
+        run: |
+          command -v g++
+          command -v cmake
+          command -v ninja
+          command -v pwsh
 
       - name: Run release audit
         # Populate Cargo's cache before checking offline package/native builds.
