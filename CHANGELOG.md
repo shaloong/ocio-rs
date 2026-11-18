@@ -152,8 +152,9 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Fixed
 
-- Return `None`, as documented, for missing canonical names and out-of-range
-  active color-space indices rather than returning an empty string.
+- Return `None`, as documented, for missing canonical/display/view names and
+  out-of-range color-space, display, and look indices rather than returning
+  an empty string.
 
 - Legacy raw grading-curve value handles now contain independent editable
   snapshots instead of mutable aliases to OCIO's read-only curve values.

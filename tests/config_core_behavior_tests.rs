@@ -36,6 +36,34 @@ fn missing_canonical_and_color_space_index_return_none() {
     assert_eq!(config.try_color_space_name_by_index(-1).unwrap(), None);
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_display_view_and_look_names_return_none() {
+    let _guard = config_core_test_lock();
+    let config = Config::create().unwrap();
+    assert_eq!(config.try_default_display().unwrap(), None);
+    assert_eq!(config.try_display(-1).unwrap(), None);
+    assert_eq!(config.try_default_view("missing_display").unwrap(), None);
+    assert_eq!(
+        config
+            .try_default_view_with_color_space("missing_display", "raw")
+            .unwrap(),
+        None
+    );
+    assert_eq!(config.try_look_name_by_index(-1).unwrap(), None);
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    assert_eq!(
+        baker
+            .const_config()
+            .unwrap()
+            .unwrap()
+            .default_display()
+            .unwrap(),
+        None
+    );
+}
+
 fn test_data_path(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")

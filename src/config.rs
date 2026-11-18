@@ -168,7 +168,7 @@ impl ConstConfig {
     }
     /// Default display name as owned text.
     pub fn default_display(&self) -> Result<Option<String>> {
-        self.text(3)
+        Ok(self.text(3)?.filter(|display| !display.is_empty()))
     }
     /// Create a fully independent editable copy.
     pub fn create_editable_copy(&self) -> Result<Config> {
@@ -1002,7 +1002,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(display)
+        Ok(display.filter(|display| !display.is_empty()))
     }
 
     #[doc(hidden)]
@@ -1034,7 +1034,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(display)
+        Ok(display.filter(|display| !display.is_empty()))
     }
 
     // --- Views ---
@@ -1055,7 +1055,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     /// Return the default view for a display, filtered by color-space name.
@@ -1086,7 +1086,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     #[doc(hidden)]
@@ -1355,7 +1355,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(name)
+        Ok(name.filter(|name| !name.is_empty()))
     }
 
     /// Return a comma-separated string of all look names.
