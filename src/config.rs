@@ -722,7 +722,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(name)
+        Ok(name.filter(|name| !name.is_empty()))
     }
 
     #[doc(hidden)]
@@ -772,7 +772,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(canonical_name)
+        Ok(canonical_name.filter(|name| !name.is_empty()))
     }
 
     /// Test whether a named color space is linear with respect to a reference space type.

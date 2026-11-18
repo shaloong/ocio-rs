@@ -50,6 +50,8 @@ Versioning as closely as practical for a still-maturing binding crate.
 
 ### Added
 
+- Expose native reference-space and visibility filters for color-space and
+  named-transform enumeration on `Config`.
 - Offer spline point-list constructors with deferred native validation, while
   retaining the existing eagerly validated convenience constructors.
 - Retain read-only grading splines through native shared ownership, independently
@@ -149,6 +151,9 @@ Versioning as closely as practical for a still-maturing binding crate.
   use an installed 2.6 library or point `OCIO_SOURCE_DIR` at 2.6.0.
 
 ### Fixed
+
+- Return `None`, as documented, for missing canonical names and out-of-range
+  active color-space indices rather than returning an empty string.
 
 - Legacy raw grading-curve value handles now contain independent editable
   snapshots instead of mutable aliases to OCIO's read-only curve values.

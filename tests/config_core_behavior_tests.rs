@@ -22,6 +22,20 @@ fn config_core_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_canonical_and_color_space_index_return_none() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    assert_eq!(
+        config
+            .try_canonical_name("missing_space_or_transform")
+            .unwrap(),
+        None
+    );
+    assert_eq!(config.try_color_space_name_by_index(-1).unwrap(), None);
+}
+
 fn test_data_path(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
