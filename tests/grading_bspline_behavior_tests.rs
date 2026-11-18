@@ -130,6 +130,10 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert!(shared_value.slope(RGBCurveType::Red, usize::MAX).is_err());
     let shared_equal = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
     assert!(shared_value.equals(&shared_equal).unwrap());
+    let destination = GradingRGBCurveTransform::create(GradingStyle::Lin).unwrap();
+    shared_value.set_transform(&destination).unwrap();
+    let forwarded = ocio_rs::SharedGradingRGBCurve::from_transform(&destination).unwrap();
+    assert!(shared_value.equals(&forwarded).unwrap());
     assert_eq!(
         shared_value.serialize().unwrap(),
         value.serialize().unwrap()
@@ -199,6 +203,11 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     assert!(shared_value.slope(HueCurveType::HueFx, usize::MAX).is_err());
     let shared_equal = ocio_rs::SharedGradingHueCurve::from_transform(&transform).unwrap();
     assert!(shared_value.equals(&shared_equal).unwrap());
+    let destination = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
+    shared_value.set_transform(&destination).unwrap();
+    let forwarded = ocio_rs::SharedGradingHueCurve::from_transform(&destination).unwrap();
+    assert!(shared_value.equals(&forwarded).unwrap());
+    assert!(forwarded.draw_curve_only().unwrap());
     assert_eq!(
         shared_value.serialize().unwrap(),
         value.serialize().unwrap()

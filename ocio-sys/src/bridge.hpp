@@ -1951,6 +1951,7 @@ void* ocio_grading_hue_curve_object_create_from_shared_curves(void* const* curve
 const char* ocio_grading_curve_serialize(const void* handle, int kind);
 void* ocio_grading_curve_value_shared(void* source, int kind);
 void ocio_grading_curve_value_shared_set_dynamic_property(const void* value, bool hue, void* property);
+void ocio_grading_curve_value_shared_set_transform(const void* value, bool hue, void* transform);
 void ocio_grading_curve_value_shared_destroy(void* value, bool hue);
 void* ocio_grading_curve_value_shared_spline(void* value, int kind, bool hue);
 const void* ocio_grading_curve_value_shared_spline_view(void* value, int kind, bool hue);

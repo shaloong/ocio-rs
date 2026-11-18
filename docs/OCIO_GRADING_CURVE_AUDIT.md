@@ -1,7 +1,9 @@
 # Grading curve signature-family audit
 
-Scope: public `GradingBSplineCurve`, `GradingRGBCurve`, and
-`GradingHueCurve` declarations in OpenColorIO 2.4.2 and 2.6.0. This is a
+Scope: public `GradingBSplineCurve`, `GradingRGBCurve`, `GradingHueCurve`,
+`GradingRGBCurveTransform`, and `GradingHueCurveTransform` declarations in
+OpenColorIO 2.4.1, 2.5.2, and 2.6.0. Hue curves are absent in 2.4.1;
+their API and the spline-type additions are gated by `v2_5`. This is a
 partial inventory; it does not establish full-library parity. See
 `tests/grading_bspline_behavior_tests.rs` and the grading transform behavior
 tests for representative validation.
@@ -26,6 +28,7 @@ ownership handle; the borrow cannot outlive its shared parent. Their `slope`
 methods read a child slope in one bridge call without creating a child handle.
 Replacing the source value does not retarget a retained value. The typed
 editable `from_transform` and legacy raw-value paths create independent copies;
-`set_transform` delegates native validation and copying. Native callbacks,
+editable and shared `set_transform` delegate native validation and copying
+without an extra bridge-side curve copy. Native callbacks,
 shared mutable aliases, and arbitrary external FFI users remain subject to the
 documented thread confinement and ownership requirements.

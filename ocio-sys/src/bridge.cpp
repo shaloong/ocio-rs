@@ -21772,6 +21772,30 @@ bool ocio_grading_hue_curve_value_shared_draw_only(void* value) {
 }
 #endif
 
+void ocio_grading_curve_value_shared_set_transform(const void* value, bool hue, void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue; (void)transform;
+  ocio_rs_bridge::capture_error_message("Grading curves require native OpenColorIO");
+#else
+  try {
+    if (!value || !transform) throw std::invalid_argument("null shared curve or transform");
+    if (!hue) {
+      const auto& curve = *static_cast<const ocio::ConstGradingRGBCurveRcPtr*>(value);
+      if (!curve) throw std::invalid_argument("null shared RGB curve");
+      ocio_rs_bridge::get_real_grading_rgb_curve_transform(transform)->setValue(curve);
+      return;
+    }
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    const auto& curve = *static_cast<const ocio::ConstGradingHueCurveRcPtr*>(value);
+    if (!curve) throw std::invalid_argument("null shared hue curve");
+    ocio_rs_bridge::get_real_grading_hue_curve_transform(transform)->setValue(curve);
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_grading_curve_value_shared_set_dynamic_property(const void* value, bool hue, void* property) {
 #ifdef OCIO_RS_STUB
   (void)value; (void)hue; (void)property;

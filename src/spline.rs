@@ -95,6 +95,23 @@ pub struct SharedGradingRGBCurve {
     pub(crate) handle: NonNull<c_void>,
 }
 impl SharedGradingRGBCurve {
+    /// Pass this value directly to OCIO's native transform setter.
+    /// OCIO may copy the value as part of `setValue`.
+    pub fn set_transform(
+        &self,
+        transform: &crate::transform::GradingRGBCurveTransform,
+    ) -> Result<()> {
+        use crate::transform::TransformHandle;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_set_transform(
+                self.handle.as_ptr(),
+                false,
+                transform.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Read a child slope in one bridge call without allocating a spline handle.
     pub fn slope(&self, kind: crate::RGBCurveType, index: usize) -> Result<f32> {
         crate::clear_last_error();
@@ -215,6 +232,23 @@ pub struct SharedGradingHueCurve {
 }
 #[cfg(feature = "v2_5")]
 impl SharedGradingHueCurve {
+    /// Pass this value directly to OCIO's native transform setter.
+    /// OCIO may copy the value as part of `setValue`.
+    pub fn set_transform(
+        &self,
+        transform: &crate::transform::GradingHueCurveTransform,
+    ) -> Result<()> {
+        use crate::transform::TransformHandle;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_set_transform(
+                self.handle.as_ptr(),
+                true,
+                transform.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
     /// Read a child slope in one bridge call without allocating a spline handle.
     pub fn slope(&self, kind: crate::HueCurveType, index: usize) -> Result<f32> {
         crate::clear_last_error();

@@ -14,6 +14,11 @@ unsafe extern "C" {
         hue: bool,
         property: *mut c_void,
     );
+    pub fn ocio_grading_curve_value_shared_set_transform(
+        value: *const c_void,
+        hue: bool,
+        transform: *mut c_void,
+    );
     pub fn ocio_grading_curve_value_shared_destroy(value: *mut c_void, hue: bool);
     pub fn ocio_grading_curve_value_shared_spline(
         value: *mut c_void,
