@@ -31,7 +31,15 @@ checks, including an opt-in Rust clone factory. An always-attached arbitrary
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
 | Helper, function header/body/footer append methods | Direct `GpuShaderCreator` virtual calls, descriptor methods, and synchronous or persistent code-fragment hooks | Hook rewrites fragments but does not provide arbitrary Rust subclassing. |
 | `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, synchronous and persistent `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
-| Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache; `GpuShaderCreator::try_borrow_desc` gives scoped access when the creator is a descriptor | Descriptor semantics apply; streamed textures are intentionally not enumerated. The scoped view does not expose `DerefMut`, preventing the descriptor handle from being moved out. |
+| Descriptor `CreateShaderDesc`, `clone`, `getShaderText` | `GpuShaderDesc::create`, `try_clone_desc`, `try_shader_text` or borrowed `shader_text_ref` | The borrowed text cannot outlive or be safely mutated through its descriptor. |
+| `getNumUniforms`, `getUniform`, `getUniformBufferSize` | `try_num_uniforms`, `try_uniform`, typed scalar and caller-buffer readers, `uniform_cache`, `try_uniform_buffer_size` | The buffer size and uniform offsets are only available on 2.5+; cached native getters remain live. |
+| `getNumTextures`, `getTexture`, `getTextureValues`, `getTextureShaderBindingIndex` | `try_num_textures`, `try_texture_2d`, `texture_values_ref`, `texture_shader_binding_index` | The binding index is only available on 2.5+; borrowed texels retain the descriptor borrow and avoid a Rust payload copy. |
+| `getNum3DTextures`, `get3DTexture`, `get3DTextureValues`, `get3DTextureShaderBindingIndex` | `try_num_3d_textures`, `try_texture_3d`, `texture_3d_values_ref`, `texture_3d_shader_binding_index` | The binding index is only available on 2.5+; streamed textures are intentionally not enumerated. |
+
+The descriptor declarations above were checked against 2.4.1, 2.5.2 and
+2.6.0. `GpuShaderCreator::try_borrow_desc` provides scoped descriptor access
+only when the underlying creator is a descriptor. Its scoped view does not
+expose `DerefMut`, preventing the descriptor handle from being moved out.
 
 Texture scalar counts use the native metadata query without copying texels.
 The fallible count methods preserve native errors; their compatibility wrappers
