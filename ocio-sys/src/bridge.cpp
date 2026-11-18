@@ -18333,6 +18333,39 @@ void ocio_matrix_transform_identity(double* m44, double* offset4) {
 #endif
 }
 
+void ocio_matrix_transform_fit_into(double* m, double* o, const double* a, const double* b, const double* c, const double* d) {
+#ifdef OCIO_RS_STUB
+  (void)m; (void)o; (void)a; (void)b; (void)c; (void)d;
+  ocio_rs_bridge::capture_error_message("Matrix operations require native OpenColorIO");
+#else
+  try { ocio::MatrixTransform::Fit(m, o, a, b, c, d); } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+void ocio_matrix_transform_sat_into(double* m, double* o, double sat, const double* luma) {
+#ifdef OCIO_RS_STUB
+  (void)m; (void)o; (void)sat; (void)luma;
+  ocio_rs_bridge::capture_error_message("Matrix operations require native OpenColorIO");
+#else
+  try { ocio::MatrixTransform::Sat(m, o, sat, luma); } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+void ocio_matrix_transform_scale_into(double* m, double* o, const double* scale) {
+#ifdef OCIO_RS_STUB
+  (void)m; (void)o; (void)scale;
+  ocio_rs_bridge::capture_error_message("Matrix operations require native OpenColorIO");
+#else
+  try { ocio::MatrixTransform::Scale(m, o, scale); } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+void ocio_matrix_transform_view_into(double* m, double* o, int* channels, const double* luma) {
+#ifdef OCIO_RS_STUB
+  (void)m; (void)o; (void)channels; (void)luma;
+  ocio_rs_bridge::capture_error_message("Matrix operations require native OpenColorIO");
+#else
+  try { ocio::MatrixTransform::View(m, o, channels, luma); } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void* ocio_matrix_transform_create_sat(double sat, const double* luma) {
 #ifdef OCIO_RS_STUB
   (void)sat; (void)luma;

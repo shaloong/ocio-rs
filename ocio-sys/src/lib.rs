@@ -3846,6 +3846,27 @@ unsafe extern "C" {
     pub fn ocio_matrix_transform_create_identity() -> *mut c_void;
 
     pub fn ocio_matrix_transform_identity(m44: *mut f64, offset4: *mut f64) -> ();
+    pub fn ocio_matrix_transform_fit_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        old_min: *const f64,
+        old_max: *const f64,
+        new_min: *const f64,
+        new_max: *const f64,
+    );
+    pub fn ocio_matrix_transform_sat_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        sat: f64,
+        luma: *const f64,
+    );
+    pub fn ocio_matrix_transform_scale_into(m44: *mut f64, offset4: *mut f64, scale: *const f64);
+    pub fn ocio_matrix_transform_view_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        channels: *mut i32,
+        luma: *const f64,
+    );
 
     pub fn ocio_matrix_transform_create_sat(sat: f64, luma: *const f64) -> *mut c_void;
 
