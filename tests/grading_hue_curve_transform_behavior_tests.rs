@@ -34,6 +34,41 @@ fn complete_snapshot_round_trips_all_eight_curves() {
     assert_eq!(target.complete_value().unwrap(), snapshot);
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn checked_complete_snapshot_preserves_draw_mode_and_validation_failure() {
+    let _guard = grading_hue_curve_transform_test_lock();
+    let transform = GradingHueCurveTransform::create(GradingStyle::Lin).unwrap();
+    let mut value = ocio_rs::GradingHueCurve::from_transform(&transform).unwrap();
+    value.set_draw_curve_only(true).unwrap();
+    value.set_transform(&transform).unwrap();
+    let mut snapshot = transform.complete_value().unwrap();
+    snapshot.sat_sat[0].slope = 0.37;
+    transform.set_complete_value_checked(&snapshot).unwrap();
+    assert_eq!(transform.complete_value().unwrap(), snapshot);
+    let shared = ocio_rs::SharedGradingHueCurve::from_transform(&transform).unwrap();
+    let view = shared.curve_ref(HueCurveType::SatSat).unwrap();
+    transform.set_slope(HueCurveType::SatSat, 0, 0.72).unwrap();
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+    transform.set_complete_value_checked(&snapshot).unwrap();
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+    assert!(ocio_rs::GradingHueCurve::from_transform(&transform)
+        .unwrap()
+        .draw_curve_only()
+        .unwrap());
+    let mut invalid = snapshot.clone();
+    invalid.base.hue_sat[0].slope = 0.81;
+    invalid.hue_fx.clear();
+    assert!(transform.set_complete_value_checked(&invalid).is_err());
+    assert_eq!(transform.complete_value().unwrap(), snapshot);
+    assert!(ocio_rs::GradingHueCurve::from_transform(&transform)
+        .unwrap()
+        .draw_curve_only()
+        .unwrap());
+    drop(transform);
+    assert_eq!(view.slope(0).unwrap(), 0.37);
+}
+
 fn grading_hue_curve_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -231,6 +266,22 @@ fn grading_hue_curve_raw_value_handle_survives_parent_drop() {
 
         ocio_sys::ocio_grading_hue_curve_destroy(handle);
         ocio_sys::ocio_grading_hue_curve_transform_destroy(target);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_hue_transform_rejects_negative_point_count() {
+    let _guard = grading_hue_curve_transform_test_lock();
+    unsafe {
+        let handle =
+            ocio_sys::ocio_grading_hue_curve_transform_create_with_style(GradingStyle::Log as i32);
+        assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_grading_hue_curve_transform_set_num_control_points(handle, 0, -1);
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_grading_hue_curve_transform_destroy(handle);
     }
 }
 

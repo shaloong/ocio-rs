@@ -7,6 +7,8 @@ fn system_monitors_checks_bounds_and_keeps_snapshot() {
     let count = monitors.num_monitors();
     assert!(monitors.monitor_name(count).is_err());
     assert!(monitors.profile_filepath(count).is_err());
+    assert!(monitors.monitor_name(usize::MAX).is_err());
+    assert!(monitors.profile_filepath(usize::MAX).is_err());
     if count > 0 {
         assert!(!monitors.monitor_name(0).unwrap().is_empty());
         let _ = monitors.profile_filepath(0).unwrap();
@@ -65,10 +67,51 @@ fn ociom_controller_round_trip_and_execute() {
     let output = merger.merge_configs().unwrap();
     assert_eq!(output.num_merged_configs().unwrap(), 1);
     let merged = output.merged_config(-1).unwrap().unwrap();
+    let retained = output.merged_const_config(-1).unwrap().unwrap();
     assert!(merged.color_space("extra").is_some());
     assert!(output.merged_config(2).unwrap().is_none());
+    assert!(output.merged_config(-2).unwrap().is_none());
+    assert!(output.merged_config(i32::MIN).unwrap().is_none());
+    assert!(output.merged_const_config(-2).unwrap().is_none());
+    assert!(output.merged_const_config(1).unwrap().is_none());
+    assert_eq!(
+        retained.cache_id().unwrap(),
+        output
+            .merged_const_config(0)
+            .unwrap()
+            .unwrap()
+            .cache_id()
+            .unwrap()
+    );
     drop(output);
     assert!(merged.color_space("extra").is_some());
+    assert!(retained.try_const_color_space(c"extra").unwrap().is_some());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_raw_shared_parameters_update_the_merger() {
+    unsafe {
+        let merger = ocio_sys::ocio_config_merger_create();
+        let original = ocio_sys::ocio_config_merging_parameters_create();
+        assert!(!merger.is_null() && !original.is_null());
+        ocio_sys::ocio_config_merger_add_params(merger, original);
+        assert!(ocio_sys::ocio_config_merger_params_shared(merger, -1).is_null());
+        let shared = ocio_sys::ocio_config_merger_params_shared(merger, 0);
+        assert!(!shared.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_name(shared, c"shared edit".as_ptr());
+        let copied = ocio_sys::ocio_config_merger_params(merger, 0);
+        assert!(!copied.is_null());
+        ocio_sys::ocio_config_merging_parameters_destroy(original);
+        ocio_sys::ocio_config_merger_destroy(merger);
+        for handle in [shared, copied] {
+            let name = ocio_sys::ocio_config_merging_parameters_get_name(handle);
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), c"shared edit");
+            ocio_sys::ocio_config_merging_parameters_destroy(handle);
+        }
+    }
 }
 
 #[cfg(feature = "v2_5")]
@@ -371,8 +414,20 @@ fn menu_configuration_is_an_editable_copy_and_invalid_entries_error() {
     config.set_name("menu source").unwrap();
     let mut parameters = ColorSpaceMenuParameters::create(&config).unwrap();
     let copy = parameters.config().unwrap();
+    let retained = parameters.const_config().unwrap();
     copy.set_name("changed copy").unwrap();
     assert_eq!(config.name().as_deref(), Some("menu source"));
+    config.set_name("same native config").unwrap();
+    assert_eq!(
+        retained.name().unwrap().as_deref(),
+        Some("same native config")
+    );
     parameters.add_color_space(c"nonexistent-menu-space");
     assert!(ColorSpaceMenuHelper::create(&parameters).is_err());
+    drop(parameters);
+    drop(config);
+    assert_eq!(
+        retained.name().unwrap().as_deref(),
+        Some("same native config")
+    );
 }

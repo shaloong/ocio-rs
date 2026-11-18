@@ -198,7 +198,10 @@ impl ConstColorSpace {
     }
     /// Number of aliases.
     pub fn num_aliases(&self) -> Result<usize> {
-        usize::try_from(self.number(0)?).map_err(|_| OcioError::Ocio("invalid alias count".into()))
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_const_color_space_alias_count(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
     /// Number of categories.
     pub fn num_categories(&self) -> Result<usize> {
@@ -475,12 +478,20 @@ impl ColorSpace {
     ///
     /// Returns `None` when `index` does not refer to an authored category.
     pub fn category_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_category_by_index(index).ok().flatten()
+    }
+
+    /// Get a category while preserving bridge errors.
+    pub fn try_category_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_category(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the category of this color space.
@@ -538,20 +549,47 @@ impl ColorSpace {
 
     /// Get the allocation variables as a slice of floats.
     pub fn try_allocation_vars(&self) -> Result<Vec<f32>> {
-        let n = self.try_allocation_num_vars()?;
-        if n <= 0 {
+        let n = crate::transform::checked_native_count(
+            self.try_allocation_num_vars()?,
+            "ColorSpace::try_allocation_vars",
+        )?;
+        if n == 0 {
             return Ok(Vec::new());
         }
-        let mut vars = vec![0.0f32; n as usize];
+        let mut vars =
+            crate::transform::reserve_native_items(n, "ColorSpace::try_allocation_vars")?;
+        vars.resize(n, 0.0f32);
+        self.read_allocation_vars(&mut vars)?;
+        Ok(vars)
+    }
+
+    /// Copy allocation variables into an exactly sized caller-provided buffer.
+    /// The buffer is left untouched if its length does not match the native count.
+    pub fn try_allocation_vars_into(&self, output: &mut [f32]) -> Result<()> {
+        let count = crate::transform::checked_native_count(
+            self.try_allocation_num_vars()?,
+            "ColorSpace::try_allocation_vars_into",
+        )?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "allocation parameter buffer length mismatch".into(),
+            ));
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        self.read_allocation_vars(output)
+    }
+
+    fn read_allocation_vars(&self, output: &mut [f32]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_get_allocation_vars(
                 self.handle.as_ptr(),
-                vars.as_mut_ptr() as *mut c_void,
+                output.as_mut_ptr() as *mut c_void,
             );
         }
-        crate::ocio_call_status()?;
-        Ok(vars)
+        crate::ocio_call_status()
     }
 
     /// Get the allocation variables as a slice of floats.
@@ -666,9 +704,36 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
-    /// Get the number of aliases for this color space.
+    /// Get the number of aliases, or zero on error or overflow.
     pub fn num_aliases(&self) -> i32 {
-        unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }
+        self.try_num_aliases()
+            .ok()
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or(0)
+    }
+
+    /// Get the full native alias count, preserving bridge failures.
+    pub fn try_num_aliases(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Get an alias by native index, returning `None` when out of range.
+    pub fn try_alias_at(&self, index: usize) -> Result<Option<String>> {
+        if index >= self.try_num_aliases()? {
+            return Ok(None);
+        }
+        crate::clear_last_error();
+        let value = unsafe {
+            cstr_from_mut(ocio_sys::ocio_color_space_get_alias(
+                self.handle.as_ptr(),
+                index,
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the alias at the given index.
@@ -752,27 +817,62 @@ impl ColorSpace {
 
     /// Returns whether this color space has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
-        let c = match cstring(category) {
-            Ok(c) => c,
-            Err(_) => return false,
+        self.try_has_category(category).unwrap_or(false)
+    }
+
+    /// Check a category while preserving invalid input and bridge errors.
+    pub fn try_has_category(&self, category: impl AsRef<str>) -> Result<bool> {
+        self.try_has_category_cstr(&cstring(category)?)
+    }
+
+    /// Check a category without allocating a C string.
+    pub fn try_has_category_cstr(&self, category: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), category.as_ptr().cast())
         };
-        unsafe { ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), c.as_ptr().cast()) }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the number of categories for this color space.
     pub fn num_categories(&self) -> i32 {
-        unsafe {
+        self.try_num_categories().unwrap_or(0)
+    }
+
+    /// Get the native category count, preserving bridge errors.
+    pub fn try_num_categories(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void)
+        };
+        crate::ocio_call_status()?;
+        if count < 0 {
+            return Err(OcioError::ValidationFailed(
+                "negative native category count".into(),
+            ));
         }
+        Ok(count)
     }
 
     /// Returns whether this color space has the given alias.
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
-        let a = match cstring(alias) {
-            Ok(a) => a,
-            Err(_) => return false,
+        self.try_has_alias(alias).unwrap_or(false)
+    }
+
+    /// Check an alias while preserving invalid input and bridge errors.
+    pub fn try_has_alias(&self, alias: impl AsRef<str>) -> Result<bool> {
+        self.try_has_alias_cstr(&cstring(alias)?)
+    }
+
+    /// Check an alias without allocating a C string.
+    pub fn try_has_alias_cstr(&self, alias: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), alias.as_ptr().cast())
         };
-        unsafe { ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the interop identifier for this color space.

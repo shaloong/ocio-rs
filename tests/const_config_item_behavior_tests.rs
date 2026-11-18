@@ -143,6 +143,20 @@ fn config_named_items_are_copied_or_shared_read_only() {
         .try_const_transform(ViewTransformDirection::FromReference)
         .unwrap()
         .is_some());
+    let retained_view_transform = target_view
+        .try_const_transform(ViewTransformDirection::FromReference)
+        .unwrap()
+        .unwrap();
+    target_view
+        .try_set_const_transform(None, ViewTransformDirection::FromReference)
+        .unwrap();
+    drop(target_view);
+    let ocio_rs::transform::Transform::Matrix(retained_copy) =
+        retained_view_transform.create_editable_copy().unwrap()
+    else {
+        panic!("expected retained view matrix transform");
+    };
+    assert_eq!(retained_copy.matrix()[0], 2.0);
     assert!(target_look.try_const_transform().unwrap().is_some());
     assert!(target_look.try_const_inverse_transform().unwrap().is_some());
     drop(shared_transform);

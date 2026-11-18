@@ -1,6 +1,20 @@
 use std::ffi::{c_char, c_void};
 
 unsafe extern "C" {
+    pub fn ocio_const_config_v26_display_text(
+        handle: *mut c_void,
+        field: i32,
+        display: *const c_char,
+        view: *const c_char,
+        index: i32,
+    ) -> *const c_char;
+    pub fn ocio_const_config_v26_display_number(
+        handle: *mut c_void,
+        field: i32,
+        display: *const c_char,
+        view: *const c_char,
+        alias: *const c_char,
+    ) -> i32;
     pub fn ocio_config_canonical_display_name(
         handle: *mut c_void,
         display: *const c_char,
@@ -29,10 +43,21 @@ unsafe extern "C" {
         handle: *mut c_void,
         name: *const c_char,
     ) -> *const c_char;
+    pub fn ocio_const_config_generate_local_id_for_color_space(
+        handle: *mut c_void,
+        name: *const c_char,
+    ) -> *const c_char;
     pub fn ocio_config_locate_builtin_color_space(
         handle: *mut c_void,
         name: *const c_char,
         builtin: *mut c_void,
+    ) -> *const c_char;
+    pub fn ocio_config_locate_builtin_color_space_refs(
+        source: *mut c_void,
+        source_const: bool,
+        name: *const c_char,
+        builtin: *mut c_void,
+        builtin_const: bool,
     ) -> *const c_char;
     pub fn ocio_config_num_display_view_aliases(
         handle: *mut c_void,
@@ -49,6 +74,14 @@ unsafe extern "C" {
     pub fn ocio_config_set_use_display_aliases(handle: *mut c_void, enabled: bool);
     pub fn ocio_config_check_hdr_display_compatibility(handle: *mut c_void) -> bool;
     pub fn ocio_config_find_color_space_for_id(
+        handle: *mut c_void,
+        id: *const c_char,
+    ) -> *mut c_void;
+    pub fn ocio_config_find_const_color_space_for_id(
+        handle: *mut c_void,
+        id: *const c_char,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_find_color_space_for_id(
         handle: *mut c_void,
         id: *const c_char,
     ) -> *mut c_void;

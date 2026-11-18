@@ -355,6 +355,10 @@ fn context_cache_id_changes_with_mutation_behavior() {
     ctx.set_environment_mode(EnvironmentMode::LoadAll)
         .expect("set environment mode");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    assert_eq!(
+        ctx.try_environment_mode().unwrap(),
+        EnvironmentMode::LoadAll
+    );
 }
 
 #[test]

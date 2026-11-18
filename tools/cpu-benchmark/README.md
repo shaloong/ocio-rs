@@ -27,6 +27,10 @@ native trampoline to isolate the cost of splitting the borrow and read calls.
 The tool also compares copying all points and slopes into preallocated Rust
 storage using individual getters versus a single bulk bridge call. This last
 comparison uses the default curve's point count and is not a scalability test.
+It also times writing a default RGB snapshot through incremental and checked
+bulk APIs. The checked path validates the entire copied value; the APIs have
+different validation and failure semantics, so this comparison is not an
+isolated measurement of FFI overhead or a substitute for end-to-end profiling.
 
 The tool requires OCIO 2.6 source for the `bundled` feature and an installed
 matching OCIO include directory containing the generated `OpenColorABI.h`.

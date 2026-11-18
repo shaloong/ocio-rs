@@ -54,14 +54,21 @@ pub trait ConfigIOProvider: Send + Sync + 'static {
 }
 
 unsafe extern "C" fn append_bytes(destination: *mut c_void, data: *const u8, len: usize) -> bool {
+    if destination.is_null() || len > isize::MAX as usize || (len != 0 && data.is_null()) {
+        return false;
+    }
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let result = unsafe { &mut *destination.cast::<Vec<u8>>() };
         if len != 0 {
+            if result.try_reserve(len).is_err() {
+                return false;
+            }
             let data = unsafe { std::slice::from_raw_parts(data, len) };
             result.extend_from_slice(data);
         }
+        true
     }))
-    .is_ok()
+    .unwrap_or(false)
 }
 
 /// Provider for OCIO config text and LUT file payloads.
@@ -201,6 +208,24 @@ impl ConfigIOProxy {
         Ok(success.then_some(bytes))
     }
 
+    /// Inspect OCIO's native config bytes without an additional Rust copy.
+    ///
+    /// The slice is valid only during `visitor`; the visitor must not reenter
+    /// this proxy. OCIO still constructs its own returned string. Empty and
+    /// non-UTF-8 payloads are passed through unchanged, and visitor errors or
+    /// panics are returned as errors.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::{ConfigIOProxy, Result};
+    /// # fn example(proxy: &ConfigIOProxy) -> Result<()> {
+    /// let borrowed = proxy.with_config_data(|data| Ok(data))?;
+    /// println!("{:?}", borrowed);
+    /// # Ok(()) }
+    /// ```
+    pub fn with_config_data<T>(&self, visitor: impl FnOnce(&[u8]) -> Result<T>) -> Result<T> {
+        self.with_native_cstr(None, false, visitor)
+    }
+
     /// Register the byte payload for a LUT file path and its fast hash.
     ///
     /// Returns whether the in-memory provider accepted the payload. Custom
@@ -306,7 +331,7 @@ impl ConfigIOProxy {
         filepath: &CStr,
         visitor: impl FnOnce(&[u8]) -> Result<T>,
     ) -> Result<T> {
-        self.with_native_cstr(filepath, false, visitor)
+        self.with_native_cstr(Some(filepath), false, visitor)
     }
 
     /// Inspect native hash bytes without copying them into Rust-owned storage.
@@ -316,12 +341,12 @@ impl ConfigIOProxy {
         filepath: &CStr,
         visitor: impl FnOnce(&[u8]) -> Result<T>,
     ) -> Result<T> {
-        self.with_native_cstr(filepath, true, visitor)
+        self.with_native_cstr(Some(filepath), true, visitor)
     }
 
     fn with_native_cstr<T, F: FnOnce(&[u8]) -> Result<T>>(
         &self,
-        filepath: &CStr,
+        filepath: Option<&CStr>,
         hash: bool,
         visitor: F,
     ) -> Result<T> {
@@ -339,6 +364,11 @@ impl ConfigIOProxy {
                 return false;
             };
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if len > isize::MAX as usize || (len != 0 && data.is_null()) {
+                    return Err(OcioError::InvalidInput(
+                        "invalid native proxy buffer".into(),
+                    ));
+                }
                 let bytes = if len == 0 {
                     &[]
                 } else {
@@ -357,13 +387,20 @@ impl ConfigIOProxy {
         };
         crate::clear_last_error();
         let ok = unsafe {
-            ocio_sys::ocio_config_io_proxy_read_native(
-                self.handle.as_ptr(),
-                filepath.as_ptr(),
-                hash,
-                (&mut state as *mut State<F, T>).cast(),
-                visit::<T, F>,
-            )
+            match filepath {
+                Some(filepath) => ocio_sys::ocio_config_io_proxy_read_native(
+                    self.handle.as_ptr(),
+                    filepath.as_ptr(),
+                    hash,
+                    (&mut state as *mut State<F, T>).cast(),
+                    visit::<T, F>,
+                ),
+                None => ocio_sys::ocio_config_io_proxy_visit_config_data(
+                    self.handle.as_ptr(),
+                    (&mut state as *mut State<F, T>).cast(),
+                    visit::<T, F>,
+                ),
+            }
         };
         if state.result.as_ref().is_some_and(Result::is_err) {
             return state.result.take().expect("checked visitor result");
@@ -508,6 +545,25 @@ impl Drop for ConfigIOProxy {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn owned_payload_callback_rejects_invalid_buffer_without_mutation() {
+        let mut values = vec![7_u8];
+        let destination = (&mut values as *mut Vec<u8>).cast();
+        unsafe {
+            assert!(!append_bytes(std::ptr::null_mut(), std::ptr::null(), 0));
+            assert!(!append_bytes(destination, std::ptr::null(), 1));
+            assert!(!append_bytes(
+                destination,
+                std::ptr::NonNull::<u8>::dangling().as_ptr(),
+                isize::MAX as usize + 1
+            ));
+            assert!(append_bytes(destination, std::ptr::null(), 0));
+            assert_eq!(values, [7]);
+            assert!(append_bytes(destination, [1_u8, 2].as_ptr(), 2));
+        }
+        assert_eq!(values, [7, 1, 2]);
+    }
 
     #[test]
     fn create_proxy() {

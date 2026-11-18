@@ -108,6 +108,21 @@ fn shared_rgb_value_retains_previous_native_value_after_replacement() {
             .unwrap(),
         0.37
     );
+    property.set_grading_rgb_curve_shared(&old).unwrap();
+    assert_eq!(
+        property
+            .grading_rgb_curve_shared()
+            .unwrap()
+            .slope(RGBCurveType::Red, 0)
+            .unwrap(),
+        old_slope
+    );
+    let exposure = dynamic_exposure_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap();
+    assert!(exposure.set_grading_rgb_curve_shared(&new).is_err());
+    assert_eq!(exposure.double_value().unwrap(), 0.0);
     drop(property);
     drop(old);
     drop(new);
@@ -212,6 +227,10 @@ fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
             .unwrap(),
         0.58
     );
+    hue.set_grading_hue_curve_shared(&retained_hue).unwrap();
+    let restored = hue.grading_hue_curve_shared().unwrap();
+    assert!(restored.draw_curve_only().unwrap());
+    assert_eq!(restored.slope(HueCurveType::HueFx, 0).unwrap(), 0.37);
 
     let rgb = dynamic_grading_rgb_curve_processor()
         .unwrap()
@@ -232,6 +251,8 @@ fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
         .unwrap());
     assert!(rgb.grading_hue_curve_object().is_err());
     assert!(rgb.grading_hue_curve_shared().is_err());
+    assert!(rgb.set_grading_hue_curve_shared(&retained_hue).is_err());
+    assert!(hue.set_grading_rgb_curve_shared(&retained_rgb).is_err());
     drop(rgb);
     drop(hue);
     assert_eq!(
@@ -303,6 +324,10 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("cpu dynamic property");
     assert_eq!(cpu_prop.property_type(), DynamicPropertyType::Exposure);
+    assert_eq!(
+        cpu_prop.try_property_type().unwrap(),
+        DynamicPropertyType::Exposure
+    );
     assert_close(
         cpu_prop.double_value().expect("cpu prop double value"),
         1.0,
@@ -315,6 +340,12 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
     assert_close(pixel[1] as f64, 1.0, 1e-6);
     assert_close(pixel[2] as f64, 0.25, 1e-6);
     assert_close(pixel[3] as f64, 1.0, 1e-6);
+    drop(cpu);
+    drop(processor);
+    cpu_prop.set_double_value(2.0).unwrap();
+    processor_prop.set_double_value(-1.0).unwrap();
+    assert_close(cpu_prop.double_value().unwrap(), 2.0, 1e-8);
+    assert_close(processor_prop.double_value().unwrap(), -1.0, 1e-8);
 }
 
 #[test]
@@ -397,6 +428,11 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let round_trip = processor_prop
         .grading_primary_value()
         .expect("processor grading primary round trip");
+    assert_eq!(round_trip, value, "all primary fields must round-trip");
+    let mut invalid = value.clone();
+    invalid.gamma.red = -1.0;
+    assert!(processor_prop.set_grading_primary_value(&invalid).is_err());
+    assert_eq!(processor_prop.grading_primary_value().unwrap(), value);
     assert_close(round_trip.brightness.red, 0.125, 1e-8);
     assert_close(round_trip.contrast.master, 1.15, 1e-8);
     assert_close(round_trip.gain.blue, 1.25, 1e-8);
@@ -414,6 +450,10 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let cpu_value = cpu_prop
         .grading_primary_value()
         .expect("cpu grading primary value");
+    assert_eq!(
+        cpu_value, value,
+        "CPU property must preserve all primary fields"
+    );
     assert_close(cpu_value.brightness.red, 0.125, 1e-8);
     assert_close(cpu_value.contrast.master, 1.15, 1e-8);
     assert_close(cpu_value.gain.blue, 1.25, 1e-8);
@@ -468,6 +508,11 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let round_trip = processor_prop
         .grading_tone_value()
         .expect("processor grading tone round trip");
+    assert_eq!(round_trip, value, "all tone fields must round-trip");
+    let mut invalid = value.clone();
+    invalid.blacks.red = -1.0;
+    assert!(processor_prop.set_grading_tone_value(&invalid).is_err());
+    assert_eq!(processor_prop.grading_tone_value().unwrap(), value);
     assert_close(round_trip.blacks.red, 0.95, 1e-8);
     assert_close(round_trip.midtones.master, 1.1, 1e-8);
     assert_close(round_trip.highlights.width, 0.8, 1e-8);
@@ -482,6 +527,10 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let cpu_value = cpu_prop
         .grading_tone_value()
         .expect("cpu grading tone value");
+    assert_eq!(
+        cpu_value, value,
+        "CPU property must preserve all tone fields"
+    );
     assert_close(cpu_value.blacks.red, 0.95, 1e-8);
     assert_close(cpu_value.midtones.master, 1.1, 1e-8);
     assert_close(cpu_value.highlights.width, 0.8, 1e-8);
@@ -628,6 +677,12 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
         processor_prop.property_type(),
         DynamicPropertyType::GradingHueCurve
     );
+    assert_eq!(
+        processor_prop.try_property_type().unwrap(),
+        DynamicPropertyType::GradingHueCurve
+    );
+    assert!(processor_prop.double_value().is_err());
+    assert!(processor_prop.set_double_value(1.0).is_err());
 
     let points = [
         GradingCurvePoint::new(0.0, 0.0, 1.0),

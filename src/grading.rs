@@ -178,6 +178,22 @@ impl GradingPrimary {
         f64::MAX
     }
 
+    /// Validate this value for the given style with OpenColorIO without applying it to a transform.
+    ///
+    /// Returns an error in stub mode, which cannot perform native validation.
+    pub fn validate(&self, style: GradingStyle) -> crate::Result<()> {
+        let values = self.to_flat_array();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_primary_value_validate(
+                style as i32,
+                values.as_ptr(),
+                values.len(),
+            )
+        };
+        crate::validation_status()
+    }
+
     pub(crate) fn from_flat_array(values: &[f64; 34]) -> Self {
         let mut off = 0;
         let mut read_rgbm = || -> GradingRGBM {
@@ -269,92 +285,16 @@ pub struct GradingTone {
 
 impl GradingTone {
     pub fn new(style: GradingStyle) -> Self {
-        let (blacks, shadows, midtones, highlights, whites) = match style {
-            GradingStyle::Lin => (
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.0,
-                    width: 4.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 2.0,
-                    width: -7.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.0,
-                    width: 8.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: -2.0,
-                    width: 9.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.0,
-                    width: 8.0,
-                },
-            ),
-            _ => (
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.4,
-                    width: 0.4,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.6,
-                    width: 0.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.4,
-                    width: 0.7,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.2,
-                    width: 1.0,
-                },
-                GradingRGBMSW {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    master: 1.0,
-                    start: 0.5,
-                    width: 0.5,
-                },
-            ),
-        };
+        let [blacks, shadows, midtones, highlights, whites] = match style {
+            GradingStyle::Log => [(0.4, 0.4), (0.5, 0.0), (0.4, 0.6), (0.3, 1.0), (0.4, 0.5)],
+            GradingStyle::Lin => [(0.0, 4.0), (2.0, -7.0), (0.0, 8.0), (-2.0, 9.0), (0.0, 8.0)],
+            GradingStyle::Video => [(0.4, 0.4), (0.6, 0.0), (0.4, 0.7), (0.2, 1.0), (0.5, 0.5)],
+        }
+        .map(|(start, width)| GradingRGBMSW {
+            start,
+            width,
+            ..GradingRGBMSW::default()
+        });
         Self {
             blacks,
             shadows,
@@ -363,6 +303,16 @@ impl GradingTone {
             whites,
             scontrast: 1.0,
         }
+    }
+
+    /// Validate this value with OpenColorIO without applying it to a transform.
+    ///
+    /// Returns an error in stub mode, which cannot perform native validation.
+    pub fn validate(&self) -> crate::Result<()> {
+        let values = self.to_flat_array();
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_grading_tone_value_validate(values.as_ptr(), values.len()) };
+        crate::validation_status()
     }
 
     pub(crate) fn from_flat_array(values: &[f64; 31]) -> Self {

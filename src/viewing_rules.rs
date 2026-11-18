@@ -4,6 +4,11 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstring, OcioError, Result};
 use ocio_sys;
 
+fn checked_index(index: u64) -> Result<usize> {
+    usize::try_from(index)
+        .map_err(|_| OcioError::InvalidInput("viewing rule index does not fit usize".into()))
+}
+
 /// Holds OCIO viewing rules used to select active views for color spaces.
 ///
 /// Viewing rules are attached to a [`crate::Config`] and are typically used to
@@ -76,7 +81,7 @@ impl ViewingRules {
         let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_viewing_rules_get_name(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -94,7 +99,7 @@ impl ViewingRules {
         let count = unsafe {
             ocio_sys::ocio_viewing_rules_get_num_color_spaces(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ) as u64
         };
         crate::ocio_call_status()?;
@@ -118,8 +123,8 @@ impl ViewingRules {
         let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_viewing_rules_get_color_space(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                color_space_index as usize,
+                checked_index(rule_index)?,
+                checked_index(color_space_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -133,7 +138,7 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_add_color_space(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 color_space.as_ptr().cast(),
             )
         };
@@ -159,8 +164,8 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_remove_color_space(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                color_space_index as usize,
+                checked_index(rule_index)?,
+                checked_index(color_space_index)?,
             )
         };
         crate::ocio_call_status()
@@ -177,7 +182,7 @@ impl ViewingRules {
         let count = unsafe {
             ocio_sys::ocio_viewing_rules_get_num_encodings(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ) as u64
         };
         crate::ocio_call_status()?;
@@ -195,8 +200,8 @@ impl ViewingRules {
         let encoding = unsafe {
             cstr_from_mut(ocio_sys::ocio_viewing_rules_get_encoding(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                encoding_index as usize,
+                checked_index(rule_index)?,
+                checked_index(encoding_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -210,7 +215,7 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_add_encoding(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 encoding.as_ptr().cast(),
             )
         };
@@ -236,8 +241,8 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_remove_encoding(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                encoding_index as usize,
+                checked_index(rule_index)?,
+                checked_index(encoding_index)?,
             )
         };
         crate::ocio_call_status()
@@ -254,7 +259,7 @@ impl ViewingRules {
         let count = unsafe {
             ocio_sys::ocio_viewing_rules_get_num_custom_keys(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ) as u64
         };
         crate::ocio_call_status()?;
@@ -274,8 +279,8 @@ impl ViewingRules {
         let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_viewing_rules_get_custom_key_name(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                key_index as usize,
+                checked_index(rule_index)?,
+                checked_index(key_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -295,8 +300,8 @@ impl ViewingRules {
         let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_viewing_rules_get_custom_key_value(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                key_index as usize,
+                checked_index(rule_index)?,
+                checked_index(key_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -304,6 +309,7 @@ impl ViewingRules {
     }
 
     /// Set or replace one custom key/value pair on a rule.
+    /// Set a custom key-value pair. An empty value removes the key.
     pub fn set_custom_key(
         &self,
         rule_index: u64,
@@ -316,7 +322,7 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_set_custom_key(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 key.as_ptr().cast(),
                 value.as_ptr().cast(),
             )
@@ -331,7 +337,7 @@ impl ViewingRules {
         unsafe {
             ocio_sys::ocio_viewing_rules_insert_rule(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 rule_name.as_ptr().cast(),
             )
         };
@@ -355,7 +361,10 @@ impl ViewingRules {
     pub fn try_remove_rule(&self, rule_index: u64) -> Result<()> {
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_viewing_rules_remove_rule(self.handle.as_ptr(), rule_index as usize)
+            ocio_sys::ocio_viewing_rules_remove_rule(
+                self.handle.as_ptr(),
+                checked_index(rule_index)?,
+            )
         };
         crate::ocio_call_status()
     }

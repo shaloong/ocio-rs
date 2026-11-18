@@ -1,5 +1,20 @@
 # Migration Notes
 
+## Unreleased: fallible enum queries and dynamic cache IDs
+
+`FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report
+native values unavailable at the enabled interface level. Their existing
+infallible counterparts retain their compatibility fallbacks. A persistent
+GPU creator may opt into `ShaderCacheIdPolicy` for a single extraction; the
+caller remains responsible for stable cache identity and resource cleanup.
+
+## Unreleased: packed image pointer-step padding
+
+Packed in-place, packed-to-packed and mixed planar conversions support unpadded
+tails by splitting only the affected regions and copying at most a pixel at a
+time. Tight forward RGBA retains the native fast path. A later regional failure
+may leave earlier output modified.
+
 ## Unreleased: extreme RGBA strides
 
 RGBA byte strides above the native C++ `int` maximum are generally rejected instead of
@@ -14,8 +29,8 @@ strides because no second pixel is accessed.
 Positive-stride planar conversion and in-place APIs support unpadded planes by
 splitting only necessary tail regions without copying image data. A failure in
 a later region may leave earlier destination regions modified. Signed-stride
-in-place processing also supports unpadded planes; signed conversions still
-require pointer-step padding.
+in-place processing, planar-to-planar and mixed packed/planar conversion also
+support unpadded planes.
 
 ## Unreleased: transform handle safety
 

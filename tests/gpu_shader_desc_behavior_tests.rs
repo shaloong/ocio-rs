@@ -50,6 +50,428 @@ fn native_creator_borrow_clone_and_extraction_preserve_ownership() {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_texture_result_reflects_native_binding_availability() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    let binding = creator
+        .add_texture_2d(
+            "texture",
+            "sampler",
+            2,
+            1,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            Interpolation::Linear,
+            &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        )
+        .unwrap();
+    assert_eq!(binding.is_some(), ocio_rs::version_hex() >= 0x02050100);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_creator_base_configuration_round_trips() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    creator.set_unique_id("creator-id").unwrap();
+    creator.set_function_name("creator_function").unwrap();
+    creator.set_pixel_name("creator_pixel").unwrap();
+    creator.set_resource_prefix("creator_").unwrap();
+    creator.set_language(GpuLanguage::Glsl4_0).unwrap();
+    assert_eq!(
+        creator.try_unique_id().unwrap().as_deref(),
+        Some("creator-id")
+    );
+    assert_eq!(
+        creator.try_function_name().unwrap().as_deref(),
+        Some("creator_function")
+    );
+    assert_eq!(
+        creator.try_pixel_name().unwrap().as_deref(),
+        Some("creator_pixel")
+    );
+    assert_eq!(
+        creator.try_resource_prefix().unwrap().as_deref(),
+        Some("creator_")
+    );
+    assert_eq!(
+        creator.unique_id_ref().unwrap().unwrap().to_bytes(),
+        b"creator-id"
+    );
+    assert_eq!(
+        creator.function_name_ref().unwrap().unwrap().to_bytes(),
+        b"creator_function"
+    );
+    assert_eq!(
+        creator.pixel_name_ref().unwrap().unwrap().to_bytes(),
+        b"creator_pixel"
+    );
+    assert_eq!(
+        creator.resource_prefix_ref().unwrap().unwrap().to_bytes(),
+        b"creator_"
+    );
+    assert!(!creator
+        .cache_id_ref()
+        .unwrap()
+        .unwrap()
+        .to_bytes()
+        .is_empty());
+    assert_eq!(creator.try_language().unwrap(), GpuLanguage::Glsl4_0);
+    assert!(creator.set_function_name("bad\0name").is_err());
+    assert_eq!(
+        creator.try_function_name().unwrap().as_deref(),
+        Some("creator_function")
+    );
+    let first = creator.try_next_resource_index().unwrap();
+    assert_eq!(creator.try_next_resource_index().unwrap(), first + 1);
+    drop(creator);
+    assert_eq!(desc.try_unique_id().unwrap().as_deref(), Some("creator-id"));
+    assert_eq!(desc.try_language().unwrap(), GpuLanguage::Glsl4_0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_and_descriptor_agree_on_shifted_gpu_languages() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.set_language(GpuLanguage::HlslSm5_0).unwrap();
+    {
+        let mut creator = desc.try_borrow_creator().unwrap();
+        assert_eq!(creator.try_language().unwrap(), GpuLanguage::HlslSm5_0);
+        creator.set_language(GpuLanguage::GlslEs3_0).unwrap();
+    }
+    assert_eq!(desc.try_language().unwrap(), GpuLanguage::GlslEs3_0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_creator_dynamic_properties_keep_shared_ownership() {
+    let _guard = gpu_shader_desc_test_lock();
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.set_exposure(0.5);
+    exposure.make_exposure_dynamic();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    assert_eq!(creator.try_num_dynamic_properties().unwrap(), 0);
+    gpu.try_extract_to_creator(&mut creator).unwrap();
+    assert!(creator
+        .try_has_dynamic_property_kind(DynamicPropertyType::Exposure)
+        .unwrap());
+    assert_eq!(creator.try_num_dynamic_properties().unwrap(), 1);
+    assert!(creator.try_dynamic_property_by_index(1).is_err());
+    let property = creator.try_dynamic_property_by_index(0).unwrap().unwrap();
+    assert!(creator
+        .add_uniform_dynamic_double("manual_exposure", DynamicPropertyType::Exposure)
+        .unwrap());
+    let by_type = creator
+        .try_dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .unwrap();
+    by_type.set_double_value(1.5).unwrap();
+    assert_eq!(property.double_value().unwrap(), 1.5);
+    assert!(creator.add_dynamic_property(&property).is_err());
+    drop(creator);
+    let index = (0..desc.num_uniforms())
+        .find(|&i| desc.uniform(i).is_some_and(|u| u.name == "manual_exposure"))
+        .unwrap();
+    let mut cache = desc.uniform_cache().unwrap();
+    assert_eq!(cache.double(index).unwrap(), Some(1.5));
+    property.set_double_value(1.75).unwrap();
+    assert_eq!(cache.double(index).unwrap(), Some(1.75));
+    drop(cache);
+    drop(desc);
+    property.set_double_value(2.0).unwrap();
+    assert_eq!(property.double_value().unwrap(), 2.0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_creator_shader_sections_are_forwarded() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    creator.set_language(GpuLanguage::Glsl4_0).unwrap();
+    creator.begin("manual").unwrap();
+    creator
+        .add_to_declare_shader_code("// declarations\n")
+        .unwrap();
+    creator
+        .add_to_function_header_shader_code("vec4 test(vec4 c) {\n")
+        .unwrap();
+    creator.add_to_function_shader_code("return c;\n").unwrap();
+    creator.add_to_function_footer_shader_code("}\n").unwrap();
+    creator.finalize().unwrap();
+    creator.end().unwrap();
+    drop(creator);
+    let text = desc.shader_text().unwrap();
+    assert!(text.contains("declarations"));
+    assert!(text.contains("return c;"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_uniform_values_remain_live_after_registration() {
+    use ocio_rs::GpuUniformCopy;
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    let mut floats = [1.0, 2.0];
+    let mut ints = [3, 4];
+    assert!(creator.add_uniform_f64("double", 1.5).unwrap());
+    assert!(creator.add_uniform_bool("bool", true).unwrap());
+    assert!(creator
+        .add_uniform_float3("float3", [0.1, 0.2, 0.3])
+        .unwrap());
+    assert!(creator.add_uniform_f32_array("floats", &floats, 4).unwrap());
+    assert!(creator.add_uniform_i32_array("ints", &ints, 4).unwrap());
+    assert!(!creator.add_uniform_f64("double", 9.0).unwrap());
+    assert!(creator.add_uniform_f32_array("bad", &floats, 1).is_err());
+    floats.fill(99.0);
+    ints.fill(99);
+    drop(creator);
+    let mut cache = desc.uniform_cache().unwrap();
+    assert_eq!(cache.double(0).unwrap(), Some(1.5));
+    let mut out = [0.0; 3];
+    assert_eq!(
+        cache.copy_f32_into(1, &mut out).unwrap(),
+        GpuUniformCopy::Written(1)
+    );
+    assert_eq!(out[0], 1.0);
+    assert_eq!(
+        cache.copy_f32_into(2, &mut out).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(out, [0.1, 0.2, 0.3]);
+    assert_eq!(
+        cache.copy_f32_into(3, &mut out).unwrap(),
+        GpuUniformCopy::Written(2)
+    );
+    assert_eq!(&out[..2], &[1.0, 2.0]);
+    let mut out_ints = [0; 2];
+    assert_eq!(
+        cache.copy_i32_into(4, &mut out_ints).unwrap(),
+        GpuUniformCopy::Written(2)
+    );
+    assert_eq!(out_ints, [3, 4]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_live_scalar_getters_preserve_lifetime_and_contain_panics() {
+    use ocio_rs::GpuUniformCopy;
+    use std::sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let value = Arc::new(AtomicUsize::new(2));
+    let fail = Arc::new(AtomicBool::new(false));
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    let getter_value = Arc::clone(&value);
+    let getter_fail = Arc::clone(&fail);
+    assert!(creator
+        .add_uniform_f64_getter("live", move || {
+            assert!(!getter_fail.load(Ordering::SeqCst), "test panic");
+            getter_value.load(Ordering::SeqCst) as f64
+        })
+        .unwrap());
+    assert!(creator.add_uniform_bool_getter("bool", || true).unwrap());
+    assert!(creator
+        .add_uniform_float3_getter("color", || [1.0, 2.0, 3.0])
+        .unwrap());
+    let duplicate_value = Arc::clone(&value);
+    assert!(!creator
+        .add_uniform_f64_getter("live", move || duplicate_value.load(Ordering::SeqCst)
+            as f64)
+        .unwrap());
+    assert_eq!(Arc::strong_count(&value), 2);
+    drop(creator);
+    let mut cache = desc.uniform_cache().unwrap();
+    assert_eq!(cache.double(0).unwrap(), Some(2.0));
+    value.store(5, Ordering::SeqCst);
+    assert_eq!(cache.double(0).unwrap(), Some(5.0));
+    let mut out = [0.0; 3];
+    assert_eq!(
+        cache.copy_f32_into(1, &mut out).unwrap(),
+        GpuUniformCopy::Written(1)
+    );
+    assert_eq!(out[0], 1.0);
+    assert_eq!(
+        cache.copy_f32_into(2, &mut out).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(out, [1.0, 2.0, 3.0]);
+    fail.store(true, Ordering::SeqCst);
+    assert!(cache.double(0).is_err());
+    fail.store(false, Ordering::SeqCst);
+    assert_eq!(cache.double(0).unwrap(), Some(5.0));
+    drop(cache);
+    drop(desc);
+    assert_eq!(Arc::strong_count(&value), 1);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_live_array_getters_refresh_and_recover() {
+    use ocio_rs::GpuUniformCopy;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let _guard = gpu_shader_desc_test_lock();
+    let count = Arc::new(AtomicUsize::new(2));
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    let count_f = Arc::clone(&count);
+    assert!(creator
+        .add_uniform_f32_array_getter("floats", 3, move |buffer| {
+            buffer.copy_from_slice(&[1.0, 2.0, 3.0]);
+            let n = count_f.load(Ordering::SeqCst);
+            assert_ne!(n, 5, "test panic");
+            n
+        })
+        .unwrap());
+    let count_i = Arc::clone(&count);
+    assert!(creator
+        .add_uniform_i32_array_getter("ints", 3, move |buffer| {
+            buffer.copy_from_slice(&[4, 5, 6]);
+            count_i.load(Ordering::SeqCst)
+        })
+        .unwrap());
+    assert!(!creator
+        .add_uniform_i32_array_getter("ints", 3, |_| 0)
+        .unwrap());
+    drop(creator);
+    let mut cache = desc.uniform_cache().unwrap();
+    let mut floats = [0.0; 3];
+    let mut ints = [0; 3];
+    assert_eq!(
+        cache.copy_f32_into(0, &mut floats).unwrap(),
+        GpuUniformCopy::Written(2)
+    );
+    assert_eq!(&floats[..2], &[1.0, 2.0]);
+    assert_eq!(
+        cache.copy_i32_into(1, &mut ints).unwrap(),
+        GpuUniformCopy::Written(2)
+    );
+    assert_eq!(&ints[..2], &[4, 5]);
+    count.store(4, Ordering::SeqCst);
+    assert!(cache.copy_f32_into(0, &mut floats).is_err());
+    assert!(cache.copy_i32_into(1, &mut ints).is_err());
+    count.store(5, Ordering::SeqCst);
+    assert!(cache.copy_f32_into(0, &mut floats).is_err());
+    count.store(3, Ordering::SeqCst);
+    assert_eq!(
+        cache.copy_f32_into(0, &mut floats).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    assert_eq!(
+        cache.copy_i32_into(1, &mut ints).unwrap(),
+        GpuUniformCopy::Written(3)
+    );
+    drop(cache);
+    drop(desc);
+    assert_eq!(Arc::strong_count(&count), 1);
+}
+
+#[test]
+#[cfg(feature = "v2_5")]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_descriptor_binding_checks_match_descriptor() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    desc.add_texture_2d(
+        "one",
+        "sampler_one",
+        2,
+        1,
+        ocio_rs::GpuTextureChannel::Red,
+        ocio_rs::GpuTextureDimensions::Texture1D,
+        Interpolation::Linear,
+        &[0.0, 1.0],
+    )
+    .unwrap();
+    desc.add_texture_2d(
+        "two",
+        "sampler_two",
+        2,
+        1,
+        ocio_rs::GpuTextureChannel::Red,
+        ocio_rs::GpuTextureDimensions::Texture1D,
+        Interpolation::Linear,
+        &[0.0, 1.0],
+    )
+    .unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    creator.try_set_descriptor_set_index(3, 7).unwrap();
+    assert_eq!(creator.try_descriptor_set_index().unwrap(), 3);
+    assert_eq!(creator.try_texture_binding_start().unwrap(), 7);
+    assert!(creator.try_set_descriptor_set_index(4, 0).is_err());
+    assert!(creator.try_set_descriptor_set_index(4, u32::MAX).is_err());
+    assert_eq!(creator.try_descriptor_set_index().unwrap(), 3);
+    assert_eq!(creator.try_texture_binding_start().unwrap(), 7);
+}
+
+#[test]
+#[cfg(feature = "v2_5")]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_texture_registration_checks_bindings_and_lengths() {
+    let _guard = gpu_shader_desc_test_lock();
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let mut creator = desc.try_borrow_creator().unwrap();
+    creator.try_set_descriptor_set_index(2, u32::MAX).unwrap();
+    assert!(creator
+        .add_texture_2d(
+            "invalid",
+            "invalid_s",
+            2,
+            1,
+            ocio_rs::GpuTextureChannel::Red,
+            ocio_rs::GpuTextureDimensions::Texture1D,
+            Interpolation::Linear,
+            &[0.0]
+        )
+        .is_err());
+    assert_eq!(
+        creator
+            .add_texture_2d(
+                "valid",
+                "valid_s",
+                2,
+                1,
+                ocio_rs::GpuTextureChannel::Red,
+                ocio_rs::GpuTextureDimensions::Texture1D,
+                Interpolation::Linear,
+                &[0.0, 1.0]
+            )
+            .unwrap(),
+        Some(u32::MAX)
+    );
+    assert!(creator
+        .add_texture_3d(
+            "overflow",
+            "overflow_s",
+            2,
+            Interpolation::Linear,
+            &[0.0; 24]
+        )
+        .is_err());
+    drop(creator);
+    assert_eq!(desc.num_textures(), 1);
+    assert_eq!(desc.num_3d_textures(), 0);
+}
+
+#[test]
 #[cfg(ocio_stub)]
 fn native_creator_borrow_reports_stub_unavailability() {
     let mut desc = GpuShaderDesc::create().unwrap();
@@ -217,6 +639,165 @@ fn persistent_texture_policy_survives_calls_and_reports_callback_errors() {
     assert_eq!(detached.try_texture_max_width().unwrap(), 64);
     assert_eq!(calls.get(), after_detach);
     assert_eq!(detached.num_textures(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn persistent_cache_policy_drives_native_keys_and_detaches_after_failure() {
+    use ocio_rs::{OcioError, PersistentPolicyCreator, ShaderCacheIdPolicy, ShaderTexturePolicy};
+    use std::ffi::{CStr, CString};
+
+    struct Policy {
+        id: CString,
+        mode: u8,
+        calls: usize,
+        width_queries: usize,
+        stored_width: u32,
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            self.width_queries += 1;
+            Ok(4096)
+        }
+        fn set_texture_max_width(&mut self, width: u32) -> ocio_rs::Result<()> {
+            self.stored_width = width;
+            Ok(())
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(true)
+        }
+    }
+    impl ShaderCacheIdPolicy for Policy {
+        fn cache_id(&mut self) -> ocio_rs::Result<&CStr> {
+            self.calls += 1;
+            match self.mode {
+                1 => Err(OcioError::InvalidInput("cache rejected".into())),
+                2 => panic!("cache panic"),
+                3 => Ok(c""),
+                _ => Ok(self.id.as_c_str()),
+            }
+        }
+    }
+    impl ocio_rs::ShaderClonePolicy for Policy {
+        fn clone_creator(&mut self) -> ocio_rs::Result<ocio_rs::GpuShaderCreator<'static>> {
+            match self.mode {
+                1 => return Err(OcioError::InvalidInput("clone rejected".into())),
+                2 => panic!("clone panic"),
+                _ => {}
+            }
+            let mut desc = GpuShaderDesc::create()?;
+            desc.set_function_name("policy_clone")?;
+            let borrowed = desc.try_borrow_creator()?;
+            borrowed.try_clone_creator()
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(3).unwrap();
+    lut.set_values(&[0., 0., 0., 0.2, 0.3, 0.4, 1., 1., 1.])
+        .unwrap();
+    let gpu = config
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .default_gpu_processor()
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    let mut creator = PersistentPolicyCreator::create(
+        &template,
+        Policy {
+            id: CString::new("dynamic-a").unwrap(),
+            mode: 1,
+            calls: 0,
+            width_queries: 0,
+            stored_width: 0,
+        },
+        c"fixed-id",
+    )
+    .unwrap();
+    assert!(
+        matches!(creator.try_clone_with_policy(), Err(OcioError::InvalidInput(message)) if message == "clone rejected")
+    );
+    assert!(
+        matches!(creator.try_query_cache_policy(), Err(OcioError::InvalidInput(message)) if message == "cache rejected")
+    );
+    assert!(
+        matches!(creator.try_extract_with_cache_policy(&gpu), Err(OcioError::InvalidInput(message)) if message == "cache rejected")
+    );
+    assert_eq!(creator.try_num_textures().unwrap(), 0);
+    assert_eq!(creator.try_cache_id().unwrap().as_deref(), Some("fixed-id"));
+    creator.policy_mut().mode = 2;
+    assert!(
+        matches!(creator.try_clone_with_policy(), Err(OcioError::InvalidInput(message)) if message.contains("clone callback panicked"))
+    );
+    assert!(creator.try_query_cache_policy().is_err());
+    assert!(creator.try_extract_with_cache_policy(&gpu).is_err());
+    creator.policy_mut().mode = 3;
+    assert!(creator.try_query_cache_policy().is_err());
+    assert!(creator.try_extract_with_cache_policy(&gpu).is_err());
+    assert_eq!(creator.try_num_textures().unwrap(), 0);
+    creator.set_extraction_cache_policy(true);
+    assert!(creator.try_extract(&gpu).is_err());
+    assert_eq!(creator.try_num_textures().unwrap(), 0);
+    creator.policy_mut().mode = 0;
+    let mut clone = creator.try_clone_with_policy().unwrap();
+    assert_eq!(
+        clone.try_function_name().unwrap().as_deref(),
+        Some("policy_clone")
+    );
+    assert_eq!(creator.try_query_cache_policy().unwrap(), "dynamic-a");
+    assert_eq!(creator.try_cache_id().unwrap().as_deref(), Some("fixed-id"));
+    assert_eq!(creator.try_num_textures().unwrap(), 0);
+    creator.try_extract(&gpu).unwrap();
+    assert!(creator.policy_mut().calls >= 4);
+    let first = creator.try_texture_2d(0).unwrap().unwrap().texture_name;
+    creator.policy_mut().id = CString::new("dynamic-b").unwrap();
+    creator.try_extract(&gpu).unwrap();
+    let second = creator.try_texture_2d(1).unwrap().unwrap().texture_name;
+    assert_ne!(first, second);
+    assert_eq!(creator.try_cache_id().unwrap().as_deref(), Some("fixed-id"));
+    creator.try_set_texture_max_width(1024).unwrap();
+    creator.set_function_name("forked_function").unwrap();
+    let width_queries = creator.policy_mut().width_queries;
+    let mut fork = creator
+        .try_fork_with_policy(
+            Policy {
+                id: CString::new("dynamic-fork").unwrap(),
+                mode: 0,
+                calls: 0,
+                width_queries: 0,
+                stored_width: 0,
+            },
+            c"fork-id",
+        )
+        .unwrap();
+    assert_eq!(creator.policy_mut().width_queries, width_queries);
+    assert_eq!(fork.policy_mut().stored_width, 1024);
+    assert_eq!(fork.try_num_textures().unwrap(), 0);
+    assert_eq!(fork.try_cache_id().unwrap().as_deref(), Some("fork-id"));
+    creator.set_extraction_cache_policy(false);
+    let calls_before_default_extraction = creator.policy_mut().calls;
+    creator.try_extract(&gpu).unwrap();
+    assert_eq!(creator.policy_mut().calls, calls_before_default_extraction);
+    assert_eq!(creator.try_num_textures().unwrap(), 3);
+    let detached = creator.finish().unwrap();
+    fork.try_extract(&gpu).unwrap();
+    assert!(fork.policy_mut().calls > 0);
+    assert_eq!(fork.try_num_textures().unwrap(), 1);
+    assert!(fork
+        .try_shader_text()
+        .unwrap()
+        .unwrap()
+        .contains("forked_function"));
+    gpu.try_extract_to_creator(&mut clone).unwrap();
+    assert_eq!(
+        clone.try_function_name().unwrap().as_deref(),
+        Some("policy_clone")
+    );
+    assert_eq!(
+        detached.try_cache_id().unwrap().as_deref(),
+        Some("fixed-id")
+    );
 }
 
 #[test]
@@ -484,6 +1065,65 @@ fn persistent_resource_control_retains_uniform_getters_and_contains_failures() {
     }
 }
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn failed_native_texture_storage_does_not_consume_binding() {
+    use ocio_rs::{
+        PersistentPolicyCreator, ShaderTexture, ShaderTextureAction, ShaderTextureControl,
+        ShaderTexturePolicy,
+    };
+    struct Policy {
+        width: u32,
+        proposals: Vec<u32>,
+    }
+    impl ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            Ok(self.width)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    impl ShaderTextureControl for Policy {
+        fn register_texture(
+            &mut self,
+            texture: ShaderTexture<'_>,
+        ) -> ocio_rs::Result<ShaderTextureAction> {
+            self.proposals.push(texture.suggested_binding.unwrap());
+            Ok(ShaderTextureAction::StoreInDescriptor { binding: None })
+        }
+    }
+    let _guard = gpu_shader_desc_test_lock();
+    let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+    lut.set_length(4).unwrap();
+    lut.set_values(&[0., 0., 0., 0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 1., 1., 1.])
+        .unwrap();
+    let gpu = ocio_rs::Config::raw()
+        .unwrap()
+        .processor_from_transform(&lut, TransformDirection::Forward)
+        .unwrap()
+        .optimized_gpu_processor(0)
+        .unwrap();
+    let template = GpuShaderDesc::create().unwrap();
+    template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    template.set_texture_max_width(2).unwrap();
+    let mut creator = PersistentPolicyCreator::create_with_texture_control(
+        &template,
+        Policy {
+            width: 4,
+            proposals: Vec::new(),
+        },
+        c"retry-binding",
+    )
+    .unwrap();
+    assert!(creator.try_extract(&gpu).is_err());
+    creator.try_set_texture_max_width(4).unwrap();
+    creator.set_cache_id(c"retry-binding-2").unwrap();
+    creator.try_extract(&gpu).unwrap();
+    assert_eq!(creator.policy_mut().proposals, [1, 1]);
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn persistent_hooks_rewrite_code_and_preserve_first_error() {
@@ -599,6 +1239,50 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
         .default_gpu_processor()
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
+    for mode in [0, 2, 5, 12, 13] {
+        let policy = Policy {
+            events: Vec::new(),
+            mode,
+            assemblies: 0,
+        };
+        let mut creator =
+            PersistentPolicyCreator::create_with_finalizer(&template, policy, c"manual").unwrap();
+        let result = creator.try_assemble_fragments(
+            c"manual-id",
+            &[(ShaderCodeSection::Body, c"// caller fragment")],
+        );
+        match mode {
+            0 | 12 => {
+                result.unwrap();
+                let text = creator.try_shader_text().unwrap().unwrap();
+                if mode == 0 {
+                    assert!(
+                        text.contains("// persistent hook") && text.contains("// caller fragment")
+                    );
+                } else {
+                    assert!(text.contains("// persistent finalizer"));
+                }
+                assert_eq!(creator.policy_mut().events, ["begin", "finalized", "end"]);
+            }
+            2 | 5 | 13 => {
+                let expected = match mode {
+                    2 => "code rejected",
+                    5 => "begin rejected",
+                    _ => "finalizer rejected",
+                };
+                assert!(
+                    matches!(result, Err(ocio_rs::OcioError::InvalidInput(message)) if message == expected)
+                );
+                let events: &[_] = if mode == 5 {
+                    &["begin"]
+                } else {
+                    &["begin", "end"]
+                };
+                assert_eq!(creator.policy_mut().events, events);
+            }
+            _ => unreachable!(),
+        }
+    }
     for mode in 0..=15 {
         let policy = Policy {
             events: Vec::new(),
@@ -635,6 +1319,24 @@ fn persistent_hooks_rewrite_code_and_preserve_first_error() {
                     .unwrap()
                     .unwrap()
                     .contains("// persistent finalizer"));
+                let mut fork = creator
+                    .try_fork_with_policy(
+                        Policy {
+                            events: Vec::new(),
+                            mode: 12,
+                            assemblies: 0,
+                        },
+                        c"forked-finalizer",
+                    )
+                    .unwrap();
+                fork.try_extract(&gpu).unwrap();
+                assert!(fork
+                    .try_shader_text()
+                    .unwrap()
+                    .unwrap()
+                    .contains("// persistent finalizer"));
+                assert_eq!(fork.policy_mut().events, ["begin", "finalized", "end"]);
+                assert_eq!(creator.policy_mut().events, ["begin", "finalized", "end"]);
             }
             if mode == 6 {
                 assert!(creator
@@ -1287,6 +1989,49 @@ fn checked_extraction_probes_optimized_lut_without_mutating_target_on_failure() 
     assert_eq!(inverse_desc.num_textures(), 0);
 }
 
+// Extracting this layout on an unpatched native library can exhaust memory.
+// Build metadata identifies the actual source, not merely the bundled feature.
+#[cfg(ocio_vendored_lut_rows_fixed)]
+#[test]
+fn vendored_lut_packing_keeps_the_final_interpolation_row() {
+    let _guard = gpu_shader_desc_test_lock();
+    for middle in [[0.25, 0.25, 0.25], [0.25, 0.5, 0.75]] {
+        // OCIO's config cache key does not include all in-memory LUT entries.
+        let config = ocio_rs::Config::raw().unwrap();
+        let lut = ocio_rs::transform::Lut1DTransform::create().unwrap();
+        lut.set_length(3).unwrap();
+        lut.set_values(&[0., 0., 0., middle[0], middle[1], middle[2], 1., 1., 1.])
+            .unwrap();
+        let gpu = config
+            .processor_from_transform(&lut, TransformDirection::Forward)
+            .unwrap()
+            .optimized_gpu_processor(0)
+            .unwrap();
+        let mut desc = GpuShaderDesc::create().unwrap();
+        desc.set_texture_max_width(2).unwrap();
+        gpu.try_extract_shader_info(&mut desc).unwrap();
+        assert_eq!(desc.num_textures(), 1);
+        let texture = desc.try_texture_2d(0).unwrap().unwrap();
+        assert_eq!((texture.width, texture.height), (2, 3));
+        assert_eq!(texture.dimensions, GpuTextureDimensions::Texture2D);
+        let channels = if middle[0] == middle[1] { 1 } else { 3 };
+        assert_eq!(
+            texture.channel,
+            if channels == 1 {
+                ocio_rs::GpuTextureChannel::Red
+            } else {
+                ocio_rs::GpuTextureChannel::Rgb
+            }
+        );
+        let expected: Vec<_> = [[0.; 3], middle, middle, [1.; 3], [1.; 3], [1.; 3]]
+            .into_iter()
+            .flat_map(|texel| texel.into_iter().take(channels))
+            .map(|value| value as f32)
+            .collect();
+        assert_eq!(texture.values, expected);
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
@@ -1743,6 +2488,61 @@ fn texture_control_mixes_native_and_external_resources() {
     {
         let vk_template = GpuShaderDesc::create().unwrap();
         vk_template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+        let mut proposed_bindings = Vec::new();
+        let desc = gpu
+            .try_extract_with_texture_control(&vk_template, &mut Hooks, None, |texture| {
+                let proposed = texture.suggested_binding.unwrap();
+                proposed_bindings.push(proposed);
+                Ok(ShaderTextureAction::StoreInDescriptor {
+                    binding: if proposed_bindings.len() == 1 {
+                        Some(proposed + 1)
+                    } else {
+                        None
+                    },
+                })
+            })
+            .unwrap();
+        assert_eq!(proposed_bindings.len(), 2);
+        assert_eq!(proposed_bindings[1], proposed_bindings[0] + 2);
+        let shader = desc.shader_text().unwrap();
+        assert!(shader.contains(&format!("binding = {}", proposed_bindings[0] + 1)));
+        assert!(shader.contains(&format!("binding = {}", proposed_bindings[1])));
+        struct SkipOccupied(Vec<u32>);
+        impl ocio_rs::ShaderTexturePolicy for SkipOccupied {
+            fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+                Ok(4096)
+            }
+            fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+                Ok(true)
+            }
+        }
+        impl ocio_rs::ShaderTextureControl for SkipOccupied {
+            fn register_texture(
+                &mut self,
+                texture: ocio_rs::ShaderTexture<'_>,
+            ) -> ocio_rs::Result<ShaderTextureAction> {
+                let proposed = texture.suggested_binding.unwrap();
+                self.0.push(proposed);
+                Ok(ShaderTextureAction::StoreInDescriptor {
+                    binding: (self.0.len() == 1).then_some(proposed + 1),
+                })
+            }
+        }
+        let mut creator = ocio_rs::PersistentPolicyCreator::create_with_texture_control(
+            &vk_template,
+            SkipOccupied(Vec::new()),
+            c"persistent-skip-occupied",
+        )
+        .unwrap();
+        creator.try_extract(&gpu).unwrap();
+        let proposed = &creator.policy_mut().0;
+        assert_eq!(proposed.len(), 2);
+        assert_eq!(proposed[1], proposed[0] + 2);
+        let desc = creator.finish().unwrap();
+        assert_ne!(
+            desc.texture_shader_binding_index(0),
+            desc.texture_3d_shader_binding_index(0)
+        );
         let policy = PersistentControl {
             external_first: true,
             seen: Vec::new(),
@@ -3315,6 +4115,17 @@ fn streamed_texture_bindings_are_global_and_control_shader_code() {
     assert_eq!(proposed, [7, 8]);
     assert!(desc.shader_text().unwrap().contains("binding = 42"));
     assert!(desc.shader_text().unwrap().contains("binding = 43"));
+    let mut collision_proposals = Vec::new();
+    let desc = gpu
+        .try_extract_with_streamed_textures(&template, &mut Hooks, |tex| {
+            let proposed = tex.suggested_binding.unwrap();
+            collision_proposals.push(proposed);
+            Ok((collision_proposals.len() == 1).then_some(proposed + 1))
+        })
+        .unwrap();
+    assert_eq!(collision_proposals, [7, 9]);
+    assert!(desc.shader_text().unwrap().contains("binding = 8"));
+    assert!(desc.shader_text().unwrap().contains("binding = 9"));
     assert!(gpu
         .try_extract_with_streamed_textures(&template, &mut Hooks, |_| Ok(Some(42)))
         .is_err());
@@ -3395,6 +4206,32 @@ fn rust_shader_texture_callback_checks_bindings_across_texture_types() {
         .unwrap();
     let template = GpuShaderDesc::create().unwrap();
     template.set_language(GpuLanguage::GlslVk4_6).unwrap();
+    let mut proposals = Vec::new();
+    let collision_free = gpu
+        .try_extract_with_texture_callback(
+            &template,
+            |p| {
+                Ok(format!(
+                    "{}{}{}{}{}{}",
+                    p.parameters, p.textures, p.helpers, p.header, p.body, p.footer
+                ))
+            },
+            |texture| {
+                let proposed = texture.suggested_binding.unwrap();
+                proposals.push(proposed);
+                Ok((proposals.len() == 1).then_some(proposed + 1))
+            },
+        )
+        .unwrap();
+    assert_eq!(proposals, [1, 3]);
+    assert!(collision_free
+        .shader_text()
+        .unwrap()
+        .contains("binding = 2"));
+    assert!(collision_free
+        .shader_text()
+        .unwrap()
+        .contains("binding = 3"));
     let mut next = 41;
     let desc = gpu
         .try_extract_with_texture_callback(
@@ -3650,6 +4487,10 @@ fn gpu_texture_values_borrow_native_storage() {
     let cube = [0.5; 24];
     desc.add_texture_3d("cube", "cubeSampler", 2, Interpolation::Linear, &cube)
         .unwrap();
+    assert_eq!(desc.try_texture_value_count(0).unwrap(), samples.len());
+    assert_eq!(desc.try_texture_3d_value_count(0).unwrap(), cube.len());
+    assert!(desc.try_texture_value_count(99).is_err());
+    assert!(desc.try_texture_3d_value_count(99).is_err());
     assert_eq!(desc.texture_values_ref(0).unwrap(), &samples);
     assert_eq!(desc.texture_3d_values_ref(0).unwrap(), &cube);
     assert!(desc.texture_values_ref(99).is_err());
@@ -4461,6 +5302,10 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(tex2d.interpolation, Interpolation::Linear);
     assert_eq!(tex2d.binding_index, Some(5));
     assert_eq!(tex2d.values, values_2d);
+    assert_eq!(desc.try_texture_value_count(0).unwrap(), values_2d.len());
+    assert!(desc.try_texture_value_count(99).is_err());
+    assert_eq!(desc.texture_value_count(99), 0);
+    assert_eq!(desc.try_texture_value_count(0).unwrap(), values_2d.len());
 
     let values_3d = vec![
         0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0,
@@ -4495,6 +5340,10 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(queried_tex3d.texture_name, tex3d.texture_name);
     assert_eq!(queried_tex3d.sampler_name, tex3d.sampler_name);
     assert_eq!(queried_tex3d.values, tex3d.values);
+    assert_eq!(desc.try_texture_3d_value_count(0).unwrap(), values_3d.len());
+    assert!(desc.try_texture_3d_value_count(99).is_err());
+    assert_eq!(desc.texture_3d_value_count(99), 0);
+    assert_eq!(desc.try_texture_3d_value_count(0).unwrap(), values_3d.len());
     assert!(desc.try_texture_3d(99).is_err());
     assert!(desc.texture_3d(99).is_none());
 }
@@ -5115,7 +5964,7 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         );
         assert!(inserted_2d);
         assert!(inserted_3d);
-        if ocio_rs::version_hex() >= 0x02050000 {
+        if ocio_rs::version_hex() >= 0x02050100 {
             assert!(has_binding_2d);
             assert!(has_binding_3d);
             assert_eq!(binding_3d, binding_2d + 1);

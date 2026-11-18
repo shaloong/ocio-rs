@@ -11,6 +11,55 @@ fn round_trip<T: OcioEnumText + std::fmt::Debug + PartialEq>(value: T) {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_enum_bridge_rejects_unavailable_slots_before_native_conversion() {
+    use ocio_rs::ocio_sys;
+    fn rejected(kind: i32, value: i32) {
+        // The raw conversion handles errors through its thread-local slot.
+        unsafe {
+            ocio_sys::ocio_error_clear_last();
+            let string = ocio_sys::ocio_enum_to_string(kind, value);
+            let has_error = !ocio_sys::ocio_error_get_last().is_null();
+            ocio_sys::ocio_error_clear_last();
+            assert!(string.is_null() && has_error, "kind {kind}, value {value}");
+        }
+    }
+    fn available(kind: i32, value: i32) {
+        unsafe {
+            ocio_sys::ocio_error_clear_last();
+            let string = ocio_sys::ocio_enum_to_string(kind, value);
+            assert!(!string.is_null(), "kind {kind}, value {value}");
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+            assert_eq!(ocio_sys::ocio_enum_from_string(kind, string), value);
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+        }
+    }
+    let native = ocio_rs::version_hex();
+    if native < 0x02050000 {
+        rejected(6, 4); // Vulkan must not map to 2.4's HLSL.
+        rejected(10, 20); // HSY is not present.
+    } else {
+        available(6, 4);
+        for style in 20..=22 {
+            available(10, style);
+        }
+    }
+    if native < 0x02060000 {
+        rejected(10, 23); // HMJ is not present.
+    } else {
+        available(10, 23);
+    }
+    for kind in [6, 10] {
+        rejected(kind, -1);
+        rejected(kind, i32::MAX);
+    }
+    assert_eq!(
+        GpuLanguage::HlslSm5_0.to_ocio_string().unwrap(),
+        "hlsl_sm_5.0"
+    );
+}
+
+#[test]
 #[allow(deprecated)]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn native_enum_conversions_preserve_ocio_semantics() {

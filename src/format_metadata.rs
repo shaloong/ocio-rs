@@ -4,6 +4,15 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstr_to_opt_string, cstring, Result};
 use ocio_sys;
 
+fn stream_metadata(handle: NonNull<c_void>, is_const: bool) -> Result<String> {
+    crate::clear_last_error();
+    let ptr = unsafe { ocio_sys::ocio_format_metadata_stream(handle.as_ptr(), is_const) };
+    crate::ocio_call_status()?;
+    unsafe { cstr_to_opt_string(ptr) }.ok_or_else(|| {
+        crate::OcioError::ValidationFailed("native metadata stream returned null".into())
+    })
+}
+
 /// Structured metadata attached to transforms and baked outputs.
 pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
@@ -17,6 +26,11 @@ pub struct ConstFormatMetadata {
     pub(crate) handle: NonNull<c_void>,
 }
 impl ConstFormatMetadata {
+    /// Format metadata using OCIO's native stream operator. This is diagnostic
+    /// text, not an XML serializer, and is copied into a Rust-owned string.
+    pub fn to_native_string(&self) -> Result<String> {
+        stream_metadata(self.handle, true)
+    }
     fn text(
         &self,
         field: i32,
@@ -104,13 +118,36 @@ impl Drop for ConstFormatMetadata {
 }
 
 impl FormatMetadata {
+    /// Format metadata using OCIO's native stream operator. This is diagnostic
+    /// text, not an XML serializer, and is copied into a Rust-owned string.
+    pub fn to_native_string(&self) -> Result<String> {
+        stream_metadata(self.handle, false)
+    }
+    fn read_text(
+        &self,
+        read: impl FnOnce(*mut c_void) -> *const std::ffi::c_char,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe { cstr_to_opt_string(read(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    fn read_count(&self, read: impl FnOnce(*mut c_void) -> i32) -> Result<i32> {
+        crate::clear_last_error();
+        let value = read(self.handle.as_ptr());
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
     /// Get the element name.
     pub fn element_name(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_element_name(
-                self.handle.as_ptr(),
-            ))
-        }
+        self.try_element_name().ok().flatten()
+    }
+
+    /// Get the element name, reporting an invalidated handle.
+    pub fn try_element_name(&self) -> Result<Option<String>> {
+        self.read_text(|handle| unsafe { ocio_sys::ocio_format_metadata_get_element_name(handle) })
     }
 
     /// Set the element name.
@@ -128,11 +165,12 @@ impl FormatMetadata {
 
     /// Get the element value.
     pub fn element_value(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_element_value(
-                self.handle.as_ptr(),
-            ))
-        }
+        self.try_element_value().ok().flatten()
+    }
+
+    /// Get the element value, reporting an invalidated handle.
+    pub fn try_element_value(&self) -> Result<Option<String>> {
+        self.read_text(|handle| unsafe { ocio_sys::ocio_format_metadata_get_element_value(handle) })
     }
 
     /// Set the element value.
@@ -150,19 +188,26 @@ impl FormatMetadata {
 
     /// Get the number of attributes on this metadata element.
     pub fn num_attributes(&self) -> i32 {
-        unsafe {
-            ocio_sys::ocio_format_metadata_get_num_attributes(self.handle.as_ptr() as *mut c_void)
-        }
+        self.try_num_attributes().unwrap_or_default()
+    }
+
+    /// Get the attribute count, reporting an invalidated handle.
+    pub fn try_num_attributes(&self) -> Result<i32> {
+        self.read_count(|handle| unsafe {
+            ocio_sys::ocio_format_metadata_get_num_attributes(handle)
+        })
     }
 
     /// Get the attribute name at the given index.
     pub fn attribute_name(&self, i: i32) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_attribute_name(
-                self.handle.as_ptr(),
-                i,
-            ))
-        }
+        self.try_attribute_name(i).ok().flatten()
+    }
+
+    /// Get an attribute name, reporting an invalidated handle.
+    pub fn try_attribute_name(&self, i: i32) -> Result<Option<String>> {
+        self.read_text(|handle| unsafe {
+            ocio_sys::ocio_format_metadata_get_attribute_name(handle, i)
+        })
     }
 
     /// Get the attribute value at the given index.
@@ -219,11 +264,14 @@ impl FormatMetadata {
 
     /// Get the number of child elements.
     pub fn num_children(&self) -> i32 {
-        unsafe {
-            ocio_sys::ocio_format_metadata_get_num_children_elements(
-                self.handle.as_ptr() as *mut c_void
-            )
-        }
+        self.try_num_children().unwrap_or_default()
+    }
+
+    /// Get the child count, reporting an invalidated handle.
+    pub fn try_num_children(&self) -> Result<i32> {
+        self.read_count(|handle| unsafe {
+            ocio_sys::ocio_format_metadata_get_num_children_elements(handle)
+        })
     }
 
     /// Get a live child element at the given index.
@@ -273,13 +321,43 @@ impl FormatMetadata {
         crate::ocio_call_status()
     }
 
+    /// Replace this element with a deep copy of `source`, matching native
+    /// metadata assignment. Existing descendants of this element are
+    /// invalidated, including if native assignment fails after it begins.
+    /// Assigning an element to itself is a no-op. Overlapping source and
+    /// destination trees are supported by snapshotting the source first.
+    pub fn assign(&self, source: &FormatMetadata) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_format_metadata_assign(self.handle.as_ptr(), source.handle.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Replace this element with a copy of processor-owned read-only metadata.
+    ///
+    /// This copies directly from the native processor metadata without first
+    /// creating an editable intermediate. Existing descendants are invalidated
+    /// before assignment, including if native assignment subsequently fails.
+    pub fn assign_const(&self, source: &ConstFormatMetadata) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_format_metadata_assign_const(
+                self.handle.as_ptr(),
+                source.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Get the name of this metadata element.
     pub fn name(&self) -> Option<String> {
-        unsafe {
-            cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_name(
-                self.handle.as_ptr(),
-            ))
-        }
+        self.try_name().ok().flatten()
+    }
+
+    /// Get the name attribute, reporting an invalidated handle.
+    pub fn try_name(&self) -> Result<Option<String>> {
+        self.read_text(|handle| unsafe { ocio_sys::ocio_format_metadata_get_name(handle) })
     }
 
     /// Set the name of this metadata element.
@@ -292,7 +370,12 @@ impl FormatMetadata {
 
     /// Get the ID of this metadata element.
     pub fn id(&self) -> Option<String> {
-        unsafe { cstr_to_opt_string(ocio_sys::ocio_format_metadata_get_id(self.handle.as_ptr())) }
+        self.try_id().ok().flatten()
+    }
+
+    /// Get the ID attribute, reporting an invalidated handle.
+    pub fn try_id(&self) -> Result<Option<String>> {
+        self.read_text(|handle| unsafe { ocio_sys::ocio_format_metadata_get_id(handle) })
     }
 
     /// Set the ID of this metadata element.

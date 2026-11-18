@@ -17,11 +17,22 @@ impl BuiltinTransformRegistry {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Return the number of registered built-in styles.
+    /// Return the number of registered built-in styles, or zero on error or overflow.
     pub fn num_builtins(&self) -> i32 {
-        unsafe {
-            ocio_sys::ocio_builtin_transform_registry_get_num_builtins(self.handle.as_ptr()) as i32
-        }
+        self.try_num_builtins()
+            .ok()
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or(0)
+    }
+
+    /// Return the full native count, preserving bridge failures.
+    pub fn try_num_builtins(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_builtin_transform_registry_get_num_builtins(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return the stable OCIO style identifier at `index`.

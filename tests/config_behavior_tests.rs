@@ -594,6 +594,16 @@ fn config_virtual_display_shared_view_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn family_separator_rejects_unicode_without_truncating() {
+    let _guard = config_test_lock();
+    let config = create_test_config().unwrap();
+    config.try_set_family_separator('/').unwrap();
+    assert!(config.try_set_family_separator('\u{013a}').is_err());
+    assert_eq!(config.family_separator(), '/');
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_role_mutation_errors_surface_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -608,6 +618,16 @@ fn config_role_mutation_errors_surface_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+
+    let before = config.num_roles();
+    config.set_role("UnitRemovableRole", "raw").unwrap();
+    assert!(config.has_role("UnitRemovableRole"));
+    assert_eq!(config.num_roles(), before + 1);
+    config.remove_role("UNITREMOVABLEROLE").unwrap();
+    assert!(!config.has_role("UnitRemovableRole"));
+    assert_eq!(config.num_roles(), before);
+    config.remove_role("UnitRemovableRole").unwrap();
+    assert!(config.remove_role("").is_err());
 }
 
 #[test]

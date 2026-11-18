@@ -43,6 +43,81 @@ fn configured_lut3d_transform() -> Lut3DTransform {
     transform
 }
 
+#[cfg(all(windows, target_pointer_width = "64"))]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_lut_bridge_rejects_values_that_would_truncate_on_llp64() {
+    use ocio_rs::ocio_sys::*;
+    use std::ffi::c_void;
+    use std::ptr::null_mut;
+
+    fn rejects(action: impl FnOnce()) {
+        unsafe { ocio_error_clear_last() };
+        action();
+        let failed = unsafe { !ocio_error_get_last().is_null() };
+        unsafe { ocio_error_clear_last() };
+        assert!(failed);
+    }
+
+    // On LLP64, these inputs used to wrap to index zero and size three.
+    let oversized_index = (1_usize << 32) as *mut c_void;
+    let oversized_size = (1_u64 << 32) + 3;
+    unsafe {
+        let one = ocio_lut1d_transform_create();
+        let three = ocio_lut3d_transform_create();
+        assert!(!one.is_null() && !three.is_null());
+        rejects(|| ocio_lut1d_transform_set_length_u64(one, oversized_size));
+        rejects(|| ocio_lut1d_transform_set_length(one, oversized_size as *mut c_void));
+        rejects(|| ocio_lut3d_transform_set_grid_size_u64(three, oversized_size));
+        rejects(|| ocio_lut3d_transform_set_grid_size(three, oversized_size as *mut c_void));
+        rejects(|| ocio_lut1d_transform_set_value(one, oversized_index, 1.0, 1.0, 1.0));
+        rejects(|| {
+            ocio_lut3d_transform_set_value(
+                three,
+                null_mut(),
+                null_mut(),
+                oversized_index,
+                1.0,
+                1.0,
+                1.0,
+            )
+        });
+        assert_eq!(ocio_lut1d_transform_get_length_u64(one), 2);
+        assert_eq!(ocio_lut3d_transform_get_grid_size_u64(three), 2);
+        let (mut r, mut g, mut b) = (-1.0_f32, -1.0_f32, -1.0_f32);
+        let r_out = (&mut r as *mut f32).cast();
+        let g_out = (&mut g as *mut f32).cast();
+        let b_out = (&mut b as *mut f32).cast();
+        rejects(|| ocio_lut1d_transform_get_value(one, oversized_index, r_out, g_out, b_out));
+        rejects(|| {
+            ocio_lut3d_transform_get_value(
+                three,
+                oversized_index,
+                null_mut(),
+                null_mut(),
+                r_out,
+                g_out,
+                b_out,
+            )
+        });
+        assert_eq!([r, g, b], [-1.0; 3]);
+        ocio_lut1d_transform_get_value(one, null_mut(), r_out, g_out, b_out);
+        assert_eq!([r, g, b], [0.0; 3]);
+        ocio_lut3d_transform_get_value(
+            three,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            r_out,
+            g_out,
+            b_out,
+        );
+        assert_eq!([r, g, b], [0.0; 3]);
+        ocio_lut1d_transform_destroy(one);
+        ocio_lut3d_transform_destroy(three);
+    }
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn lut3d_transform_value_copy_and_direction_behavior() {
@@ -69,6 +144,15 @@ fn lut3d_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.value(0, 1, 0), Some([0.0, 3.0, 0.0]));
     assert_eq!(transform.value(0, 0, 1), Some([0.0, 0.0, 4.0]));
     assert_eq!(transform.value(1, 1, 1), Some([2.0, 3.0, 4.0]));
+    let mut values = transform.try_values().unwrap();
+    assert_eq!(
+        &values[..15],
+        &[0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 2.0, 3.0, 0.0, 0.0, 0.0, 4.0]
+    );
+    values[3] = 5.0;
+    transform.set_values(&values).unwrap();
+    assert_eq!(transform.value(1, 0, 0), Some([5.0, 0.0, 0.0]));
+    assert_eq!(transform.value(0, 0, 1), Some([0.0, 0.0, 4.0]));
     assert_eq!(
         transform
             .try_value(2, 0, 0)

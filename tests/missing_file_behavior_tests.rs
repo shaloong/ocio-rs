@@ -1,4 +1,4 @@
-use ocio_rs::transform::FileTransform;
+use ocio_rs::transform::{CDLTransform, FileTransform};
 use ocio_rs::{Config, OcioError, TransformDirection};
 
 #[test]
@@ -10,6 +10,8 @@ fn missing_config_and_lut_keep_native_error_kind() {
     };
     if ocio_rs::version_hex() >= 0x02060000 {
         assert!(matches!(error, OcioError::MissingFile(_)), "{error:?}");
+    } else if matches!(ocio_rs::version_hex(), 0x02040100 | 0x02050200) {
+        assert!(matches!(error, OcioError::Ocio(_)), "{error:?}");
     } else {
         assert!(
             matches!(error, OcioError::Ocio(_) | OcioError::MissingFile(_)),
@@ -33,6 +35,39 @@ fn missing_config_and_lut_keep_native_error_kind() {
         Err(error) => error,
     };
     assert!(matches!(error, OcioError::Ocio(_)), "{error:?}");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_correction_preserves_the_public_entry_points_error_types() {
+    let config = Config::raw().unwrap();
+    let transform = FileTransform::create().unwrap();
+    let file =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/cdl/cdl_test1.ccc");
+    assert!(file.is_file());
+    let file = file.to_str().unwrap();
+    match CDLTransform::create_from_file(file, "99999") {
+        Err(OcioError::MissingFile(message)) => assert!(message.contains("99999")),
+        Err(error) => panic!("wrong exception category: {error:?}"),
+        Ok(_) => panic!("out-of-range correction index must fail"),
+    }
+    transform.set_src(file).unwrap();
+    transform
+        .set_ccc_id("ocio-rs-nonexistent-correction")
+        .unwrap();
+    match config.processor_from_transform(&transform, TransformDirection::Forward) {
+        // Native FileTransform wraps the format-specific exception in a base
+        // Exception when it adds the file and operation context.
+        Err(OcioError::Ocio(message)) => {
+            assert!(message.contains("ocio-rs-nonexistent-correction"));
+        }
+        Err(error) => panic!("wrong exception category: {error:?}"),
+        Ok(_) => panic!("unknown correction must fail"),
+    }
+    transform.set_ccc_id("cc0002").unwrap();
+    assert!(config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .is_ok());
 }
 
 #[test]

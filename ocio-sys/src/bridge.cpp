@@ -42,18 +42,59 @@ static_assert(ocio::CHANNEL_ORDERING_RGBA == 0 && ocio::CHANNEL_ORDERING_BGRA ==
 
 namespace ocio_rs_bridge {
 
+#ifndef OCIO_RS_STUB
+static constexpr bool count_fits_int(size_t count) {
+  return count <= static_cast<size_t>(std::numeric_limits<int>::max());
+}
+static_assert(count_fits_int(static_cast<size_t>(std::numeric_limits<int>::max())), "INT_MAX must fit");
+static_assert(!count_fits_int(static_cast<size_t>(std::numeric_limits<int>::max()) + size_t{1}), "INT_MAX + 1 must not fit");
+static int checked_count_to_int(size_t count, const char* operation) {
+  if (!count_fits_int(count))
+    throw std::overflow_error(std::string(operation) + ": count exceeds int range");
+  return static_cast<int>(count);
+}
+static void check_viewing_rule_selector_index(size_t index) {
+  // ViewingRules accepts size_t but narrows selector indices to int internally.
+  if (!count_fits_int(index))
+    throw std::out_of_range("viewing rule selector index exceeds the native int range");
+}
+static ocio::BitDepth checked_processor_bit_depth(int value) {
+  if (value < ocio::BIT_DEPTH_UNKNOWN || value > ocio::BIT_DEPTH_F32)
+    throw std::invalid_argument("invalid OpenColorIO processor bit depth");
+  return static_cast<ocio::BitDepth>(value);
+}
+static ocio::ViewType checked_view_type(int value) {
+  switch (value) {
+    case ocio::VIEW_SHARED: return ocio::VIEW_SHARED;
+    case ocio::VIEW_DISPLAY_DEFINED: return ocio::VIEW_DISPLAY_DEFINED;
+    default: throw std::invalid_argument("invalid OpenColorIO view type");
+  }
+}
+static ocio::DynamicPropertyType checked_processor_property_type(int value) {
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+  constexpr auto last = ocio::DYNAMIC_PROPERTY_GRADING_HUECURVE;
+#else
+  constexpr auto last = ocio::DYNAMIC_PROPERTY_GRADING_TONE;
+#endif
+  if (value < ocio::DYNAMIC_PROPERTY_EXPOSURE || value > last)
+    throw std::invalid_argument("invalid OpenColorIO processor dynamic property type");
+  return static_cast<ocio::DynamicPropertyType>(value);
+}
+#endif
+
 thread_local std::string g_serialized_text;
 thread_local std::string g_last_error;
-thread_local int g_last_error_kind = 0;
+enum class BridgeErrorKind { None, Other, MissingFile };
+thread_local BridgeErrorKind g_last_error_kind = BridgeErrorKind::None;
 
 void clear_last_error() {
   g_last_error.clear();
-  g_last_error_kind = 0;
+  g_last_error_kind = BridgeErrorKind::None;
 }
 
-void capture_error_message(const char* msg) {
+void capture_error_message(const char* msg, BridgeErrorKind kind = BridgeErrorKind::Other) {
   g_last_error = msg ? msg : "OpenColorIO bridge error";
-  g_last_error_kind = 0;
+  g_last_error_kind = kind;
 }
 
 void capture_current_exception() {
@@ -62,8 +103,7 @@ void capture_current_exception() {
   }
 #ifndef OCIO_RS_STUB
   catch (const ocio::ExceptionMissingFile& e) {
-    capture_error_message(e.what());
-    g_last_error_kind = 1;
+    capture_error_message(e.what(), BridgeErrorKind::MissingFile);
   }
   catch (const ocio::Exception& e) {
     capture_error_message(e.what());
@@ -810,7 +850,10 @@ class CallbackConfigIOProxy final : public ocio::ConfigIOProxy {
   template<class Buffer> static bool write(void* destination, const unsigned char* data, size_t len) noexcept {
     auto& out = *static_cast<Output<Buffer>*>(destination);
     try {
-      if (!data && len) return false;
+      if ((!data && len) || len > static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max())) {
+        out.failed = true;
+        return false;
+      }
       if (len) {
         const auto* begin = reinterpret_cast<const typename Buffer::value_type*>(data);
         out.bytes.insert(out.bytes.end(), begin, begin + len);
@@ -1072,11 +1115,25 @@ static ocio::FormatMetadata* get_real_format_metadata(void* handle) {
   for (size_t depth = 0; depth < h->child_indices.size(); ++depth) {
     const auto& generation = h->ancestor_generations[depth];
     if (*generation.first != generation.second)
-      throw std::invalid_argument("metadata child was invalidated by clearing an ancestor");
+      throw std::invalid_argument("metadata child was invalidated by replacing or clearing an ancestor");
     const int index = h->child_indices[depth];
     metadata = &metadata->getChildElement(index);
   }
   return metadata;
+}
+
+static void invalidate_format_metadata_descendants(FormatMetadataHandle* handle) {
+  auto& generations = handle->epochs->generations;
+  const auto generation = generations.find(handle->child_indices);
+  if (generation != generations.end()) {
+    if (*generation->second == std::numeric_limits<uint64_t>::max())
+      throw std::overflow_error("metadata generation exhausted");
+    ++*generation->second;
+  }
+  auto it = generations.upper_bound(handle->child_indices);
+  while (it != generations.end() && it->first.size() > handle->child_indices.size() &&
+         std::equal(handle->child_indices.begin(), handle->child_indices.end(), it->first.begin()))
+    it = generations.erase(it);
 }
 
 static void* make_format_metadata_handle(std::shared_ptr<void> owner, const ocio::FormatMetadata* metadata) {
@@ -1579,6 +1636,51 @@ static void* wrap_editable_transform_copy(const ocio::TransformRcPtr& transform)
   throw std::invalid_argument("unsupported or inconsistent native transform type");
 }
 
+static void read_grading_primary(ocio::GradingPrimary& v, const double* values) {
+  size_t off = 0;
+  auto read_rgbm = [&]() {
+    ocio::GradingRGBM rgbm;
+    rgbm.m_red = values[off++];
+    rgbm.m_green = values[off++];
+    rgbm.m_blue = values[off++];
+    rgbm.m_master = values[off++];
+    return rgbm;
+  };
+  v.m_brightness = read_rgbm();
+  v.m_contrast = read_rgbm();
+  v.m_gamma = read_rgbm();
+  v.m_offset = read_rgbm();
+  v.m_exposure = read_rgbm();
+  v.m_lift = read_rgbm();
+  v.m_gain = read_rgbm();
+  v.m_saturation = values[off++];
+  v.m_pivot = values[off++];
+  v.m_pivotBlack = values[off++];
+  v.m_pivotWhite = values[off++];
+  v.m_clampBlack = values[off++];
+  v.m_clampWhite = values[off++];
+}
+
+static void read_grading_tone(ocio::GradingTone& v, const double* values) {
+  size_t off = 0;
+  auto read_rgbmsw = [&]() {
+    ocio::GradingRGBMSW rgbmsw;
+    rgbmsw.m_red = values[off++];
+    rgbmsw.m_green = values[off++];
+    rgbmsw.m_blue = values[off++];
+    rgbmsw.m_master = values[off++];
+    rgbmsw.m_start = values[off++];
+    rgbmsw.m_width = values[off++];
+    return rgbmsw;
+  };
+  v.m_blacks = read_rgbmsw();
+  v.m_shadows = read_rgbmsw();
+  v.m_midtones = read_rgbmsw();
+  v.m_highlights = read_rgbmsw();
+  v.m_whites = read_rgbmsw();
+  v.m_scontrast = values[off++];
+}
+
 #endif // OCIO_RS_STUB
 
 }  // namespace ocio_rs_bridge
@@ -1612,16 +1714,20 @@ template<typename T> struct OcioRsUniformArrayGetter {
   }
 };
 
+static void* ocio_rs_wrap_const_processor(const ocio::ConstProcessorRcPtr& processor) {
+  if (!processor) return nullptr;
+  auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
+  out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
+  return out.release();
+}
+
 // Keep dynamic-property isolation consistent across every ConstConfig
 // processor overload, while preserving native caching for static processors.
 template<typename Build>
 static void* ocio_rs_const_config_processor(const ocio::ConstConfigRcPtr& config, Build&& build) {
   auto processor = build(config);
   if (processor && processor->isDynamic()) processor = build(config->createEditableCopy());
-  if (!processor) return nullptr;
-  auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
-  out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
-  return out.release();
+  return ocio_rs_wrap_const_processor(processor);
 }
 #endif
 
@@ -1849,6 +1955,53 @@ const char* ocio_const_config_text(void* handle, int field) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+int ocio_const_config_environment_mode(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native config required"); return 0;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const config");
+    return (*static_cast<ocio::ConstConfigRcPtr*>(handle))->getEnvironmentMode();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+const char* ocio_config_get_cache_id_explicit(void* config, bool read_only, const void* context) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)read_only; (void)context; return nullptr;
+#else
+  try {
+    if (!config) throw std::invalid_argument("null config");
+    const ocio::ConstContextRcPtr empty;
+    const auto& ctx = context ? *static_cast<const ocio::ConstContextRcPtr*>(context) : empty;
+    if (read_only) return (*static_cast<const ocio::ConstConfigRcPtr*>(config))->getCacheID(ctx);
+    return ocio_rs_bridge::get_real_config(config)->getCacheID(ctx);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+int32_t ocio_const_config_get_processor_cache_flags(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config; return 0;
+#else
+  try {
+    if (!config) throw std::invalid_argument("null config");
+    return (*static_cast<const ocio::ConstConfigRcPtr*>(config))->getProcessorCacheFlags();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_const_config_set_processor_cache_flags(void* config, int32_t flags) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)flags;
+#else
+  try {
+    if (!config) throw std::invalid_argument("null config");
+    (*static_cast<const ocio::ConstConfigRcPtr*>(config))->setProcessorCacheFlags(
+        static_cast<ocio::ProcessorCacheFlags>(flags));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
 void* ocio_const_config_get_color_space(void* handle, const char* name) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name; return nullptr;
@@ -2008,6 +2161,67 @@ void* ocio_const_config_get_processor_named_object(void* handle, void* context, 
                      : cfg->getProcessor(value, dir);
     };
     return ocio_rs_const_config_processor(config, build);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_configs_get_processor(void* source, const char* source_name,
+                                       void* destination, const char* target, const char* view,
+                                       int32_t direction, void* source_context, void* destination_context,
+                                       const char* source_interchange, const char* destination_interchange) {
+#ifdef OCIO_RS_STUB
+  (void)source; (void)source_name; (void)destination; (void)target; (void)view;
+  (void)direction; (void)source_context; (void)destination_context;
+  (void)source_interchange; (void)destination_interchange;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!source || !source_name || !destination || !target ||
+        (!source_context != !destination_context) || (!source_interchange != !destination_interchange))
+      throw std::invalid_argument("invalid cross-config processor arguments");
+    const auto& src = *static_cast<const ocio::ConstConfigRcPtr*>(source);
+    const auto& dst = *static_cast<const ocio::ConstConfigRcPtr*>(destination);
+    const auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& from, const ocio::ConstConfigRcPtr& to) {
+      const auto sc = source_context ? *static_cast<const ocio::ConstContextRcPtr*>(source_context)
+                                     : from->getCurrentContext();
+      const auto dc = destination_context ? *static_cast<const ocio::ConstContextRcPtr*>(destination_context)
+                                          : to->getCurrentContext();
+      if (view) {
+        if (source_interchange)
+          return ocio::Config::GetProcessorFromConfigs(sc, from, source_name, source_interchange,
+                                                      dc, to, target, view, destination_interchange, dir);
+        return ocio::Config::GetProcessorFromConfigs(sc, from, source_name, dc, to, target, view, dir);
+      }
+      if (source_interchange)
+        return ocio::Config::GetProcessorFromConfigs(sc, from, source_name, source_interchange,
+                                                    dc, to, target, destination_interchange);
+      return ocio::Config::GetProcessorFromConfigs(sc, from, source_name, dc, to, target);
+    };
+    auto processor = build(src, dst);
+    if (processor && processor->isDynamic()) {
+      const ocio::ConstConfigRcPtr src_copy = src->createEditableCopy();
+      const ocio::ConstConfigRcPtr dst_copy = src == dst ? src_copy : dst->createEditableCopy();
+      processor = build(src_copy, dst_copy);
+    }
+    return ocio_rs_wrap_const_processor(processor);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_config_get_builtin_processor(void* config, const char* local,
+                                              const char* builtin, bool from_builtin) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)local; (void)builtin; (void)from_builtin;
+  return ocio_rs_bridge::make_stub_processor().release();
+#else
+  try {
+    if (!config || !local || !builtin) throw std::invalid_argument("invalid built-in processor arguments");
+    const auto& value = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    return ocio_rs_const_config_processor(value, [&](const ocio::ConstConfigRcPtr& cfg) {
+      return from_builtin ? ocio::Config::GetProcessorFromBuiltinColorSpace(builtin, cfg, local)
+                          : ocio::Config::GetProcessorToBuiltinColorSpace(cfg, local, builtin);
+    });
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -2895,7 +3109,7 @@ int ocio_config_get_environment_mode(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->getEnvironmentMode();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -3643,7 +3857,7 @@ int ocio_config_get_virtual_display_num_views(void* handle, int type) {
   return 0;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayNumViews(static_cast<ocio::ViewType>(type));
+    return ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayNumViews(ocio_rs_bridge::checked_view_type(type));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -3654,7 +3868,7 @@ void* ocio_config_get_virtual_display_view(void* handle, int type, int index) {
   return nullptr;
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayView(static_cast<ocio::ViewType>(type), index)));
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getVirtualDisplayView(ocio_rs_bridge::checked_view_type(type), index)));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -4012,7 +4226,7 @@ int ocio_config_get_num_views_v2(void* handle, int type, const char* display) {
   return 0;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->getNumViews(static_cast<ocio::ViewType>(type), display);
+    return ocio_rs_bridge::get_real_config(handle)->getNumViews(ocio_rs_bridge::checked_view_type(type), display);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -4023,7 +4237,7 @@ void* ocio_config_get_view_v2(void* handle, int type, const char* display, int i
   return nullptr;
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getView(static_cast<ocio::ViewType>(type), display, index)));
+    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getView(ocio_rs_bridge::checked_view_type(type), display, index)));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -5224,7 +5438,7 @@ size_t ocio_file_rules_get_num_custom_keys(void* handle, size_t ruleIndex) {
 #else
   try {
     return ocio_rs_bridge::get_real_file_rules(handle)->getNumCustomKeys(ruleIndex);
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -5450,6 +5664,7 @@ void* ocio_viewing_rules_get_color_space(void* handle, size_t ruleIndex, size_t 
   return nullptr;
 #else
   try {
+    ocio_rs_bridge::check_viewing_rule_selector_index(colorSpaceIndex);
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getColorSpace(ruleIndex, colorSpaceIndex)));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -5472,6 +5687,7 @@ void ocio_viewing_rules_remove_color_space(void* handle, size_t ruleIndex, size_
   return;
 #else
   try {
+    ocio_rs_bridge::check_viewing_rule_selector_index(colorSpaceIndex);
     ocio_rs_bridge::get_real_viewing_rules(handle)->removeColorSpace(ruleIndex, colorSpaceIndex);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -5494,6 +5710,7 @@ void* ocio_viewing_rules_get_encoding(void* handle, size_t ruleIndex, size_t enc
   return nullptr;
 #else
   try {
+    ocio_rs_bridge::check_viewing_rule_selector_index(encodingIndex);
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_viewing_rules(handle)->getEncoding(ruleIndex, encodingIndex)));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -5516,6 +5733,7 @@ void ocio_viewing_rules_remove_encoding(void* handle, size_t ruleIndex, size_t e
   return;
 #else
   try {
+    ocio_rs_bridge::check_viewing_rule_selector_index(encodingIndex);
     ocio_rs_bridge::get_real_viewing_rules(handle)->removeEncoding(ruleIndex, encodingIndex);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -5662,7 +5880,7 @@ size_t ocio_color_space_get_num_aliases(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getNumAliases();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -5673,7 +5891,7 @@ void* ocio_color_space_get_alias(void* handle, size_t idx) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getAlias(idx)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -5684,7 +5902,7 @@ bool ocio_color_space_has_alias(void* handle, const char* alias) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->hasAlias(alias);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -5889,8 +6107,8 @@ int ocio_color_space_get_num_interchange_attributes(void* handle) {
   return 0;
 #else
   try {
-    return static_cast<int>(ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttributes().size());
-  } catch (...) { return 0; }
+    return ocio_rs_bridge::checked_count_to_int(ocio_rs_bridge::get_real_color_space(handle)->getInterchangeAttributes().size(), "color space interchange attributes");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
@@ -5965,7 +6183,7 @@ bool ocio_color_space_has_category(void* handle, const char* category) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->hasCategory(category);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -5998,7 +6216,7 @@ int ocio_color_space_get_num_categories(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_color_space(handle)->getNumCategories();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -6009,7 +6227,7 @@ void* ocio_color_space_get_category(void* handle, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_color_space(handle)->getCategory(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -6273,8 +6491,12 @@ const char* ocio_const_rules_text(void* handle, int kind, int field, size_t rule
         case 0: return p->getName(rule);
         case 5: return p->getCustomKeyName(rule, index);
         case 6: return p->getCustomKeyValue(rule, index);
-        case 7: return p->getColorSpace(rule, index);
-        case 8: return p->getEncoding(rule, index);
+        case 7:
+          ocio_rs_bridge::check_viewing_rule_selector_index(index);
+          return p->getColorSpace(rule, index);
+        case 8:
+          ocio_rs_bridge::check_viewing_rule_selector_index(index);
+          return p->getEncoding(rule, index);
       }
     }
     throw std::invalid_argument("invalid rules text field");
@@ -6392,10 +6614,18 @@ size_t ocio_const_named_item_number(void* handle, int kind, int field) {
     if (kind == 1) {
       auto& p = *static_cast<ocio::ConstNamedTransformRcPtr*>(handle);
       if (field == 0) return p->getNumAliases();
-      if (field == 1) return static_cast<size_t>(p->getNumCategories());
+      if (field == 1) {
+        const int count = p->getNumCategories();
+        if (count < 0) throw std::runtime_error("negative named transform category count");
+        return static_cast<size_t>(count);
+      }
     } else if (kind == 2) {
       auto& p = *static_cast<ocio::ConstViewTransformRcPtr*>(handle);
-      if (field == 1) return static_cast<size_t>(p->getNumCategories());
+      if (field == 1) {
+        const int count = p->getNumCategories();
+        if (count < 0) throw std::runtime_error("negative view transform category count");
+        return static_cast<size_t>(count);
+      }
       if (field == 2) return static_cast<size_t>(p->getReferenceSpaceType());
     }
     throw std::invalid_argument("invalid const item numeric field");
@@ -6665,7 +6895,7 @@ int ocio_const_transform_get_type(void* handle) {
 #else
   try {
     int tag = static_cast<int>((*static_cast<ocio::ConstTransformRcPtr*>(handle))->getTransformType());
-#if OCIO_RS_NATIVE_API_HEX < 0x02050100
+#if OCIO_RS_NATIVE_API_HEX < 0x02050000
     if (tag >= 10) ++tag; // 2.5 inserted grading hue curve at position 10.
 #endif
     return tag;
@@ -6673,6 +6903,49 @@ int ocio_const_transform_get_type(void* handle) {
   catch (...) { ocio_rs_bridge::capture_current_exception(); return -1; }
 #endif
 }
+int ocio_const_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native transform required"); return 0;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const transform");
+    const auto& transform = *static_cast<ocio::ConstTransformRcPtr*>(handle);
+    if (!transform) throw std::invalid_argument("null native const transform");
+    return static_cast<int>(transform->getDirection());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+void ocio_const_transform_validate(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native transform required");
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null const transform");
+    const auto& transform = *static_cast<ocio::ConstTransformRcPtr*>(handle);
+    if (!transform) throw std::invalid_argument("null native const transform");
+    transform->validate();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+const char* ocio_transform_diagnostic_text(void* handle, bool is_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const;
+  ocio_rs_bridge::capture_error_message("Native transform required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null transform handle");
+    ocio::ConstTransformRcPtr transform = is_const
+        ? *static_cast<ocio::ConstTransformRcPtr*>(handle)
+        : static_cast<ocio_rs_bridge::TransformHandleBase*>(handle)->get_ocio_transform();
+    if (!transform) throw std::invalid_argument("null native transform");
+    std::ostringstream out;
+    out << *transform;
+    ocio_rs_bridge::g_serialized_text = out.str();
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_const_transform_create_editable_copy(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle; ocio_rs_bridge::capture_error_message("Native transform required"); return nullptr;
@@ -6797,6 +7070,15 @@ const char* ocio_const_color_space_text(void* handle, int field, size_t index) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+size_t ocio_const_color_space_alias_count(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; return 0;
+#else
+  try {
+    return (*static_cast<ocio::ConstColorSpaceRcPtr*>(handle))->getNumAliases();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
 int64_t ocio_const_color_space_number(void* handle, int field) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)field; return 0;
@@ -6804,7 +7086,12 @@ int64_t ocio_const_color_space_number(void* handle, int field) {
   try {
     const auto& space = *static_cast<ocio::ConstColorSpaceRcPtr*>(handle);
     switch (field) {
-      case 0: return static_cast<int64_t>(space->getNumAliases());
+      case 0: {
+        const auto count = space->getNumAliases();
+        if (count > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
+          throw std::overflow_error("color space alias count exceeds int64_t");
+        return static_cast<int64_t>(count);
+      }
       case 1: return space->getNumCategories();
       case 2: return space->getBitDepth();
       case 3: return space->getReferenceSpaceType();
@@ -7249,7 +7536,7 @@ void* ocio_look_get_name(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getName()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7271,7 +7558,7 @@ void* ocio_look_get_process_space(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getProcessSpace()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7349,7 +7636,7 @@ void* ocio_look_get_description(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_look(handle)->getDescription()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7397,8 +7684,8 @@ int ocio_look_get_num_interchange_attributes(void* handle) {
   return 0;
 #else
   try {
-    return static_cast<int>(ocio_rs_bridge::get_real_look(handle)->getInterchangeAttributes().size());
-  } catch (...) { return 0; }
+    return ocio_rs_bridge::checked_count_to_int(ocio_rs_bridge::get_real_look(handle)->getInterchangeAttributes().size(), "look interchange attributes");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
@@ -7494,7 +7781,7 @@ size_t ocio_named_transform_get_num_aliases(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_named_transform(handle)->getNumAliases();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7505,7 +7792,7 @@ void* ocio_named_transform_get_alias(void* handle, size_t idx) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getAlias(idx)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7516,7 +7803,7 @@ bool ocio_named_transform_has_alias(void* handle, const char* alias) {
 #else
   try {
     return ocio_rs_bridge::get_real_named_transform(handle)->hasAlias(alias);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7604,7 +7891,7 @@ bool ocio_named_transform_has_category(void* handle, const char* category) {
 #else
   try {
     return ocio_rs_bridge::get_real_named_transform(handle)->hasCategory(category);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7637,7 +7924,7 @@ int ocio_named_transform_get_num_categories(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_named_transform(handle)->getNumCategories();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7648,7 +7935,7 @@ void* ocio_named_transform_get_category(void* handle, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_named_transform(handle)->getCategory(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7764,7 +8051,7 @@ void* ocio_view_transform_get_name(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getName()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7786,7 +8073,7 @@ void* ocio_view_transform_get_family(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getFamily()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7808,7 +8095,7 @@ void* ocio_view_transform_get_description(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getDescription()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7856,8 +8143,8 @@ int ocio_view_transform_get_num_interchange_attributes(void* handle) {
   return 0;
 #else
   try {
-    return static_cast<int>(ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttributes().size());
-  } catch (...) { return 0; }
+    return ocio_rs_bridge::checked_count_to_int(ocio_rs_bridge::get_real_view_transform(handle)->getInterchangeAttributes().size(), "view transform interchange attributes");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
@@ -7899,7 +8186,7 @@ bool ocio_view_transform_has_category(void* handle, const char* category) {
 #else
   try {
     return ocio_rs_bridge::get_real_view_transform(handle)->hasCategory(category);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 
@@ -7932,7 +8219,7 @@ int ocio_view_transform_get_num_categories(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_view_transform(handle)->getNumCategories();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -7943,7 +8230,7 @@ void* ocio_view_transform_get_category(void* handle, int index) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_view_transform(handle)->getCategory(index)));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -7965,7 +8252,7 @@ int ocio_view_transform_get_reference_space_type(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_view_transform(handle)->getReferenceSpaceType();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -8034,6 +8321,48 @@ int ocio_transform_get_transform_type(void* handle) {
     auto* transform = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle);
     return transform->get_transform_type_tag();
   } catch (...) { return -1; }
+#endif
+}
+
+int ocio_transform_get_direction(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; return 0;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null transform handle");
+    auto transform = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle)->get_ocio_transform();
+    if (!transform) throw std::invalid_argument("null native transform");
+    return static_cast<int>(transform->getDirection());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_transform_set_direction(void* handle, int direction) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)direction;
+  ocio_rs_bridge::capture_error_message("Native transform required");
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null transform handle");
+    if (direction != ocio::TRANSFORM_DIR_FORWARD && direction != ocio::TRANSFORM_DIR_INVERSE)
+      throw std::invalid_argument("invalid transform direction");
+    auto transform = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle)->get_ocio_transform();
+    if (!transform) throw std::invalid_argument("null native transform");
+    transform->setDirection(static_cast<ocio::TransformDirection>(direction));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_transform_validate(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle; ocio_rs_bridge::capture_error_message("Native transform required");
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null transform handle");
+    auto transform = static_cast<ocio_rs_bridge::TransformHandleBase*>(handle)->get_ocio_transform();
+    if (!transform) throw std::invalid_argument("null native transform");
+    transform->validate();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -8121,6 +8450,24 @@ void* ocio_const_format_metadata_copy(void* handle) {
 #else
   try { return ocio_rs_copy_format_metadata(*static_cast<ConstProcessorFormatMetadata*>(handle)->metadata); }
   catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_format_metadata_stream(void* handle, bool is_const) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)is_const; ocio_rs_bridge::capture_error_message("Native metadata required"); return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null metadata handle");
+    const ocio::FormatMetadata* metadata = is_const
+      ? static_cast<ConstProcessorFormatMetadata*>(handle)->metadata
+      : ocio_rs_bridge::get_real_format_metadata(handle);
+    if (!metadata) throw std::invalid_argument("null native metadata");
+    std::ostringstream stream;
+    stream << *metadata;
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -8286,7 +8633,8 @@ void* ocio_processor_get_dynamic_property(void* handle, int type) {
   return nullptr;
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getDynamicProperty(
+        ocio_rs_bridge::checked_processor_property_type(type));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{result});
@@ -8301,7 +8649,8 @@ bool ocio_processor_has_dynamic_property(void* handle, int type) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_processor(handle)->hasDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
+    return ocio_rs_bridge::get_real_processor(handle)->hasDynamicProperty(
+        ocio_rs_bridge::checked_processor_property_type(type));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
@@ -8349,13 +8698,20 @@ void ocio_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixe
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+static ocio::OptimizationFlags ocio_rs_optimization_flags(int flags) noexcept {
+  // Preserve the legacy C int ABI without extending bit 31 on LP64.
+  return static_cast<ocio::OptimizationFlags>(static_cast<uint32_t>(flags));
+}
+#endif
+
 void* ocio_processor_get_optimized_processor_v1(void* handle, int oFlags) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)oFlags;
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(ocio_rs_optimization_flags(oFlags));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
@@ -8371,7 +8727,9 @@ void* ocio_processor_get_optimized_processor_v2(void* handle, int inBD, int outB
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(static_cast<ocio::BitDepth>(inBD), static_cast<ocio::BitDepth>(outBD), static_cast<ocio::OptimizationFlags>(oFlags));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(
+        ocio_rs_bridge::checked_processor_bit_depth(inBD),
+        ocio_rs_bridge::checked_processor_bit_depth(outBD), ocio_rs_optimization_flags(oFlags));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
@@ -8388,7 +8746,7 @@ void* ocio_processor_optimized_processor(void* handle, int oFlags) {
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedProcessor(
-        static_cast<ocio::OptimizationFlags>(oFlags));
+        ocio_rs_optimization_flags(oFlags));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::Processor>(result);
@@ -8421,7 +8779,7 @@ void* ocio_processor_get_optimized_gpu_processor(void* handle, int oFlags) {
   return ocio_rs_bridge::make_stub_gpu_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedGPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedGPUProcessor(ocio_rs_optimization_flags(oFlags));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GPUProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
@@ -8438,7 +8796,7 @@ void* ocio_processor_get_optimized_legacy_gpu_processor(void* handle, int oFlags
 #else
   try {
     auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedLegacyGPUProcessor(
-        static_cast<ocio::OptimizationFlags>(oFlags), edgelen);
+        ocio_rs_optimization_flags(oFlags), edgelen);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::GPUProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::GPUProcessor>(result);
@@ -8470,7 +8828,7 @@ void* ocio_processor_get_optimized_cpu_processor(void* handle, int oFlags) {
   return ocio_rs_bridge::make_stub_cpu_processor().release();
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(static_cast<ocio::OptimizationFlags>(oFlags));
+    auto result = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(ocio_rs_optimization_flags(oFlags));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::CPUProcessorHandle>();
     auto result_unconst = std::const_pointer_cast<ocio::CPUProcessor>(result);
@@ -8644,7 +9002,8 @@ void* ocio_cpu_processor_get_dynamic_property(void* handle, int type) {
   return nullptr;
 #else
   try {
-    auto result = ocio_rs_bridge::get_real_cpu_processor(handle)->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
+    auto result = ocio_rs_bridge::get_real_cpu_processor(handle)->getDynamicProperty(
+        ocio_rs_bridge::checked_processor_property_type(type));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
     out_handle->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{result});
@@ -8659,7 +9018,8 @@ bool ocio_cpu_processor_has_dynamic_property(void* handle, int type) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_cpu_processor(handle)->hasDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
+    return ocio_rs_bridge::get_real_cpu_processor(handle)->hasDynamicProperty(
+        ocio_rs_bridge::checked_processor_property_type(type));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
@@ -8675,6 +9035,67 @@ bool ocio_cpu_processor_is_dynamic(void* handle) {
 #endif
 }
 
+void ocio_image_desc_info(const void* image, OcioImageDescInfo* out) {
+#ifdef OCIO_RS_STUB
+  (void)image; (void)out;
+  ocio_rs_bridge::capture_error_message("Native image descriptor required");
+#else
+  try {
+    if (!image || !out) throw std::invalid_argument("null image descriptor or output");
+    const auto& desc = *static_cast<const ocio::ImageDesc*>(image);
+    OcioImageDescInfo info{};
+    info.width = desc.getWidth();
+    info.height = desc.getHeight();
+    info.x_stride = desc.getXStrideBytes();
+    info.y_stride = desc.getYStrideBytes();
+    info.bit_depth = desc.getBitDepth();
+    info.has_alpha = desc.getAData() != nullptr;
+    info.is_rgba_packed = desc.isRGBAPacked();
+    info.is_float = desc.isFloat();
+    if (auto packed = dynamic_cast<const ocio::PackedImageDesc*>(&desc)) {
+      info.is_packed = true;
+      info.channel_stride = packed->getChanStrideBytes();
+      info.channel_order = packed->getChannelOrder();
+      info.num_channels = packed->getNumChannels();
+    } else {
+      info.is_planar = dynamic_cast<const ocio::PlanarImageDesc*>(&desc) != nullptr;
+    }
+    *out = info;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_image_desc_pointers(const void* image, OcioImageDescPointers* out) {
+#ifdef OCIO_RS_STUB
+  (void)image; (void)out;
+  ocio_rs_bridge::capture_error_message("Native image descriptor required");
+#else
+  try {
+    if (!image || !out) throw std::invalid_argument("null image descriptor or output");
+    const auto& desc = *static_cast<const ocio::ImageDesc*>(image);
+    const auto* packed = dynamic_cast<const ocio::PackedImageDesc*>(&desc);
+    *out = {desc.getRData(), desc.getGData(), desc.getBData(), desc.getAData(),
+            packed ? packed->getData() : nullptr};
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+const char* ocio_image_desc_diagnostic_text(const void* image) {
+#ifdef OCIO_RS_STUB
+  (void)image;
+  ocio_rs_bridge::capture_error_message("Native image descriptor required");
+  return nullptr;
+#else
+  try {
+    if (!image) throw std::invalid_argument("null image descriptor");
+    std::ostringstream out;
+    out << *static_cast<const ocio::ImageDesc*>(image);
+    ocio_rs_bridge::g_serialized_text = out.str();
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_cpu_processor_apply(void* handle, void* imgDesc) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)imgDesc;
@@ -8683,6 +9104,7 @@ void ocio_cpu_processor_apply(void* handle, void* imgDesc) {
 #else
   ocio_rs_bridge::clear_last_error();
   try {
+    if (!imgDesc) throw std::invalid_argument("null OCIO image descriptor");
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(imgDesc));
   } catch (...) {
     ocio_rs_bridge::capture_current_exception();
@@ -8692,19 +9114,7 @@ void ocio_cpu_processor_apply(void* handle, void* imgDesc) {
 }
 
 void ocio_cpu_processor_apply_v1(void* handle, void* imgDesc) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)imgDesc;
-  ocio_rs_bridge::clear_last_error();
-  return;
-#else
-  ocio_rs_bridge::clear_last_error();
-  try {
-    ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(imgDesc));
-  } catch (...) {
-    ocio_rs_bridge::capture_current_exception();
-    return;
-  }
-#endif
+  ocio_cpu_processor_apply(handle, imgDesc);
 }
 
 void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDesc) {
@@ -8715,6 +9125,7 @@ void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDes
 #else
   ocio_rs_bridge::clear_last_error();
   try {
+    if (!srcImgDesc || !dstImgDesc) throw std::invalid_argument("null OCIO image descriptor");
     ocio_rs_bridge::get_real_cpu_processor(handle)->apply(*static_cast<const ocio::ImageDesc*>(srcImgDesc), *static_cast<ocio::ImageDesc*>(dstImgDesc));
   } catch (...) {
     ocio_rs_bridge::capture_current_exception();
@@ -8912,6 +9323,26 @@ void ocio_cpu_processor_apply_packed_image(void* handle, const OcioPackedBuffer*
 #endif
 }
 
+void* ocio_image_desc_create_packed(const OcioPackedBuffer* image) {
+#ifdef OCIO_RS_STUB
+  (void)image; ocio_rs_bridge::capture_error_message("Native image descriptor required"); return nullptr;
+#else
+  try {
+    if (!image) throw std::invalid_argument("null packed image descriptor");
+    ocio_rs_check_packed_image(*image);
+    return static_cast<ocio::ImageDesc*>(new ocio::PackedImageDesc(ocio_rs_packed_image(*image)));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_image_desc_destroy(void* image) {
+#ifdef OCIO_RS_STUB
+  (void)image;
+#else
+  delete static_cast<ocio::ImageDesc*>(image);
+#endif
+}
+
 void ocio_cpu_processor_convert_packed_image(void* handle, const OcioPackedBuffer* source,
                                              const OcioPackedBuffer* destination) {
 #ifdef OCIO_RS_STUB
@@ -8989,6 +9420,106 @@ static ocio::PlanarImageDesc ocio_rs_planar_image(const ocio_planar_buffer& d) {
       static_cast<ptrdiff_t>(d.y_stride));
 }
 #endif
+
+void* ocio_image_desc_create_planar(const ocio_planar_buffer* image) {
+#ifdef OCIO_RS_STUB
+  (void)image; ocio_rs_bridge::capture_error_message("Native image descriptor required"); return nullptr;
+#else
+  try {
+    if (!image) throw std::invalid_argument("null planar image descriptor");
+    ocio_rs_check_planar_image(*image);
+    return static_cast<ocio::ImageDesc*>(new ocio::PlanarImageDesc(ocio_rs_planar_image(*image)));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+#ifndef OCIO_RS_STUB
+namespace {
+class OcioRsCustomImageDesc final : public ocio::ImageDesc {
+  const ocio_planar_buffer image;
+public:
+  explicit OcioRsCustomImageDesc(const ocio_planar_buffer& data) : image(data) {}
+  void* getRData() const override { return image.red; }
+  void* getGData() const override { return image.green; }
+  void* getBData() const override { return image.blue; }
+  void* getAData() const override { return image.alpha; }
+  ocio::BitDepth getBitDepth() const override { return static_cast<ocio::BitDepth>(image.bit_depth); }
+  long getWidth() const override { return static_cast<long>(image.width); }
+  long getHeight() const override { return static_cast<long>(image.height); }
+  ptrdiff_t getXStrideBytes() const override { return static_cast<ptrdiff_t>(image.x_stride); }
+  ptrdiff_t getYStrideBytes() const override { return static_cast<ptrdiff_t>(image.y_stride); }
+  // Always use generic packing for independently positioned channels.
+  bool isRGBAPacked() const override { return false; }
+  bool isFloat() const override { return getBitDepth() == ocio::BIT_DEPTH_F32; }
+};
+
+class OcioRsCallbackImageDesc final : public ocio::ImageDesc {
+  void* const context;
+  const ocio_image_desc_query_fn query;
+  const ocio_image_desc_release_fn release;
+
+  OcioImageDescValue get(OcioImageDescQuery kind) const {
+    OcioImageDescValue value{};
+    if (!query(context, kind, &value)) throw ocio::Exception("Rust ImageDesc getter failed");
+    return value;
+  }
+  int64_t scalar(OcioImageDescQuery kind, int64_t min, int64_t max) const {
+    const auto value = get(kind).scalar;
+    if (value < min || value > max)
+      throw ocio::Exception("Rust ImageDesc scalar outside native range");
+    return value;
+  }
+  long dimension(OcioImageDescQuery kind) const {
+    return static_cast<long>(scalar(kind, std::numeric_limits<long>::min(),
+                                   std::numeric_limits<long>::max()));
+  }
+  ptrdiff_t stride(OcioImageDescQuery kind) const {
+    return static_cast<ptrdiff_t>(scalar(kind, std::numeric_limits<ptrdiff_t>::min(),
+                                       std::numeric_limits<ptrdiff_t>::max()));
+  }
+public:
+  OcioRsCallbackImageDesc(void* ctx, ocio_image_desc_query_fn read, ocio_image_desc_release_fn drop)
+      : context(ctx), query(read), release(drop) {}
+  ~OcioRsCallbackImageDesc() override { release(context); }
+  void* getRData() const override { return get(OCIO_IMAGE_RED).pointer; }
+  void* getGData() const override { return get(OCIO_IMAGE_GREEN).pointer; }
+  void* getBData() const override { return get(OCIO_IMAGE_BLUE).pointer; }
+  void* getAData() const override { return get(OCIO_IMAGE_ALPHA).pointer; }
+  ocio::BitDepth getBitDepth() const override { return static_cast<ocio::BitDepth>(get(OCIO_IMAGE_BIT_DEPTH).scalar); }
+  long getWidth() const override { return dimension(OCIO_IMAGE_WIDTH); }
+  long getHeight() const override { return dimension(OCIO_IMAGE_HEIGHT); }
+  ptrdiff_t getXStrideBytes() const override { return stride(OCIO_IMAGE_X_STRIDE); }
+  ptrdiff_t getYStrideBytes() const override { return stride(OCIO_IMAGE_Y_STRIDE); }
+  bool isRGBAPacked() const override { return get(OCIO_IMAGE_PACKED).scalar != 0; }
+  bool isFloat() const override { return get(OCIO_IMAGE_FLOAT).scalar != 0; }
+};
+}
+#endif
+
+void* ocio_image_desc_create_custom(const ocio_planar_buffer* image) {
+#ifdef OCIO_RS_STUB
+  (void)image; ocio_rs_bridge::capture_error_message("Native image descriptor required"); return nullptr;
+#else
+  try {
+    if (!image) throw std::invalid_argument("null custom image descriptor");
+    ocio_rs_check_planar_image(*image);
+    return static_cast<ocio::ImageDesc*>(new OcioRsCustomImageDesc(*image));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_image_desc_create_callback(void* context, ocio_image_desc_query_fn query,
+                                      ocio_image_desc_release_fn release) {
+#ifdef OCIO_RS_STUB
+  (void)context; (void)query; (void)release;
+  ocio_rs_bridge::capture_error_message("Native image descriptor required"); return nullptr;
+#else
+  try {
+    if (!context || !query || !release) throw std::invalid_argument("invalid image descriptor callbacks");
+    return static_cast<ocio::ImageDesc*>(new OcioRsCallbackImageDesc(context, query, release));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 
 void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buffer* source,
                                             const ocio_planar_buffer* destination) {
@@ -9215,14 +9746,30 @@ void* ocio_gpu_shader_creator_from_desc(void* shaderDesc) {
 #endif
 }
 
+void* ocio_gpu_shader_creator_copy_native_shared(const void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shared shader creator pointer");
+    auto& shared = *static_cast<const ocio::GpuShaderCreatorRcPtr*>(creator);
+    if (!shared) throw std::invalid_argument("empty shared shader creator");
+    return new ocio::GpuShaderCreatorRcPtr(shared);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void* ocio_gpu_shader_creator_clone(void* creator) {
 #ifdef OCIO_RS_STUB
   (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
 #else
   try {
     if (!creator) throw std::invalid_argument("null shader creator");
-    auto result = (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->clone();
+    const auto& source = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    if (!source) throw std::invalid_argument("null native shader creator");
+    auto result = source->clone();
     if (!result) throw std::runtime_error("shader creator clone returned null");
+    if (result.get() == source.get()) throw std::runtime_error("shader creator clone returned the original object");
     return new ocio::GpuShaderCreatorRcPtr(std::move(result));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
@@ -9233,6 +9780,332 @@ void ocio_gpu_shader_creator_destroy(void* creator) {
   (void)creator;
 #else
   delete static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+#endif
+}
+
+const char* ocio_gpu_shader_creator_get_text(void* creator, int field) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)field; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    switch (field) {
+      case 0: return c->getUniqueID();
+      case 1: return c->getFunctionName();
+      case 2: return c->getPixelName();
+      case 3: return c->getResourcePrefix();
+      default: throw std::invalid_argument("invalid shader creator text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_creator_set_text(void* creator, int field, const char* value) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)field; (void)value; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !value) throw std::invalid_argument("null shader creator or text");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    switch (field) {
+      case 0: c->setUniqueID(value); break;
+      case 1: c->setFunctionName(value); break;
+      case 2: c->setPixelName(value); break;
+      case 3: c->setResourcePrefix(value); break;
+      default: throw std::invalid_argument("invalid shader creator text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+#ifndef OCIO_RS_STUB
+static int ocio_rs_gpu_language_to_abi(ocio::GpuLanguage lang);
+static ocio::GpuLanguage ocio_rs_gpu_language_from_abi(int lang);
+#endif
+
+int ocio_gpu_shader_creator_get_language(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return 0;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return ocio_rs_gpu_language_to_abi((*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getLanguage());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_gpu_shader_creator_set_language(void* creator, int language) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)language; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->setLanguage(ocio_rs_gpu_language_from_abi(language));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+uint32_t ocio_gpu_shader_creator_next_resource_index(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return 0;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getNextResourceIndex();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+void ocio_gpu_shader_creator_add_dynamic_property(void* creator, void* property) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)property; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !property) throw std::invalid_argument("null creator or dynamic property");
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(property);
+    if (!prop) throw std::invalid_argument("null native dynamic property");
+    (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->addDynamicProperty(prop);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+uint32_t ocio_gpu_shader_creator_num_dynamic_properties(void* creator) {
+#ifdef OCIO_RS_STUB
+  (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required"); return 0;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->getNumDynamicProperties();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+bool ocio_gpu_shader_creator_has_dynamic_property(void* creator, int type) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)type; ocio_rs_bridge::capture_error_message("Native shader creator required"); return false;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    return (*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator))->hasDynamicProperty(static_cast<ocio::DynamicPropertyType>(type));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void* ocio_gpu_shader_creator_dynamic_property(void* creator, uint32_t value, bool by_index) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)value; (void)by_index; ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    auto prop = by_index ? native->getDynamicProperty(static_cast<unsigned>(value))
+                         : native->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(value));
+    if (!prop) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::DynamicPropertyHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealDynamicProperty>(ocio_rs_bridge::RealDynamicProperty{std::move(prop)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+bool ocio_gpu_shader_creator_add_uniform(void* handle, const char* name, int kind,
+    double scalar, const void* values, size_t len, uint32_t max_size, int property_type) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)kind; (void)scalar; (void)values; (void)len; (void)max_size; (void)property_type;
+  ocio_rs_bridge::capture_error_message("Native shader creator required"); return false;
+#else
+  try {
+    if (!handle || !name || !*name) throw std::invalid_argument("invalid shader creator or uniform name");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
+    if (!c) throw std::invalid_argument("null native shader creator");
+    switch (kind) {
+      case 0: return c->addUniform(name, ocio::GpuShaderCreator::DoubleGetter([scalar]() { return scalar; }));
+      case 1: return c->addUniform(name, ocio::GpuShaderCreator::BoolGetter([scalar]() { return scalar != 0; }));
+      case 2: {
+        if (!values || len != 3) throw std::invalid_argument("invalid float3 uniform");
+        auto source = static_cast<const float*>(values);
+        auto owned = std::make_shared<ocio::Float3>();
+        for (int i = 0; i < 3; ++i) (*owned)[i] = source[i];
+        return c->addUniform(name, ocio::GpuShaderCreator::Float3Getter([owned]() -> const ocio::Float3& { return *owned; }));
+      }
+      case 3:
+      case 4: {
+        if ((!values && len) || len > max_size || len > static_cast<size_t>(std::numeric_limits<int>::max()))
+          throw std::invalid_argument("invalid uniform array length");
+        if (kind == 3) {
+          auto owned = std::make_shared<std::vector<float>>();
+          if (len) { auto p = static_cast<const float*>(values); owned->assign(p, p + len); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+          return c->addUniform(name, [owned]() { return static_cast<int>(owned->size()); }, [owned]() { return owned->empty() ? nullptr : owned->data(); }, max_size);
+#else
+          return c->addUniform(name, [owned]() { return static_cast<int>(owned->size()); }, [owned]() { return owned->empty() ? nullptr : owned->data(); });
+#endif
+        }
+        auto owned = std::make_shared<std::vector<int>>();
+        if (len) { auto p = static_cast<const int*>(values); owned->assign(p, p + len); }
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+        return c->addUniform(name, [owned]() { return static_cast<int>(owned->size()); }, [owned]() { return owned->empty() ? nullptr : owned->data(); }, max_size);
+#else
+        return c->addUniform(name, [owned]() { return static_cast<int>(owned->size()); }, [owned]() { return owned->empty() ? nullptr : owned->data(); });
+#endif
+      }
+      case 5: {
+        auto prop = c->getDynamicProperty(static_cast<ocio::DynamicPropertyType>(property_type));
+        auto value = ocio::DynamicPropertyValue::AsDouble(prop);
+        return c->addUniform(name, ocio::GpuShaderCreator::DoubleGetter([value]() { return value->getValue(); }));
+      }
+      default: throw std::invalid_argument("invalid uniform kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_creator_add_scalar_getter(void* handle, const char* name, int kind,
+    void* context, bool (*getter)(void*, void*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)kind; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO"); return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!handle || !name || !*name || !context || !getter || !release)
+      throw std::invalid_argument("invalid creator uniform getter");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
+    if (!c) throw std::invalid_argument("null native shader creator");
+    switch (kind) {
+      case 0: return c->addUniform(name, ocio::GpuShaderCreator::DoubleGetter([owner, getter]() {
+        double value = 0; if (!getter(owner.get(), &value)) throw ocio::Exception("Rust uniform getter failed"); return value;
+      }));
+      case 1: return c->addUniform(name, ocio::GpuShaderCreator::BoolGetter([owner, getter]() {
+        bool value = false; if (!getter(owner.get(), &value)) throw ocio::Exception("Rust uniform getter failed"); return value;
+      }));
+      case 2: {
+        auto value = std::make_shared<ocio::Float3>();
+        return c->addUniform(name, ocio::GpuShaderCreator::Float3Getter([owner, getter, value]() -> const ocio::Float3& {
+          float result[3]; if (!getter(owner.get(), result)) throw ocio::Exception("Rust uniform getter failed");
+          for (size_t i = 0; i < 3; ++i) (*value)[i] = result[i]; return *value;
+        }));
+      }
+      default: throw std::invalid_argument("invalid scalar uniform kind");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_creator_add_float_array_getter(void* handle, const char* name, uint32_t max_size,
+    void* context, bool (*getter)(void*, float*, size_t, size_t*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)max_size; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO"); return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!handle || !name || !*name || !context || !getter || !release || max_size > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid float uniform getter");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
+    if (!c) throw std::invalid_argument("null native shader creator");
+    auto state = std::make_shared<OcioRsUniformArrayGetter<float>>(owner, getter, max_size);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    return c->addUniform(name, [state]() { return state->refresh(); }, [state]() { return state->data(); }, max_size);
+#else
+    return c->addUniform(name, [state]() { return state->refresh(); }, [state]() { return state->data(); });
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+bool ocio_gpu_shader_creator_add_int_array_getter(void* handle, const char* name, uint32_t max_size,
+    void* context, bool (*getter)(void*, int*, size_t, size_t*), void (*release)(void*)) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)max_size; (void)getter;
+  if (release) release(context);
+  ocio_rs_bridge::capture_error_message("uniform getters require native OpenColorIO"); return false;
+#else
+  try {
+    auto owner = std::shared_ptr<void>(context, [release](void* p) { if (release) release(p); });
+    if (!handle || !name || !*name || !context || !getter || !release || max_size > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+      throw std::invalid_argument("invalid integer uniform getter");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
+    if (!c) throw std::invalid_argument("null native shader creator");
+    auto state = std::make_shared<OcioRsUniformArrayGetter<int>>(owner, getter, max_size);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    return c->addUniform(name, [state]() { return state->refresh(); }, [state]() { return state->data(); }, max_size);
+#else
+    return c->addUniform(name, [state]() { return state->refresh(); }, [state]() { return state->data(); });
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
+
+void ocio_gpu_shader_creator_lifecycle(void* creator, int operation, const char* uid) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)operation; (void)uid; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    switch (operation) {
+      case 0: if (!uid) throw std::invalid_argument("null creator uid"); c->begin(uid); break;
+      case 1: c->finalize(); break;
+      case 2: c->end(); break;
+      default: throw std::invalid_argument("invalid creator lifecycle operation");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_gpu_shader_creator_add_code(void* creator, int section, const char* code) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)section; (void)code; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !code) throw std::invalid_argument("null creator or shader code");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    switch (section) {
+      case 0:
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+        if (c->getLanguage() == ocio::GPU_LANGUAGE_GLSL_VK_4_6)
+          throw std::invalid_argument("combined declarations are not supported for Vulkan");
+        c->addToParameterDeclareShaderCode(code);
+#else
+        c->addToDeclareShaderCode(code);
+#endif
+        break;
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+      case 1: c->addToParameterDeclareShaderCode(code); break;
+      case 2: c->addToTextureDeclareShaderCode(code); break;
+#endif
+      case 3: c->addToHelperShaderCode(code); break;
+      case 4: c->addToFunctionHeaderShaderCode(code); break;
+      case 5: c->addToFunctionShaderCode(code); break;
+      case 6: c->addToFunctionFooterShaderCode(code); break;
+      default: throw std::invalid_argument("invalid shader code section");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_gpu_shader_creator_create_text(void* creator, const char* parameters, const char* textures,
+    const char* helpers, const char* header, const char* body, const char* footer) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)parameters; (void)textures; (void)helpers; (void)header; (void)body; (void)footer;
+  ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !parameters || !textures || !helpers || !header || !body || !footer)
+      throw std::invalid_argument("null creator or shader code section");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    c->createShaderText(parameters, textures, helpers, header, body, footer);
+#else
+    std::string declarations(parameters);
+    declarations += textures;
+    c->createShaderText(declarations.c_str(), helpers, header, body, footer);
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -9344,6 +10217,8 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   ocio_shader_texture_control_callback texture_control_callback = nullptr;
   ocio_shader_finalize_callback finalize_callback = nullptr;
   ocio_shader_texture_policy_callback policy_callback = nullptr;
+  ocio_shader_cache_id_callback cache_id_callback = nullptr;
+  ocio_shader_clone_callback clone_callback = nullptr;
   mutable bool policy_failed = false;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
@@ -9442,9 +10317,20 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
     return replace ? binding : proposed;
   }
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-  unsigned recordBinding(unsigned binding) {
+  static void reserveOne(std::vector<unsigned>& values) {
+    if (values.size() < values.capacity()) return;
+    const auto size = values.size();
+    const auto max = values.max_size();
+    if (size == max) throw std::length_error("Too many texture bindings");
+    values.reserve(size > max / 2 ? max : std::max<size_t>(1, size * 2));
+  }
+  void reserveBinding(unsigned binding) {
     if (std::find(used_bindings.begin(), used_bindings.end(), binding) != used_bindings.end())
       throw ocio::Exception("Duplicate custom texture binding");
+    reserveOne(used_bindings);
+  }
+  unsigned recordBinding(unsigned binding) {
+    reserveBinding(binding);
     used_bindings.push_back(binding);
     return binding;
   }
@@ -9456,7 +10342,8 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
     uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + std::max(stored, streamed_texture_count);
     while (next <= std::numeric_limits<unsigned>::max() &&
            std::find(used_bindings.begin(), used_bindings.end(), static_cast<unsigned>(next)) != used_bindings.end()) {
-      if (!has_external_texture && !texture_callback) throw ocio::Exception("Duplicate custom texture binding");
+      if (!has_external_texture && !texture_callback && !texture_control_callback)
+        throw ocio::Exception("Duplicate custom texture binding");
       ++next;
     }
     if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
@@ -9479,13 +10366,30 @@ public:
   void setPersistentAssembler(ocio_shader_assemble_callback assembler) { callback = assembler; }
   void setFinalizeControl(ocio_shader_finalize_callback cb) { finalize_callback = cb; }
   void setTexturePolicy(ocio_shader_texture_policy_callback cb) { policy_callback = cb; }
+  void setCacheIDCallback(ocio_shader_cache_id_callback cb) noexcept { cache_id_callback = cb; }
+  void setCloneCallback(ocio_shader_clone_callback cb) noexcept { clone_callback = cb; }
+  ocio::GpuShaderCreatorRcPtr clone() const override {
+    if (!clone_callback) return ocio::GpuShaderDesc::clone();
+    // The callback transfers one heap-allocated shared-pointer holder.
+    std::unique_ptr<ocio::GpuShaderCreatorRcPtr> result(
+        static_cast<ocio::GpuShaderCreatorRcPtr*>(clone_callback(context)));
+    if (!result || !*result) throw ocio::Exception("Rust shader creator clone callback failed");
+    if (result->get() == this) throw ocio::Exception("shader creator clone returned the original object");
+    return std::move(*result);
+  }
   bool texturePolicyFailed() const noexcept { return policy_failed; }
   void resetTexturePolicyFailure() noexcept { policy_failed = false; }
   const char* getCacheID() const noexcept override {
+    if (cache_id_callback) {
+      const char* value = nullptr;
+      if (cache_id_callback(context, &value) && value && *value) return value;
+      policy_failed = true;
+      return "";
+    }
     return has_cache_id_override ? cache_id_override.c_str() : ocio::GpuShaderCreator::getCacheID();
   }
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; policy_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
-  void begin(const char* uid) override { ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; policy_callback = nullptr; cache_id_callback = nullptr; clone_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
+  void begin(const char* uid) override { if (policy_failed) throw ocio::Exception("Rust shader policy callback failed"); ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { ocio::GpuShaderCreator::end(); notifyLifecycle(2); }
   void finalize() override {
     const char* text = nullptr;
@@ -9514,6 +10418,8 @@ public:
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
+  unsigned storedTextureMaxWidth() const noexcept { return resources->getTextureMaxWidth(); }
+  bool storedAllowTexture1D() const { return resources->getAllowTexture1D(); }
   void setTextureMaxWidth(unsigned v) override {
     uint32_t value = v;
     if (policy_callback && !policy_callback(context, 2, &value))
@@ -9572,26 +10478,37 @@ public:
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
     if (texture_control_callback) {
-      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
-      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
+      const unsigned next = nextDefaultBinding();
       bool store = true;
-      const auto binding = recordBinding(controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, static_cast<unsigned>(next), store));
-      if (store) { resources->addTexture(n, s, w, h, c, d, i, v); texture_bindings.push_back(binding); }
+      const auto binding = controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, next, store);
+      reserveBinding(binding);
+      if (store) {
+        reserveOne(texture_bindings);
+        resources->addTexture(n, s, w, h, c, d, i, v);
+        texture_bindings.push_back(binding);
+      }
       else has_external_texture = true;
+      used_bindings.push_back(binding);
       ++streamed_texture_count;
       return binding;
     }
     if (stream_textures) {
+      const unsigned next = nextDefaultBinding();
+      const auto binding = recordBinding(notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, next));
       has_external_texture = true;
-      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
-      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
-      const auto binding = recordBinding(notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, static_cast<unsigned>(next)));
       ++streamed_texture_count;
       return binding;
     }
     const auto next = nextDefaultBinding();
-    const auto proposed = resources->addTexture(n, s, w, h, c, d, i, v);
-    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, proposed) : next);
+    // Allocate bookkeeping before native storage mutates the descriptor.
+    // Otherwise an allocation failure can leave a stored texture without a
+    // corresponding binding entry.
+    reserveOne(used_bindings);
+    reserveOne(texture_bindings);
+    resources->addTexture(n, s, w, h, c, d, i, v);
+    // The inner descriptor does not know about overridden bindings. Use the
+    // collision-aware sequence for both the callback proposal and shader.
+    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, next) : next);
     texture_bindings.push_back(binding);
     return binding;
   }
@@ -9599,26 +10516,32 @@ public:
                         const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
     if (texture_control_callback) {
-      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
-      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
+      const unsigned next = nextDefaultBinding();
       bool store = true;
-      const auto binding = recordBinding(controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, static_cast<unsigned>(next), store));
-      if (store) { resources->add3DTexture(n, s, e, i, v); texture3d_bindings.push_back(binding); }
+      const auto binding = controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, next, store);
+      reserveBinding(binding);
+      if (store) {
+        reserveOne(texture3d_bindings);
+        resources->add3DTexture(n, s, e, i, v);
+        texture3d_bindings.push_back(binding);
+      }
       else has_external_texture = true;
+      used_bindings.push_back(binding);
       ++streamed_texture_count;
       return binding;
     }
     if (stream_textures) {
+      const unsigned next = nextDefaultBinding();
+      const auto binding = recordBinding(notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, next));
       has_external_texture = true;
-      const uint64_t next = static_cast<uint64_t>(resources->getTextureBindingStart()) + streamed_texture_count;
-      if (next > std::numeric_limits<unsigned>::max()) throw ocio::Exception("Texture binding index overflow");
-      const auto binding = recordBinding(notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, static_cast<unsigned>(next)));
       ++streamed_texture_count;
       return binding;
     }
     const auto next = nextDefaultBinding();
-    const auto proposed = resources->add3DTexture(n, s, e, i, v);
-    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, proposed) : next);
+    reserveOne(used_bindings);
+    reserveOne(texture3d_bindings);
+    resources->add3DTexture(n, s, e, i, v);
+    const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, next) : next);
     texture3d_bindings.push_back(binding);
     return binding;
   }
@@ -9681,15 +10604,17 @@ public:
     resources->getTexture(i, n, s, w, h, c, d, interp);
   }
   void getTextureValues(unsigned i, const float*& v) const override { resources->getTextureValues(i, v); }
-#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050100
   unsigned getTextureShaderBindingIndex(unsigned i) const override { return texture_bindings.at(i); }
 #endif
   unsigned getNum3DTextures() const noexcept override { return resources->getNum3DTextures(); }
   void get3DTexture(unsigned i, const char*& n, const char*& s, unsigned& e,
                     ocio::Interpolation& interp) const override { resources->get3DTexture(i, n, s, e, interp); }
   void get3DTextureValues(unsigned i, const float*& v) const override { resources->get3DTextureValues(i, v); }
-#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050100
   unsigned get3DTextureShaderBindingIndex(unsigned i) const override { return texture3d_bindings.at(i); }
+#endif
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void createShaderText(const char* p, const char* t, const char* helpers,
                         const char* header, const char* body, const char* footer) override {
     if (!callback) { ocio::GpuShaderCreator::createShaderText(p, t, helpers, header, body, footer); return; }
@@ -9731,8 +10656,11 @@ void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, cons
     desc->setResourceBindings(source->getDescriptorSetIndex(), source->getTextureBindingStart());
 #endif
     desc->setTexturePolicy(policy);
-    desc->setTextureMaxWidth(source->getTextureMaxWidth());
-    desc->setAllowTexture1D(source->getAllowTexture1D());
+    // A persistent template's live getters can run Rust code. Copy its stored
+    // configuration without calling into the source policy.
+    const auto* custom = dynamic_cast<const OcioRsAssemblingDesc*>(source.get());
+    desc->setTextureMaxWidth(custom ? custom->storedTextureMaxWidth() : source->getTextureMaxWidth());
+    desc->setAllowTexture1D(custom ? custom->storedAllowTexture1D() : source->getAllowTexture1D());
     desc->setCacheIDOverride(cache_id);
     ocio::GpuShaderCreatorRcPtr creator = desc;
     return new ocio::GpuShaderCreatorRcPtr(std::move(creator));
@@ -9815,6 +10743,39 @@ void ocio_gpu_shader_creator_detach_persistent_policy(void* creator) {
 #endif
 }
 
+void* ocio_gpu_shader_creator_clone_with_policy(void* creator, ocio_shader_clone_callback clone) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)clone;
+  ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator || !clone) throw std::invalid_argument("null creator or clone callback");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    struct CallbackGuard {
+      OcioRsAssemblingDesc& desc;
+      ~CallbackGuard() { desc.setCloneCallback(nullptr); }
+    } guard{*desc};
+    desc->setCloneCallback(clone);
+    return ocio_gpu_shader_creator_clone(creator);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_creator_begin_manual(void* creator, const char* uid) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)uid; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator || !uid) throw std::invalid_argument("null creator or shader identifier");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    desc->resetTexturePolicyFailure();
+    desc->begin(uid);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* creator) {
 #ifdef OCIO_RS_STUB
   (void)processor; (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required");
@@ -9833,6 +10794,55 @@ void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* cr
 #endif
 }
 
+const char* ocio_gpu_shader_creator_query_cache_policy(void* creator, ocio_shader_cache_id_callback cache_id) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)cache_id;
+  ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
+#else
+  try {
+    if (!creator || !cache_id) throw std::invalid_argument("null creator or cache callback");
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    struct CallbackGuard {
+      OcioRsAssemblingDesc& desc;
+      ~CallbackGuard() {
+        desc.setCacheIDCallback(nullptr);
+        desc.resetTexturePolicyFailure();
+      }
+    } guard{*desc};
+    desc->resetTexturePolicyFailure();
+    desc->setCacheIDCallback(cache_id);
+    const auto* id = desc->getCacheID();
+    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust shader cache callback failed");
+    return id;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_gpu_shader_creator_extract_with_cache_policy(void* processor, void* creator, ocio_shader_cache_id_callback cache_id) {
+#ifdef OCIO_RS_STUB
+  (void)processor; (void)creator; (void)cache_id;
+  ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!processor || !creator || !cache_id) throw std::invalid_argument("null processor, creator or cache callback");
+    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(native);
+    if (!desc) throw std::invalid_argument("not a persistent policy creator");
+    struct CallbackGuard {
+      OcioRsAssemblingDesc& desc;
+      ~CallbackGuard() { desc.setCacheIDCallback(nullptr); }
+    } guard{*desc};
+    desc->resetTexturePolicyFailure();
+    desc->setCacheIDCallback(cache_id);
+    auto active = native;
+    ocio_rs_bridge::get_real_gpu_processor(processor)->extractGpuShaderInfo(active);
+    if (active.get() != native.get()) throw ocio::Exception("OpenColorIO replaced the persistent creator");
+    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust shader policy callback failed");
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 #if !defined(OCIO_RS_STUB) && OCIO_RS_NATIVE_API_HEX >= 0x02050000
 static void ocio_rs_check_generic_texture_binding_range(
     const ocio::GpuShaderDescRcPtr& desc, unsigned start, uint64_t extra) {
@@ -9845,6 +10855,49 @@ static void ocio_rs_check_generic_texture_binding_range(
     throw ocio::Exception("Texture binding index overflow");
 }
 #endif
+
+bool ocio_gpu_shader_creator_add_texture(void* handle, const char* name, const char* sampler,
+    uint32_t width, uint32_t height, uint32_t depth, int channel, int dimensions,
+    int interpolation, const float* values, size_t len, bool is_3d,
+    bool* has_binding, uint32_t* binding) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name; (void)sampler; (void)width; (void)height; (void)depth;
+  (void)channel; (void)dimensions; (void)interpolation; (void)values; (void)len;
+  (void)is_3d; (void)has_binding; (void)binding;
+  ocio_rs_bridge::capture_error_message("Native shader creator required"); return false;
+#else
+  try {
+    if (!handle || !name || !*name || !sampler || !*sampler || !values || !width || !height || !depth)
+      throw std::invalid_argument("invalid GPU texture arguments");
+    if (channel != 0 && channel != 1) throw std::invalid_argument("invalid GPU texture channel");
+    if (!is_3d && dimensions != 1 && dimensions != 2) throw std::invalid_argument("invalid GPU texture dimensions");
+    size_t expected = 0;
+    if (!ocio_rs_texture_count(width, height, depth, is_3d || channel == 1 ? 3 : 1, expected) || len != expected)
+      throw std::invalid_argument("GPU texture payload size mismatch or overflow");
+    auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
+    if (!c) throw std::invalid_argument("null native shader creator");
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    if (auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(c))
+      ocio_rs_check_generic_texture_binding_range(desc, c->getTextureBindingStart(), 1);
+    const unsigned result = is_3d
+      ? c->add3DTexture(name, sampler, width, static_cast<ocio::Interpolation>(interpolation), values)
+      : c->addTexture(name, sampler, width, height, static_cast<ocio::GpuShaderCreator::TextureType>(channel),
+                      static_cast<ocio::GpuShaderCreator::TextureDimensions>(dimensions),
+                      static_cast<ocio::Interpolation>(interpolation), values);
+    if (has_binding) *has_binding = OCIO_RS_NATIVE_API_HEX >= 0x02050100;
+    if (binding) *binding = result;
+#else
+    if (is_3d) c->add3DTexture(name, sampler, width, static_cast<ocio::Interpolation>(interpolation), values);
+    else c->addTexture(name, sampler, width, height, static_cast<ocio::GpuShaderCreator::TextureType>(channel),
+                       static_cast<ocio::GpuShaderCreator::TextureDimensions>(dimensions),
+                       static_cast<ocio::Interpolation>(interpolation), values);
+    if (has_binding) *has_binding = false;
+    (void)binding;
+#endif
+    return true;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
 
 bool ocio_gpu_shader_desc_set_custom_cache_id(void* handle, const char* value) {
 #ifdef OCIO_RS_STUB
@@ -10683,7 +11736,7 @@ bool ocio_gpu_shader_desc_add_texture(
       static_cast<ocio::GpuShaderDesc::TextureDimensions>(dimensions),
       static_cast<ocio::Interpolation>(interpolation),
       values);
-    if (hasBindingIndex) *hasBindingIndex = true;
+    if (hasBindingIndex) *hasBindingIndex = OCIO_RS_NATIVE_API_HEX >= 0x02050100;
     if (bindingIndex) *bindingIndex = result;
     return true;
 #else
@@ -10731,6 +11784,11 @@ bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpu
     ocio::Interpolation interpolation = ocio::INTERP_LINEAR;
     auto desc = ocio_rs_bridge::get_real_gpu_shader_desc(handle);
     desc->getTexture(index, textureName, samplerName, width, height, channel, dimensions, interpolation);
+    if ((channel != ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL &&
+         channel != ocio::GpuShaderDesc::TEXTURE_RGB_CHANNEL) ||
+        (dimensions != ocio::GpuShaderDesc::TEXTURE_1D &&
+         dimensions != ocio::GpuShaderDesc::TEXTURE_2D))
+      throw std::invalid_argument("unsupported GPU texture channel or dimensions");
     out->texture_name = textureName;
     out->sampler_name = samplerName;
     out->width = width;
@@ -10738,7 +11796,7 @@ bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpu
     out->channel = static_cast<int>(channel);
     out->dimensions = static_cast<int>(dimensions);
     out->interpolation = static_cast<int>(interpolation);
-#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050100
     out->has_binding_index = true;
     out->binding_index = desc->getTextureShaderBindingIndex(index);
 #else
@@ -10817,7 +11875,7 @@ bool ocio_gpu_shader_desc_add3d_texture(
       edgeLen,
       static_cast<ocio::Interpolation>(interpolation),
       values);
-    if (hasBindingIndex) *hasBindingIndex = true;
+    if (hasBindingIndex) *hasBindingIndex = OCIO_RS_NATIVE_API_HEX >= 0x02050100;
     if (bindingIndex) *bindingIndex = result;
     return true;
 #else
@@ -10863,7 +11921,7 @@ bool ocio_gpu_shader_desc_get3d_texture_info(void* handle, unsigned index, OcioG
     out->sampler_name = samplerName;
     out->edge_len = edgeLen;
     out->interpolation = static_cast<int>(interpolation);
-#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050100
     out->has_binding_index = true;
     out->binding_index = desc->get3DTextureShaderBindingIndex(index);
 #else
@@ -11150,8 +12208,7 @@ static int ocio_rs_gpu_language_to_abi(ocio::GpuLanguage lang) {
     case ocio::GPU_LANGUAGE_GLSL_ES_1_0: return 7;
     case ocio::GPU_LANGUAGE_GLSL_ES_3_0: return 8;
     case ocio::GPU_LANGUAGE_MSL_2_0: return 9;
-    // Values appended after the 2.5 numbering pass through unchanged.
-    default: return static_cast<int>(lang);
+    default: throw std::invalid_argument("unsupported native GPU language");
   }
 }
 static ocio::GpuLanguage ocio_rs_gpu_language_from_abi(int lang) {
@@ -11163,15 +12220,13 @@ static ocio::GpuLanguage ocio_rs_gpu_language_from_abi(int lang) {
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     case 4: return ocio::GPU_LANGUAGE_GLSL_VK_4_6;
 #endif
-    // case 4 on OCIO < 2.5 is unreachable: the Rust GlslVk4_6 variant is
-    // gated behind the v2_5 feature, which requires OCIO >= 2.5.
+    // In a 2.4 library, raw bridge value 4 must not become native HLSL.
     case 5: return ocio::GPU_LANGUAGE_HLSL_SM_5_0;
     case 6: return ocio::LANGUAGE_OSL_1;
     case 7: return ocio::GPU_LANGUAGE_GLSL_ES_1_0;
     case 8: return ocio::GPU_LANGUAGE_GLSL_ES_3_0;
     case 9: return ocio::GPU_LANGUAGE_MSL_2_0;
-    // Values appended after the 2.5 numbering pass through unchanged.
-    default: return static_cast<ocio::GpuLanguage>(lang);
+    default: throw std::invalid_argument("GPU language is unavailable in this OpenColorIO build");
   }
 }
 #endif  // !OCIO_RS_STUB
@@ -11291,6 +12346,42 @@ void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index,
 #endif
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
+
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
+void ocio_gpu_shader_creator_set_descriptor_set_index(void* creator, uint32_t index, uint32_t start) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)index; (void)start; ocio_rs_bridge::capture_error_message("Native shader creator required");
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    if (!native) throw std::invalid_argument("null native shader creator");
+    auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(native);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    if (desc) ocio_rs_check_generic_texture_binding_range(desc, start, 0);
+#endif
+    native->setDescriptorSetIndex(index, start);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
+    if (auto custom = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(native))
+      custom->setResourceBindings(index, start);
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+uint32_t ocio_gpu_shader_creator_get_descriptor_set_index(void* creator, bool binding_start) {
+#ifdef OCIO_RS_STUB
+  (void)creator; (void)binding_start; ocio_rs_bridge::capture_error_message("Native shader creator required"); return 0;
+#else
+  try {
+    if (!creator) throw std::invalid_argument("null shader creator");
+    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
+    if (!native) throw std::invalid_argument("null native shader creator");
+    return binding_start ? native->getTextureBindingStart() : native->getDescriptorSetIndex();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+#endif
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050000
 uint32_t ocio_gpu_shader_desc_get_descriptor_set_index(void* handle) {
@@ -11855,8 +12946,9 @@ void ocio_baker_bake(void* handle, void* os) {
   return;
 #else
   try {
+    if (!handle || !os) throw std::invalid_argument("null baker or output stream");
     ocio_rs_bridge::get_real_baker(handle)->bake(*static_cast<std::ostream*>(os));
-  } catch (...) { return ; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
 
@@ -11881,6 +12973,10 @@ bool ocio_baker_bake_to_writer(void* handle, void* context, ocio_proxy_write_cal
 #else
   try {
     if (!handle || !write) throw std::invalid_argument("invalid baker writer");
+    // Some native formats keep pointers into Baker metadata across writes.
+    // The writer can mutate the source Baker through another Rust handle.
+    // OCIO copies settings/metadata here and retains the existing config.
+    auto snapshot = ocio_rs_bridge::get_real_baker(handle)->createEditableCopy();
     class CallbackStreambuf final : public std::streambuf {
       char buffer[16384];
       void* context;
@@ -11907,7 +13003,7 @@ bool ocio_baker_bake_to_writer(void* handle, void* context, ocio_proxy_write_cal
       }
     } buffer(context, write);
     std::ostream stream(&buffer);
-    ocio_rs_bridge::get_real_baker(handle)->bake(stream);
+    snapshot->bake(stream);
     stream.flush();
     if (!stream) throw ocio::Exception("Baker output writer failed");
     return true;
@@ -12133,7 +13229,7 @@ int ocio_context_get_environment_mode(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_context(handle)->getEnvironmentMode();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -12427,8 +13523,8 @@ int ocio_builtin_transform_get_num_styles(void) {
 #else
   try {
     auto registry = ocio::BuiltinTransformRegistry::Get();
-    return registry ? static_cast<int>(registry->getNumBuiltins()) : 0;
-  } catch (...) { return 0; }
+    return registry ? ocio_rs_bridge::checked_count_to_int(registry->getNumBuiltins(), "builtin transform styles") : 0;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -13654,28 +14750,35 @@ void ocio_file_transform_set_interpolation(void* handle, int interp) {
 // Keep the bridge discriminants stable across OCIO minor versions. OCIO 2.6
 // inserted HMJ before the existing HSY styles; the bridge appends it instead.
 static ocio::FixedFunctionStyle fixed_function_style_to_native(int style) {
-#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
+  if (style >= 0 && style <= 19) return static_cast<ocio::FixedFunctionStyle>(style);
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   switch (style) {
     case 20: return ocio::FIXED_FUNCTION_RGB_TO_HSY_LIN;
     case 21: return ocio::FIXED_FUNCTION_RGB_TO_HSY_LOG;
     case 22: return ocio::FIXED_FUNCTION_RGB_TO_HSY_VID;
+#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
     case 23: return ocio::FIXED_FUNCTION_ACES_RGB_TO_HMJ_20;
+#endif
   }
 #endif
-  return static_cast<ocio::FixedFunctionStyle>(style);
+  throw std::invalid_argument("fixed-function style is unavailable in this OpenColorIO build");
 }
 
 static int fixed_function_style_from_native(ocio::FixedFunctionStyle style) {
-#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
   switch (style) {
+#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     case ocio::FIXED_FUNCTION_RGB_TO_HSY_LIN: return 20;
     case ocio::FIXED_FUNCTION_RGB_TO_HSY_LOG: return 21;
     case ocio::FIXED_FUNCTION_RGB_TO_HSY_VID: return 22;
+#if OCIO_RS_NATIVE_API_HEX >= 0x02060000
     case ocio::FIXED_FUNCTION_ACES_RGB_TO_HMJ_20: return 23;
+#endif
+#endif
     default: break;
   }
-#endif
-  return static_cast<int>(style);
+  const auto raw = static_cast<int>(style);
+  if (raw >= 0 && raw <= 19) return raw;
+  throw std::invalid_argument("unsupported native fixed-function style");
 }
 #endif
 
@@ -13691,11 +14794,7 @@ const char* ocio_enum_to_string(int kind, int value) {
       case 3: return ocio::BitDepthToString(static_cast<ocio::BitDepth>(value));
       case 4: return ocio::AllocationToString(static_cast<ocio::Allocation>(value));
       case 5: return ocio::InterpolationToString(static_cast<ocio::Interpolation>(value));
-      case 6:
-#if OCIO_RS_NATIVE_API_HEX < 0x02050100
-        if (value > 4) --value;
-#endif
-        return ocio::GpuLanguageToString(static_cast<ocio::GpuLanguage>(value));
+      case 6: return ocio::GpuLanguageToString(ocio_rs_gpu_language_from_abi(value));
       case 7: return ocio::EnvironmentModeToString(static_cast<ocio::EnvironmentMode>(value));
       case 8: return ocio::CDLStyleToString(static_cast<ocio::CDLStyle>(value));
       case 9: return ocio::RangeStyleToString(static_cast<ocio::RangeStyle>(value));
@@ -13720,13 +14819,7 @@ int ocio_enum_from_string(int kind, const char* text) {
       case 3: return static_cast<int>(ocio::BitDepthFromString(text));
       case 4: return static_cast<int>(ocio::AllocationFromString(text));
       case 5: return static_cast<int>(ocio::InterpolationFromString(text));
-      case 6: {
-        int value = static_cast<int>(ocio::GpuLanguageFromString(text));
-#if OCIO_RS_NATIVE_API_HEX < 0x02050100
-        if (value >= 4) ++value;
-#endif
-        return value;
-      }
+      case 6: return ocio_rs_gpu_language_to_abi(ocio::GpuLanguageFromString(text));
       case 7: return static_cast<int>(ocio::EnvironmentModeFromString(text));
       case 8: return static_cast<int>(ocio::CDLStyleFromString(text));
       case 9: return static_cast<int>(ocio::RangeStyleFromString(text));
@@ -13885,7 +14978,7 @@ int ocio_fixed_function_transform_get_style(void* handle) {
 #else
   try {
     return fixed_function_style_from_native(ocio_rs_bridge::get_real_fixed_function_transform(handle)->getStyle());
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -14074,6 +15167,24 @@ bool ocio_grading_primary_transform_copy_value(void* handle, double* values, siz
 #endif
 }
 
+void ocio_grading_primary_value_validate(int style, const double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)style; (void)values; (void)len;
+  ocio_rs_bridge::capture_error_message("Grading validation is unavailable in stub mode");
+#else
+  try {
+    if (!values || len < 34) throw std::invalid_argument("invalid GradingPrimary value buffer");
+    if (style < ocio::GRADING_LOG || style > ocio::GRADING_VIDEO) {
+      throw std::invalid_argument("invalid grading style");
+    }
+    const auto native_style = static_cast<ocio::GradingStyle>(style);
+    ocio::GradingPrimary v(native_style);
+    ocio_rs_bridge::read_grading_primary(v, values);
+    v.validate(native_style);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)values; (void)len;
@@ -14083,28 +15194,7 @@ bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const doubl
     if (!values || len < 34) return false;
     auto transform = ocio_rs_bridge::get_real_grading_primary_transform(handle);
     ocio::GradingPrimary v(static_cast<ocio::GradingStyle>(transform->getStyle()));
-    size_t off = 0;
-    auto read_rgbm = [&]() {
-      ocio::GradingRGBM rgbm;
-      rgbm.m_red = values[off++];
-      rgbm.m_green = values[off++];
-      rgbm.m_blue = values[off++];
-      rgbm.m_master = values[off++];
-      return rgbm;
-    };
-    v.m_brightness = read_rgbm();
-    v.m_contrast = read_rgbm();
-    v.m_gamma = read_rgbm();
-    v.m_offset = read_rgbm();
-    v.m_exposure = read_rgbm();
-    v.m_lift = read_rgbm();
-    v.m_gain = read_rgbm();
-    v.m_saturation = values[off++];
-    v.m_pivot = values[off++];
-    v.m_pivotBlack = values[off++];
-    v.m_pivotWhite = values[off++];
-    v.m_clampBlack = values[off++];
-    v.m_clampWhite = values[off++];
+    ocio_rs_bridge::read_grading_primary(v, values);
     transform->setValue(v);
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
@@ -14271,6 +15361,32 @@ void ocio_grading_rgb_curve_transform_set_value(void* handle, void* values) {
 #endif
 }
 
+void ocio_grading_rgb_curve_transform_set_checked(void* handle, const ocio_rgb_curve_point* const* curves, const size_t* counts) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curves; (void)counts;
+  ocio_rs_bridge::capture_error_message("RGB curves require native OpenColorIO");
+#else
+  try {
+    if (!handle || !curves || !counts) throw std::invalid_argument("null RGB curve input");
+    auto transform = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle);
+    auto value = transform->getValue()->createEditableCopy();
+    for (int c = 0; c < 4; ++c) {
+      if (counts[c] && !curves[c]) throw std::invalid_argument("null RGB control points");
+      auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(c));
+      curve->setNumControlPoints(counts[c]);
+      for (size_t i = 0; i < counts[c]; ++i) {
+        auto& point = curve->getControlPoint(i);
+        point.m_x = curves[c][i].x;
+        point.m_y = curves[c][i].y;
+        curve->setSlope(i, curves[c][i].slope);
+      }
+    }
+    value->validate();
+    transform->setValue(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_grading_rgb_curve_destroy(void* handle) {
   delete static_cast<ocio_rs_bridge::GradingRGBCurveHandle*>(handle);
 }
@@ -14283,7 +15399,7 @@ int ocio_grading_rgb_curve_transform_get_num_control_points(void* handle, int c)
   try {
     auto curve = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::RGBCurveType>(c));
     if (!curve) return 0;
-    return static_cast<int>(curve->getNumControlPoints());
+    return ocio_rs_bridge::checked_count_to_int(curve->getNumControlPoints(), "RGB curve control points");
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -14310,8 +15426,12 @@ void ocio_grading_rgb_curve_transform_set_num_control_points(void* handle, int c
   return;
 #else
   try {
+    if (num < 0) throw std::invalid_argument("negative grading RGB curve point count");
     auto transform = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle);
-    auto value = ocio::GradingRGBCurve::Create(transform->getValue());
+    const auto& source = transform->getValue();
+    if (!source) throw ocio::Exception("null grading RGB curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable grading RGB curve copy");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(c));
     if (!curve) return;
     curve->setNumControlPoints(static_cast<size_t>(num));
@@ -14327,7 +15447,10 @@ void ocio_grading_rgb_curve_transform_set_control_point(void* handle, int c, int
 #else
   try {
     auto transform = ocio_rs_bridge::get_real_grading_rgb_curve_transform(handle);
-    auto value = ocio::GradingRGBCurve::Create(transform->getValue());
+    const auto& source = transform->getValue();
+    if (!source) throw ocio::Exception("null grading RGB curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable grading RGB curve copy");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(c));
     if (!curve) return;
     auto& point = curve->getControlPoint(static_cast<size_t>(index));
@@ -14568,6 +15691,32 @@ void ocio_grading_hue_curve_transform_set_value(void* handle, void* value) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
 }
+
+void ocio_grading_hue_curve_transform_set_checked(void* handle, const ocio_rgb_curve_point* const* curves, const size_t* counts) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)curves; (void)counts;
+  ocio_rs_bridge::capture_error_message("Hue curves require native OpenColorIO");
+#else
+  try {
+    if (!handle || !curves || !counts) throw std::invalid_argument("null hue curve input");
+    auto transform = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle);
+    auto value = transform->getValue()->createEditableCopy();
+    for (int c = 0; c < 8; ++c) {
+      if (counts[c] && !curves[c]) throw std::invalid_argument("null hue control points");
+      auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
+      curve->setNumControlPoints(counts[c]);
+      for (size_t i = 0; i < counts[c]; ++i) {
+        auto& point = curve->getControlPoint(i);
+        point.m_x = curves[c][i].x;
+        point.m_y = curves[c][i].y;
+        curve->setSlope(i, curves[c][i].slope);
+      }
+    }
+    value->validate();
+    transform->setValue(value);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
 
 void ocio_grading_hue_curve_destroy(void* handle) {
@@ -14583,7 +15732,7 @@ int ocio_grading_hue_curve_transform_get_num_control_points(void* handle, int c)
   try {
     auto curve = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle)->getValue()->getCurve(static_cast<ocio::HueCurveType>(c));
     if (!curve) return 0;
-    return static_cast<int>(curve->getNumControlPoints());
+    return ocio_rs_bridge::checked_count_to_int(curve->getNumControlPoints(), "hue curve control points");
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -14614,8 +15763,12 @@ void ocio_grading_hue_curve_transform_set_num_control_points(void* handle, int c
   return;
 #else
   try {
+    if (num < 0) throw std::invalid_argument("negative grading hue curve point count");
     auto transform = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle);
-    auto value = ocio::GradingHueCurve::Create(transform->getValue());
+    const auto& source = transform->getValue();
+    if (!source) throw ocio::Exception("null grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable grading hue curve copy");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
     if (!curve) return;
     curve->setNumControlPoints(static_cast<size_t>(num));
@@ -14633,7 +15786,10 @@ void ocio_grading_hue_curve_transform_set_control_point(void* handle, int c, int
 #else
   try {
     auto transform = ocio_rs_bridge::get_real_grading_hue_curve_transform(handle);
-    auto value = ocio::GradingHueCurve::Create(transform->getValue());
+    const auto& source = transform->getValue();
+    if (!source) throw ocio::Exception("null grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable grading hue curve copy");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
     if (!curve) return;
     auto& point = curve->getControlPoint(static_cast<size_t>(index));
@@ -14886,6 +16042,20 @@ bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t
 #endif
 }
 
+void ocio_grading_tone_value_validate(const double* values, size_t len) {
+#ifdef OCIO_RS_STUB
+  (void)values; (void)len;
+  ocio_rs_bridge::capture_error_message("Grading validation is unavailable in stub mode");
+#else
+  try {
+    if (!values || len < 31) throw std::invalid_argument("invalid GradingTone value buffer");
+    ocio::GradingTone v(ocio::GRADING_LOG);
+    ocio_rs_bridge::read_grading_tone(v, values);
+    v.validate();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* values, size_t len) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)values; (void)len;
@@ -14895,23 +16065,7 @@ bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* 
     if (!values || len < 31) return false;
     auto transform = ocio_rs_bridge::get_real_grading_tone_transform(handle);
     ocio::GradingTone v(static_cast<ocio::GradingStyle>(transform->getStyle()));
-    size_t off = 0;
-    auto read_rgbmsw = [&]() {
-      ocio::GradingRGBMSW rgbmsw;
-      rgbmsw.m_red = values[off++];
-      rgbmsw.m_green = values[off++];
-      rgbmsw.m_blue = values[off++];
-      rgbmsw.m_master = values[off++];
-      rgbmsw.m_start = values[off++];
-      rgbmsw.m_width = values[off++];
-      return rgbmsw;
-    };
-    v.m_blacks = read_rgbmsw();
-    v.m_shadows = read_rgbmsw();
-    v.m_midtones = read_rgbmsw();
-    v.m_highlights = read_rgbmsw();
-    v.m_whites = read_rgbmsw();
-    v.m_scontrast = values[off++];
+    ocio_rs_bridge::read_grading_tone(v, values);
     transform->setValue(v);
     return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
@@ -15509,9 +16663,10 @@ bool ocio_log_camera_transform_get_linear_slope_value(void* handle, double* valu
   try {
     if (!values) return false;
     double tmp[3];
-    bool result = ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinearSlopeValue(tmp);
+    // An unset slope returns false without initializing the output array.
+    if (!ocio_rs_bridge::get_real_log_camera_transform(handle)->getLinearSlopeValue(tmp)) return false;
     values[0] = tmp[0]; values[1] = tmp[1]; values[2] = tmp[2];
-    return result;
+    return true;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
@@ -15771,6 +16926,14 @@ void ocio_look_transform_set_skip_color_space_conversion(void* handle, bool skip
 
 // --- Lut1DTransform ---
 
+#ifndef OCIO_RS_STUB
+static unsigned long ocio_rs_checked_lut_index(uint64_t value) {
+  if (value > std::numeric_limits<unsigned long>::max())
+    throw std::invalid_argument("LUT size or index exceeds native unsigned long range");
+  return static_cast<unsigned long>(value);
+}
+#endif
+
 void* ocio_lut1d_transform_create(void) {
 #ifdef OCIO_RS_STUB
   return ocio_rs_bridge::make_stub_lut1d_transform().release();
@@ -15790,8 +16953,7 @@ void* ocio_lut1d_transform_create_with_length(uint64_t length, bool half_domain)
   return nullptr;
 #else
   try {
-    if (length > std::numeric_limits<unsigned long>::max()) throw std::invalid_argument("LUT length exceeds native range");
-    auto transform = ocio::Lut1DTransform::Create(static_cast<unsigned long>(length), half_domain);
+    auto transform = ocio::Lut1DTransform::Create(ocio_rs_checked_lut_index(length), half_domain);
     auto handle = std::make_unique<ocio_rs_bridge::Lut1DTransformHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealLut1DTransform>(ocio_rs_bridge::RealLut1DTransform{transform});
     return handle.release();
@@ -15862,15 +17024,7 @@ void* ocio_lut1d_transform_get_length(void* handle) {
 }
 
 void ocio_lut1d_transform_set_length(void* handle, void* length) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)length;
-  return;
-#else
-  try {
-    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(length)));
-  } catch (...) { return ; }
-#endif
+  ocio_lut1d_transform_set_length_u64(handle, reinterpret_cast<uintptr_t>(length));
 }
 
 uint64_t ocio_lut1d_transform_get_length_u64(void* handle) {
@@ -15890,7 +17044,7 @@ void ocio_lut1d_transform_set_length_u64(void* handle, uint64_t length) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(static_cast<unsigned long>(length));
+    ocio_rs_bridge::get_real_lut1d_transform(handle)->setLength(ocio_rs_checked_lut_index(length));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -15902,7 +17056,7 @@ void ocio_lut1d_transform_get_value(void* handle, void* index, void* r, void* g,
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->getValue(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(index)),
         *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
@@ -15915,7 +17069,7 @@ void ocio_lut1d_transform_set_value(void* handle, void* index, float r, float g,
 #else
   try {
     ocio_rs_bridge::get_real_lut1d_transform(handle)->setValue(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(index)), r, g, b);
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(index)), r, g, b);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -16030,8 +17184,7 @@ void* ocio_lut3d_transform_create_with_grid_size(uint64_t grid_size) {
   return nullptr;
 #else
   try {
-    if (grid_size > std::numeric_limits<unsigned long>::max()) throw std::invalid_argument("LUT grid size exceeds native range");
-    auto transform = ocio::Lut3DTransform::Create(static_cast<unsigned long>(grid_size));
+    auto transform = ocio::Lut3DTransform::Create(ocio_rs_checked_lut_index(grid_size));
     auto handle = std::make_unique<ocio_rs_bridge::Lut3DTransformHandle>();
     handle->inner = std::make_shared<ocio_rs_bridge::RealLut3DTransform>(ocio_rs_bridge::RealLut3DTransform{transform});
     return handle.release();
@@ -16102,15 +17255,7 @@ void* ocio_lut3d_transform_get_grid_size(void* handle) {
 }
 
 void ocio_lut3d_transform_set_grid_size(void* handle, void* gridSize) {
-#ifdef OCIO_RS_STUB
-  (void)handle; (void)gridSize;
-  return;
-#else
-  try {
-    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(gridSize)));
-  } catch (...) { return ; }
-#endif
+  ocio_lut3d_transform_set_grid_size_u64(handle, reinterpret_cast<uintptr_t>(gridSize));
 }
 
 uint64_t ocio_lut3d_transform_get_grid_size_u64(void* handle) {
@@ -16130,7 +17275,7 @@ void ocio_lut3d_transform_set_grid_size_u64(void* handle, uint64_t gridSize) {
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(static_cast<unsigned long>(gridSize));
+    ocio_rs_bridge::get_real_lut3d_transform(handle)->setGridSize(ocio_rs_checked_lut_index(gridSize));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -16142,9 +17287,9 @@ void ocio_lut3d_transform_get_value(void* handle, void* indexR, void* indexG, vo
 #else
   try {
     ocio_rs_bridge::get_real_lut3d_transform(handle)->getValue(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexR)),
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexR)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexG)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexB)),
         *static_cast<float*>(r), *static_cast<float*>(g), *static_cast<float*>(b));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return ; }
 #endif
@@ -16157,9 +17302,9 @@ void ocio_lut3d_transform_set_value(void* handle, void* indexR, void* indexG, vo
 #else
   try {
     ocio_rs_bridge::get_real_lut3d_transform(handle)->setValue(
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexR)),
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexG)),
-        static_cast<unsigned long>(reinterpret_cast<uintptr_t>(indexB)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexR)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexG)),
+        ocio_rs_checked_lut_index(reinterpret_cast<uintptr_t>(indexB)),
         r, g, b);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
@@ -16753,7 +17898,7 @@ int ocio_format_metadata_get_num_attributes(void* metadata) {
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getNumAttributes() : 0;
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -16809,7 +17954,7 @@ int ocio_format_metadata_get_num_children_elements(void* metadata) {
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getNumChildrenElements() : 0;
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -16830,25 +17975,65 @@ void ocio_format_metadata_clear(void* metadata) {
   try {
     if (auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata)) {
       auto* handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(metadata);
-      const auto generation = handle->epochs->generations.find(handle->child_indices);
-      if (generation != handle->epochs->generations.end()) {
-        if (*generation->second == std::numeric_limits<uint64_t>::max())
-          throw std::overflow_error("metadata generation exhausted");
-        ++*generation->second;
-      }
-      // Descendant handles already carry their old tokens. Release registry
-      // entries for removed paths so repeated clear/rebuild cycles do not
-      // retain an ever-growing map of dead nodes.
-      auto& generations = handle->epochs->generations;
-      auto it = generations.upper_bound(handle->child_indices);
-      while (it != generations.end() && it->first.size() > handle->child_indices.size() &&
-             std::equal(handle->child_indices.begin(), handle->child_indices.end(), it->first.begin()))
-        it = generations.erase(it);
+      ocio_rs_bridge::invalidate_format_metadata_descendants(handle);
       format_metadata->clear();
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
   (void)metadata;
+#endif
+}
+
+void ocio_format_metadata_assign(void* destination, void* source) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto* dst_handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(destination);
+    auto* src_handle = static_cast<ocio_rs_bridge::FormatMetadataHandle*>(source);
+    auto* dst = ocio_rs_bridge::get_real_format_metadata(destination);
+    auto* src = ocio_rs_bridge::get_real_format_metadata(source);
+    if (!dst || !src) throw std::invalid_argument("null metadata handle");
+    if (dst == src) return;
+
+    // Copy only overlapping trees: native assignment may destroy a source
+    // descendant or mutate a destination contained by its source.
+    ocio::GroupTransformRcPtr snapshot;
+    if (dst_handle->epochs == src_handle->epochs) {
+      const auto& a = dst_handle->child_indices;
+      const auto& b = src_handle->child_indices;
+      const auto common = std::min(a.size(), b.size());
+      if (std::equal(a.begin(), a.begin() + common, b.begin())) {
+        snapshot = ocio::GroupTransform::Create();
+        snapshot->getFormatMetadata() = *src;
+        src = &snapshot->getFormatMetadata();
+      }
+    }
+    // Assignment may throw after partially modifying children. Invalidate
+    // before invoking it so old handles cannot retarget after any failure.
+    ocio_rs_bridge::invalidate_format_metadata_descendants(dst_handle);
+    *dst = *src;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#else
+  (void)destination; (void)source;
+  ocio_rs_bridge::capture_error_message("Native metadata required");
+#endif
+}
+
+void ocio_format_metadata_assign_const(void* destination, void* source) {
+#ifndef OCIO_RS_STUB
+  try {
+    auto* dst = ocio_rs_bridge::get_real_format_metadata(destination);
+    auto* src = static_cast<ConstProcessorFormatMetadata*>(source);
+    if (!dst || !src || !src->metadata) throw std::invalid_argument("null metadata handle");
+    // Processor-owned metadata cannot alias editable metadata exposed by this
+    // bridge. Native assignment copies it directly, without an intermediate
+    // editable copy.
+    ocio_rs_bridge::invalidate_format_metadata_descendants(
+        static_cast<ocio_rs_bridge::FormatMetadataHandle*>(destination));
+    *dst = *src->metadata;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#else
+  (void)destination; (void)source;
+  ocio_rs_bridge::capture_error_message("Native metadata required");
 #endif
 }
 
@@ -16859,7 +18044,7 @@ const char* ocio_format_metadata_get_name(void* metadata) {
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getName() : nullptr;
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -16882,7 +18067,7 @@ const char* ocio_format_metadata_get_id(void* metadata) {
   try {
     auto* format_metadata = ocio_rs_bridge::get_real_format_metadata(metadata);
     return format_metadata ? format_metadata->getID() : nullptr;
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -17217,7 +18402,7 @@ int ocio_dynamic_property_get_type(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_dynamic_property(handle)->getType();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -17285,28 +18470,7 @@ void ocio_dynamic_property_grading_primary_set_value(void* handle, const double*
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingPrimary(prop);
     auto v = typed->getValue();
-    size_t off = 0;
-    auto read_rgbm = [&]() {
-      ocio::GradingRGBM rgbm;
-      rgbm.m_red = values[off++];
-      rgbm.m_green = values[off++];
-      rgbm.m_blue = values[off++];
-      rgbm.m_master = values[off++];
-      return rgbm;
-    };
-    v.m_brightness = read_rgbm();
-    v.m_contrast = read_rgbm();
-    v.m_gamma = read_rgbm();
-    v.m_offset = read_rgbm();
-    v.m_exposure = read_rgbm();
-    v.m_lift = read_rgbm();
-    v.m_gain = read_rgbm();
-    v.m_saturation = values[off++];
-    v.m_pivot = values[off++];
-    v.m_pivotBlack = values[off++];
-    v.m_pivotWhite = values[off++];
-    v.m_clampBlack = values[off++];
-    v.m_clampWhite = values[off++];
+    ocio_rs_bridge::read_grading_primary(v, values);
     typed->setValue(v);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
@@ -17348,23 +18512,7 @@ void ocio_dynamic_property_grading_tone_set_value(void* handle, const double* va
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingTone(prop);
     auto v = typed->getValue();
-    size_t off = 0;
-    auto read_rgbmsw = [&]() {
-      ocio::GradingRGBMSW rgbmsw;
-      rgbmsw.m_red = values[off++];
-      rgbmsw.m_green = values[off++];
-      rgbmsw.m_blue = values[off++];
-      rgbmsw.m_master = values[off++];
-      rgbmsw.m_start = values[off++];
-      rgbmsw.m_width = values[off++];
-      return rgbmsw;
-    };
-    v.m_blacks = read_rgbmsw();
-    v.m_shadows = read_rgbmsw();
-    v.m_midtones = read_rgbmsw();
-    v.m_highlights = read_rgbmsw();
-    v.m_whites = read_rgbmsw();
-    v.m_scontrast = values[off++];
+    ocio_rs_bridge::read_grading_tone(v, values);
     typed->setValue(v);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
@@ -17378,8 +18526,10 @@ int ocio_dynamic_property_grading_rgb_curve_get_num_control_points(void* handle,
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading RGB curve value");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    return curve ? static_cast<int>(curve->getNumControlPoints()) : 0;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
+    return ocio_rs_bridge::checked_count_to_int(curve->getNumControlPoints(), "dynamic RGB curve control points");
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -17389,11 +18539,15 @@ void ocio_dynamic_property_grading_rgb_curve_set_num_control_points(void* handle
   (void)handle; (void)curveType; (void)num;
 #else
   try {
+    if (num < 0) throw std::invalid_argument("negative dynamic RGB curve point count");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
-    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading RGB curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic RGB curve copy");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
     curve->setNumControlPoints(static_cast<size_t>(num));
     typed->setValue(value);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
@@ -17405,11 +18559,13 @@ void ocio_dynamic_property_grading_rgb_curve_get_control_point(void* handle, int
   (void)handle; (void)curveType; (void)index; (void)x; (void)y;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     if (!x || !y) return;
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading RGB curve value");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
     const auto& point = curve->getControlPoint(static_cast<size_t>(index));
     *x = point.m_x;
     *y = point.m_y;
@@ -17422,11 +18578,15 @@ void ocio_dynamic_property_grading_rgb_curve_set_control_point(void* handle, int
   (void)handle; (void)curveType; (void)index; (void)x; (void)y;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
-    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading RGB curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic RGB curve copy");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
     auto& point = curve->getControlPoint(static_cast<size_t>(index));
     point.m_x = x;
     point.m_y = y;
@@ -17441,10 +18601,13 @@ float ocio_dynamic_property_grading_rgb_curve_get_slope(void* handle, int curveT
   return 0.0f;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading RGB curve value");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    return curve ? curve->getSlope(static_cast<size_t>(index)) : 0.0f;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
+    return curve->getSlope(static_cast<size_t>(index));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0.0f; }
 #endif
 }
@@ -17454,11 +18617,15 @@ void ocio_dynamic_property_grading_rgb_curve_set_slope(void* handle, int curveTy
   (void)handle; (void)curveType; (void)index; (void)slope;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
-    auto value = ocio::GradingRGBCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading RGB curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic RGB curve copy");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
     curve->setSlope(static_cast<size_t>(index), slope);
     typed->setValue(value);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
@@ -17473,8 +18640,10 @@ bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* handle, in
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading RGB curve value");
     auto curve = value->getCurve(static_cast<ocio::RGBCurveType>(curveType));
-    return curve ? curve->slopesAreDefault() : true;
+    if (!curve) throw ocio::Exception("null dynamic RGB spline");
+    return curve->slopesAreDefault();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return true; }
 #endif
 }
@@ -17488,8 +18657,10 @@ int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* handle,
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading hue curve value");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    return curve ? static_cast<int>(curve->getNumControlPoints()) : 0;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
+    return ocio_rs_bridge::checked_count_to_int(curve->getNumControlPoints(), "dynamic hue curve control points");
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
@@ -17501,11 +18672,15 @@ void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* handle
   (void)handle; (void)curveType; (void)num;
 #else
   try {
+    if (num < 0) throw std::invalid_argument("negative dynamic hue curve point count");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
-    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic hue curve copy");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
     curve->setNumControlPoints(static_cast<size_t>(num));
     typed->setValue(value);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
@@ -17521,7 +18696,10 @@ void ocio_dynamic_property_grading_hue_curve_set_complete(void* handle, const oc
     if (!curves || !counts) throw std::invalid_argument("null hue curve array");
     auto property = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(property);
-    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic hue curve copy");
     for (int c = 0; c < 8; ++c) {
       if (counts[c] && !curves[c]) throw std::invalid_argument("null hue control points");
       auto curve = value->getCurve(static_cast<ocio::HueCurveType>(c));
@@ -17546,11 +18724,13 @@ void ocio_dynamic_property_grading_hue_curve_get_control_point(void* handle, int
   (void)handle; (void)curveType; (void)index; (void)x; (void)y;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     if (!x || !y) return;
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading hue curve value");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
     const auto& point = curve->getControlPoint(static_cast<size_t>(index));
     *x = point.m_x;
     *y = point.m_y;
@@ -17565,11 +18745,15 @@ void ocio_dynamic_property_grading_hue_curve_set_control_point(void* handle, int
   (void)handle; (void)curveType; (void)index; (void)x; (void)y;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
-    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic hue curve copy");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
     auto& point = curve->getControlPoint(static_cast<size_t>(index));
     point.m_x = x;
     point.m_y = y;
@@ -17586,10 +18770,13 @@ float ocio_dynamic_property_grading_hue_curve_get_slope(void* handle, int curveT
   return 0.0f;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading hue curve value");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    return curve ? curve->getSlope(static_cast<size_t>(index)) : 0.0f;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
+    return curve->getSlope(static_cast<size_t>(index));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0.0f; }
 #endif
 }
@@ -17601,11 +18788,15 @@ void ocio_dynamic_property_grading_hue_curve_set_slope(void* handle, int curveTy
   (void)handle; (void)curveType; (void)index; (void)slope;
 #else
   try {
+    if (index < 0) throw std::invalid_argument("negative dynamic curve index");
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
-    auto value = ocio::GradingHueCurve::Create(typed->getValue());
+    const auto& source = typed->getValue();
+    if (!source) throw ocio::Exception("null dynamic grading hue curve value");
+    auto value = source->createEditableCopy();
+    if (!value) throw ocio::Exception("null editable dynamic hue curve copy");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    if (!curve) return;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
     curve->setSlope(static_cast<size_t>(index), slope);
     typed->setValue(value);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
@@ -17622,8 +18813,10 @@ bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* handle, in
   try {
     auto prop = ocio_rs_bridge::get_real_dynamic_property(handle);
     auto value = ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading hue curve value");
     auto curve = value->getCurve(static_cast<ocio::HueCurveType>(curveType));
-    return curve ? curve->slopesAreDefault() : true;
+    if (!curve) throw ocio::Exception("null dynamic hue spline");
+    return curve->slopesAreDefault();
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return true; }
 #endif
 }
@@ -17631,11 +18824,13 @@ bool ocio_dynamic_property_grading_hue_curve_slopes_are_default(void* handle, in
 
 
 const char* ocio_error_get_last(void) {
-  return ocio_rs_bridge::g_last_error.empty() ? nullptr : ocio_rs_bridge::g_last_error.c_str();
+  return ocio_rs_bridge::g_last_error_kind == ocio_rs_bridge::BridgeErrorKind::None
+      ? nullptr : ocio_rs_bridge::g_last_error.c_str();
 }
 
 int ocio_error_get_last_kind(void) {
-  return ocio_rs_bridge::g_last_error_kind;
+  // Preserve the public ABI: 1 means missing file, 0 otherwise.
+  return ocio_rs_bridge::g_last_error_kind == ocio_rs_bridge::BridgeErrorKind::MissingFile ? 1 : 0;
 }
 
 void ocio_error_clear_last(void) {
@@ -17643,6 +18838,45 @@ void ocio_error_clear_last(void) {
 }
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02060000 && OCIO_RS_NATIVE_API_HEX >= 0x02060000
+const char* ocio_const_config_v26_display_text(void* handle, int field, const char* display, const char* view, int index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)display; (void)view; (void)index;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    auto& config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    switch (field) {
+      case 0: return config->getCanonicalDisplayName(display);
+      case 1: return config->getCanonicalViewName(display, view);
+      case 2: return config->getResolvedDisplayViewColorSpaceName(display, view);
+      case 3: return config->getDisplayDescription(display);
+      case 4: return config->getDisplayViewAlias(display, view, index);
+      default: throw std::invalid_argument("invalid const config display text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+int ocio_const_config_v26_display_number(void* handle, int field, const char* display, const char* view, const char* alias) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)field; (void)display; (void)view; (void)alias;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return 0;
+#else
+  try {
+    auto& config = *static_cast<ocio::ConstConfigRcPtr*>(handle);
+    switch (field) {
+      case 0: return config->getNumDisplayViewAliases(display, view);
+      case 1: return config->hasDisplayViewAlias(display, view, alias) ? 1 : 0;
+      case 2: return config->getUseDisplayAliases() ? 1 : 0;
+      case 3: return ocio::ConfigCompatibilityHelpers::CheckCompatibility(config, ocio::CONFIG_HDR_DISPLAY_SUPPORT_26) ? 1 : 0;
+      default: throw std::invalid_argument("invalid const config display number field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
 const char* ocio_config_canonical_display_name(void* handle, const char* display) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)display;
@@ -17716,6 +18950,19 @@ const char* ocio_config_generate_local_id_for_color_space(void* handle, const ch
 #endif
 }
 
+const char* ocio_const_config_generate_local_id_for_color_space(void* handle, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)name;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    ocio_rs_bridge::g_serialized_text = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->generateLocalIDForColorSpace(name);
+    return ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 const char* ocio_config_locate_builtin_color_space(void* handle, const char* name, void* builtin) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)name; (void)builtin;
@@ -17724,6 +18971,22 @@ const char* ocio_config_locate_builtin_color_space(void* handle, const char* nam
 #else
   try {
     return ocio::Config::LocateBuiltinColorSpace(ocio_rs_bridge::get_real_config(handle), name, ocio_rs_bridge::get_real_config(builtin));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+const char* ocio_config_locate_builtin_color_space_refs(void* source, bool source_const, const char* name, void* builtin, bool builtin_const) {
+#ifdef OCIO_RS_STUB
+  (void)source; (void)source_const; (void)name; (void)builtin; (void)builtin_const;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    ocio::ConstConfigRcPtr source_ref = source_const
+        ? *static_cast<ocio::ConstConfigRcPtr*>(source) : ocio_rs_bridge::get_real_config(source);
+    ocio::ConstConfigRcPtr builtin_ref = builtin_const
+        ? *static_cast<ocio::ConstConfigRcPtr*>(builtin) : ocio_rs_bridge::get_real_config(builtin);
+    return ocio::Config::LocateBuiltinColorSpace(source_ref, name, builtin_ref);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -17800,6 +19063,32 @@ void* ocio_config_find_color_space_for_id(void* handle, const char* id) {
     auto out = std::make_unique<ocio_rs_bridge::ColorSpaceHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealColorSpace>(ocio_rs_bridge::RealColorSpace{result->createEditableCopy()});
     return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_find_const_color_space_for_id(void* handle, const char* id) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)id;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    auto result = ocio_rs_bridge::get_real_config(handle)->findColorSpaceForID(id);
+    return result ? new ocio::ConstColorSpaceRcPtr(std::move(result)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_config_find_color_space_for_id(void* handle, const char* id) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)id;
+  ocio_rs_bridge::capture_error_message("OpenColorIO 2.6 API requires a native backend");
+  return nullptr;
+#else
+  try {
+    auto result = (*static_cast<ocio::ConstConfigRcPtr*>(handle))->findColorSpaceForID(id);
+    return result ? new ocio::ConstColorSpaceRcPtr(std::move(result)) : nullptr;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -17893,6 +19182,19 @@ void* ocio_color_space_menu_parameters_get_config(void* handle) {
     auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{config->createEditableCopy()});
     return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_color_space_menu_parameters_get_const_config(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Color-space menus require a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    auto config = menu_parameters(handle)->getConfig();
+    return config ? new ocio::ConstConfigRcPtr(std::move(config)) : nullptr;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -19577,6 +20879,19 @@ void* ocio_config_merger_params(void* h, int index) {
 #endif
 }
 
+void* ocio_config_merger_params_shared(void* h, int index) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)index;
+  ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    auto value = merger(h)->getParams(index);
+    return value ? new MergeParams(std::move(value)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_config_merger_add_params(void* h, void* params) {
 #if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
   (void)h; (void)params;
@@ -19613,11 +20928,24 @@ void* ocio_config_merger_merged_config(void* h, int index) {
   ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer");
   return nullptr;
 #else
-  try { auto value = index < 0 ? merger(h)->getMergedConfig() : merger(h)->getMergedConfig(index);
+  try { auto value = index == -1 ? merger(h)->getMergedConfig() : merger(h)->getMergedConfig(index);
     if (!value) return nullptr;
     auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{value->createEditableCopy()});
     return out.release(); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_merger_merged_const_config(void* h, int index) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)index;
+  ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer");
+  return nullptr;
+#else
+  try {
+    auto value = index == -1 ? merger(h)->getMergedConfig() : merger(h)->getMergedConfig(index);
+    return value ? new ocio::ConstConfigRcPtr(std::move(value)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -20262,7 +21590,9 @@ void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h) {
 #else
   try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
     auto typed = ocio::DynamicPropertyValue::AsGradingRGBCurve(prop);
-    return new CurveObjectrgb(typed->getValue()->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+    const auto& value = typed->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading RGB curve value");
+    return new CurveObjectrgb(value->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -20427,6 +21757,31 @@ bool ocio_grading_hue_curve_value_shared_draw_only(void* value) {
 }
 #endif
 
+void ocio_grading_curve_value_shared_set_dynamic_property(const void* value, bool hue, void* property) {
+#ifdef OCIO_RS_STUB
+  (void)value; (void)hue; (void)property;
+  ocio_rs_bridge::capture_error_message("Dynamic grading curves require native OpenColorIO");
+#else
+  try {
+    if (!value || !property) throw std::invalid_argument("null shared curve or dynamic property");
+    auto prop = ocio_rs_bridge::get_real_dynamic_property(property);
+    if (!hue) {
+      const auto& curve = *static_cast<const ocio::ConstGradingRGBCurveRcPtr*>(value);
+      if (!curve) throw std::invalid_argument("null shared RGB curve");
+      ocio::DynamicPropertyValue::AsGradingRGBCurve(prop)->setValue(curve);
+      return;
+    }
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+    const auto& curve = *static_cast<const ocio::ConstGradingHueCurveRcPtr*>(value);
+    if (!curve) throw std::invalid_argument("null shared hue curve");
+    ocio::DynamicPropertyValue::AsGradingHueCurve(prop)->setValue(curve);
+#else
+    throw std::invalid_argument("hue curves require OpenColorIO 2.5");
+#endif
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_dynamic_property_grading_rgb_curve_object_set(void* h, void* value) {
 #ifdef OCIO_RS_STUB
   (void)h; (void)value;
@@ -20448,7 +21803,9 @@ void* ocio_dynamic_property_grading_hue_curve_object_get(void* h) {
 #else
   try { auto prop = ocio_rs_bridge::get_real_dynamic_property(h);
     auto typed = ocio::DynamicPropertyValue::AsGradingHueCurve(prop);
-    return new CurveObjecthue(typed->getValue()->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+    const auto& value = typed->getValue();
+    if (!value) throw ocio::Exception("null dynamic grading hue curve value");
+    return new CurveObjecthue(value->createEditableCopy()); } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 #endif
@@ -20475,7 +21832,8 @@ void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int inp
 #else
   try {
     auto value = ocio_rs_bridge::get_real_processor(handle)->getOptimizedCPUProcessor(
-        static_cast<ocio::BitDepth>(input_depth), static_cast<ocio::BitDepth>(output_depth),
+        ocio_rs_bridge::checked_processor_bit_depth(input_depth),
+        ocio_rs_bridge::checked_processor_bit_depth(output_depth),
         static_cast<ocio::OptimizationFlags>(flags));
     if (!value) return nullptr;
     auto out = std::make_unique<ocio_rs_bridge::CPUProcessorHandle>();

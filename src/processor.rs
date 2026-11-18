@@ -53,6 +53,7 @@ fn required_scalar_len(
 
 fn validate_stride_byte_width(
     api: &str,
+    num_pixels: i64,
     stride: i64,
     channels_per_pixel: usize,
     bytes_per_channel: usize,
@@ -64,6 +65,16 @@ fn validate_stride_byte_width(
     if byte_stride > isize::MAX as usize {
         return Err(OcioError::InvalidInput(format!(
             "{api}: byte stride exceeds the C++ ptrdiff_t range"
+        )));
+    }
+    let pixels = usize::try_from(num_pixels)
+        .map_err(|_| OcioError::InvalidInput(format!("{api}: invalid pixel count")))?;
+    if byte_stride
+        .checked_mul(pixels)
+        .is_none_or(|row_stride| row_stride > isize::MAX as usize)
+    {
+        return Err(OcioError::InvalidInput(format!(
+            "{api}: native row stride exceeds the C++ ptrdiff_t range"
         )));
     }
     if channels_per_pixel == 4 && byte_stride > std::ffi::c_int::MAX as usize {
@@ -101,7 +112,7 @@ fn rgba_single_pixel_native_stride(
     })
 }
 
-fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> Result<usize> {
+pub(crate) fn bit_depth_bytes_per_channel(api: &str, bit_depth: BitDepth) -> Result<usize> {
     match bit_depth {
         BitDepth::Uint8 => Ok(1),
         BitDepth::Uint10
@@ -125,7 +136,13 @@ fn validate_scalar_buffer_len(
 ) -> Result<()> {
     let required_len = required_scalar_len(api, num_pixels, stride, channels_per_pixel)?;
     if num_pixels > 0 {
-        validate_stride_byte_width(api, stride, channels_per_pixel, std::mem::size_of::<f32>())?;
+        validate_stride_byte_width(
+            api,
+            num_pixels,
+            stride,
+            channels_per_pixel,
+            std::mem::size_of::<f32>(),
+        )?;
     }
     if actual_len < required_len {
         return Err(OcioError::InvalidInput(format!(
@@ -146,7 +163,13 @@ fn validate_packed_buffer_len(
     let required_scalars = required_scalar_len(api, num_pixels, stride, channels_per_pixel)?;
     let bytes_per_channel = bit_depth_bytes_per_channel(api, bit_depth)?;
     if num_pixels > 0 {
-        validate_stride_byte_width(api, stride, channels_per_pixel, bytes_per_channel)?;
+        validate_stride_byte_width(
+            api,
+            num_pixels,
+            stride,
+            channels_per_pixel,
+            bytes_per_channel,
+        )?;
     }
     let required_len = required_scalars
         .checked_mul(bytes_per_channel)
@@ -215,6 +238,15 @@ pub struct Processor {
 }
 
 impl Processor {
+    fn optimization_flags_for_bridge(flags: u64) -> Result<i32> {
+        // The legacy bridge takes a signed C int, but OCIO defines a 32-bit
+        // flag mask. Preserve all its bits (including OPTIMIZATION_ALL).
+        let flags = u32::try_from(flags).map_err(|_| {
+            OcioError::InvalidInput("processor optimization flags exceed 32 bits".into())
+        })?;
+        Ok(flags as i32)
+    }
+
     /// Share the immutable top-level native format metadata without copying.
     pub fn try_const_format_metadata(&self) -> Result<Option<crate::ConstFormatMetadata>> {
         crate::clear_last_error();
@@ -318,22 +350,21 @@ impl Processor {
 
     /// Create an optimized CPU execution path for this processor.
     pub fn optimized_cpu_processor(&self, flags: u64) -> Result<CPUProcessor> {
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags as i32)
+            ocio_sys::ocio_processor_get_optimized_cpu_processor(self.handle.as_ptr(), flags)
         };
         crate::handle_result(handle).map(|handle| CPUProcessor { handle })
     }
 
     #[doc(hidden)]
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer optimized_processor_bitdepth or optimized_cpu/gpu_processor helpers"
-    )]
+    #[deprecated(since = "0.2.0", note = "compat alias; prefer optimized_processor()")]
     pub fn optimized_processor_v1(&self, flags: u64) -> Result<Self> {
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_processor_v1(self.handle.as_ptr(), flags as i32)
+            ocio_sys::ocio_processor_get_optimized_processor_v1(self.handle.as_ptr(), flags)
         };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
@@ -341,20 +372,22 @@ impl Processor {
     /// Create an optimized processor variant for explicit input/output bit depths.
     ///
     /// This is mainly useful when matching a specific host application's pixel
-    /// format contract before extracting CPU or GPU execution helpers.
+    /// format contract before extracting CPU or GPU execution helpers. Pass
+    /// discriminants from [`BitDepth`]; undefined integer values are rejected.
     pub fn optimized_processor_bitdepth(
         &self,
         in_bit_depth: i32,
         out_bit_depth: i32,
         flags: u64,
     ) -> Result<Self> {
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_processor_v2(
                 self.handle.as_ptr(),
                 in_bit_depth,
                 out_bit_depth,
-                flags as i32,
+                flags,
             )
         };
         crate::handle_result(handle).map(|handle| Self { handle })
@@ -385,9 +418,10 @@ impl Processor {
 
     /// Create an optimized GPU execution path for this processor.
     pub fn optimized_gpu_processor(&self, flags: u64) -> Result<GPUProcessor> {
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
         let handle = unsafe {
-            ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags as i32)
+            ocio_sys::ocio_processor_get_optimized_gpu_processor(self.handle.as_ptr(), flags)
         };
         crate::handle_result(handle).map(|handle| GPUProcessor { handle })
     }
@@ -403,27 +437,25 @@ impl Processor {
         edge_len: u32,
     ) -> Result<GPUProcessor> {
         // OCIO v1-style GPU path that bakes some ops into a 3D LUT.
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
         let handle = unsafe {
             ocio_sys::ocio_processor_get_optimized_legacy_gpu_processor(
                 self.handle.as_ptr(),
-                flags as i32,
+                flags,
                 edge_len,
             )
         };
         crate::handle_result(handle).map(|handle| GPUProcessor { handle })
     }
 
-    #[doc(hidden)]
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat alias; prefer optimized_processor_bitdepth() or optimized_cpu/gpu_processor helpers"
-    )]
+    /// Create an optimized processor without choosing a CPU or GPU execution
+    /// backend. This calls OCIO's flags-only overload, which uses F32 bit depths.
     pub fn optimized_processor(&self, flags: u64) -> Result<Self> {
+        let flags = Self::optimization_flags_for_bridge(flags)?;
         crate::clear_last_error();
-        let handle = unsafe {
-            ocio_sys::ocio_processor_optimized_processor(self.handle.as_ptr(), flags as i32)
-        };
+        let handle =
+            unsafe { ocio_sys::ocio_processor_optimized_processor(self.handle.as_ptr(), flags) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
@@ -709,8 +741,9 @@ pub struct PackedConversionLayout {
 /// Packed image layout with signed pixel and row strides, in bytes.
 ///
 /// `origin` points to the first stored channel of the first logical pixel.
-/// Channel stride is positive. Slices must include pointer-step padding after
-/// the final pixel, including before the lowest pixel for a negative x stride.
+/// Channel stride is positive. In-place, packed-to-packed, and mixed planar
+/// conversions accept unpadded layouts by splitting only when needed. Tight
+/// RGBA uses the native packed fast path.
 /// Strides and origin must be aligned to the sample size. The pixel stride's
 /// magnitude must be at least the channel stride times the channel count, and the row stride's magnitude
 /// must be at least `width * abs(x_stride)`.
@@ -734,10 +767,24 @@ pub struct PackedImageLayout {
     pub channel_order: ChannelOrdering,
 }
 
+#[cfg(test)]
 fn packed_image_descriptor(
     layout: PackedImageLayout,
     data: &[u8],
 ) -> Result<ocio_sys::OcioPackedBuffer> {
+    let (desc, split) = packed_image_samples(layout, data)?;
+    if split {
+        return Err(OcioError::InvalidInput(
+            "packed pointer-step padding is required".into(),
+        ));
+    }
+    Ok(desc)
+}
+
+pub(crate) fn packed_image_samples(
+    layout: PackedImageLayout,
+    data: &[u8],
+) -> Result<(ocio_sys::OcioPackedBuffer, bool)> {
     let invalid =
         || OcioError::InvalidInput("invalid, unaligned or overflowing packed image layout".into());
     let size = bit_depth_bytes_per_channel("CPUProcessor packed image", layout.bit_depth)?;
@@ -785,29 +832,48 @@ fn packed_image_descriptor(
         .ok_or_else(invalid)?;
     let low = layout.origin.checked_sub(backward).ok_or_else(invalid)?;
     let high = layout.origin.checked_add(forward).ok_or_else(invalid)?;
-    if (layout.x_stride < 0 && low < x)
-        || high
-            .checked_add(if layout.x_stride > 0 { x } else { pixel_size })
-            .ok_or_else(invalid)?
-            > data.len()
-    {
+    // Generic OCIO packing advances every channel pointer after the last
+    // sample. The last stored channel has the furthest positive step.
+    // Tight, forward RGBA uses OCIO's packed path without channel stepping.
+    let packed_fast_path = layout.channel_order == ChannelOrdering::Rgba
+        && layout.channel_stride == size
+        && layout.x_stride > 0
+        && x == 4 * size;
+    let trailing = if layout.x_stride > 0 {
+        x.checked_add(if packed_fast_path {
+            0
+        } else {
+            pixel_size - size
+        })
+        .ok_or_else(invalid)?
+    } else {
+        pixel_size
+    };
+    if high.checked_add(pixel_size).ok_or_else(invalid)? > data.len() {
         return Err(invalid());
     }
+    let needs_split = (layout.x_stride < 0 && low < x)
+        || high
+            .checked_add(trailing)
+            .is_none_or(|end| end > data.len());
     let width = i64::try_from(layout.width).map_err(|_| invalid())?;
     let height = i64::try_from(layout.height).map_err(|_| invalid())?;
-    Ok(ocio_sys::OcioPackedBuffer {
-        // The native API treats the source descriptor as read-only during conversion.
-        data: unsafe { data.as_ptr().add(layout.origin) }
-            .cast_mut()
-            .cast(),
-        width,
-        height,
-        channel_stride: layout.channel_stride as i64,
-        x_stride: layout.x_stride as i64,
-        y_stride: layout.y_stride as i64,
-        bit_depth: layout.bit_depth as i32,
-        channel_order: layout.channel_order as i32,
-    })
+    Ok((
+        ocio_sys::OcioPackedBuffer {
+            // The native API treats the source descriptor as read-only during conversion.
+            data: unsafe { data.as_ptr().add(layout.origin) }
+                .cast_mut()
+                .cast(),
+            width,
+            height,
+            channel_stride: layout.channel_stride as i64,
+            x_stride: layout.x_stride as i64,
+            y_stride: layout.y_stride as i64,
+            bit_depth: layout.bit_depth as i32,
+            channel_order: layout.channel_order as i32,
+        },
+        needs_split,
+    ))
 }
 
 /// Borrowed source channels for a planar conversion.
@@ -867,6 +933,7 @@ pub struct SignedPlanarBytesMut<'a> {
     pub layout: SignedPlanarByteLayout,
 }
 
+#[cfg(test)]
 fn validate_signed_planar(layout: SignedPlanarByteLayout, planes: &[&[u8]]) -> Result<[i64; 4]> {
     let (values, needs_split) = validate_signed_planar_samples(layout, planes)?;
     if needs_split {
@@ -877,7 +944,7 @@ fn validate_signed_planar(layout: SignedPlanarByteLayout, planes: &[&[u8]]) -> R
     Ok(values)
 }
 
-fn validate_signed_planar_samples(
+pub(crate) fn validate_signed_planar_samples(
     layout: SignedPlanarByteLayout,
     planes: &[&[u8]],
 ) -> Result<([i64; 4], bool)> {
@@ -952,6 +1019,27 @@ struct PlanarRegion {
     width: i64,
     height: i64,
     final_pixel: bool,
+}
+
+// For each layout, the tuple is (needs_tail_fallback, extreme_is_first_row).
+// A single-row image has one edge even when both layouts choose opposite ends.
+fn tail_row_partition(
+    height: i64,
+    a: (bool, bool),
+    b: (bool, bool),
+) -> (i64, i64, [Option<i64>; 2]) {
+    debug_assert!(height > 0);
+    let mut first = (a.0 && a.1) || (b.0 && b.1);
+    let mut last = (a.0 && !a.1) || (b.0 && !b.1);
+    if height == 1 {
+        first |= last;
+        last = false;
+    }
+    (
+        i64::from(first),
+        height - i64::from(last),
+        [first.then_some(0), last.then_some(height - 1)],
+    )
 }
 
 // Extents and arithmetic are checked before calling this helper. The first
@@ -1039,56 +1127,255 @@ fn validate_planar_sample_bounds(
     Ok(([w, h, x, y], needs_split))
 }
 
-fn signed_planar_source(image: &SignedPlanarBytes<'_>) -> Result<ocio_sys::OcioPlanarBuffer> {
-    let [width, height, x_stride, y_stride] =
-        validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+fn signed_planar_source(
+    image: &SignedPlanarBytes<'_>,
+) -> Result<(ocio_sys::OcioPlanarBuffer, bool)> {
+    let ([width, height, x_stride, y_stride], mut split) =
+        validate_signed_planar_samples(image.layout, &[image.red, image.green, image.blue])?;
     if let Some(alpha) = image.alpha {
-        validate_signed_planar(image.layout, &[alpha])?;
+        split |= validate_signed_planar_samples(image.layout, &[alpha])?.1;
     }
     let origin = image.layout.origin;
-    Ok(ocio_sys::OcioPlanarBuffer {
-        red: image.red.as_ptr().wrapping_add(origin).cast_mut().cast(),
-        green: image.green.as_ptr().wrapping_add(origin).cast_mut().cast(),
-        blue: image.blue.as_ptr().wrapping_add(origin).cast_mut().cast(),
-        alpha: image.alpha.map_or(std::ptr::null_mut(), |p| {
-            p.as_ptr().wrapping_add(origin).cast_mut().cast()
-        }),
-        width,
-        height,
-        x_stride,
-        y_stride,
-        bit_depth: image.layout.bit_depth as i32,
-    })
+    Ok((
+        ocio_sys::OcioPlanarBuffer {
+            red: image.red.as_ptr().wrapping_add(origin).cast_mut().cast(),
+            green: image.green.as_ptr().wrapping_add(origin).cast_mut().cast(),
+            blue: image.blue.as_ptr().wrapping_add(origin).cast_mut().cast(),
+            alpha: image.alpha.map_or(std::ptr::null_mut(), |p| {
+                p.as_ptr().wrapping_add(origin).cast_mut().cast()
+            }),
+            width,
+            height,
+            x_stride,
+            y_stride,
+            bit_depth: image.layout.bit_depth as i32,
+        },
+        split,
+    ))
 }
 
-fn signed_planar_destination(
+pub(crate) fn signed_planar_destination(
     image: &mut SignedPlanarBytesMut<'_>,
-) -> Result<ocio_sys::OcioPlanarBuffer> {
-    let [width, height, x_stride, y_stride] =
-        validate_signed_planar(image.layout, &[image.red, image.green, image.blue])?;
+) -> Result<(ocio_sys::OcioPlanarBuffer, bool)> {
+    let ([width, height, x_stride, y_stride], mut split) =
+        validate_signed_planar_samples(image.layout, &[image.red, image.green, image.blue])?;
     if let Some(alpha) = image.alpha.as_deref() {
-        validate_signed_planar(image.layout, &[alpha])?;
+        split |= validate_signed_planar_samples(image.layout, &[alpha])?.1;
     }
     let origin = image.layout.origin;
-    Ok(ocio_sys::OcioPlanarBuffer {
-        red: image.red.as_mut_ptr().wrapping_add(origin).cast(),
-        green: image.green.as_mut_ptr().wrapping_add(origin).cast(),
-        blue: image.blue.as_mut_ptr().wrapping_add(origin).cast(),
-        alpha: image
-            .alpha
-            .as_deref_mut()
-            .map_or(std::ptr::null_mut(), |p| {
-                p.as_mut_ptr().wrapping_add(origin).cast()
-            }),
-        width,
-        height,
-        x_stride,
-        y_stride,
-        bit_depth: image.layout.bit_depth as i32,
-    })
+    Ok((
+        ocio_sys::OcioPlanarBuffer {
+            red: image.red.as_mut_ptr().wrapping_add(origin).cast(),
+            green: image.green.as_mut_ptr().wrapping_add(origin).cast(),
+            blue: image.blue.as_mut_ptr().wrapping_add(origin).cast(),
+            alpha: image
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| {
+                    p.as_mut_ptr().wrapping_add(origin).cast()
+                }),
+            width,
+            height,
+            x_stride,
+            y_stride,
+            bit_depth: image.layout.bit_depth as i32,
+        },
+        split,
+    ))
 }
 
 impl CPUProcessor {
+    // Called only after both layouts and all channel slices have been
+    // validated and the destination is exclusively borrowed.
+    fn convert_mixed_regions(
+        &self,
+        packed: &ocio_sys::OcioPackedBuffer,
+        planar: &ocio_sys::OcioPlanarBuffer,
+        split: (bool, bool),
+        packed_is_source: bool,
+        sizes: (usize, usize),
+    ) -> Result<()> {
+        let (packed_split, planar_split) = split;
+        let (packed_size, planar_size) = sizes;
+        let width = packed.width;
+        let height = packed.height;
+        let max = std::ffi::c_long::MAX as i64;
+        if width > i64::from(std::ffi::c_int::MAX) / 4 || height > max || width > max / height {
+            return Err(OcioError::InvalidInput(
+                "mixed image layout exceeds native limits".into(),
+            ));
+        }
+        let channels = if packed.channel_order == ChannelOrdering::Rgb as i32
+            || packed.channel_order == ChannelOrdering::Bgr as i32
+        {
+            3
+        } else {
+            4
+        };
+        let packed_first = (packed.x_stride < 0) != (packed.y_stride < 0);
+        let planar_first = (planar.x_stride < 0) != (planar.y_stride < 0);
+        let (start, end, edges) = tail_row_partition(
+            height,
+            (packed_split, packed_first),
+            (planar_split, planar_first),
+        );
+        let shift = |p: *mut c_void, row: i64, col: i64, x: i64, y: i64| -> *mut c_void {
+            if p.is_null() {
+                p
+            } else {
+                let delta =
+                    (i128::from(row) * i128::from(y) + i128::from(col) * i128::from(x)) as isize;
+                p.cast::<u8>().wrapping_offset(delta).cast()
+            }
+        };
+        let packed_region = |row: i64, col: i64, w: i64, h: i64| ocio_sys::OcioPackedBuffer {
+            data: shift(packed.data, row, col, packed.x_stride, packed.y_stride),
+            width: w,
+            height: h,
+            channel_stride: packed.channel_stride,
+            x_stride: packed.x_stride,
+            y_stride: packed.y_stride,
+            bit_depth: packed.bit_depth,
+            channel_order: packed.channel_order,
+        };
+        let planar_region = |row: i64, col: i64, w: i64, h: i64| ocio_sys::OcioPlanarBuffer {
+            red: shift(planar.red, row, col, planar.x_stride, planar.y_stride),
+            green: shift(planar.green, row, col, planar.x_stride, planar.y_stride),
+            blue: shift(planar.blue, row, col, planar.x_stride, planar.y_stride),
+            alpha: shift(planar.alpha, row, col, planar.x_stride, planar.y_stride),
+            width: w,
+            height: h,
+            x_stride: planar.x_stride,
+            y_stride: planar.y_stride,
+            bit_depth: planar.bit_depth,
+        };
+        let apply =
+            |p: &ocio_sys::OcioPackedBuffer, q: &ocio_sys::OcioPlanarBuffer| -> Result<()> {
+                crate::clear_last_error();
+                // SAFETY: callers validate all extents and the partition retains
+                // source immutability and exclusive destination ownership.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_convert_mixed_image(
+                        self.handle.as_ptr(),
+                        p,
+                        q,
+                        packed_is_source,
+                    );
+                }
+                crate::ocio_call_status()
+            };
+        if end > start {
+            apply(
+                &packed_region(start, 0, width, end - start),
+                &planar_region(start, 0, width, end - start),
+            )?;
+        }
+        #[repr(align(4))]
+        struct Tail([u8; 32]);
+        for row in edges.into_iter().flatten() {
+            if width > 1 {
+                apply(
+                    &packed_region(row, 0, width - 1, 1),
+                    &planar_region(row, 0, width - 1, 1),
+                )?;
+            }
+            let raw_packed = packed_region(row, width - 1, 1, 1);
+            let raw_planar = planar_region(row, width - 1, 1, 1);
+            let planes = [
+                raw_planar.red,
+                raw_planar.green,
+                raw_planar.blue,
+                raw_planar.alpha,
+            ];
+            let mut p_tail = Tail([0; 32]);
+            let mut q_tail = Tail([0; 32]);
+            if packed_is_source {
+                for channel in 0..channels {
+                    // SAFETY: the original packed samples were validated.
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            raw_packed
+                                .data
+                                .cast::<u8>()
+                                .add(channel * packed.channel_stride as usize),
+                            p_tail.0.as_mut_ptr().add(channel * packed_size),
+                            packed_size,
+                        );
+                    }
+                }
+            } else {
+                for (channel, source) in planes.iter().enumerate() {
+                    if !source.is_null() {
+                        // SAFETY: each original plane contains its final sample.
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                source.cast::<u8>(),
+                                q_tail.0.as_mut_ptr().add(channel * planar_size),
+                                planar_size,
+                            );
+                        }
+                    }
+                }
+            }
+            let stride = (channels * packed_size) as i64;
+            let p_compact = ocio_sys::OcioPackedBuffer {
+                data: p_tail.0.as_mut_ptr().cast(),
+                width: 1,
+                height: 1,
+                channel_stride: packed_size as i64,
+                x_stride: stride,
+                y_stride: stride,
+                bit_depth: packed.bit_depth,
+                channel_order: packed.channel_order,
+            };
+            let q_base = q_tail.0.as_mut_ptr();
+            let q_compact = ocio_sys::OcioPlanarBuffer {
+                red: q_base.cast(),
+                green: q_base.wrapping_add(planar_size).cast(),
+                blue: q_base.wrapping_add(2 * planar_size).cast(),
+                alpha: if planar.alpha.is_null() {
+                    std::ptr::null_mut()
+                } else {
+                    q_base.wrapping_add(3 * planar_size).cast()
+                },
+                width: 1,
+                height: 1,
+                x_stride: planar_size as i64,
+                y_stride: planar_size as i64,
+                bit_depth: planar.bit_depth,
+            };
+            apply(&p_compact, &q_compact)?;
+            if packed_is_source {
+                for (channel, destination) in planes.iter().enumerate() {
+                    if !destination.is_null() {
+                        // SAFETY: destination samples are validated and exclusive.
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                q_tail.0.as_ptr().add(channel * planar_size),
+                                destination.cast::<u8>(),
+                                planar_size,
+                            );
+                        }
+                    }
+                }
+            } else {
+                for channel in 0..channels {
+                    // SAFETY: destination packed samples are validated and exclusive.
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            p_tail.0.as_ptr().add(channel * packed_size),
+                            raw_packed
+                                .data
+                                .cast::<u8>()
+                                .add(channel * packed.channel_stride as usize),
+                            packed_size,
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
     /// Converts a non-dynamic processor into a thread-shareable processor.
     ///
     /// Returns an error for a dynamic processor or when the native query fails.
@@ -1103,17 +1390,104 @@ impl CPUProcessor {
         Ok(StaticCPUProcessor(self))
     }
 
-    /// Process an exclusively borrowed packed image in place without pixel copies.
+    /// Process an exclusively borrowed packed image in place. Unpadded generic
+    /// layouts may use a small temporary buffer for the final pixel; earlier
+    /// regions may already be modified if a later native call fails.
     pub fn try_apply_packed_image(&self, data: &mut [u8], layout: PackedImageLayout) -> Result<()> {
-        let mut desc = packed_image_descriptor(layout, data)?;
+        let (mut desc, split) = packed_image_samples(layout, data)?;
         desc.data = unsafe { data.as_mut_ptr().add(layout.origin).cast() };
+        if split {
+            let width = desc.width;
+            let height = desc.height;
+            let max = std::ffi::c_long::MAX as i64;
+            if width > i64::from(std::ffi::c_int::MAX) / 4 || height > max || width > max / height {
+                return Err(OcioError::InvalidInput(
+                    "packed layout exceeds native limits".into(),
+                ));
+            }
+            let size = bit_depth_bytes_per_channel("packed image", layout.bit_depth)?;
+            let channels = match layout.channel_order {
+                ChannelOrdering::Rgb | ChannelOrdering::Bgr => 3,
+                _ => 4,
+            };
+            let first_row_is_extreme = (layout.x_stride < 0) != (layout.y_stride < 0);
+            let extreme_row = if first_row_is_extreme { 0 } else { height - 1 };
+            let offset = |row: i64, col: i64| -> usize {
+                (layout.origin as i128
+                    + i128::from(row) * i128::from(desc.y_stride)
+                    + i128::from(col) * i128::from(desc.x_stride)) as usize
+            };
+            let data_ptr = data.as_mut_ptr();
+            let apply_region = |position: usize, w: i64, h: i64| -> Result<()> {
+                let region = ocio_sys::OcioPackedBuffer {
+                    data: data_ptr.wrapping_add(position).cast(),
+                    width: w,
+                    height: h,
+                    channel_stride: desc.channel_stride,
+                    x_stride: desc.x_stride,
+                    y_stride: desc.y_stride,
+                    bit_depth: desc.bit_depth,
+                    channel_order: desc.channel_order,
+                };
+                crate::clear_last_error();
+                // SAFETY: validated corners and partition keep sample access
+                // and every channel's final step within the borrowed slice.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_packed_image(self.handle.as_ptr(), &region);
+                }
+                crate::ocio_call_status()
+            };
+            if height > 1 {
+                apply_region(
+                    offset(if first_row_is_extreme { 1 } else { 0 }, 0),
+                    width,
+                    height - 1,
+                )?;
+            }
+            if width > 1 {
+                apply_region(offset(extreme_row, 0), width - 1, 1)?;
+            }
+            let last = offset(extreme_row, width - 1);
+            #[repr(align(4))]
+            struct AlignedPixel([u8; 32]);
+            let mut tail = AlignedPixel([0; 32]);
+            for channel in 0..channels {
+                let source = last + channel * layout.channel_stride;
+                tail.0[channel * size..(channel + 1) * size]
+                    .copy_from_slice(&data[source..source + size]);
+            }
+            let tight = (channels * size) as i64;
+            let tail_desc = ocio_sys::OcioPackedBuffer {
+                data: tail.0.as_mut_ptr().cast(),
+                width: 1,
+                height: 1,
+                channel_stride: size as i64,
+                x_stride: tight,
+                y_stride: tight,
+                bit_depth: desc.bit_depth,
+                channel_order: desc.channel_order,
+            };
+            crate::clear_last_error();
+            unsafe {
+                ocio_sys::ocio_cpu_processor_apply_packed_image(self.handle.as_ptr(), &tail_desc);
+            }
+            crate::ocio_call_status()?;
+            for channel in 0..channels {
+                let destination = last + channel * layout.channel_stride;
+                data[destination..destination + size]
+                    .copy_from_slice(&tail.0[channel * size..(channel + 1) * size]);
+            }
+            return Ok(());
+        }
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_cpu_processor_apply_packed_image(self.handle.as_ptr(), &desc) };
         crate::ocio_call_status()
     }
 
-    /// Convert independently laid-out packed images without pixel copies.
-    /// Dimensions must match; bit depths and channel ordering may differ.
+    /// Convert independently laid-out packed images. Dimensions must match;
+    /// bit depths and channel ordering may differ. Unpadded tails may use
+    /// small temporary buffers and multiple calls; later failure may leave
+    /// earlier destination regions modified.
     pub fn try_convert_packed_image(
         &self,
         source: &[u8],
@@ -1128,14 +1502,132 @@ impl CPUProcessor {
                 "packed image dimensions differ".into(),
             ));
         }
-        let src = packed_image_descriptor(source_layout, source)?;
-        let mut dst = packed_image_descriptor(destination_layout, destination)?;
+        let (src, source_split) = packed_image_samples(source_layout, source)?;
+        let (mut dst, destination_split) = packed_image_samples(destination_layout, destination)?;
         dst.data = unsafe {
             destination
                 .as_mut_ptr()
                 .add(destination_layout.origin)
                 .cast()
         };
+        if source_split || destination_split {
+            let width = src.width;
+            let height = src.height;
+            let max = std::ffi::c_long::MAX as i64;
+            if width > i64::from(std::ffi::c_int::MAX) / 4 || height > max || width > max / height {
+                return Err(OcioError::InvalidInput(
+                    "packed layout exceeds native limits".into(),
+                ));
+            }
+            let input_size =
+                bit_depth_bytes_per_channel("packed conversion", source_layout.bit_depth)?;
+            let output_size =
+                bit_depth_bytes_per_channel("packed conversion", destination_layout.bit_depth)?;
+            let count = |order| match order {
+                ChannelOrdering::Rgb | ChannelOrdering::Bgr => 3usize,
+                _ => 4usize,
+            };
+            let input_channels = count(source_layout.channel_order);
+            let output_channels = count(destination_layout.channel_order);
+            let source_first = (src.x_stride < 0) != (src.y_stride < 0);
+            let destination_first = (dst.x_stride < 0) != (dst.y_stride < 0);
+            let (start, end, edges) = tail_row_partition(
+                height,
+                (source_split, source_first),
+                (destination_split, destination_first),
+            );
+            let region = |base: &ocio_sys::OcioPackedBuffer, row: i64, col: i64, w: i64, h: i64| {
+                let delta = (i128::from(row) * i128::from(base.y_stride)
+                    + i128::from(col) * i128::from(base.x_stride))
+                    as isize;
+                ocio_sys::OcioPackedBuffer {
+                    data: base.data.cast::<u8>().wrapping_offset(delta).cast(),
+                    width: w,
+                    height: h,
+                    channel_stride: base.channel_stride,
+                    x_stride: base.x_stride,
+                    y_stride: base.y_stride,
+                    bit_depth: base.bit_depth,
+                    channel_order: base.channel_order,
+                }
+            };
+            let apply_region = |row, col, w, h| -> Result<()> {
+                let input = region(&src, row, col, w, h);
+                let output = region(&dst, row, col, w, h);
+                crate::clear_last_error();
+                // SAFETY: validated extents and the extreme-row partition
+                // keep each native sample and final pointer step in bounds.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_convert_packed_image(
+                        self.handle.as_ptr(),
+                        &input,
+                        &output,
+                    );
+                }
+                crate::ocio_call_status()
+            };
+            if end > start {
+                apply_region(start, 0, width, end - start)?;
+            }
+            #[repr(align(4))]
+            struct AlignedPixel([u8; 32]);
+            for row in edges.into_iter().flatten() {
+                if width > 1 {
+                    apply_region(row, 0, width - 1, 1)?;
+                }
+                let offset = |layout: PackedImageLayout| -> usize {
+                    (layout.origin as i128
+                        + i128::from(row) * layout.y_stride as i128
+                        + i128::from(width - 1) * layout.x_stride as i128)
+                        as usize
+                };
+                let source_offset = offset(source_layout);
+                let destination_offset = offset(destination_layout);
+                let mut input = AlignedPixel([0; 32]);
+                let mut output = AlignedPixel([0; 32]);
+                for channel in 0..input_channels {
+                    let at = source_offset + channel * source_layout.channel_stride;
+                    input.0[channel * input_size..(channel + 1) * input_size]
+                        .copy_from_slice(&source[at..at + input_size]);
+                }
+                let tight = |data: *mut u8,
+                             base: &ocio_sys::OcioPackedBuffer,
+                             count: usize,
+                             size: usize| {
+                    let stride = (count * size) as i64;
+                    ocio_sys::OcioPackedBuffer {
+                        data: data.cast(),
+                        width: 1,
+                        height: 1,
+                        channel_stride: size as i64,
+                        x_stride: stride,
+                        y_stride: stride,
+                        bit_depth: base.bit_depth,
+                        channel_order: base.channel_order,
+                    }
+                };
+                let input_desc = tight(input.0.as_mut_ptr(), &src, input_channels, input_size);
+                let output_desc = tight(output.0.as_mut_ptr(), &dst, output_channels, output_size);
+                crate::clear_last_error();
+                // SAFETY: compact aligned buffers contain each native sample
+                // and all pointer steps, with original bit depth and ordering.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_convert_packed_image(
+                        self.handle.as_ptr(),
+                        &input_desc,
+                        &output_desc,
+                    );
+                }
+                crate::ocio_call_status()?;
+                for channel in 0..output_channels {
+                    let at = destination_offset + channel * destination_layout.channel_stride;
+                    destination[at..at + output_size].copy_from_slice(
+                        &output.0[channel * output_size..(channel + 1) * output_size],
+                    );
+                }
+            }
+            return Ok(());
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_convert_packed_image(self.handle.as_ptr(), &src, &dst)
@@ -1149,7 +1641,8 @@ impl CPUProcessor {
     /// depths. Alpha may be present independently on either side. OCIO fills
     /// missing input alpha with zero in 2.4/2.5 and one in 2.6; it discards
     /// alpha if the output lacks it.
-    /// Buffers are borrowed without copying; layout padding rules apply.
+    /// Unpadded tails may use small temporary buffers and multiple native calls;
+    /// a later error may leave earlier output regions modified.
     pub fn try_convert_packed_to_planar(
         &self,
         source: &[u8],
@@ -1161,8 +1654,20 @@ impl CPUProcessor {
         {
             return Err(OcioError::InvalidInput("image dimensions differ".into()));
         }
-        let packed = packed_image_descriptor(source_layout, source)?;
-        let planar = signed_planar_destination(&mut destination)?;
+        let (packed, packed_split) = packed_image_samples(source_layout, source)?;
+        let (planar, planar_split) = signed_planar_destination(&mut destination)?;
+        if packed_split || planar_split {
+            return self.convert_mixed_regions(
+                &packed,
+                &planar,
+                (packed_split, planar_split),
+                true,
+                (
+                    bit_depth_bytes_per_channel("mixed conversion", source_layout.bit_depth)?,
+                    bit_depth_bytes_per_channel("mixed conversion", destination.layout.bit_depth)?,
+                ),
+            );
+        }
         crate::clear_last_error();
         // SAFETY: Both descriptors are validated and destination planes are
         // exclusively borrowed for the duration of the synchronous call.
@@ -1192,14 +1697,26 @@ impl CPUProcessor {
         {
             return Err(OcioError::InvalidInput("image dimensions differ".into()));
         }
-        let planar = signed_planar_source(&source)?;
-        let mut packed = packed_image_descriptor(destination_layout, destination)?;
+        let (planar, planar_split) = signed_planar_source(&source)?;
+        let (mut packed, packed_split) = packed_image_samples(destination_layout, destination)?;
         packed.data = unsafe {
             destination
                 .as_mut_ptr()
                 .add(destination_layout.origin)
                 .cast()
         };
+        if packed_split || planar_split {
+            return self.convert_mixed_regions(
+                &packed,
+                &planar,
+                (packed_split, planar_split),
+                false,
+                (
+                    bit_depth_bytes_per_channel("mixed conversion", destination_layout.bit_depth)?,
+                    bit_depth_bytes_per_channel("mixed conversion", source.layout.bit_depth)?,
+                ),
+            );
+        }
         crate::clear_last_error();
         // SAFETY: Both descriptors are validated, and destination is exclusive.
         unsafe {
@@ -1310,8 +1827,8 @@ impl CPUProcessor {
     /// Source and destination must have equal dimensions. Alpha may be present
     /// independently on either side. Missing input alpha follows the native
     /// version's behavior, described by [`Self::try_convert_packed_to_planar`].
-    /// Their layouts and bit depths may differ. Pointer-step padding is
-    /// currently required for signed-stride conversion.
+    /// Their layouts and bit depths may differ. Unpadded planes may require
+    /// multiple native calls; a later failure can leave earlier output modified.
     pub fn try_apply_planar_signed_convert(
         &self,
         source: SignedPlanarBytes<'_>,
@@ -1324,8 +1841,157 @@ impl CPUProcessor {
                 "planar dimensions must match".into(),
             ));
         }
-        let input = signed_planar_source(&source)?;
-        let output = signed_planar_destination(&mut destination)?;
+        let ([width, height, ix, iy], mut input_split) = validate_signed_planar_samples(
+            source.layout,
+            &[source.red, source.green, source.blue],
+        )?;
+        let ([_, _, ox, oy], mut output_split) = validate_signed_planar_samples(
+            destination.layout,
+            &[destination.red, destination.green, destination.blue],
+        )?;
+        if let Some(alpha) = source.alpha {
+            input_split |= validate_signed_planar_samples(source.layout, &[alpha])?.1;
+        }
+        if let Some(alpha) = destination.alpha.as_deref() {
+            output_split |= validate_signed_planar_samples(destination.layout, &[alpha])?.1;
+        }
+        let input = ocio_sys::OcioPlanarBuffer {
+            red: source
+                .red
+                .as_ptr()
+                .wrapping_add(source.layout.origin)
+                .cast_mut()
+                .cast(),
+            green: source
+                .green
+                .as_ptr()
+                .wrapping_add(source.layout.origin)
+                .cast_mut()
+                .cast(),
+            blue: source
+                .blue
+                .as_ptr()
+                .wrapping_add(source.layout.origin)
+                .cast_mut()
+                .cast(),
+            alpha: source.alpha.map_or(std::ptr::null_mut(), |p| {
+                p.as_ptr()
+                    .wrapping_add(source.layout.origin)
+                    .cast_mut()
+                    .cast()
+            }),
+            width,
+            height,
+            x_stride: ix,
+            y_stride: iy,
+            bit_depth: source.layout.bit_depth as i32,
+        };
+        let output = ocio_sys::OcioPlanarBuffer {
+            red: destination
+                .red
+                .as_mut_ptr()
+                .wrapping_add(destination.layout.origin)
+                .cast(),
+            green: destination
+                .green
+                .as_mut_ptr()
+                .wrapping_add(destination.layout.origin)
+                .cast(),
+            blue: destination
+                .blue
+                .as_mut_ptr()
+                .wrapping_add(destination.layout.origin)
+                .cast(),
+            alpha: destination
+                .alpha
+                .as_deref_mut()
+                .map_or(std::ptr::null_mut(), |p| {
+                    p.as_mut_ptr()
+                        .wrapping_add(destination.layout.origin)
+                        .cast()
+                }),
+            width,
+            height,
+            x_stride: ox,
+            y_stride: oy,
+            bit_depth: destination.layout.bit_depth as i32,
+        };
+        if input_split || output_split {
+            let max = std::ffi::c_long::MAX as i64;
+            if width > i64::from(std::ffi::c_int::MAX) / 4 || height > max || width > max / height {
+                return Err(OcioError::InvalidInput(
+                    "signed planar layout exceeds native limits".into(),
+                ));
+            }
+            let input_size =
+                bit_depth_bytes_per_channel("signed planar conversion", source.layout.bit_depth)?
+                    as i64;
+            let output_size = bit_depth_bytes_per_channel(
+                "signed planar conversion",
+                destination.layout.bit_depth,
+            )? as i64;
+            let input_first = (ix < 0) != (iy < 0);
+            let output_first = (ox < 0) != (oy < 0);
+            let (start, end, edges) = tail_row_partition(
+                height,
+                (input_split, input_first),
+                (output_split, output_first),
+            );
+            let region = |base: &ocio_sys::OcioPlanarBuffer,
+                          row: i64,
+                          col: i64,
+                          w: i64,
+                          h: i64,
+                          sample: i64,
+                          compact: bool| {
+                let delta = (i128::from(row) * i128::from(base.y_stride)
+                    + i128::from(col) * i128::from(base.x_stride))
+                    as isize;
+                let advance = |p: *mut c_void| {
+                    if p.is_null() {
+                        p
+                    } else {
+                        p.cast::<u8>().wrapping_offset(delta).cast()
+                    }
+                };
+                ocio_sys::OcioPlanarBuffer {
+                    red: advance(base.red),
+                    green: advance(base.green),
+                    blue: advance(base.blue),
+                    alpha: advance(base.alpha),
+                    width: w,
+                    height: h,
+                    x_stride: if compact { sample } else { base.x_stride },
+                    y_stride: if compact { sample } else { base.y_stride },
+                    bit_depth: base.bit_depth,
+                }
+            };
+            let apply = |row, col, w, h, compact| -> Result<()> {
+                let src = region(&input, row, col, w, h, input_size, compact);
+                let dst = region(&output, row, col, w, h, output_size, compact);
+                crate::clear_last_error();
+                // SAFETY: validated source and destination corners and the
+                // extreme-row partition contain all samples and pointer steps.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_planar_convert(
+                        self.handle.as_ptr(),
+                        &src,
+                        &dst,
+                    );
+                }
+                crate::ocio_call_status()
+            };
+            if end > start {
+                apply(start, 0, width, end - start, false)?;
+            }
+            for row in edges.into_iter().flatten() {
+                if width > 1 {
+                    apply(row, 0, width - 1, 1, false)?;
+                }
+                apply(row, width - 1, 1, 1, true)?;
+            }
+            return Ok(());
+        }
         crate::clear_last_error();
         // SAFETY: Bounds and alignment have been checked, the source is only
         // read, and Rust exclusively borrows all destination planes.
@@ -1497,6 +2163,8 @@ impl CPUProcessor {
     ///
     /// RGB and RGBA are supported. Strides are measured in samples. Input and
     /// output slices are checked independently and must meet native alignment.
+    /// Unpadded tails may require an additional native call; an error in that
+    /// call can leave the earlier destination pixels modified.
     pub fn try_apply_packed_convert(
         &self,
         input: &[u8],
@@ -1547,6 +2215,69 @@ impl CPUProcessor {
         let out_bytes = output_stride
             .checked_mul(out_size)
             .ok_or_else(|| OcioError::InvalidInput("output stride overflow".into()))?;
+        let count = pixels as usize;
+        let channel_count = channels as usize;
+        let needs_tail = |len: usize, stride: i64, size: i64| {
+            if channels == 4 && stride == i64::from(channels) {
+                return false; // Native tight RGBA fast path.
+            }
+            count
+                .checked_mul(stride as usize)
+                .and_then(|n| n.checked_add(channel_count - 1))
+                .and_then(|n| n.checked_mul(size as usize))
+                .is_none_or(|required| required > len)
+        };
+        if needs_tail(input.len(), input_stride, in_size)
+            || needs_tail(output.len(), output_stride, out_size)
+        {
+            let src_offset = (count - 1) * in_bytes as usize;
+            let dst_offset = (count - 1) * out_bytes as usize;
+            if pixels > 1 {
+                crate::clear_last_error();
+                // SAFETY: validated layouts contain the prefix plus the next
+                // pixel, so every native pointer step remains in its slice.
+                unsafe {
+                    ocio_sys::ocio_cpu_processor_apply_packed_convert(
+                        self.handle.as_ptr(),
+                        input.as_ptr().cast(),
+                        output.as_mut_ptr().cast(),
+                        pixels - 1,
+                        channels.into(),
+                        input_depth as i32,
+                        output_depth as i32,
+                        in_bytes,
+                        out_bytes,
+                    );
+                }
+                crate::ocio_call_status()?;
+            }
+            #[repr(align(4))]
+            struct AlignedPixel([u8; 28]);
+            let mut src = AlignedPixel([0; 28]);
+            let mut dst = AlignedPixel([0; 28]);
+            let src_len = channel_count * in_size as usize;
+            let dst_len = channel_count * out_size as usize;
+            src.0[..src_len].copy_from_slice(&input[src_offset..src_offset + src_len]);
+            crate::clear_last_error();
+            // SAFETY: the aligned buffers hold all channels and their final
+            // native pointer steps; both bit depths are retained unchanged.
+            unsafe {
+                ocio_sys::ocio_cpu_processor_apply_packed_convert(
+                    self.handle.as_ptr(),
+                    src.0.as_ptr().cast(),
+                    dst.0.as_mut_ptr().cast(),
+                    1,
+                    channels.into(),
+                    input_depth as i32,
+                    output_depth as i32,
+                    channels as i64 * in_size,
+                    channels as i64 * out_size,
+                );
+            }
+            crate::ocio_call_status()?;
+            output[dst_offset..dst_offset + dst_len].copy_from_slice(&dst.0[..dst_len]);
+            return Ok(());
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_cpu_processor_apply_packed_convert(
@@ -1864,14 +2595,40 @@ impl CPUProcessor {
         let _ = unsafe { self.try_apply_raw(img_desc) };
     }
 
-    /// Apply a raw OCIO image descriptor and preserve an OCIO failure.
+    /// Apply in place to a Rust-owned native descriptor.
+    ///
+    /// OCIO rejects a descriptor whose bit depth does not match both processor
+    /// bit depths. The descriptor and its backing buffers are reused.
+    pub fn try_apply_image_desc(&self, image: &mut crate::NativeImageDesc<'_>) -> Result<()> {
+        // Fixed-layout constructors check the layout; custom providers uphold
+        // the same native preconditions through their unsafe trait impl.
+        unsafe { self.try_apply_raw(image.as_mut_ptr()) }
+    }
+
+    /// Convert between Rust-owned native descriptors of equal size.
+    ///
+    /// OCIO checks the dimensions and input/output bit depths before processing.
+    pub fn try_convert_image_desc(
+        &self,
+        source: &mut crate::NativeImageDesc<'_>,
+        destination: &mut crate::NativeImageDesc<'_>,
+    ) -> Result<()> {
+        // Fixed layouts borrow buffers exclusively; custom providers uphold
+        // non-overlap through their unsafe trait contract.
+        unsafe { self.try_apply_raw_v2(source.as_mut_ptr(), destination.as_mut_ptr()) }
+    }
+
+    /// Apply a native OCIO image descriptor in place without taking ownership.
+    ///
+    /// Prefer the slice-based methods for Rust buffers. This entry point is for
+    /// interop with C++ code that already owns a descriptor.
     ///
     /// # Safety
     /// `img_desc` must point to a valid OCIO image descriptor for the active
-    /// ABI. The pixel buffers referenced by the descriptor must remain
-    /// allocated, writable, and correctly strided for the full call. The
-    /// descriptor is borrowed only; this method does not take ownership.
-    #[doc(hidden)]
+    /// ABI (pass a pointer to its `ImageDesc` base). The pixel buffers must
+    /// remain exclusively accessible, writable, correctly aligned and strided
+    /// for the processor's bit depths. This bypasses Rust's layout checks and
+    /// tail handling: the buffers must accommodate native pointer stepping.
     pub unsafe fn try_apply_raw(&self, img_desc: *mut c_void) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -1920,11 +2677,14 @@ impl CPUProcessor {
         let _ = unsafe { self.try_apply_raw_v2(src_img_desc, dst_img_desc) };
     }
 
-    /// Fallible raw ABI compatibility entry point for separate source and destination descriptors.
+    /// Apply between separate native OCIO image descriptors without taking ownership.
     ///
     /// # Safety
-    /// Same invariants as [`Self::apply_v2`].
-    #[doc(hidden)]
+    /// Both pointers must address valid `ImageDesc` bases for the active ABI.
+    /// Source storage must be readable and destination storage exclusively
+    /// writable, with no overlap. Both must satisfy the native alignment,
+    /// bit-depth, stride and pointer-stepping requirements described in
+    /// [`Self::try_apply_raw`].
     pub unsafe fn try_apply_raw_v2(
         &self,
         src_img_desc: *mut c_void,
@@ -2653,6 +3413,765 @@ pub struct GpuShaderCreator<'a> {
 }
 
 impl GpuShaderCreator<'_> {
+    /// Share ownership of a native `OCIO::GpuShaderCreatorRcPtr`.
+    ///
+    /// This copies the C++ shared pointer, not the creator or its resources.
+    /// The pointer object itself need only remain alive during this call.
+    ///
+    /// # Safety
+    /// `shared_ptr` must point to a valid, initialized `OCIO::GpuShaderCreatorRcPtr`
+    /// compiled with the same OCIO version, C++ standard library, ABI and runtime
+    /// as this binding. Its object, callbacks, and all external state they use
+    /// must remain valid for the lifetime of every resulting owner or retained
+    /// getter. The caller must ensure exclusive access to the creator and its
+    /// mutable state while any resulting Rust owner, clone that shares state, or
+    /// retained getter can access it. No native mutation, concurrent access, or
+    /// callback reentrancy may invalidate Rust borrows or violate OCIO's rules.
+    /// The creator's virtual methods must obey their C++ exception specifications.
+    /// They must not retain borrowed string, texture-data, shader-code pointers,
+    /// or references to passed `std::function` objects beyond the virtual call;
+    /// copy any data or getter that must survive it.
+    /// Pointers returned by virtual getters must refer to valid NUL-terminated
+    /// strings and remain stable until the next mutable access to the creator;
+    /// they must not be invalidated asynchronously or through another alias.
+    /// Every native clone must have independent storage for borrowed text,
+    /// texture data, and uniform snapshots: safe Rust may mutate either clone
+    /// while holding a borrow from the other. Returning distinct objects that
+    /// share mutable backing storage is insufficient. This requirement also
+    /// applies to any descriptor exposed by the creator and its clones.
+    pub unsafe fn from_native_shared_ptr(
+        shared_ptr: *const c_void,
+    ) -> Result<GpuShaderCreator<'static>> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_gpu_shader_creator_copy_native_shared(shared_ptr) };
+        Ok(GpuShaderCreator {
+            handle: crate::handle_result(handle)?,
+            _descriptor: std::marker::PhantomData,
+        })
+    }
+
+    fn text(&self, field: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
+            cstr_to_opt_string(ocio_sys::ocio_gpu_shader_creator_get_text(
+                self.handle.as_ptr(),
+                field,
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    fn text_ref(&mut self, field: i32) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_gpu_shader_creator_get_text(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+
+    /// Borrow the unique ID without allocating; the reference prevents mutation
+    /// of this creator for its lifetime.
+    pub fn unique_id_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.text_ref(0)
+    }
+    /// Borrow the function name without allocating.
+    pub fn function_name_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.text_ref(1)
+    }
+    /// Borrow the pixel name without allocating.
+    pub fn pixel_name_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.text_ref(2)
+    }
+    /// Borrow the resource prefix without allocating.
+    pub fn resource_prefix_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        self.text_ref(3)
+    }
+
+    /// Borrow the virtual native cache ID without allocating. The exclusive
+    /// borrow prevents safe mutation or another creator query while it is live.
+    /// Imported native creators must uphold the pointer stability contract of
+    /// [`Self::from_native_shared_ptr`].
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::GpuShaderCreator;
+    /// # fn example(c: &mut GpuShaderCreator<'_>) -> ocio_rs::Result<()> {
+    /// let id = c.cache_id_ref()?;
+    /// c.set_function_name("other")?;
+    /// println!("{id:?}");
+    /// # Ok(()) }
+    /// ```
+    pub fn cache_id_ref(&mut self) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_gpu_shader_creator_get_cache_id(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+
+    fn set_text(&mut self, field: i32, value: impl AsRef<str>) -> Result<()> {
+        let value = cstring(value)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_text(self.handle.as_ptr(), field, value.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Return the native creator's unique identifier.
+    pub fn try_unique_id(&self) -> Result<Option<String>> {
+        self.text(0)
+    }
+    /// Set the native creator's unique identifier.
+    pub fn set_unique_id(&mut self, value: impl AsRef<str>) -> Result<()> {
+        self.set_text(0, value)
+    }
+    /// Return the shader function name.
+    pub fn try_function_name(&self) -> Result<Option<String>> {
+        self.text(1)
+    }
+    /// Set the shader function name.
+    pub fn set_function_name(&mut self, value: impl AsRef<str>) -> Result<()> {
+        self.set_text(1, value)
+    }
+    /// Return the shader pixel variable name.
+    pub fn try_pixel_name(&self) -> Result<Option<String>> {
+        self.text(2)
+    }
+    /// Set the shader pixel variable name.
+    pub fn set_pixel_name(&mut self, value: impl AsRef<str>) -> Result<()> {
+        self.set_text(2, value)
+    }
+    /// Return the resource name prefix.
+    pub fn try_resource_prefix(&self) -> Result<Option<String>> {
+        self.text(3)
+    }
+    /// Set the resource name prefix.
+    pub fn set_resource_prefix(&mut self, value: impl AsRef<str>) -> Result<()> {
+        self.set_text(3, value)
+    }
+
+    /// Return the native language, rejecting values unavailable in this Rust interface.
+    pub fn try_language(&self) -> Result<GpuLanguage> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_gpu_shader_creator_get_language(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        GpuShaderDesc::gpu_language_from_raw(value)
+    }
+
+    /// Set the shader language.
+    pub fn set_language(&mut self, language: GpuLanguage) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_language(self.handle.as_ptr(), language as i32)
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Return and advance the creator's native resource index.
+    pub fn try_next_resource_index(&mut self) -> Result<u32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_gpu_shader_creator_next_resource_index(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Register a borrowed 1D/2D texture through the native creator virtual method.
+    /// Returns the native binding on OCIO 2.5.1+, and `None` on older versions.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_texture_2d(
+        &mut self,
+        name: impl AsRef<str>,
+        sampler: impl AsRef<str>,
+        width: u32,
+        height: u32,
+        channel: GpuTextureChannel,
+        dimensions: GpuTextureDimensions,
+        interpolation: Interpolation,
+        values: &[f32],
+    ) -> Result<Option<u32>> {
+        self.add_texture_impl(
+            name,
+            sampler,
+            width,
+            height,
+            1,
+            channel,
+            dimensions,
+            interpolation,
+            values,
+            false,
+        )
+    }
+
+    /// Register a borrowed RGB 3D texture through the native creator virtual method.
+    /// Returns the native binding on OCIO 2.5.1+, and `None` on older versions.
+    pub fn add_texture_3d(
+        &mut self,
+        name: impl AsRef<str>,
+        sampler: impl AsRef<str>,
+        edge: u32,
+        interpolation: Interpolation,
+        values: &[f32],
+    ) -> Result<Option<u32>> {
+        self.add_texture_impl(
+            name,
+            sampler,
+            edge,
+            edge,
+            edge,
+            GpuTextureChannel::Rgb,
+            GpuTextureDimensions::Texture2D,
+            interpolation,
+            values,
+            true,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_texture_impl(
+        &mut self,
+        name: impl AsRef<str>,
+        sampler: impl AsRef<str>,
+        width: u32,
+        height: u32,
+        depth: u32,
+        channel: GpuTextureChannel,
+        dimensions: GpuTextureDimensions,
+        interpolation: Interpolation,
+        values: &[f32],
+        is_3d: bool,
+    ) -> Result<Option<u32>> {
+        let name = cstring(name)?;
+        let sampler = cstring(sampler)?;
+        crate::clear_last_error();
+        let mut has_binding = false;
+        let mut binding = 0;
+        let added = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_add_texture(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                sampler.as_ptr(),
+                width,
+                height,
+                depth,
+                channel as i32,
+                dimensions as i32,
+                interpolation as i32,
+                values.as_ptr(),
+                values.len(),
+                is_3d,
+                &mut has_binding,
+                &mut binding,
+            )
+        };
+        crate::ocio_call_status()?;
+        if !added {
+            return Err(OcioError::ValidationFailed(
+                "OpenColorIO rejected the texture".into(),
+            ));
+        }
+        Ok(has_binding.then_some(binding))
+    }
+
+    /// Add a shared dynamic property to the native creator. OCIO rejects a
+    /// second property of the same kind.
+    pub fn add_dynamic_property(&mut self, property: &DynamicProperty) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_add_dynamic_property(
+                self.handle.as_ptr(),
+                property.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Return the number of dynamic properties owned by the creator.
+    pub fn try_num_dynamic_properties(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_num_dynamic_properties(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Check whether the creator owns a property of the requested kind.
+    pub fn try_has_dynamic_property_kind(
+        &self,
+        property_type: DynamicPropertyType,
+    ) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_has_dynamic_property(
+                self.handle.as_ptr(),
+                property_type as i32,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    fn dynamic_property_query(
+        &self,
+        value: u32,
+        by_index: bool,
+    ) -> Result<Option<DynamicProperty>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_dynamic_property(
+                self.handle.as_ptr(),
+                value,
+                by_index,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| DynamicProperty { handle }))
+    }
+
+    /// Share a property by native ordinal index; invalid indices return an error.
+    pub fn try_dynamic_property_by_index(&self, index: u32) -> Result<Option<DynamicProperty>> {
+        self.dynamic_property_query(index, true)
+    }
+
+    /// Share a property by kind; absent kinds return `None`.
+    pub fn try_dynamic_property(
+        &self,
+        property_type: DynamicPropertyType,
+    ) -> Result<Option<DynamicProperty>> {
+        self.dynamic_property_query(property_type as u32, false)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_uniform_impl(
+        &mut self,
+        name: impl AsRef<str>,
+        kind: i32,
+        scalar: f64,
+        values: *const c_void,
+        len: usize,
+        max_size: u32,
+        property_type: i32,
+    ) -> Result<bool> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let added = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_add_uniform(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                kind,
+                scalar,
+                values,
+                len,
+                max_size,
+                property_type,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(added)
+    }
+
+    /// Register a constant double uniform, returning whether it was added.
+    pub fn add_uniform_f64(&mut self, name: impl AsRef<str>, value: f64) -> Result<bool> {
+        self.add_uniform_impl(name, 0, value, std::ptr::null(), 0, 0, 0)
+    }
+
+    fn add_scalar_getter<F, T>(
+        &mut self,
+        name: impl AsRef<str>,
+        kind: i32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn() -> T + Send + Sync + 'static,
+        T: Copy,
+    {
+        unsafe extern "C" fn invoke<F: Fn() -> T, T: Copy>(
+            context: *mut c_void,
+            out: *mut c_void,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let value = unsafe { (&*context.cast::<F>())() };
+                unsafe { out.cast::<T>().write(value) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let added = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_add_scalar_getter(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                kind,
+                context,
+                invoke::<F, T>,
+                release::<F>,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(added)
+    }
+
+    /// Register a live thread-safe double getter. Panics are contained and
+    /// surface as native errors on sampling; duplicate registration drops it.
+    /// Do not reenter the creator from the getter.
+    pub fn add_uniform_f64_getter<F>(&mut self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> f64 + Send + Sync + 'static,
+    {
+        self.add_scalar_getter(name, 0, getter)
+    }
+
+    /// Register a live boolean getter; see [`Self::add_uniform_f64_getter`].
+    pub fn add_uniform_bool_getter<F>(&mut self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> bool + Send + Sync + 'static,
+    {
+        self.add_scalar_getter(name, 1, getter)
+    }
+
+    /// Register a live float3 getter. Native code must not sample it
+    /// concurrently or retain its returned reference across another sample.
+    pub fn add_uniform_float3_getter<F>(&mut self, name: impl AsRef<str>, getter: F) -> Result<bool>
+    where
+        F: Fn() -> [f32; 3] + Send + Sync + 'static,
+    {
+        self.add_scalar_getter(name, 2, getter)
+    }
+
+    /// Register a constant boolean uniform, returning whether it was added.
+    pub fn add_uniform_bool(&mut self, name: impl AsRef<str>, value: bool) -> Result<bool> {
+        self.add_uniform_impl(name, 1, u8::from(value) as f64, std::ptr::null(), 0, 0, 0)
+    }
+
+    /// Register a constant three-component float uniform.
+    pub fn add_uniform_float3(&mut self, name: impl AsRef<str>, value: [f32; 3]) -> Result<bool> {
+        self.add_uniform_impl(name, 2, 0.0, value.as_ptr().cast(), value.len(), 0, 0)
+    }
+
+    /// Register a copied float array with the maximum declared shader length.
+    pub fn add_uniform_f32_array(
+        &mut self,
+        name: impl AsRef<str>,
+        values: &[f32],
+        max_size: u32,
+    ) -> Result<bool> {
+        self.add_uniform_impl(
+            name,
+            3,
+            0.0,
+            values.as_ptr().cast(),
+            values.len(),
+            max_size,
+            0,
+        )
+    }
+
+    /// Register a copied integer array with the maximum declared shader length.
+    pub fn add_uniform_i32_array(
+        &mut self,
+        name: impl AsRef<str>,
+        values: &[i32],
+        max_size: u32,
+    ) -> Result<bool> {
+        self.add_uniform_impl(
+            name,
+            4,
+            0.0,
+            values.as_ptr().cast(),
+            values.len(),
+            max_size,
+            0,
+        )
+    }
+
+    fn add_array_getter<F, T>(
+        &mut self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+        register: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            u32,
+            *mut c_void,
+            unsafe extern "C" fn(*mut c_void, *mut T, usize, *mut usize) -> bool,
+            unsafe extern "C" fn(*mut c_void),
+        ) -> bool,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [T]) -> usize + Send + Sync + 'static,
+    {
+        unsafe extern "C" fn invoke<F: Fn(&mut [T]) -> usize, T>(
+            context: *mut c_void,
+            data: *mut T,
+            capacity: usize,
+            length: *mut usize,
+        ) -> bool {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let getter = unsafe { &*context.cast::<F>() };
+                let data = if capacity == 0 {
+                    NonNull::<T>::dangling().as_ptr()
+                } else {
+                    data
+                };
+                let buffer = unsafe { std::slice::from_raw_parts_mut(data, capacity) };
+                unsafe { *length = getter(buffer) };
+            }))
+            .is_ok()
+        }
+        unsafe extern "C" fn release<F>(context: *mut c_void) {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                drop(Box::from_raw(context.cast::<F>()));
+            }));
+        }
+        if max_size > i32::MAX as u32
+            || max_size as usize > isize::MAX as usize / std::mem::size_of::<T>()
+        {
+            return Err(OcioError::ValidationFailed(
+                "uniform max_size exceeds the native integer limit".into(),
+            ));
+        }
+        let name = cstring(name)?;
+        let context = Box::into_raw(Box::new(getter)).cast();
+        crate::clear_last_error();
+        let added = unsafe {
+            register(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                max_size,
+                context,
+                invoke::<F, T>,
+                release::<F>,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(added)
+    }
+
+    /// Register a live float array getter. Each size query refreshes one
+    /// bounded snapshot, and the pointer getter reads that same snapshot.
+    /// Native callers must serialize access and consume it before the next
+    /// refresh. Panics and lengths exceeding `max_size` are reported as errors.
+    pub fn add_uniform_f32_array_getter<F>(
+        &mut self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [f32]) -> usize + Send + Sync + 'static,
+    {
+        self.add_array_getter(
+            name,
+            max_size,
+            getter,
+            ocio_sys::ocio_gpu_shader_creator_add_float_array_getter,
+        )
+    }
+
+    /// Register a live integer array getter with the same snapshot and
+    /// lifetime rules as [`Self::add_uniform_f32_array_getter`].
+    pub fn add_uniform_i32_array_getter<F>(
+        &mut self,
+        name: impl AsRef<str>,
+        max_size: u32,
+        getter: F,
+    ) -> Result<bool>
+    where
+        F: Fn(&mut [i32]) -> usize + Send + Sync + 'static,
+    {
+        self.add_array_getter(
+            name,
+            max_size,
+            getter,
+            ocio_sys::ocio_gpu_shader_creator_add_int_array_getter,
+        )
+    }
+
+    /// Register a live double uniform backed by a creator-owned dynamic property.
+    /// The getter retains the property and does not call back into Rust.
+    pub fn add_uniform_dynamic_double(
+        &mut self,
+        name: impl AsRef<str>,
+        property_type: DynamicPropertyType,
+    ) -> Result<bool> {
+        if !matches!(
+            property_type,
+            DynamicPropertyType::Exposure
+                | DynamicPropertyType::Contrast
+                | DynamicPropertyType::Gamma
+        ) {
+            return Err(OcioError::InvalidInput(
+                "a double dynamic property is required".into(),
+            ));
+        }
+        self.add_uniform_impl(name, 5, 0.0, std::ptr::null(), 0, 0, property_type as i32)
+    }
+
+    /// Begin native shader collection with the supplied unique identifier.
+    pub fn begin(&mut self, uid: impl AsRef<str>) -> Result<()> {
+        let uid = cstring(uid)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_lifecycle(self.handle.as_ptr(), 0, uid.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Invoke the native virtual finalizer.
+    pub fn finalize(&mut self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_lifecycle(self.handle.as_ptr(), 1, std::ptr::null())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// End native shader collection.
+    pub fn end(&mut self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_lifecycle(self.handle.as_ptr(), 2, std::ptr::null())
+        };
+        crate::ocio_call_status()
+    }
+
+    fn add_code(&mut self, section: i32, code: impl AsRef<str>) -> Result<()> {
+        let code = cstring(code)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_add_code(self.handle.as_ptr(), section, code.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Append combined declarations; Vulkan requires the split 2.5+ methods.
+    pub fn add_to_declare_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(0, code)
+    }
+    /// Append parameter declarations.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn add_to_parameter_declare_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(1, code)
+    }
+    /// Append texture declarations.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn add_to_texture_declare_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(2, code)
+    }
+    /// Append helper code.
+    pub fn add_to_helper_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(3, code)
+    }
+    /// Append function header code.
+    pub fn add_to_function_header_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(4, code)
+    }
+    /// Append function body code.
+    pub fn add_to_function_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(5, code)
+    }
+    /// Append function footer code.
+    pub fn add_to_function_footer_shader_code(&mut self, code: impl AsRef<str>) -> Result<()> {
+        self.add_code(6, code)
+    }
+
+    /// Invoke native shader assembly with six sections. On OCIO 2.4 the two
+    /// declaration sections are concatenated before invoking its five-argument ABI.
+    pub fn create_shader_text(
+        &mut self,
+        parameters: impl AsRef<str>,
+        textures: impl AsRef<str>,
+        helpers: impl AsRef<str>,
+        header: impl AsRef<str>,
+        body: impl AsRef<str>,
+        footer: impl AsRef<str>,
+    ) -> Result<()> {
+        let parameters = cstring(parameters)?;
+        let textures = cstring(textures)?;
+        let helpers = cstring(helpers)?;
+        let header = cstring(header)?;
+        let body = cstring(body)?;
+        let footer = cstring(footer)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_create_text(
+                self.handle.as_ptr(),
+                parameters.as_ptr(),
+                textures.as_ptr(),
+                helpers.as_ptr(),
+                header.as_ptr(),
+                body.as_ptr(),
+                footer.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Set native descriptor-set and starting texture binding indices.
+    ///
+    /// OCIO reserves binding zero. For non-descriptor creators, resource
+    /// layout and overflow checks remain the custom implementation's responsibility.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_set_descriptor_set_index(
+        &mut self,
+        index: u32,
+        texture_binding_start: u32,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_set_descriptor_set_index(
+                self.handle.as_ptr(),
+                index,
+                texture_binding_start,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Return the native descriptor-set index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_descriptor_set_index(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_get_descriptor_set_index(self.handle.as_ptr(), false)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Return the native starting texture binding index.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_texture_binding_start(&self) -> Result<u32> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_get_descriptor_set_index(self.handle.as_ptr(), true)
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
     /// Copy the native virtual cache identifier, preserving bridge errors.
     pub fn try_cache_id(&self) -> Result<Option<String>> {
         crate::clear_last_error();
@@ -2723,6 +4242,9 @@ impl GpuShaderCreator<'_> {
     /// Invoke the native virtual `clone`. OCIO determines which state is copied;
     /// in particular, cloning its descriptor implementation creates a generic
     /// descriptor and may not preserve custom subclass resources or behavior.
+    /// A native clone that returns the same object is rejected. The unsafe
+    /// import contract additionally requires distinct clones to have independent
+    /// storage wherever mutation could invalidate a borrowed reference.
     pub fn try_clone_creator(&self) -> Result<GpuShaderCreator<'static>> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_gpu_shader_creator_clone(self.handle.as_ptr()) };
@@ -2832,7 +4354,8 @@ pub struct ShaderTexture<'a> {
     pub interpolation: Interpolation,
     /// Borrowed texel data, valid only while the callback is running.
     pub values: &'a [f32],
-    /// Native proposed binding on OCIO 2.5+, absent on OCIO 2.4.
+    /// Proposed binding on OCIO 2.5+, absent on OCIO 2.4. On 2.5.0 this
+    /// is supplied by the bridge because native indices are per texture kind.
     pub suggested_binding: Option<u32>,
 }
 
@@ -3092,12 +4615,89 @@ pub trait ShaderTexturePolicy {
     fn allow_texture_1d(&mut self) -> Result<bool>;
 }
 
+/// Supplies the native creator's cache ID during an opted-in query or extraction.
+///
+/// The ID must be nonempty and identify the current policy and generated
+/// resources. Do not reenter the creator or GPU processor from this callback.
+pub trait ShaderCacheIdPolicy {
+    /// Borrow the ID for the current native cache-key query. OCIO copies it
+    /// before invoking another policy method; storing it in the policy avoids
+    /// allocating a new string for each extraction.
+    fn cache_id(&mut self) -> Result<&std::ffi::CStr>;
+}
+
+/// Supplies the result of the native creator clone operation.
+pub trait ShaderClonePolicy {
+    /// Return a distinct owned creator. This transfers the returned handle
+    /// to OCIO. Do not reenter the source creator from this callback.
+    fn clone_creator(&mut self) -> Result<GpuShaderCreator<'static>>;
+}
+
 struct PersistentPolicyState<P> {
     policy: P,
     error: Option<OcioError>,
     code_output: Option<std::ffi::CString>,
     assembly_output: Option<std::ffi::CString>,
     finalizer_output: Option<std::ffi::CString>,
+}
+
+type CacheIdCallback = unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool;
+
+unsafe extern "C" fn persistent_clone_callback<P: ShaderClonePolicy>(
+    context: *mut c_void,
+) -> *mut c_void {
+    let Some(state) = (unsafe { context.cast::<PersistentPolicyState<P>>().as_mut() }) else {
+        return std::ptr::null_mut();
+    };
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        state.policy.clone_creator()
+    })) {
+        Ok(Ok(creator)) => std::mem::ManuallyDrop::new(creator).handle.as_ptr(),
+        Ok(Err(error)) => {
+            state.error = Some(error);
+            std::ptr::null_mut()
+        }
+        Err(_) => {
+            state.error = Some(OcioError::InvalidInput(
+                "shader creator clone callback panicked".into(),
+            ));
+            std::ptr::null_mut()
+        }
+    }
+}
+
+unsafe extern "C" fn persistent_cache_id_callback<P: ShaderCacheIdPolicy>(
+    context: *mut c_void,
+    output: *mut *const i8,
+) -> bool {
+    let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
+    if state.error.is_some() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<_> {
+        if output.is_null() {
+            return Err(OcioError::InvalidInput("null cache ID output".into()));
+        }
+        let id = state.policy.cache_id()?;
+        if id.to_bytes().is_empty() {
+            return Err(OcioError::InvalidInput("cache ID must not be empty".into()));
+        }
+        Ok(id.as_ptr())
+    }));
+    match result {
+        Ok(Ok(id)) => {
+            unsafe { *output = id };
+            true
+        }
+        Ok(Err(error)) => {
+            state.error = Some(error);
+            false
+        }
+        Err(_) => {
+            state.error = Some(OcioError::InvalidInput("cache ID callback panicked".into()));
+            false
+        }
+    }
 }
 
 unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
@@ -3204,6 +4804,8 @@ pub struct PersistentPolicyCreator<P: ShaderTexturePolicy> {
     creator: GpuShaderCreator<'static>,
     descriptor: GpuShaderDesc,
     state: Box<PersistentPolicyState<P>>,
+    extraction_cache_policy: Option<CacheIdCallback>,
+    recreate: fn(&GpuShaderDesc, P, &std::ffi::CStr) -> Result<Self>,
 }
 
 impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
@@ -3219,7 +4821,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     where
         P: ShaderTextureControl + ShaderFinalizeControl,
     {
-        let creator = Self::create_with_assembler(template, policy, cache_id)?;
+        let mut creator = Self::create_with_assembler(template, policy, cache_id)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_creator_set_persistent_finalizer(
@@ -3228,6 +4830,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             );
         }
         crate::ocio_call_status()?;
+        creator.recreate = Self::create_with_finalizer;
         Ok(creator)
     }
     /// Retain resource controls, hooks, and the optional shader assembler.
@@ -3241,7 +4844,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     where
         P: ShaderTextureControl + ShaderUniformControl,
     {
-        let creator = Self::create_with_hooks(template, policy, cache_id)?;
+        let mut creator = Self::create_with_hooks(template, policy, cache_id)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_creator_set_persistent_assembler(
@@ -3250,6 +4853,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             );
         }
         crate::ocio_call_status()?;
+        creator.recreate = Self::create_with_assembler;
         Ok(creator)
     }
     /// Retain resource controls and lifecycle/code hooks across extractions.
@@ -3266,7 +4870,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     where
         P: ShaderTextureControl + ShaderUniformControl,
     {
-        let creator = Self::create_with_resource_control(template, policy, cache_id)?;
+        let mut creator = Self::create_with_resource_control(template, policy, cache_id)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_creator_set_persistent_hooks(
@@ -3276,6 +4880,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             );
         }
         crate::ocio_call_status()?;
+        creator.recreate = Self::create_with_hooks;
         Ok(creator)
     }
     /// Retain both texture and uniform registration controllers between calls.
@@ -3293,7 +4898,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     where
         P: ShaderTextureControl + ShaderUniformControl,
     {
-        let creator = Self::create_with_texture_control(template, policy, cache_id)?;
+        let mut creator = Self::create_with_texture_control(template, policy, cache_id)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_creator_set_persistent_uniform_control(
@@ -3302,6 +4907,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             );
         }
         crate::ocio_call_status()?;
+        creator.recreate = Self::create_with_resource_control;
         Ok(creator)
     }
     /// Create a persistent creator with control over each registered texture.
@@ -3313,7 +4919,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     where
         P: ShaderTextureControl,
     {
-        let creator = Self::create(template, policy, cache_id)?;
+        let mut creator = Self::create(template, policy, cache_id)?;
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_gpu_shader_creator_set_persistent_texture_control(
@@ -3322,6 +4928,7 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             );
         }
         crate::ocio_call_status()?;
+        creator.recreate = Self::create_with_texture_control;
         Ok(creator)
     }
     /// Create a persistent policy creator using the template's native settings.
@@ -3374,7 +4981,23 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
             creator,
             descriptor,
             state,
+            extraction_cache_policy: None,
+            recreate: Self::create,
         })
+    }
+
+    /// Create an independent creator with the same native settings and enabled
+    /// hooks, but a new policy and fixed cache ID.
+    ///
+    /// This copies stored texture settings, not the old policy's answers.
+    /// As with the constructors, the new policy receives the initial texture
+    /// setting notifications. Shader text, registered resources and extraction
+    /// state are not copied. If enabled, dynamic cache IDs remain enabled and
+    /// are supplied by the new policy on extraction.
+    pub fn try_fork_with_policy(&self, policy: P, cache_id: &std::ffi::CStr) -> Result<Self> {
+        let mut fork = (self.recreate)(&self.descriptor, policy, cache_id)?;
+        fork.extraction_cache_policy = self.extraction_cache_policy;
+        Ok(fork)
     }
 
     /// Access policy state. Update the cache ID if this changes the shader output.
@@ -3461,20 +5084,166 @@ impl<P: ShaderTexturePolicy> PersistentPolicyCreator<P> {
     }
 
     /// Extract into the same native creator, retaining the policy after return.
+    /// Uses the fixed ID unless [`Self::set_extraction_cache_policy`] enabled
+    /// dynamic IDs for subsequent extractions.
     pub fn try_extract(&mut self, processor: &GPUProcessor) -> Result<()> {
+        self.extract_with_cache_callback(processor, self.extraction_cache_policy)
+    }
+
+    /// Enable or disable dynamic cache IDs for subsequent [`Self::try_extract`]
+    /// calls. Outside extraction the fixed ID remains in effect. This does not
+    /// invalidate or rename existing resources.
+    pub fn set_extraction_cache_policy(&mut self, enabled: bool)
+    where
+        P: ShaderCacheIdPolicy,
+    {
+        self.extraction_cache_policy = if enabled {
+            Some(persistent_cache_id_callback::<P>)
+        } else {
+            None
+        };
+    }
+
+    /// Extract with a Rust-provided native cache-ID getter for this call only.
+    ///
+    /// The callback is detached on both success and failure. Its error or panic
+    /// is returned after native execution; as with other callbacks, resources
+    /// created before failure are not rolled back. Outside this call the fixed
+    /// ID set by [`Self::set_cache_id`] remains in effect.
+    pub fn try_extract_with_cache_policy(&mut self, processor: &GPUProcessor) -> Result<()>
+    where
+        P: ShaderCacheIdPolicy,
+    {
+        self.extract_with_cache_callback(processor, Some(persistent_cache_id_callback::<P>))
+    }
+
+    fn extract_with_cache_callback(
+        &mut self,
+        processor: &GPUProcessor,
+        callback: Option<CacheIdCallback>,
+    ) -> Result<()> {
         self.state.error = None;
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_gpu_shader_creator_extract_persistent_policy(
-                processor.handle.as_ptr(),
-                self.creator.handle.as_ptr(),
-            )
+            if let Some(callback) = callback {
+                ocio_sys::ocio_gpu_shader_creator_extract_with_cache_policy(
+                    processor.handle.as_ptr(),
+                    self.creator.handle.as_ptr(),
+                    callback,
+                );
+            } else {
+                ocio_sys::ocio_gpu_shader_creator_extract_persistent_policy(
+                    processor.handle.as_ptr(),
+                    self.creator.handle.as_ptr(),
+                );
+            }
         };
         let native_result = crate::ocio_call_status();
-        match self.state.error.take() {
-            Some(error) => Err(error),
-            None => native_result,
+        self.policy_result(native_result)
+    }
+
+    /// Query the native virtual cache ID using the Rust policy without
+    /// extracting a shader. The fixed cache ID remains in effect afterward.
+    pub fn try_query_cache_policy(&mut self) -> Result<String>
+    where
+        P: ShaderCacheIdPolicy,
+    {
+        self.state.error = None;
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_query_cache_policy(
+                self.creator.handle.as_ptr(),
+                persistent_cache_id_callback::<P>,
+            )
+        };
+        // Copy the policy-owned string before taking another mutable borrow
+        // of callback state or calling another native creator method.
+        let result = crate::ocio_call_status().and_then(|()| {
+            unsafe { crate::cstr_to_opt_string(ptr) }
+                .ok_or_else(|| OcioError::Ocio("null shader cache ID".into()))
+        });
+        self.policy_result(result)
+    }
+
+    /// Invoke the native virtual clone using the configured Rust clone policy.
+    ///
+    /// The policy defines what is copied. Its callback is detached on return;
+    /// the returned creator does not inherit this owner's callback state.
+    pub fn try_clone_with_policy(&mut self) -> Result<GpuShaderCreator<'static>>
+    where
+        P: ShaderClonePolicy,
+    {
+        self.state.error = None;
+        crate::clear_last_error();
+        let raw = unsafe {
+            ocio_sys::ocio_gpu_shader_creator_clone_with_policy(
+                self.creator.handle.as_ptr(),
+                persistent_clone_callback::<P>,
+            )
+        };
+        let result = crate::handle_result(raw).map(|handle| GpuShaderCreator {
+            handle,
+            _descriptor: std::marker::PhantomData,
+        });
+        self.policy_result(result)
+    }
+
+    /// Assemble caller-provided shader fragments without a GPU processor.
+    ///
+    /// The native lifecycle, code and finalization hooks are invoked as in
+    /// extraction. After a successful begin, end is attempted even if appending
+    /// or finalizing fails. The first error wins. Existing native code and
+    /// resources are not cleared or rolled back.
+    pub fn try_assemble_fragments(
+        &mut self,
+        uid: &std::ffi::CStr,
+        fragments: &[(ShaderCodeSection, &std::ffi::CStr)],
+    ) -> Result<()> {
+        self.state.error = None;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_gpu_shader_creator_begin_manual(
+                self.creator.handle.as_ptr(),
+                uid.as_ptr(),
+            );
         }
+        let begin = crate::ocio_call_status();
+        self.policy_result(begin)?;
+
+        let assembled = (|| {
+            for &(section, code) in fragments {
+                let tag = match section {
+                    ShaderCodeSection::Declarations => 0,
+                    #[cfg(feature = "v2_5")]
+                    ShaderCodeSection::Parameters => 1,
+                    #[cfg(feature = "v2_5")]
+                    ShaderCodeSection::Textures => 2,
+                    #[cfg(not(feature = "v2_5"))]
+                    ShaderCodeSection::Parameters | ShaderCodeSection::Textures => {
+                        return Err(OcioError::InvalidInput(
+                            "split declarations require v2_5".into(),
+                        ));
+                    }
+                    ShaderCodeSection::Helpers => 3,
+                    ShaderCodeSection::Header => 4,
+                    ShaderCodeSection::Body => 5,
+                    ShaderCodeSection::Footer => 6,
+                };
+                crate::clear_last_error();
+                unsafe {
+                    ocio_sys::ocio_gpu_shader_creator_add_code(
+                        self.creator.handle.as_ptr(),
+                        tag,
+                        code.as_ptr(),
+                    );
+                }
+                crate::ocio_call_status()?;
+            }
+            self.creator.finalize()
+        })();
+        let assembled = self.policy_result(assembled);
+        let ended = self.creator.end();
+        assembled.and(self.policy_result(ended))
     }
 
     /// Return an owned copy of the generated shader text.
@@ -5397,6 +7166,11 @@ impl GPUProcessor {
     }
 
     /// Try to fill `shader_desc` with OCIO-generated shader text, uniforms, and textures.
+    ///
+    /// This calls the native generator directly. The repository's vendored
+    /// source fixes the multi-row LUT allocation. When linking an unpatched
+    /// system library or building from unpatched external source, use
+    /// [Self::try_extract_shader_info_checked] for untrusted or unknown LUT lengths.
     pub fn try_extract_shader_info(&self, shader_desc: &mut GpuShaderDesc) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -5410,8 +7184,9 @@ impl GPUProcessor {
 
     /// Probe optimized texture resources before extracting into `shader_desc`.
     ///
-    /// OCIO 2.4–2.6 can underflow while packing some 1D LUT lengths into 2D
-    /// textures. The probe uses a temporary descriptor wide enough for every
+    /// Unpatched OCIO 2.4–2.6 can underflow while packing some 1D LUT lengths
+    /// into 2D textures. This check remains conservative with the patched
+    /// vendored source. The probe uses a temporary descriptor wide enough for every
     /// 1D LUT accepted by these versions, streams its textures without storing
     /// them, and checks their lengths against the requested width before the
     /// real extraction. The target descriptor is untouched if probing fails.
@@ -5691,10 +7466,13 @@ pub enum GpuTextureChannel {
 }
 
 impl GpuTextureChannel {
-    fn from_raw(value: i32) -> Self {
+    fn from_raw(value: i32) -> Result<Self> {
         match value {
-            0 => Self::Red,
-            _ => Self::Rgb,
+            0 => Ok(Self::Red),
+            1 => Ok(Self::Rgb),
+            _ => Err(OcioError::ValidationFailed(format!(
+                "unknown GPU texture channel {value}"
+            ))),
         }
     }
 
@@ -5715,10 +7493,13 @@ pub enum GpuTextureDimensions {
 }
 
 impl GpuTextureDimensions {
-    fn from_raw(value: i32) -> Self {
+    fn from_raw(value: i32) -> Result<Self> {
         match value {
-            2 => Self::Texture2D,
-            _ => Self::Texture1D,
+            1 => Ok(Self::Texture1D),
+            2 => Ok(Self::Texture2D),
+            _ => Err(OcioError::ValidationFailed(format!(
+                "unknown GPU texture dimensions {value}"
+            ))),
         }
     }
 }
@@ -5730,6 +7511,18 @@ fn required_ocio_string(ptr: *const i8) -> Option<String> {
     } else {
         Some(value)
     }
+}
+
+fn try_resize_gpu_values<T: Copy + Default>(values: &mut Vec<T>, len: usize) -> Result<()> {
+    if len > values.len() {
+        values.try_reserve_exact(len - values.len()).map_err(|_| {
+            OcioError::ValidationFailed(
+                "GPU resource payload allocation failed or overflowed".into(),
+            )
+        })?;
+    }
+    values.resize(len, T::default());
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -6024,14 +7817,16 @@ impl GpuShaderDesc {
         if !ok {
             return Ok(None);
         }
-        let channel = GpuTextureChannel::from_raw(info.channel);
+        let channel = GpuTextureChannel::from_raw(info.channel)?;
+        let dimensions = GpuTextureDimensions::from_raw(info.dimensions)?;
         let value_count = (info.width as usize)
             .checked_mul(info.height as usize)
             .and_then(|count| count.checked_mul(channel.channel_count()))
             .ok_or_else(|| {
                 OcioError::ValidationFailed("GPU texture payload size overflowed usize".into())
             })?;
-        let mut values = vec![0.0f32; value_count];
+        let mut values = Vec::<f32>::new();
+        try_resize_gpu_values(&mut values, value_count)?;
         crate::clear_last_error();
         let values_ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_copy_texture_values(
@@ -6059,7 +7854,7 @@ impl GpuShaderDesc {
             width: info.width,
             height: info.height,
             channel,
-            dimensions: GpuTextureDimensions::from_raw(info.dimensions),
+            dimensions,
             interpolation: interpolation_from_raw(info.interpolation),
             binding_index: info.has_binding_index.then_some(info.binding_index),
             values,
@@ -6073,8 +7868,8 @@ impl GpuShaderDesc {
             .collect()
     }
 
-    fn gpu_language_from_raw(l: i32) -> GpuLanguage {
-        match l {
+    fn gpu_language_from_raw(l: i32) -> Result<GpuLanguage> {
+        Ok(match l {
             0 => GpuLanguage::Cg,
             1 => GpuLanguage::Glsl1_2,
             2 => GpuLanguage::Glsl1_3,
@@ -6086,23 +7881,30 @@ impl GpuShaderDesc {
             7 => GpuLanguage::GlslEs1_0,
             8 => GpuLanguage::GlslEs3_0,
             9 => GpuLanguage::Msl2_0,
-            _ => GpuLanguage::Glsl1_2,
-        }
+            _ => {
+                return Err(OcioError::ValidationFailed(format!(
+                    "GPU language {l} is unavailable at the enabled interface level"
+                )))
+            }
+        })
     }
 
     /// Returns the shader language currently configured on the descriptor.
+    /// Unknown languages or native errors fall back to GLSL 1.2; use
+    /// [`Self::try_language`] to detect them.
     pub fn language(&self) -> GpuLanguage {
         self.try_language().unwrap_or(GpuLanguage::Glsl1_2)
     }
 
-    /// Return the configured shader language, preserving bridge failures.
+    /// Return the configured shader language, preserving bridge failures and
+    /// reporting native languages unavailable at this interface level.
     pub fn try_language(&self) -> Result<GpuLanguage> {
         crate::clear_last_error();
         let language = unsafe {
             ocio_sys::ocio_gpu_shader_desc_get_language(self.handle.as_ptr() as *mut c_void)
         };
         crate::ocio_call_status()?;
-        Ok(Self::gpu_language_from_raw(language))
+        Self::gpu_language_from_raw(language)
     }
 
     /// Sets the shader language OCIO should target during extraction.
@@ -6321,9 +8123,9 @@ impl GpuShaderDesc {
 
     /// Check whether a known 1D LUT length fits OCIO's packed texture layout.
     ///
-    /// OCIO 2.4–2.6 may underflow its padding count for some combinations of
-    /// LUT length and maximum width. This check detects those combinations
-    /// before extraction. It only checks the supplied length: optimization or
+    /// Unpatched OCIO 2.4–2.6 may underflow its padding count for some combinations of
+    /// LUT length and maximum width. This portable check detects those combinations
+    /// even with the patched vendored source. It only checks the supplied length: optimization or
     /// other operations can introduce LUTs with different lengths, so success
     /// does not establish that an arbitrary GPU processor is safe to extract.
     /// A caller must validate every LUT length that reaches native extraction.
@@ -7340,7 +9142,8 @@ impl GpuShaderDesc {
         let uniform_type = GpuUniformType::from_raw(info.type_);
         let value = match uniform_type {
             GpuUniformType::VectorInt => {
-                let mut values = vec![0i32; info.value_count];
+                let mut values = Vec::<i32>::new();
+                try_resize_gpu_values(&mut values, info.value_count)?;
                 let mut copied = false;
                 for attempt in 0..3 {
                     let mut actual = 0;
@@ -7369,7 +9172,7 @@ impl GpuShaderDesc {
                             "uniform array kept growing while sampled".into(),
                         ));
                     }
-                    values.resize(actual, 0);
+                    try_resize_gpu_values(&mut values, actual)?;
                 }
                 if copied {
                     GpuUniformValue::I32(values)
@@ -7379,7 +9182,8 @@ impl GpuShaderDesc {
             }
             GpuUniformType::Unknown => GpuUniformValue::Unsupported,
             _ => {
-                let mut values = vec![0.0f32; info.value_count];
+                let mut values = Vec::<f32>::new();
+                try_resize_gpu_values(&mut values, info.value_count)?;
                 let mut copied = false;
                 for attempt in 0..3 {
                     let mut actual = 0;
@@ -7408,7 +9212,7 @@ impl GpuShaderDesc {
                             "uniform array kept growing while sampled".into(),
                         ));
                     }
-                    values.resize(actual, 0.0);
+                    try_resize_gpu_values(&mut values, actual)?;
                 }
                 if copied {
                     GpuUniformValue::F32(values)
@@ -7593,9 +9397,21 @@ impl GpuShaderDesc {
         self.num_textures()
     }
 
-    /// Returns the copied scalar count for a 1D/2D texture resource.
+    /// Returns the scalar count for a 1D/2D texture resource without copying it.
+    /// Returns zero on an invalid index or native error; use
+    /// [`Self::try_texture_value_count`] to distinguish errors.
     pub fn texture_value_count(&self, index: u32) -> usize {
-        self.texture_values(index).len()
+        self.try_texture_value_count(index).unwrap_or(0)
+    }
+
+    /// Return the scalar count for a 1D/2D texture without allocating.
+    pub fn try_texture_value_count(&self, index: u32) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_value_count(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -7656,7 +9472,8 @@ impl GpuShaderDesc {
             .ok_or_else(|| {
                 OcioError::ValidationFailed("GPU 3D texture payload size overflowed usize".into())
             })?;
-        let mut values = vec![0.0f32; value_count];
+        let mut values = Vec::<f32>::new();
+        try_resize_gpu_values(&mut values, value_count)?;
         crate::clear_last_error();
         let values_ok = unsafe {
             ocio_sys::ocio_gpu_shader_desc_copy3d_texture_values(
@@ -7694,11 +9511,21 @@ impl GpuShaderDesc {
         self.texture_3d(index)
     }
 
-    /// Returns the copied scalar count for a 3D texture resource.
+    /// Returns the scalar count for a 3D texture resource without copying it.
+    /// Returns zero on an invalid index or native error; use
+    /// [`Self::try_texture_3d_value_count`] to distinguish errors.
     pub fn texture_3d_value_count(&self, index: u32) -> usize {
-        self.texture_3d(index)
-            .map(|texture| texture.values.len())
-            .unwrap_or(0)
+        self.try_texture_3d_value_count(index).unwrap_or(0)
+    }
+
+    /// Return the scalar count for a 3D texture without allocating.
+    pub fn try_texture_3d_value_count(&self, index: u32) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_value_count(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     #[doc(hidden)]
@@ -7867,6 +9694,24 @@ fn interpolation_from_raw(value: i32) -> Interpolation {
 
 // --- DynamicProperty ---
 
+fn dynamic_property_type_from_raw(value: i32) -> Result<DynamicPropertyType> {
+    Ok(match value {
+        0 => DynamicPropertyType::Exposure,
+        1 => DynamicPropertyType::Contrast,
+        2 => DynamicPropertyType::Gamma,
+        3 => DynamicPropertyType::GradingPrimary,
+        4 => DynamicPropertyType::GradingRgbCurve,
+        5 => DynamicPropertyType::GradingTone,
+        #[cfg(feature = "v2_5")]
+        6 => DynamicPropertyType::GradingHueCurve,
+        _ => {
+            return Err(OcioError::Ocio(format!(
+                "unknown dynamic property type {value}"
+            )))
+        }
+    })
+}
+
 /// References a processor property that may be adjusted dynamically at runtime.
 pub struct DynamicProperty {
     handle: NonNull<c_void>,
@@ -7921,6 +9766,12 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    /// Forward a shared RGB curve directly to OCIO's native setter, without
+    /// making an editable copy in the binding.
+    pub fn set_grading_rgb_curve_shared(&self, value: &crate::SharedGradingRGBCurve) -> Result<()> {
+        self.set_shared_grading_curve(value.handle, false)
+    }
+
     #[cfg(feature = "v2_5")]
     /// Return an independent native HUE curve value, including its non-point state.
     pub fn grading_hue_curve_object(&self) -> Result<crate::GradingHueCurve> {
@@ -7954,12 +9805,31 @@ impl DynamicProperty {
         crate::ocio_call_status()
     }
 
+    /// Forward a shared hue curve directly to OCIO's native setter, without
+    /// making an editable copy in the binding.
+    #[cfg(feature = "v2_5")]
+    pub fn set_grading_hue_curve_shared(&self, value: &crate::SharedGradingHueCurve) -> Result<()> {
+        self.set_shared_grading_curve(value.handle, true)
+    }
+
+    fn set_shared_grading_curve(&self, value: NonNull<c_void>, hue: bool) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_curve_value_shared_set_dynamic_property(
+                value.as_ptr(),
+                hue,
+                self.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     fn require_property_type(
         &self,
         expected: DynamicPropertyType,
         operation: &'static str,
     ) -> Result<()> {
-        let actual = self.property_type();
+        let actual = self.try_property_type()?;
         if actual == expected {
             Ok(())
         } else {
@@ -7971,7 +9841,7 @@ impl DynamicProperty {
     }
 
     fn require_double_property(&self, operation: &'static str) -> Result<()> {
-        let actual = self.property_type();
+        let actual = self.try_property_type()?;
         match actual {
             DynamicPropertyType::Exposure
             | DynamicPropertyType::Contrast
@@ -7992,21 +9862,23 @@ impl DynamicProperty {
         self.require_property_type(DynamicPropertyType::GradingHueCurve, operation)
     }
 
+    /// Return the property type, or `Exposure` if the native type is unknown
+    /// or the bridge reports an error. Use [`Self::try_property_type`] when a
+    /// fallback would be ambiguous. Typed property operations use that fallible
+    /// query and do not treat an unknown type as exposure.
     pub fn property_type(&self) -> DynamicPropertyType {
+        self.try_property_type()
+            .unwrap_or(DynamicPropertyType::Exposure)
+    }
+
+    /// Query the property type without treating unknown native values as exposure.
+    pub fn try_property_type(&self) -> Result<DynamicPropertyType> {
+        crate::clear_last_error();
         let t = unsafe {
             ocio_sys::ocio_dynamic_property_get_type(self.handle.as_ptr() as *mut c_void)
         };
-        match t {
-            0 => DynamicPropertyType::Exposure,
-            1 => DynamicPropertyType::Contrast,
-            2 => DynamicPropertyType::Gamma,
-            3 => DynamicPropertyType::GradingPrimary,
-            4 => DynamicPropertyType::GradingRgbCurve,
-            5 => DynamicPropertyType::GradingTone,
-            #[cfg(feature = "v2_5")]
-            6 => DynamicPropertyType::GradingHueCurve,
-            _ => DynamicPropertyType::Exposure,
-        }
+        crate::ocio_call_status()?;
+        dynamic_property_type_from_raw(t)
     }
 
     pub fn double_value(&self) -> Result<f64> {
@@ -8018,7 +9890,6 @@ impl DynamicProperty {
         crate::ocio_call_status()?;
         Ok(value)
     }
-
     pub fn set_double_value(&self, value: f64) -> Result<()> {
         self.require_double_property("DynamicProperty::set_double_value")?;
         crate::clear_last_error();
@@ -8278,14 +10149,20 @@ impl DynamicProperty {
             CompleteGradingHueCurveValue, GradingCurvePoint, GradingHueCurveValue,
         };
         let read = |kind| -> Result<Vec<GradingCurvePoint>> {
-            let count = self.grading_hue_curve_num_control_points(kind)?;
-            (0..count)
-                .map(|index| {
-                    let (x, y) = self.grading_hue_curve_control_point(kind, index)?;
-                    let slope = self.grading_hue_curve_slope(kind, index)?;
-                    Ok(GradingCurvePoint { x, y, slope })
-                })
-                .collect()
+            let count = crate::transform::checked_native_count(
+                self.grading_hue_curve_num_control_points(kind)?,
+                "DynamicProperty::complete_grading_hue_curve_value",
+            )?;
+            let mut points = crate::transform::reserve_native_items(
+                count,
+                "DynamicProperty::complete_grading_hue_curve_value",
+            )?;
+            for index in 0..count {
+                let (x, y) = self.grading_hue_curve_control_point(kind, index as i32)?;
+                let slope = self.grading_hue_curve_slope(kind, index as i32)?;
+                points.push(GradingCurvePoint { x, y, slope });
+            }
+            Ok(points)
         };
         Ok(CompleteGradingHueCurveValue {
             base: GradingHueCurveValue {
@@ -8503,6 +10380,68 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dynamic_property_type_rejects_unknown_values() {
+        assert_eq!(
+            dynamic_property_type_from_raw(0).unwrap(),
+            DynamicPropertyType::Exposure
+        );
+        assert_eq!(
+            dynamic_property_type_from_raw(5).unwrap(),
+            DynamicPropertyType::GradingTone
+        );
+        assert!(dynamic_property_type_from_raw(-1).is_err());
+        assert!(dynamic_property_type_from_raw(i32::MAX).is_err());
+        #[cfg(feature = "v2_5")]
+        assert_eq!(
+            dynamic_property_type_from_raw(6).unwrap(),
+            DynamicPropertyType::GradingHueCurve
+        );
+        #[cfg(not(feature = "v2_5"))]
+        assert!(dynamic_property_type_from_raw(6).is_err());
+    }
+
+    #[test]
+    fn tail_row_partition_covers_each_row_once() {
+        for height in 1..=5 {
+            for a_split in [false, true] {
+                for a_first in [false, true] {
+                    for b_split in [false, true] {
+                        for b_first in [false, true] {
+                            let (start, end, edges) =
+                                tail_row_partition(height, (a_split, a_first), (b_split, b_first));
+                            let mut visits = vec![0u8; height as usize];
+                            for row in start..end {
+                                visits[row as usize] += 1;
+                            }
+                            for row in edges.into_iter().flatten() {
+                                visits[row as usize] += 1;
+                            }
+                            assert!(
+                                visits.iter().all(|&v| v == 1),
+                                "height={height}, a={a_split}/{a_first}, b={b_split}/{b_first}"
+                            );
+                            if a_split {
+                                assert!(edges.contains(&Some(if a_first {
+                                    0
+                                } else {
+                                    height - 1
+                                })));
+                            }
+                            if b_split {
+                                assert!(edges.contains(&Some(if b_first {
+                                    0
+                                } else {
+                                    height - 1
+                                })));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn planar_tail_regions_cover_every_pixel_with_independent_offsets() {
         for (width, height) in [(1, 1), (3, 1), (1, 3), (3, 2)] {
             let source = (2, width * 2 + 1);
@@ -8582,13 +10521,55 @@ mod tests {
         assert!(required_scalar_len("test", limit + 1, 0, 3).is_err());
     }
 
+    #[test]
+    fn gpu_payload_allocation_overflow_returns_error_without_mutation() {
+        let mut values = vec![1.0_f32, 2.0];
+        assert!(try_resize_gpu_values(&mut values, usize::MAX).is_err());
+        assert_eq!(values, [1.0, 2.0]);
+        try_resize_gpu_values(&mut values, 3).unwrap();
+        assert_eq!(values, [1.0, 2.0, 0.0]);
+        try_resize_gpu_values(&mut values, 1).unwrap();
+        assert_eq!(values, [1.0]);
+    }
+
+    #[test]
+    #[cfg(not(feature = "v2_5"))]
+    #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.5.1 or later")]
+    fn newer_native_gpu_language_is_not_misreported_by_fallible_query() {
+        if crate::version_hex() < 0x0205_0100 {
+            return;
+        }
+        let desc = GpuShaderDesc::create().unwrap();
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_gpu_shader_desc_set_language(desc.handle.as_ptr(), 4) };
+        crate::ocio_call_status().unwrap();
+        assert!(matches!(
+            desc.try_language(),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        assert_eq!(desc.language(), GpuLanguage::Glsl1_2);
+        desc.set_language(GpuLanguage::Glsl4_0).unwrap();
+        assert_eq!(desc.try_language().unwrap(), GpuLanguage::Glsl4_0);
+    }
+
+    #[test]
+    fn scalar_validation_rejects_overflowing_native_row_stride() {
+        // The last RGB sample is addressable in principle, but OCIO's
+        // descriptor also requires stride * pixel count to fit ptrdiff_t.
+        let stride = (isize::MAX as i64 / 8) + 1;
+        assert!(required_scalar_len("test", 2, stride, 3).is_ok());
+        let error = validate_stride_byte_width("test", 2, stride, 3, 4).unwrap_err();
+        assert!(error.to_string().contains("row stride"));
+        assert!(validate_stride_byte_width("test", 1, stride, 3, 4).is_ok());
+    }
+
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn rgba_stride_validation_rejects_native_int_truncation() {
         let stride = i64::from(i32::MAX) / 4 + 1;
-        assert!(validate_stride_byte_width("test", stride, 4, 4).is_err());
-        assert!(validate_stride_byte_width("test", stride, 3, 4).is_ok());
-        assert!(validate_stride_byte_width("test", 4, 4, 4).is_ok());
+        assert!(validate_stride_byte_width("test", 1, stride, 4, 4).is_err());
+        assert!(validate_stride_byte_width("test", 1, stride, 3, 4).is_ok());
+        assert!(validate_stride_byte_width("test", 1, 4, 4, 4).is_ok());
     }
 
     #[cfg(all(target_pointer_width = "64", not(ocio_stub)))]
@@ -8762,6 +10743,30 @@ mod tests {
         )
         .is_ok());
     }
+
+    #[test]
+    fn generic_packed_layout_requires_all_channel_pointer_steps() {
+        let bytes = [0u8; 8];
+        let rgb = PackedImageLayout {
+            width: 2,
+            height: 1,
+            origin: 0,
+            channel_stride: 1,
+            x_stride: 3,
+            y_stride: 6,
+            bit_depth: BitDepth::Uint8,
+            channel_order: ChannelOrdering::Rgb,
+        };
+        assert!(packed_image_descriptor(rgb, &bytes[..6]).is_err());
+        assert!(packed_image_descriptor(rgb, &bytes).is_ok());
+        let rgba = PackedImageLayout {
+            x_stride: 4,
+            y_stride: 8,
+            channel_order: ChannelOrdering::Rgba,
+            ..rgb
+        };
+        assert!(packed_image_descriptor(rgba, &bytes).is_ok());
+    }
     use crate::Config;
 
     #[test]
@@ -8769,13 +10774,24 @@ mod tests {
         assert_eq!(GpuTextureDimensions::Texture1D as i32, 1);
         assert_eq!(GpuTextureDimensions::Texture2D as i32, 2);
         assert_eq!(
-            GpuTextureDimensions::from_raw(1),
+            GpuTextureDimensions::from_raw(1).unwrap(),
             GpuTextureDimensions::Texture1D
         );
         assert_eq!(
-            GpuTextureDimensions::from_raw(2),
+            GpuTextureDimensions::from_raw(2).unwrap(),
             GpuTextureDimensions::Texture2D
         );
+        assert!(GpuTextureDimensions::from_raw(0).is_err());
+        assert!(GpuTextureDimensions::from_raw(3).is_err());
+        assert_eq!(
+            GpuTextureChannel::from_raw(0).unwrap(),
+            GpuTextureChannel::Red
+        );
+        assert_eq!(
+            GpuTextureChannel::from_raw(1).unwrap(),
+            GpuTextureChannel::Rgb
+        );
+        assert!(GpuTextureChannel::from_raw(2).is_err());
     }
 
     #[test]

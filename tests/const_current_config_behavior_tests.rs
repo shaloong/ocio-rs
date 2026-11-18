@@ -33,7 +33,84 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     assert!(shared.cache_id().unwrap().is_some());
     assert!(shared.try_const_current_context().unwrap().is_some());
     let shared_context = shared.try_const_current_context().unwrap().unwrap();
+    let full = shared.cache_id().unwrap().unwrap();
+    let unmodified_copy = shared.create_editable_copy().unwrap();
+    assert_eq!(
+        shared
+            .cache_id_for_context(&shared_context)
+            .unwrap()
+            .as_deref(),
+        Some(full.as_str())
+    );
+    assert_eq!(
+        unmodified_copy
+            .try_cache_id_for_const_context(&shared_context)
+            .unwrap()
+            .as_deref(),
+        Some(full.as_str())
+    );
+    let authored = shared.cache_id_without_file_references().unwrap().unwrap();
+    assert_ne!(authored, full);
+    assert_eq!(
+        unmodified_copy
+            .try_cache_id_without_file_references()
+            .unwrap()
+            .as_deref(),
+        Some(authored.as_str())
+    );
+    assert_eq!(
+        shared.environment_mode().unwrap(),
+        editable.try_environment_mode().unwrap()
+    );
+    assert_eq!(
+        shared.environment_mode().unwrap(),
+        shared_context.environment_mode().unwrap()
+    );
     let raw = shared.try_const_color_space(c"raw").unwrap().unwrap();
+    #[cfg(feature = "v2_6")]
+    {
+        let found = shared
+            .find_const_color_space_for_id(c"vendor:raw")
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.name().unwrap(), c"raw");
+        assert!(shared
+            .find_const_color_space_for_id(c"missing")
+            .unwrap()
+            .is_none());
+        assert!(shared.find_const_color_space_for_id(c"").unwrap().is_none());
+        let local_id = shared
+            .generate_local_id_for_color_space(c"raw")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            Some(local_id.as_str()),
+            first
+                .generate_local_id_for_color_space(c"raw")
+                .unwrap()
+                .as_deref()
+        );
+        let local_id = std::ffi::CString::new(local_id).unwrap();
+        assert_eq!(
+            shared
+                .find_const_color_space_for_id(&local_id)
+                .unwrap()
+                .unwrap()
+                .name()
+                .unwrap(),
+            c"raw"
+        );
+        assert!(shared
+            .generate_local_id_for_color_space(c"missing")
+            .is_err());
+        assert!(shared
+            .generate_local_id_for_color_space(c"raw")
+            .unwrap()
+            .is_some());
+        let copy = found.create_editable_copy().unwrap();
+        copy.set_name("independent").unwrap();
+        assert_eq!(found.name().unwrap(), c"raw");
+    }
     for context in [None, Some(&shared_context)] {
         let processor = shared
             .processor_from_const_color_spaces(&raw, &raw, context)
@@ -156,6 +233,9 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     let reference = ocio_rs::ColorSpace::create().unwrap();
     reference.set_name("reference").unwrap();
     dynamic_config.try_add_color_space(&reference).unwrap();
+    dynamic_config
+        .set_role("aces_interchange", "reference")
+        .unwrap();
     let input = ocio_rs::ColorSpace::create().unwrap();
     input.set_name("dynamic-input").unwrap();
     let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
@@ -258,6 +338,10 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
         .try_const_transform(ocio_rs::ColorSpaceDirection::ToReference)
         .unwrap()
         .unwrap();
+    assert!(snapshot
+        .processor_from_const_transform_default_direction(&transform)
+        .unwrap()
+        .is_dynamic());
     for context_option in [None, Some(&context)] {
         let a = snapshot
             .processor_from_const_transform(
@@ -322,5 +406,126 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
         .map(|worker| worker.join().unwrap())
         .collect();
     assert_eq!(values, [1.0, 2.0]);
+    check_cross_config_processors(&snapshot);
     try_set_current_config(&previous).unwrap();
+}
+
+fn check_cross_config_processors(dynamic: &ocio_rs::ConstConfig) {
+    use ocio_rs::transform::MatrixTransform;
+    use ocio_rs::{
+        ColorSpace, ColorSpaceDirection, ConfigProcessorTarget as Target, DynamicPropertyType,
+        TransformDirection,
+    };
+
+    let src = Config::create().unwrap();
+    let dst = Config::create().unwrap();
+    for (config, name, factor, direction) in [
+        (&src, "input", 2.0, ColorSpaceDirection::ToReference),
+        (&dst, "output", 3.0, ColorSpaceDirection::FromReference),
+    ] {
+        let reference = ColorSpace::create().unwrap();
+        reference.set_name("reference").unwrap();
+        config.try_add_color_space(&reference).unwrap();
+        config.set_role("aces_interchange", "reference").unwrap();
+        let color = ColorSpace::create().unwrap();
+        color.set_name(name).unwrap();
+        color
+            .try_set_transform(
+                &MatrixTransform::scale(&[factor, factor, factor, 1.0]).unwrap(),
+                direction,
+            )
+            .unwrap();
+        config.try_add_color_space(&color).unwrap();
+    }
+    dst.add_display("Screen", "View", "output", "").unwrap();
+    try_set_current_config(&src).unwrap();
+    let src = try_const_current_config().unwrap().unwrap();
+    try_set_current_config(&dst).unwrap();
+    let dst = try_const_current_config().unwrap().unwrap();
+    let to_builtin = src
+        .processor_to_builtin_color_space(c"input", c"ACES2065-1")
+        .unwrap();
+    let from_builtin = src
+        .processor_from_builtin_color_space(c"ACES2065-1", c"input")
+        .unwrap();
+    let mut builtin_pixel = [0.125, 0.25, 0.5, 1.0];
+    to_builtin
+        .default_cpu_processor()
+        .unwrap()
+        .try_apply_rgba(&mut builtin_pixel)
+        .unwrap();
+    assert_eq!(builtin_pixel, [0.25, 0.5, 1.0, 1.0]);
+    from_builtin
+        .default_cpu_processor()
+        .unwrap()
+        .try_apply_rgba(&mut builtin_pixel)
+        .unwrap();
+    assert_eq!(builtin_pixel, [0.125, 0.25, 0.5, 1.0]);
+    assert!(src
+        .processor_to_builtin_color_space(c"input", c"nonexistent")
+        .is_err());
+    let src_context = src.try_const_current_context().unwrap().unwrap();
+    let dst_context = dst.try_const_current_context().unwrap().unwrap();
+    let display_target = |direction| Target::DisplayView {
+        display: c"Screen",
+        view: c"View",
+        direction,
+    };
+    for contexts in [None, Some((&src_context, &dst_context))] {
+        for interchange in [None, Some((c"reference", c"reference"))] {
+            for (target, input, expected) in [
+                (Target::ColorSpace(c"output"), 0.125, 0.75),
+                (display_target(TransformDirection::Forward), 0.125, 0.75),
+                (display_target(TransformDirection::Inverse), 0.75, 0.125),
+            ] {
+                let processor = src
+                    .processor_to_config(c"input", &dst, target, contexts, interchange)
+                    .unwrap();
+                let mut pixel = [input, input, input, 1.0];
+                processor
+                    .default_cpu_processor()
+                    .unwrap()
+                    .try_apply_rgba(&mut pixel)
+                    .unwrap();
+                assert!((pixel[0] - expected).abs() < 1e-6);
+                assert_eq!(pixel[3], 1.0);
+            }
+        }
+    }
+    assert!(src
+        .processor_to_config(
+            c"input",
+            &dst,
+            Target::ColorSpace(c"output"),
+            None,
+            Some((c"reference", c"missing")),
+        )
+        .is_err());
+    for destination in [dynamic, &dst] {
+        let build = || {
+            dynamic
+                .processor_to_config(
+                    c"dynamic-input",
+                    destination,
+                    Target::ColorSpace(c"reference"),
+                    None,
+                    None,
+                )
+                .unwrap()
+        };
+        let left = build();
+        let right = build();
+        left.dynamic_property(DynamicPropertyType::Exposure)
+            .unwrap()
+            .set_double_value(1.5)
+            .unwrap();
+        assert_eq!(
+            right
+                .dynamic_property(DynamicPropertyType::Exposure)
+                .unwrap()
+                .double_value()
+                .unwrap(),
+            0.0
+        );
+    }
 }

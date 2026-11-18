@@ -9,7 +9,7 @@ use crate::transform::{
     transform_from_raw_handle, DisplayViewTransform, Transform, TransformHandle,
 };
 use crate::Context;
-use crate::{Config, Processor, Result, SearchReferenceSpaceType, TransformDirection};
+use crate::{Config, ConstConfig, Processor, Result, SearchReferenceSpaceType, TransformDirection};
 
 unsafe fn text<'a>(ptr: *const c_char) -> &'a CStr {
     if ptr.is_null() {
@@ -69,6 +69,17 @@ impl ColorSpaceMenuParameters {
         let handle =
             unsafe { ocio_sys::ocio_color_space_menu_parameters_get_config(self.handle.as_ptr()) };
         Ok(Config {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Retain the native configuration for read-only access without copying it.
+    pub fn const_config(&self) -> Result<ConstConfig> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_menu_parameters_get_const_config(self.handle.as_ptr())
+        };
+        Ok(ConstConfig {
             handle: crate::handle_result(handle)?,
         })
     }

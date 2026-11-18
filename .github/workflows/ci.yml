@@ -107,7 +107,9 @@ jobs:
   minimum-ocio:
     name: Minimum OpenColorIO (${{ matrix.ocio }})
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    # Keep legacy upstream dependency builds on a stable toolchain baseline.
+    # Other jobs continue to exercise the latest runner.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
@@ -137,6 +139,21 @@ jobs:
 
       - name: Test exact minimum
         run: cargo test --workspace --no-default-features --features "${{ matrix.features }}" -- --test-threads=1
+
+      - name: Test OpenColorIO 2.5.0 ABI boundary
+        if: matrix.ocio == '2.5.1'
+        # 2.5.0 is supported by the baseline, but differs from both 2.4.1
+        # and 2.5.1 in GPU bindings and enum values. Keep this targeted and
+        # scheduled/manual rather than adding another PR job or matrix entry.
+        run: |
+          git clone --depth 1 --branch v2.5.0 \
+            https://github.com/AcademySoftwareFoundation/OpenColorIO.git "$RUNNER_TEMP/ocio-2.5.0"
+          export OCIO_SOURCE_DIR="$RUNNER_TEMP/ocio-2.5.0"
+          export OCIO_RS_TEST_VERSION=2.5.0
+          cargo test --locked --no-default-features --features bundled \
+            --test gpu_shader_desc_behavior_tests --test enum_text_behavior_tests \
+            --test const_config_item_behavior_tests --test runtime_helpers_behavior_tests \
+            -- --test-threads=1
 
   bundled:
     name: Bundled (${{ matrix.os }})
@@ -195,6 +212,9 @@ jobs:
             --test group_transform_behavior_tests \
             --test config_io_proxy_behavior_tests --test baker_behavior_tests \
             --test grading_bspline_behavior_tests \
+            --test grading_rgb_curve_transform_behavior_tests \
+            --test grading_hue_curve_transform_behavior_tests \
+            --test dynamic_property_behavior_tests \
             --test processor_behavior_tests --test cpu_processor_behavior_tests \
             -- --test-threads=1
       - name: Test all interface levels

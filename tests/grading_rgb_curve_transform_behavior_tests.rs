@@ -46,6 +46,30 @@ fn sample_rgb_curve_value() -> GradingRGBCurveValue {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn checked_rgb_curve_update_validates_before_commit() {
+    let _guard = grading_rgb_curve_transform_test_lock();
+    let transform = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
+    let value = sample_rgb_curve_value();
+    transform.set_value_checked(&value).unwrap();
+    assert_eq!(transform.value().unwrap(), value);
+    let shared = ocio_rs::SharedGradingRGBCurve::from_transform(&transform).unwrap();
+    let view = shared.curve_ref(RGBCurveType::Red).unwrap();
+    let original_slope = view.slope(1).unwrap();
+    transform.set_slope(RGBCurveType::Red, 1, 0.3).unwrap();
+    assert_eq!(view.slope(1).unwrap(), original_slope);
+    transform.set_value_checked(&value).unwrap();
+    assert_eq!(view.slope(1).unwrap(), original_slope);
+    let mut invalid = value.clone();
+    invalid.red[1].y = 0.4;
+    invalid.master[1].x = invalid.master[0].x - 1.0;
+    assert!(transform.set_value_checked(&invalid).is_err());
+    assert_eq!(transform.value().unwrap(), value);
+    drop(transform);
+    assert_eq!(view.slope(1).unwrap(), original_slope);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_rgb_curve_round_trip_style_reset_and_copy_behavior() {
     let _guard = grading_rgb_curve_transform_test_lock();
     if is_stub() {
@@ -190,6 +214,22 @@ fn grading_rgb_curve_raw_value_handle_survives_parent_drop() {
 
         ocio_sys::ocio_grading_rgb_curve_destroy(handle);
         ocio_sys::ocio_grading_rgb_curve_transform_destroy(target);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_rgb_transform_rejects_negative_point_count() {
+    let _guard = grading_rgb_curve_transform_test_lock();
+    unsafe {
+        let handle =
+            ocio_sys::ocio_grading_rgb_curve_transform_create_with_style(GradingStyle::Log as i32);
+        assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_grading_rgb_curve_transform_set_num_control_points(handle, 0, -1);
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_grading_rgb_curve_transform_destroy(handle);
     }
 }
 

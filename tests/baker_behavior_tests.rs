@@ -203,6 +203,38 @@ fn baker_writer_errors_and_panics_do_not_cross_ffi() {
             "writer rejected output"
         }));
     }
+    #[derive(Debug)]
+    struct PanicDisplay;
+    impl std::fmt::Display for PanicDisplay {
+        fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            panic!("formatting writer error");
+        }
+    }
+    impl std::error::Error for PanicDisplay {}
+    struct PanicDrop;
+    impl Drop for PanicDrop {
+        fn drop(&mut self) {
+            panic!("dropping writer panic payload");
+        }
+    }
+    struct AdversarialWriter(bool);
+    impl std::io::Write for AdversarialWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            if self.0 {
+                std::panic::panic_any(PanicDrop);
+            }
+            Err(std::io::Error::other(PanicDisplay))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    for panic_payload in [false, true] {
+        let error = baker
+            .bake_to_writer(&mut AdversarialWriter(panic_payload))
+            .unwrap_err();
+        assert!(error.to_string().contains("writer panicked"));
+    }
     struct Zero;
     impl std::io::Write for Zero {
         fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
@@ -276,6 +308,51 @@ fn baker_streams_large_output_in_bounded_chunks() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_writer_mutation_cannot_invalidate_native_metadata_in_flight() {
+    struct MutatingWriter<'a> {
+        metadata: &'a ocio_rs::FormatMetadata,
+        bytes: Vec<u8>,
+        mutated: bool,
+    }
+    impl std::io::Write for MutatingWriter<'_> {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if !self.mutated {
+                self.metadata.clear();
+                self.mutated = true;
+            }
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2).unwrap();
+    let metadata = baker.format_metadata().unwrap();
+    metadata
+        .add_child_element("Comment", "x".repeat(40_000))
+        .unwrap();
+    let expected = baker.bake_to_bytes().unwrap().unwrap();
+    assert!(expected.len() > 40_000);
+    let mut writer = MutatingWriter {
+        metadata: &metadata,
+        bytes: Vec::new(),
+        mutated: false,
+    };
+    baker.bake_to_writer(&mut writer).unwrap();
+    assert!(writer.mutated);
+    assert_eq!(writer.bytes, expected);
+    assert!(baker.bake_to_bytes().unwrap().unwrap().len() < expected.len());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_invalid_format_reports_error_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -305,4 +382,16 @@ fn baker_unconfigured_bake_surfaces_ocio_error_behavior() {
         .bake_to_string()
         .expect_err("unconfigured Baker must not silently produce no output");
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
+
+    use ocio_rs::ocio_sys;
+    unsafe {
+        let handle = ocio_sys::ocio_baker_create();
+        assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_baker_bake(handle, std::ptr::null_mut());
+        let reports_error = !ocio_sys::ocio_error_get_last().is_null();
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_baker_destroy(handle);
+        assert!(reports_error);
+    }
 }

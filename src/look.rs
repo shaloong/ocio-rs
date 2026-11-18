@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
 use crate::transform::{transform_from_raw_handle, Transform, TransformHandle};
@@ -12,6 +12,46 @@ pub struct Look {
 }
 
 impl Look {
+    fn borrow_text(
+        &mut self,
+        getter: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    ) -> Result<Option<&CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { getter(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr.cast()) })
+        })
+    }
+
+    /// Borrow the native name without copying. The exclusive borrow prevents
+    /// mutation through this handle while the returned string is in use.
+    /// External native code must not mutate the same object during the borrow.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::Look;
+    /// # fn example(mut look: Look) -> ocio_rs::Result<()> {
+    /// let name = look.name_ref()?;
+    /// look.set_name("changed")?;
+    /// println!("{:?}", name);
+    /// # Ok(()) }
+    /// ```
+    pub fn name_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_look_get_name)
+    }
+
+    /// Borrow the native process-space name without copying.
+    pub fn process_space_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_look_get_process_space)
+    }
+
+    /// Borrow the native description without copying.
+    pub fn description_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_look_get_description)
+    }
+
     /// Return OCIO's diagnostic stream output, not a stable interchange format.
     /// It may contain sensitive paths from transforms.
     pub fn serialize(&self) -> Result<String> {
@@ -43,52 +83,92 @@ impl Look {
 
     /// Get the name of this look.
     pub fn name(&self) -> Option<String> {
-        unsafe {
+        self.try_name().ok().flatten()
+    }
+
+    /// Get the name while preserving native bridge errors.
+    pub fn try_name(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_name(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the name of this look.
     pub fn set_name(&self, name: impl AsRef<str>) -> Result<()> {
-        let n = cstring(name)?;
+        self.set_name_cstr(&cstring(name)?)
+    }
+
+    /// Set the name from a C string without allocating an intermediate string.
+    pub fn set_name_cstr(&self, name: &CStr) -> Result<()> {
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_look_set_name(self.handle.as_ptr(), n.as_ptr().cast()) };
+        unsafe { ocio_sys::ocio_look_set_name(self.handle.as_ptr(), name.as_ptr().cast()) };
         crate::ocio_call_status()
     }
 
     /// Get the process space of this look.
     pub fn process_space(&self) -> Option<String> {
-        unsafe {
+        self.try_process_space().ok().flatten()
+    }
+
+    /// Get the process space while preserving native bridge errors.
+    pub fn try_process_space(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_process_space(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the process space of this look.
     pub fn set_process_space(&self, space: impl AsRef<str>) -> Result<()> {
-        let s = cstring(space)?;
+        self.set_process_space_cstr(&cstring(space)?)
+    }
+
+    /// Set the process space without allocating an intermediate C string.
+    pub fn set_process_space_cstr(&self, space: &CStr) -> Result<()> {
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_look_set_process_space(self.handle.as_ptr(), s.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_look_set_process_space(self.handle.as_ptr(), space.as_ptr().cast())
+        };
         crate::ocio_call_status()
     }
 
     /// Get the description of this look.
     pub fn description(&self) -> Option<String> {
-        unsafe {
+        self.try_description().ok().flatten()
+    }
+
+    /// Get the description while preserving native bridge errors.
+    pub fn try_description(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_look_get_description(
                 self.handle.as_ptr() as *mut c_void
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the description of this look.
     pub fn set_description(&self, description: impl AsRef<str>) -> Result<()> {
-        let d = cstring(description)?;
+        self.set_description_cstr(&cstring(description)?)
+    }
+
+    /// Set the description without allocating an intermediate C string.
+    pub fn set_description_cstr(&self, description: &CStr) -> Result<()> {
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_look_set_description(self.handle.as_ptr(), d.as_ptr().cast()) };
+        unsafe {
+            ocio_sys::ocio_look_set_description(self.handle.as_ptr(), description.as_ptr().cast())
+        };
         crate::ocio_call_status()
     }
 

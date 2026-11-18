@@ -12,7 +12,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::grading::GradingPrimary;
 use ocio_rs::transform::GradingPrimaryTransform;
-use ocio_rs::{GradingStyle, TransformDirection};
+use ocio_rs::{GradingStyle, OcioError, TransformDirection};
 
 fn grading_primary_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -33,6 +33,30 @@ fn configured_linear_grading_primary_transform() -> GradingPrimaryTransform {
         .expect("set primary grading value");
 
     transform
+}
+
+#[test]
+fn grading_primary_value_validation_does_not_require_a_transform() {
+    let style = GradingStyle::Log;
+    let mut value = GradingPrimary::new(style);
+    if is_stub() {
+        assert!(matches!(
+            value.validate(style),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        return;
+    }
+
+    value.validate(style).unwrap();
+    value.gamma.red = 0.0;
+    assert!(matches!(
+        value.validate(style),
+        Err(OcioError::ValidationFailed(_))
+    ));
+    // The native linear style checks contrast, not gamma.
+    value.validate(GradingStyle::Lin).unwrap();
+    value.gamma.red = 1.0;
+    value.validate(style).unwrap();
 }
 
 #[test]

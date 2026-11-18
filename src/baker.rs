@@ -182,7 +182,8 @@ impl Baker {
     /// entire output. A writer error or panic is returned as an error; bytes
     /// already written cannot be rolled back. The writer is not retained or
     /// flushed; callers control any additional buffering in their writer.
-    /// Do not reenter the same baker from the writer callback.
+    /// Baking uses a native snapshot of the settings and metadata; changes
+    /// made to the original baker by the writer apply to later calls.
     /// In stub builds, no bytes are written.
     pub fn bake_to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> Result<()> {
         // The native bridge uses the callback synchronously and does not retain it.

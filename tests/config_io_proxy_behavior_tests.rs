@@ -143,6 +143,7 @@ fn config_payload_preserves_native_length_and_provider_errors() {
             proxy.try_config_data_bytes().unwrap().as_deref(),
             Some(data)
         );
+        assert!(proxy.with_config_data(|bytes| Ok(bytes == data)).unwrap());
     }
     assert_eq!(
         proxy.try_config_data().unwrap().unwrap(),
@@ -150,6 +151,17 @@ fn config_payload_preserves_native_length_and_provider_errors() {
     );
     proxy.set_config_data("a\0b").unwrap();
     assert_eq!(proxy.try_config_data().unwrap().as_deref(), Some("a\0b"));
+    assert!(proxy
+        .with_config_data::<()>(|_| Err(ocio_rs::OcioError::InvalidInput("visitor failure".into())))
+        .unwrap_err()
+        .to_string()
+        .contains("visitor failure"));
+    assert!(proxy
+        .with_config_data::<()>(|_| panic!("visitor panic"))
+        .unwrap_err()
+        .to_string()
+        .contains("visitor panicked"));
+    assert_eq!(proxy.with_config_data(|bytes| Ok(bytes.len())).unwrap(), 3);
 
     struct Provider {
         fail: bool,
@@ -181,6 +193,61 @@ fn config_payload_preserves_native_length_and_provider_errors() {
         .unwrap_err()
         .to_string()
         .contains("config failure"));
+    assert!(failure
+        .with_config_data(|_| Ok(()))
+        .unwrap_err()
+        .to_string()
+        .contains("config failure"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn native_provider_cannot_ignore_rejected_payload_writes() {
+    use std::ffi::c_void;
+    type Write = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool;
+    unsafe extern "C" fn read(
+        context: *mut c_void,
+        _: i32,
+        _: *const i8,
+        destination: *mut c_void,
+        write: Write,
+    ) -> bool {
+        let oversized = unsafe { *context.cast::<bool>() };
+        let (data, len) = if oversized {
+            (
+                std::ptr::NonNull::<u8>::dangling().as_ptr().cast_const(),
+                isize::MAX as usize + 1,
+            )
+        } else {
+            (std::ptr::null(), 1)
+        };
+        let _ = unsafe { write(destination, data, len) };
+        true // A faulty native provider disregards the failed write.
+    }
+    unsafe extern "C" fn release(context: *mut c_void) {
+        drop(unsafe { Box::from_raw(context.cast::<bool>()) });
+    }
+    unsafe extern "C" fn visit(_: *mut c_void, _: *const u8, _: usize) -> bool {
+        true
+    }
+
+    let _guard = config_io_proxy_test_lock();
+    for oversized in [false, true] {
+        let context = Box::into_raw(Box::new(oversized)).cast();
+        unsafe {
+            ocio_sys::ocio_error_clear_last();
+            let proxy = ocio_sys::ocio_config_io_proxy_create_with_callback(context, read, release);
+            assert!(!proxy.is_null());
+            assert!(!ocio_sys::ocio_config_io_proxy_visit_config_data(
+                proxy,
+                std::ptr::null_mut(),
+                visit
+            ));
+            assert!(!ocio_sys::ocio_error_get_last().is_null());
+            ocio_sys::ocio_error_clear_last();
+            ocio_sys::ocio_config_io_proxy_destroy(proxy);
+        }
+    }
 }
 
 #[test]
@@ -212,6 +279,9 @@ fn custom_provider_returns_arbitrary_config_bytes() {
             proxy.try_config_data_bytes().unwrap().as_deref(),
             Some(&b"\xff\0configuration"[..])
         );
+        assert!(proxy
+            .with_config_data(|data| Ok(data == b"\xff\0configuration"))
+            .unwrap());
         assert_eq!(
             proxy.try_config_data().unwrap().as_deref(),
             Some("\u{fffd}\0configuration")

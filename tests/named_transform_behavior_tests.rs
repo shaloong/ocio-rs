@@ -58,12 +58,29 @@ fn named_transform_metadata_alias_category_round_trip_behavior() {
     assert_eq!(nt.encoding().as_deref(), Some("scene-linear"));
 
     assert_eq!(nt.num_aliases(), 1);
+    assert_eq!(nt.try_num_aliases().unwrap(), 1);
+    assert_eq!(nt.try_alias_at(0).unwrap().as_deref(), Some("unit_alias"));
+    assert!(nt.try_alias_at(usize::MAX).unwrap().is_none());
     assert_eq!(nt.alias(0).as_deref(), Some("unit_alias"));
     assert!(nt.has_alias("unit_alias"));
+    assert!(nt.try_has_alias_cstr(c"unit_alias").unwrap());
+    assert!(!nt.try_has_alias("absent").unwrap());
+    assert!(nt.try_has_alias("bad\0alias").is_err());
+    assert!(!nt.has_alias("bad\0alias"));
 
     assert_eq!(nt.num_categories(), 1);
+    assert_eq!(nt.try_num_categories().unwrap(), 1);
+    assert_eq!(
+        nt.try_category(0).unwrap().as_deref(),
+        Some("unit_category")
+    );
+    assert!(nt.try_category(-1).unwrap().is_none());
+    assert!(nt.try_category(i32::MAX).unwrap().is_none());
     assert_eq!(nt.category(0).as_deref(), Some("unit_category"));
     assert!(nt.has_category("unit_category"));
+    assert!(nt.try_has_category_cstr(c"unit_category").unwrap());
+    assert!(!nt.try_has_category("absent").unwrap());
+    assert!(nt.try_has_category("bad\0category").is_err());
 }
 
 #[test]

@@ -10,7 +10,7 @@ use common::*;
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
-use ocio_rs::transform::LogCameraTransform;
+use ocio_rs::transform::{LogCameraTransform, TransformHandle};
 use ocio_rs::TransformDirection;
 
 fn log_camera_transform_test_lock() -> MutexGuard<'static, ()> {
@@ -167,6 +167,19 @@ fn log_camera_transform_linear_slope_optional_state_behavior() {
         transform.linear_slope_value().expect("read initial slope"),
         None
     );
+    let read_native = |output: &mut [f64; 3]| unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        let present = ocio_rs::ocio_sys::ocio_log_camera_transform_get_linear_slope_value(
+            transform.as_ptr(),
+            output.as_mut_ptr(),
+        );
+        assert!(ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+        present
+    };
+    let sentinel = [19.0, 23.0, 29.0];
+    let mut output = sentinel;
+    assert!(!read_native(&mut output));
+    assert_eq!(output, sentinel);
 
     transform
         .set_linear_slope_value(&[1.0, 1.0, 1.0])
@@ -177,6 +190,8 @@ fn log_camera_transform_linear_slope_optional_state_behavior() {
             .expect("read configured slope"),
         Some([1.0, 1.0, 1.0])
     );
+    assert!(read_native(&mut output));
+    assert_eq!(output, [1.0; 3]);
 
     transform
         .unset_linear_slope_value()
@@ -185,6 +200,9 @@ fn log_camera_transform_linear_slope_optional_state_behavior() {
         transform.linear_slope_value().expect("read cleared slope"),
         None
     );
+    output = sentinel;
+    assert!(!read_native(&mut output));
+    assert_eq!(output, sentinel);
 }
 
 #[test]

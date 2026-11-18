@@ -87,12 +87,38 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert!(!cs.is_data());
     assert_eq!(cs.allocation(), Allocation::Lg2);
     assert_eq!(cs.allocation_vars(), vec![-8.0, 8.0]);
+    let mut allocation = [0.0; 2];
+    cs.try_allocation_vars_into(&mut allocation).unwrap();
+    assert_eq!(allocation, [-8.0, 8.0]);
+    let mut wrong_length = [42.0];
+    assert!(cs.try_allocation_vars_into(&mut wrong_length).is_err());
+    assert_eq!(wrong_length, [42.0]);
+    let empty_allocation = ocio_rs::ColorSpace::create().unwrap();
+    assert_eq!(
+        empty_allocation.try_allocation_vars().unwrap(),
+        Vec::<f32>::new()
+    );
+    empty_allocation.try_allocation_vars_into(&mut []).unwrap();
 
     assert_eq!(cs.num_aliases(), 1);
+    assert_eq!(cs.try_num_aliases().unwrap(), 1);
+    assert_eq!(cs.try_alias_at(0).unwrap().as_deref(), Some("unit_cs_a"));
+    assert!(cs.try_alias_at(usize::MAX).unwrap().is_none());
     assert_eq!(cs.alias(0).as_deref(), Some("unit_cs_a"));
     assert!(cs.has_alias("unit_cs_a"));
+    assert!(cs.try_has_alias_cstr(c"unit_cs_a").unwrap());
+    assert!(!cs.try_has_alias("absent").unwrap());
+    assert!(cs.try_has_alias("bad\0alias").is_err());
+    assert!(!cs.has_alias("bad\0alias"));
 
     assert_eq!(cs.num_categories(), 1);
+    assert_eq!(cs.try_num_categories().unwrap(), 1);
+    assert_eq!(
+        cs.try_category_by_index(0).unwrap().as_deref(),
+        Some("unit_category")
+    );
+    assert!(cs.try_category_by_index(-1).unwrap().is_none());
+    assert!(cs.try_category_by_index(i32::MAX).unwrap().is_none());
     assert_eq!(cs.category().as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(1), None);
@@ -101,6 +127,9 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(1).as_deref(), Some("delivery"));
     assert!(cs.has_category("unit_category"));
+    assert!(cs.try_has_category_cstr(c"unit_category").unwrap());
+    assert!(!cs.try_has_category("absent").unwrap());
+    assert!(cs.try_has_category("bad\0category").is_err());
     assert!(cs.has_category("delivery"));
 
     #[cfg(feature = "v2_5")]

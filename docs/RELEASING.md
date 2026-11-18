@@ -109,7 +109,7 @@ merge commits. Do not try to force identical histories by discarding commits.
 Remove merged temporary release/synchronization branches. Keep `main` the
 default branch; ordinary PRs must explicitly select `develop`.
 
-## Publish 0.3.0
+## Publish a release
 
 From the clean, validated `main` release commit, publish the low-level crate
 first, then wait for its registry index entry before publishing the wrapper:
@@ -122,12 +122,12 @@ cargo publish -p ocio-rs --registry crates-io
 
 Use authenticated Cargo publishing (or a separately configured trusted
 publishing workflow). Do not put credentials in the repository. Verify both
-0.3.0 registry entries and docs.rs, then test a separate application using
-`ocio-rs = { version = "0.3", features = ["system"] }` with
+registry entries at the candidate version and docs.rs, then test a separate
+application using that version of `ocio-rs` with the `system` feature and
 `OCIO_RS_LINK=dynamic`. Exercise a non-identity CPU transform and confirm it
 uses real OCIO. Test the registry bundled backend as well.
 
-Create the `v0.3.0` tag on that `main` release commit and publish GitHub release
+Create the matching version tag on that `main` release commit and publish GitHub release
 notes with the breaking changes and migration links. Only mark a release as
 published, or close a release-request issue, once both crates are available.
 If a Cargo mirror is configured, verify against crates.io itself to avoid

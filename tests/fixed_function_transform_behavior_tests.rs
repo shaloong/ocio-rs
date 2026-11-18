@@ -33,7 +33,19 @@ fn fixed_function_style_params_and_copy_behavior() {
             .expect("fixed function create with params");
 
     assert_eq!(transform.style(), FixedFunctionStyle::Rec2100Surround);
+    assert_eq!(
+        transform.try_style().unwrap(),
+        FixedFunctionStyle::Rec2100Surround
+    );
     assert_eq!(transform.num_params(), 1);
+    assert_eq!(transform.try_num_params_usize().unwrap(), 1);
+    let mut params = [0.0];
+    transform.try_params_into(&mut params).unwrap();
+    assert_vec_close(&params, &[1.25], 1e-10);
+    let mut wrong = [42.0; 2];
+    assert!(transform.try_params_into(&mut wrong).is_err());
+    assert_eq!(wrong, [42.0; 2]);
+    assert_vec_close(&transform.try_params().unwrap(), &[1.25], 1e-10);
     assert_vec_close(&transform.params(), &[1.25], 1e-10);
 
     let copy = transform
@@ -48,6 +60,8 @@ fn fixed_function_style_params_and_copy_behavior() {
         .expect("set copy style");
 
     assert_eq!(copy.style(), FixedFunctionStyle::RgbToHsv);
+    let no_params = FixedFunctionTransform::create(FixedFunctionStyle::RgbToHsv).unwrap();
+    no_params.try_params_into(&mut []).unwrap();
     assert_eq!(copy.num_params(), copy.params().len() as i32);
 
     assert_eq!(transform.style(), FixedFunctionStyle::Rec2100Surround);
@@ -153,6 +167,7 @@ fn hsy_bridge_discriminants_select_the_native_styles() {
     ] {
         let transform = FixedFunctionTransform::create_with_params(style, &[]).unwrap();
         assert_eq!(transform.style(), style);
+        assert_eq!(transform.try_style().unwrap(), style);
         let group = GroupTransform::create().unwrap();
         group.append_transform(&transform).unwrap();
         let ctf = group

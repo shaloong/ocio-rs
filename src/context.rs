@@ -14,6 +14,17 @@ pub struct Context {
 pub struct ConstContext {
     pub(crate) handle: NonNull<c_void>,
 }
+
+pub(crate) fn environment_mode_from_raw(mode: i32) -> Result<EnvironmentMode> {
+    match mode {
+        0 => Ok(EnvironmentMode::Unknown),
+        1 => Ok(EnvironmentMode::LoadPredefined),
+        2 => Ok(EnvironmentMode::LoadAll),
+        _ => Err(OcioError::ValidationFailed(format!(
+            "unknown OCIO environment mode {mode}"
+        ))),
+    }
+}
 fn serialize_context(handle: NonNull<c_void>, is_const: bool) -> Result<String> {
     crate::clear_last_error();
     let text = unsafe {
@@ -68,11 +79,7 @@ impl ConstContext {
     }
     /// Native environment-loading mode.
     pub fn environment_mode(&self) -> Result<EnvironmentMode> {
-        Ok(match self.integer(2)? {
-            1 => EnvironmentMode::LoadPredefined,
-            2 => EnvironmentMode::LoadAll,
-            _ => EnvironmentMode::Unknown,
-        })
+        environment_mode_from_raw(self.integer(2)?)
     }
     /// Retain the attached native proxy, if present, without copying its data.
     /// The returned handle remains valid after this context is dropped.
@@ -591,13 +598,19 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Return the native environment mode, falling back to `Unknown` on error.
     pub fn environment_mode(&self) -> EnvironmentMode {
-        let m = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
-        match m {
-            1 => EnvironmentMode::LoadPredefined,
-            2 => EnvironmentMode::LoadAll,
-            _ => EnvironmentMode::Unknown,
-        }
+        self.try_environment_mode()
+            .unwrap_or(EnvironmentMode::Unknown)
+    }
+
+    /// Return the native environment mode, reporting bridge errors or an
+    /// unrecognized future native value instead of conflating it with `Unknown`.
+    pub fn try_environment_mode(&self) -> Result<EnvironmentMode> {
+        crate::clear_last_error();
+        let mode = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        environment_mode_from_raw(mode)
     }
 
     /// Refresh this context's string variables from the process environment.
@@ -687,6 +700,24 @@ impl Drop for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn environment_mode_preserves_unknown_and_rejects_unrecognized_values() {
+        assert_eq!(
+            environment_mode_from_raw(0).unwrap(),
+            EnvironmentMode::Unknown
+        );
+        assert_eq!(
+            environment_mode_from_raw(1).unwrap(),
+            EnvironmentMode::LoadPredefined
+        );
+        assert_eq!(
+            environment_mode_from_raw(2).unwrap(),
+            EnvironmentMode::LoadAll
+        );
+        assert!(environment_mode_from_raw(-1).is_err());
+        assert!(environment_mode_from_raw(3).is_err());
+    }
 
     #[test]
     fn create_context() {

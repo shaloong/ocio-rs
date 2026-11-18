@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{OcioError, Result};
 use std::{
     ffi::{c_void, CStr},
     ptr::NonNull,
@@ -30,8 +30,7 @@ impl SystemMonitors {
         crate::clear_last_error();
         let value =
             unsafe { ocio_sys::ocio_system_monitors_get_monitor_name(self.handle.as_ptr(), index) };
-        crate::ocio_call_status()?;
-        Ok(unsafe { CStr::from_ptr(value) })
+        self.text(value)
     }
     /// Native ICC profile path, valid while this snapshot is alive.
     pub fn profile_filepath(&self, index: usize) -> Result<&CStr> {
@@ -39,7 +38,15 @@ impl SystemMonitors {
         let value = unsafe {
             ocio_sys::ocio_system_monitors_get_profile_filepath(self.handle.as_ptr(), index)
         };
+        self.text(value)
+    }
+
+    fn text(&self, value: *const std::ffi::c_char) -> Result<&CStr> {
         crate::ocio_call_status()?;
+        if value.is_null() {
+            return Err(OcioError::Ocio("null system monitor text".into()));
+        }
+        // The immutable native snapshot owns the returned NUL-terminated text.
         Ok(unsafe { CStr::from_ptr(value) })
     }
 }

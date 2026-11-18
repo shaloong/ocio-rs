@@ -5,10 +5,10 @@ use ocio_rs::transform::{
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
     GpuTextureDimensions, GpuUniformType, Interpolation, PersistentPolicyCreator, Processor,
-    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
-    ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
-    ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
-    TransformDirection,
+    ShaderCacheIdPolicy, ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks,
+    ShaderFinalizeControl, ShaderTexture, ShaderTextureAction, ShaderTextureControl,
+    ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+    ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -68,6 +68,7 @@ fn validate_case(
     if name == "persistent texture policy" {
         struct Policy {
             queries: usize,
+            cache_queries: usize,
         }
         impl ShaderTexturePolicy for Policy {
             fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
@@ -78,14 +79,23 @@ fn validate_case(
                 Ok(false)
             }
         }
+        impl ShaderCacheIdPolicy for Policy {
+            fn cache_id(&mut self) -> ocio_rs::Result<&std::ffi::CStr> {
+                self.cache_queries += 1;
+                Ok(c"persistent-dynamic-gpu-validation")
+            }
+        }
         let mut creator = PersistentPolicyCreator::create(
             &desc,
-            Policy { queries: 0 },
+            Policy {
+                queries: 0,
+                cache_queries: 0,
+            },
             c"persistent-gpu-validation",
         )?;
-        creator.try_extract(&gpu)?;
-        if creator.policy_mut().queries == 0 {
-            return Err("persistent texture policy was not queried".into());
+        creator.try_extract_with_cache_policy(&gpu)?;
+        if creator.policy_mut().queries == 0 || creator.policy_mut().cache_queries == 0 {
+            return Err("persistent texture or cache policy was not queried".into());
         }
         desc = creator.finish()?;
     } else if name.starts_with("persistent control") {
@@ -114,10 +124,20 @@ fn validate_case(
                 texture: ShaderTexture<'_>,
             ) -> ocio_rs::Result<ShaderTextureAction> {
                 self.seen += 1;
-                let binding = Some(40 + self.seen as u32);
+                let proposed = texture.suggested_binding.ok_or_else(|| {
+                    ocio_rs::OcioError::InvalidInput("missing proposed binding".into())
+                })?;
                 if self.seen != 1 {
-                    return Ok(ShaderTextureAction::StoreInDescriptor { binding });
+                    if proposed != self.external[0].binding + 1 {
+                        return Err(ocio_rs::OcioError::InvalidInput(
+                            "default binding did not skip the explicit override".into(),
+                        ));
+                    }
+                    return Ok(ShaderTextureAction::StoreInDescriptor { binding: None });
                 }
+                let binding = proposed
+                    .checked_add(1)
+                    .ok_or_else(|| ocio_rs::OcioError::InvalidInput("binding overflow".into()))?;
                 let kind = match texture.dimensions {
                     Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
                     Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
@@ -125,7 +145,7 @@ fn validate_case(
                 };
                 self.external.push(LutTexture {
                     sampler: texture.sampler_name.to_owned(),
-                    binding: binding.unwrap(),
+                    binding,
                     width: texture.width,
                     height: texture.height,
                     depth: texture.depth,
@@ -134,7 +154,9 @@ fn validate_case(
                     interpolation: texture.interpolation,
                     values: texture.values.to_vec(),
                 });
-                Ok(ShaderTextureAction::External { binding })
+                Ok(ShaderTextureAction::External {
+                    binding: Some(binding),
+                })
             }
         }
         impl ShaderExtractionHooks for Policy {

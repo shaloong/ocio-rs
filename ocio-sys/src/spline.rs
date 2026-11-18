@@ -9,6 +9,11 @@ unsafe extern "C" {
         count: usize,
     );
     pub fn ocio_grading_curve_value_shared(source: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_set_dynamic_property(
+        value: *const c_void,
+        hue: bool,
+        property: *mut c_void,
+    );
     pub fn ocio_grading_curve_value_shared_destroy(value: *mut c_void, hue: bool);
     pub fn ocio_grading_curve_value_shared_spline(
         value: *mut c_void,

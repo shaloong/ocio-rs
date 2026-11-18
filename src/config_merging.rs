@@ -1,5 +1,5 @@
 //! Native OCIO 2.5.1+ configuration merging.
-use crate::{ColorSpace, Config, OcioError, Result};
+use crate::{ColorSpace, Config, ConstConfig, OcioError, Result};
 use std::{
     ffi::{c_char, c_void, CStr},
     ptr::NonNull,
@@ -747,7 +747,7 @@ impl ConfigMerger {
         Ok(value)
     }
 
-    /// params using native OCIO.
+    /// Return an editable copy of one set of merge parameters.
     pub fn params(&self, index: i32) -> Result<Option<ConfigMergingParameters>> {
         crate::clear_last_error();
         let value = unsafe { ocio_sys::ocio_config_merger_params(self.handle.as_ptr(), index) };
@@ -755,7 +755,8 @@ impl ConfigMerger {
         Ok(NonNull::new(value).map(|handle| ConfigMergingParameters { handle }))
     }
 
-    /// add params using native OCIO.
+    /// Add parameters by retaining the native handle. Later edits to `params`
+    /// are visible to this merger.
     pub fn add_params(&mut self, params: &ConfigMergingParameters) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -783,13 +784,25 @@ impl ConfigMerger {
         Ok(value)
     }
 
-    /// merged config using native OCIO.
+    /// Copy a merged result into an editable configuration.
+    /// Index `-1` selects the final result; other out-of-range indices return `None`.
     pub fn merged_config(&self, index: i32) -> Result<Option<Config>> {
         crate::clear_last_error();
         let value =
             unsafe { ocio_sys::ocio_config_merger_merged_config(self.handle.as_ptr(), index) };
         crate::ocio_call_status()?;
         Ok(NonNull::new(value).map(|handle| Config { handle }))
+    }
+
+    /// Retain a merged result without copying the configuration.
+    /// Index `-1` selects the final result; other out-of-range indices return `None`.
+    pub fn merged_const_config(&self, index: i32) -> Result<Option<ConstConfig>> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_config_merger_merged_const_config(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(value).map(|handle| ConstConfig { handle }))
     }
 
     /// serialize using native OCIO.

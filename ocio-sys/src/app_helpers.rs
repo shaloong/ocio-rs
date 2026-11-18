@@ -9,6 +9,8 @@ unsafe extern "C" {
     pub fn ocio_color_space_menu_parameters_destroy(handle: *mut c_void);
     pub fn ocio_color_space_menu_parameters_set_config(handle: *mut c_void, config: *mut c_void);
     pub fn ocio_color_space_menu_parameters_get_config(handle: *mut c_void) -> *mut c_void;
+    /// Retain the native read-only configuration. Release it with `ocio_const_config_destroy`.
+    pub fn ocio_color_space_menu_parameters_get_const_config(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_menu_parameters_get_role(handle: *mut c_void) -> *const c_char;
     pub fn ocio_color_space_menu_parameters_set_role(handle: *mut c_void, value: *const c_char);
     pub fn ocio_color_space_menu_parameters_get_include_color_spaces(handle: *mut c_void) -> bool;

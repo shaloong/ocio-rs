@@ -258,5 +258,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         median(&mut individual_times),
         median(&mut bulk_times)
     );
+    let legacy = GradingRGBCurveTransform::create(GradingStyle::Lin)?;
+    let checked = GradingRGBCurveTransform::create(GradingStyle::Lin)?;
+    let snapshot = legacy.value()?;
+    legacy.set_value(&snapshot)?;
+    checked.set_value_checked(&snapshot)?;
+    if legacy.value()? != checked.value()? {
+        return Err("curve write results differ".into());
+    }
+    let mut old_times = Vec::new();
+    let mut checked_times = Vec::new();
+    for round in 0..7 {
+        for is_checked in [round % 2 == 0, round % 2 != 0] {
+            for _ in 0..20 {
+                if is_checked {
+                    checked.set_value_checked(black_box(&snapshot))?;
+                } else {
+                    legacy.set_value(black_box(&snapshot))?;
+                }
+            }
+            let start = Instant::now();
+            for _ in 0..1000 {
+                if is_checked {
+                    checked.set_value_checked(black_box(&snapshot))?;
+                } else {
+                    legacy.set_value(black_box(&snapshot))?;
+                }
+            }
+            let ns = start.elapsed().as_secs_f64() * 1e6;
+            if is_checked {
+                checked_times.push(ns);
+            } else {
+                old_times.push(ns);
+            }
+        }
+    }
+    println!("RGB snapshot write: incremental {:.2} ns, checked bulk {:.2} ns (different validation semantics)", median(&mut old_times), median(&mut checked_times));
     Ok(())
 }

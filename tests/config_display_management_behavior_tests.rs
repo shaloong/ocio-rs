@@ -12,9 +12,9 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-#[cfg(feature = "v2_5")]
-use ocio_rs::SearchReferenceSpaceType;
-use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
+use ocio_rs::{
+    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection, ViewType,
+};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -31,6 +31,66 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     view_transform.set_transform(Some(&identity), ViewTransformDirection::ToReference);
     view_transform.set_transform(Some(&identity), ViewTransformDirection::FromReference);
     view_transform
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn view_type_selects_shared_and_display_defined_views() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    let display = "TypedDisplay";
+    let transform = identity_view_transform("TypedTransform");
+    config.try_add_view_transform(&transform).unwrap();
+    config
+        .add_shared_view("Shared", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+    config.add_display_shared_view(display, "Shared").unwrap();
+    config
+        .add_display_view_detailed(display, "Defined", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+    config.add_virtual_display_shared_view("Shared").unwrap();
+    config
+        .add_virtual_display_view("Defined", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+
+    for (view_type, expected) in [
+        (ViewType::Shared, "Shared"),
+        (ViewType::DisplayDefined, "Defined"),
+    ] {
+        assert_eq!(config.try_num_views_by_type(view_type, display).unwrap(), 1);
+        assert_eq!(
+            config
+                .try_view_by_type(view_type, display, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+        assert_eq!(
+            config
+                .try_virtual_display_num_views_by_type(view_type)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            config
+                .try_virtual_display_view_by_type(view_type, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        config
+            .try_num_views_by_reference_space(SearchReferenceSpaceType::All, "")
+            .unwrap(),
+        1
+    );
+    assert!(config
+        .try_num_views_by_reference_space(SearchReferenceSpaceType::All, display)
+        .is_err());
+    assert!(config
+        .try_virtual_display_num_views(SearchReferenceSpaceType::All)
+        .is_err());
 }
 
 #[cfg(feature = "v2_5")]

@@ -12,13 +12,45 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::grading::GradingTone;
 use ocio_rs::transform::GradingToneTransform;
-use ocio_rs::{GradingStyle, TransformDirection};
+use ocio_rs::{GradingStyle, OcioError, TransformDirection};
 
 fn grading_tone_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn grading_tone_value_constructor_matches_native_defaults() {
+    let _guard = grading_tone_transform_test_lock();
+    for style in [GradingStyle::Log, GradingStyle::Lin, GradingStyle::Video] {
+        let native = GradingToneTransform::create(style).unwrap().value();
+        assert_eq!(GradingTone::new(style), native, "{style:?}");
+    }
+}
+
+#[test]
+fn grading_tone_value_validation_does_not_require_a_transform() {
+    let style = GradingStyle::Log;
+    let mut value = GradingTone::new(style);
+    if is_stub() {
+        assert!(matches!(
+            value.validate(),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        return;
+    }
+
+    value.validate().unwrap();
+    value.blacks.red = 0.0;
+    assert!(matches!(
+        value.validate(),
+        Err(OcioError::ValidationFailed(_))
+    ));
+    value.blacks.red = 1.0;
+    value.validate().unwrap();
 }
 
 #[test]

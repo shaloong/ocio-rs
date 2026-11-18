@@ -1,25 +1,22 @@
-# Context interface audit
+# Context signature and ownership audit
 
-Scope: `Context` in the OpenColorIO 2.4.1, 2.5.2 and 2.6.0 public headers,
-including the overloads used by editable and read-only Rust handles. This is
-a signature-family audit and selected behavior evidence, not a claim of full
-library parity or exhaustive filesystem and environment coverage.
+Scope: `Context` in the installed OpenColorIO 2.4.1 and 2.6.0 public headers.
+The declared methods and overloads examined below exist at both ends of that
+range. This is a class-level audit, not full-library coverage.
 
-| Native family | Rust surface | Ownership and behavior |
+| Native operation | Rust surface | Notes and evidence |
 | --- | --- | --- |
-| `Create`, `createEditableCopy` | `Context::create`, `create_editable_copy`; `ConstContext::create_editable_copy` | Editable copy is independent; a const config context remains shared and read-only. |
-| Search paths and working directory | Editable setters, clearing, indexed/count and combined getters; const getters | Text is returned owned; native indexed out-of-range results are preserved. |
-| String variables, count/index, merge and clear | `set_string_var`, `remove_string_var`, `try_clear_string_vars`, `try_add_string_vars`; editable/const getters | Removal differs from an empty value. A const context can be a merge source. |
-| Environment mode and loading | `set_environment_mode`, `environment_mode`, `load_environment` | Loading reads process environment according to native mode. |
-| String and file resolution, with or without used variables | `try_resolve_*` and `*_with_used_context`; const counterparts | Returned strings are owned; output context is mutable; missing file errors are preserved. |
-| Cache ID, ConfigIOProxy, stream output | `try_cache_id`, proxy accessors, `serialize`; const counterparts | Proxies retain shared native ownership; stream output is diagnostic and may contain sensitive data. |
+| `Create`, `createEditableCopy`, deleted copy/assignment, destructor | `Context::create`, `create_editable_copy`; `ConstContext::create_editable_copy` | Handles retain native shared ownership and destroy their own references. Copies are editable and independent. |
+| Cache ID, search paths and working directory | `try_cache_id`, search-path and working-directory accessors; corresponding `ConstContext` reads | Fallible variants preserve native errors. Text is copied because context mutation may invalidate native pointers. |
+| String variable name/value, indexed access, add/update/remove/clear/merge | `set_string_var`, `remove_string_var`, `try_*` accessors, `try_add_string_vars` and `try_add_string_vars_from_const` | Removal uses native null-value semantics. Native missing values use empty strings; no separate existence bit is inferred. |
+| Environment mode and `loadEnvironment` | `set_environment_mode`, `try_environment_mode`, `load_environment`; `ConstContext::environment_mode` | The genuine native `Unknown` enum remains distinct from an unrecognized value. The legacy getter falls back to `Unknown` on error. Environment loading is process-state dependent. |
+| Both `resolveStringVar` and `resolveFileLocation` overloads | Fallible simple and `*_with_used_context` methods on editable and readonly contexts | These preserve native errors and return an owned result plus the requested used-variable context. Native file resolution may account for variables in search paths even if only one path was needed. |
+| Config IO proxy get/set | Typed proxy get/set/clear and readonly getter | Proxy handles retain shared ownership. The bridge invalidates context-local resolution caches when changing proxy; process-global file hash cache management remains explicit. |
+| Stream insertion | `serialize` on both context types | Diagnostic stream output, not a stable interchange format; may contain sensitive variable values. |
 
-OCIO 2.4.1 through 2.6.0 clears the context variable map without invalidating
-its cached resolutions or cache ID. The bridge follows native clearing with
-removal of an absent nonempty variable, triggering OCIO's existing cache
-invalidation without adding a variable. The regression covers cached string
-and file resolution, used-variable output, and cache identity. This workaround
-is on the mutation path only; resolution itself remains a direct native call.
-Attaching or detaching a proxy also invalidates local resolutions; OCIO's
-process-global path-hash cache remains separate and needs explicit coordination
-as described in [the proxy audit](OCIO_CONFIG_IO_PROXY_AUDIT.md).
+The existing `context_behavior_tests` suite passed on Windows native static
+2.4.1 and 2.6.0 after the environment-mode change, and conversion boundary
+tests exercise known and unknown discriminants. The suite covers representative
+paths and variables, not every environment, filesystem, proxy or concurrent
+native interop configuration. Existing CI already runs this suite; no additional
+job is needed.

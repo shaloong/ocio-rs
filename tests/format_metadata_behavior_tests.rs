@@ -52,6 +52,25 @@ fn cleared_child_handle_does_not_retarget_new_child() {
         .set_element_value("must-not-change-replacement")
         .is_err());
     assert!(sibling.try_clear().is_err());
+    assert!(old.try_element_name().is_err());
+    assert!(old.try_element_value().is_err());
+    assert!(old.try_num_attributes().is_err());
+    assert!(old.try_attribute_name(0).is_err());
+    assert!(old.try_num_children().is_err());
+    assert!(old.try_name().is_err());
+    assert!(old.try_id().is_err());
+    assert!(old.to_native_string().is_err());
+    let replacement = second_root.try_child_element(0).unwrap().unwrap();
+    assert_eq!(
+        replacement.try_element_name().unwrap().as_deref(),
+        Some("replacement")
+    );
+    assert_eq!(
+        replacement.try_element_value().unwrap().as_deref(),
+        Some("new")
+    );
+    assert_eq!(replacement.try_num_attributes().unwrap(), 0);
+    assert_eq!(replacement.try_num_children().unwrap(), 0);
     assert_eq!(
         second_root
             .child_element(0)
@@ -59,6 +78,92 @@ fn cleared_child_handle_does_not_retarget_new_child() {
             .element_value()
             .as_deref(),
         Some("new")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn metadata_assignment_preserves_alias_safety_and_invalidates_descendants() {
+    let _guard = format_metadata_test_lock();
+    let baker = Baker::create().unwrap();
+    let root = baker.format_metadata().unwrap();
+    root.add_child_element("source", "source-value").unwrap();
+    root.add_child_element("destination", "old-value").unwrap();
+    let source = root.try_child_element(0).unwrap().unwrap();
+    let destination = root.try_child_element(1).unwrap().unwrap();
+    source.add_attribute("key", "value").unwrap();
+    source.add_child_element("nested", "data").unwrap();
+    let rendered = source.to_native_string().unwrap();
+    assert!(rendered.contains("<source"));
+    assert!(rendered.contains("<nested>data</nested>"));
+    let other_baker = Baker::create().unwrap();
+    let independent = other_baker.format_metadata().unwrap();
+    independent.assign(&source).unwrap();
+    assert_eq!(
+        independent.try_element_name().unwrap().as_deref(),
+        Some("source")
+    );
+    assert_eq!(independent.try_num_children().unwrap(), 1);
+    destination.add_child_element("stale", "old").unwrap();
+    let stale = destination.try_child_element(0).unwrap().unwrap();
+
+    destination.assign(&source).unwrap();
+    assert!(stale.try_element_name().is_err());
+    assert_eq!(
+        destination.try_element_name().unwrap().as_deref(),
+        Some("source")
+    );
+    assert_eq!(
+        destination.try_attribute_value("key").unwrap().as_deref(),
+        Some("value")
+    );
+    assert_eq!(
+        destination
+            .try_child_element(0)
+            .unwrap()
+            .unwrap()
+            .element_value()
+            .as_deref(),
+        Some("data")
+    );
+    assert_eq!(
+        source.try_element_value().unwrap().as_deref(),
+        Some("source-value")
+    );
+
+    let live = destination.try_child_element(0).unwrap().unwrap();
+    destination.assign(&destination).unwrap();
+    assert_eq!(live.try_element_name().unwrap().as_deref(), Some("nested"));
+
+    // Destination is an ancestor of the source; the source must be copied
+    // before replacement destroys it.
+    root.assign(&source).unwrap();
+    assert!(source.try_element_name().is_err());
+    assert!(destination.try_element_name().is_err());
+    assert_eq!(root.try_element_name().unwrap().as_deref(), Some("source"));
+    assert_eq!(
+        root.try_child_element(0)
+            .unwrap()
+            .unwrap()
+            .element_value()
+            .as_deref(),
+        Some("data")
+    );
+    assert!(root.assign(&source).is_err());
+    assert_eq!(root.try_num_children().unwrap(), 1);
+
+    // Destination is inside the source; snapshot avoids recursive aliasing.
+    let child = root.try_child_element(0).unwrap().unwrap();
+    child.assign(&root).unwrap();
+    assert_eq!(child.try_element_name().unwrap().as_deref(), Some("source"));
+    assert_eq!(
+        child
+            .try_child_element(0)
+            .unwrap()
+            .unwrap()
+            .element_value()
+            .as_deref(),
+        Some("data")
     );
 }
 
@@ -214,6 +319,60 @@ fn processor_transform_format_metadata_access_behavior() {
         transform_metadata.attribute_value("test_attr").as_deref(),
         Some("matrix")
     );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn assign_processor_const_metadata_directly() {
+    let _guard = format_metadata_test_lock();
+    let source = {
+        let config = create_test_config().unwrap();
+        let transform = MatrixTransform::scale(&[1.1, 0.9, 1.2, 1.0]).unwrap();
+        let metadata = transform.format_metadata().unwrap();
+        metadata.add_attribute("origin", "processor").unwrap();
+        metadata
+            .add_child_element("Description", "original")
+            .unwrap();
+        let processor = config
+            .processor_from_transform(&transform, TransformDirection::Forward)
+            .unwrap();
+        processor
+            .try_const_transform_format_metadata(0)
+            .unwrap()
+            .unwrap()
+    };
+    let baker = Baker::create().unwrap();
+    let destination = baker.format_metadata().unwrap();
+    destination.add_child_element("old", "stale").unwrap();
+    let stale = destination.try_child_element(0).unwrap().unwrap();
+    destination.assign_const(&source).unwrap();
+    assert!(stale.try_element_name().is_err());
+    assert_eq!(
+        destination
+            .try_attribute_value("origin")
+            .unwrap()
+            .as_deref(),
+        Some("processor")
+    );
+    assert_eq!(
+        destination
+            .try_child_element(0)
+            .unwrap()
+            .unwrap()
+            .element_value()
+            .as_deref(),
+        Some("original")
+    );
+    destination.add_attribute("origin", "changed").unwrap();
+    assert_eq!(
+        source
+            .attribute_value(c"origin")
+            .unwrap()
+            .unwrap()
+            .to_bytes(),
+        b"processor"
+    );
+    assert!(stale.assign_const(&source).is_err());
 }
 
 #[test]

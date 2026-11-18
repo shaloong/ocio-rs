@@ -12,15 +12,18 @@ pub struct GradingHueCurveTransform {
 
 impl GradingHueCurveTransform {
     fn read_curve(&self, curve_type: HueCurveType) -> Result<Vec<GradingCurvePoint>> {
-        let count = self.num_control_points(curve_type)?.max(0) as usize;
-        (0..count)
-            .map(|index| {
-                let index = index as i32;
-                let (x, y) = self.control_point(curve_type, index)?;
-                let slope = self.slope(curve_type, index)?;
-                Ok(GradingCurvePoint { x, y, slope })
-            })
-            .collect()
+        let count = super::checked_native_count(
+            self.num_control_points(curve_type)?,
+            "GradingHueCurveTransform::read_curve",
+        )?;
+        let mut points =
+            super::reserve_native_items(count, "GradingHueCurveTransform::read_curve")?;
+        for index in 0..count {
+            let (x, y) = self.control_point(curve_type, index as i32)?;
+            let slope = self.slope(curve_type, index as i32)?;
+            points.push(GradingCurvePoint { x, y, slope });
+        }
+        Ok(points)
     }
 
     fn require_non_negative_index(index: i32, operation: &'static str) -> Result<()> {
@@ -108,6 +111,14 @@ impl GradingHueCurveTransform {
         &self,
         value: &crate::grading::CompleteGradingHueCurveValue,
     ) -> Result<()> {
+        for points in [
+            &value.sat_sat,
+            &value.lum_lum,
+            &value.sat_lum,
+            &value.hue_fx,
+        ] {
+            super::checked_curve_count(points.len())?;
+        }
         self.set_value(&value.base)?;
         for (kind, points) in [
             (HueCurveType::SatSat, &value.sat_sat),
@@ -115,8 +126,7 @@ impl GradingHueCurveTransform {
             (HueCurveType::SatLum, &value.sat_lum),
             (HueCurveType::HueFx, &value.hue_fx),
         ] {
-            let count = i32::try_from(points.len())
-                .map_err(|_| OcioError::InvalidInput("too many control points".into()))?;
+            let count = super::checked_curve_count(points.len())?;
             self.set_num_control_points(kind, count)?;
             for (index, point) in points.iter().enumerate() {
                 let index = index as i32;
@@ -127,14 +137,54 @@ impl GradingHueCurveTransform {
         Ok(())
     }
 
+    /// Validate all eight curves on a native copy before committing them.
+    /// Validation errors leave the transform unchanged; a failure inside the
+    /// native commit is not guaranteed to roll back. Other native value state
+    /// is retained. Unlike `set_complete_value`, this batches the bridge call.
+    pub fn set_complete_value_checked(
+        &self,
+        value: &crate::grading::CompleteGradingHueCurveValue,
+    ) -> Result<()> {
+        let curves = [
+            &value.base.hue_hue,
+            &value.base.hue_sat,
+            &value.base.hue_lum,
+            &value.base.lum_sat,
+            &value.sat_sat,
+            &value.lum_lum,
+            &value.sat_lum,
+            &value.hue_fx,
+        ];
+        let pointers = curves.map(|curve| curve.as_ptr().cast::<c_void>());
+        let counts = curves.map(|curve| curve.len());
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_hue_curve_transform_set_checked(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                counts.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Set the hue curve grading values.
     pub fn set_value(&self, value: &GradingHueCurveValue) -> Result<()> {
+        for points in [
+            &value.hue_hue,
+            &value.hue_sat,
+            &value.hue_lum,
+            &value.lum_sat,
+        ] {
+            super::checked_curve_count(points.len())?;
+        }
         fn write_curve(
             transform: &GradingHueCurveTransform,
             curve_type: HueCurveType,
             points: &[GradingCurvePoint],
         ) -> Result<()> {
-            transform.set_num_control_points(curve_type, points.len() as i32)?;
+            transform
+                .set_num_control_points(curve_type, super::checked_curve_count(points.len())?)?;
             for (index, point) in points.iter().enumerate() {
                 let index = index as i32;
                 transform.set_control_point(curve_type, index, point.x, point.y)?;

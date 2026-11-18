@@ -41,6 +41,10 @@ fn processor_format_metadata_is_shared_readonly_or_editable_copy() {
         original_child.as_c_str()
     );
     let copy2 = shared.create_editable_copy().unwrap();
+    assert_eq!(
+        shared.to_native_string().unwrap(),
+        copy2.to_native_string().unwrap()
+    );
     assert_eq!(copy2.num_children(), original_children);
     assert_eq!(copy2.name().as_deref(), original_name.to_str().ok());
     assert_eq!(copy2.id().as_deref(), original_id.to_str().ok());

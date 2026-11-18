@@ -113,6 +113,7 @@ mod enum_text;
 mod file_rules;
 mod format_metadata;
 pub mod grading;
+mod image_desc;
 mod look;
 mod named_transform;
 mod output_writer;
@@ -128,7 +129,7 @@ pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
 pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
-pub use config::{Config, ConstConfig};
+pub use config::{Config, ConfigProcessorTarget, ConstConfig};
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
 pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
 pub use const_rules::{ConstFileRules, ConstViewingRules};
@@ -136,6 +137,10 @@ pub use context::{ConstContext, Context};
 pub use enum_text::OcioEnumText;
 pub use file_rules::FileRules;
 pub use format_metadata::{ConstFormatMetadata, FormatMetadata};
+pub use image_desc::{
+    CustomImageLayout, ImageDescChannel, ImageDescProvider, NativeImageDataPointers,
+    NativeImageDesc, NativeImageDescInfo, NativeImageLayout,
+};
 pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
@@ -147,17 +152,18 @@ pub use processor::{
     StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
-    PersistentPolicyCreator, ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks,
-    ShaderFinalizeControl, ShaderLifecycle, ShaderSections, ShaderTexture, ShaderTextureAction,
-    ShaderTextureControl, ShaderTexturePolicy, ShaderUniform, ShaderUniformAction,
-    ShaderUniformControl, ShaderUniformGetter, ShaderUniformRegistration,
+    PersistentPolicyCreator, ShaderCacheIdPolicy, ShaderClonePolicy, ShaderCodeSection,
+    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,
+    ShaderSections, ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
+    ShaderUniform, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
+    ShaderUniformRegistration,
 };
 pub use processor_metadata::{ConstProcessorMetadata, ProcessorMetadata};
 pub use types::*;
 #[cfg(feature = "v2_6")]
 mod v2_6;
 #[cfg(feature = "v2_6")]
-pub use v2_6::{metadata_id_element, ViewWithAliases};
+pub use v2_6::{metadata_id_element, ConfigRef, ViewWithAliases};
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 
@@ -178,7 +184,8 @@ pub use ocio_sys;
 pub enum OcioError {
     #[error("OpenColorIO error: {0}")]
     Ocio(String),
-    /// OCIO could not locate a required file, such as a config or LUT.
+    /// Native `ExceptionMissingFile`: an unavailable file or lookup result,
+    /// such as a missing correction in an existing CDL collection.
     #[error("OpenColorIO file not found: {0}")]
     MissingFile(String),
     #[error("Validation failed: {0}")]
@@ -760,8 +767,10 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 ///
 /// If no current config is installed, this returns an empty flag set.
 pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    current_config()
-        .map(|config| crate::ProcessorCacheFlags(config.processor_cache_flags() as u32))
+    try_const_current_config()
+        .ok()
+        .flatten()
+        .and_then(|config| config.processor_cache_flags().ok())
         .unwrap_or(crate::ProcessorCacheFlags(0))
 }
 
@@ -776,10 +785,17 @@ pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
 
 /// Try to update processor-cache flags on the current global config.
 ///
+/// When the policy changes, this installs a new config with fresh caches.
+/// Earlier read-only snapshots and existing processors are unaffected.
+/// Serialize this read/modify/install operation with other global config writes.
 /// This returns `Ok(())` when no global config is installed.
 pub fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
-    if let Some(config) = try_current_config()? {
-        config.try_set_processor_cache_flags(flags.0 as i32)?;
+    if let Some(current) = try_const_current_config()? {
+        if current.processor_cache_flags()? != flags {
+            let config = current.create_editable_copy()?;
+            config.try_set_processor_cache_flags(flags.0 as i32)?;
+            try_set_current_config(&config)?;
+        }
     }
     Ok(())
 }

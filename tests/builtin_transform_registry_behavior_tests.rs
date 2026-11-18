@@ -31,7 +31,15 @@ fn builtin_transform_registry_matches_builtin_transform_helpers() {
 
     let registry = BuiltinTransformRegistry::get().expect("builtin transform registry");
     let registry_count = registry.num_builtins();
+    assert_eq!(
+        registry.try_num_builtins().unwrap(),
+        registry_count as usize
+    );
     let helper_count = BuiltinTransform::num_builtin_styles();
+    assert_eq!(
+        BuiltinTransform::try_num_builtin_styles().unwrap(),
+        helper_count
+    );
 
     assert!(registry_count > 0);
     assert_eq!(registry_count, helper_count);

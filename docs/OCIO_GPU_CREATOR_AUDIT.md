@@ -5,30 +5,86 @@ declarations in the OpenColorIO 2.4.2 and 2.6.0 headers. This is a manual
 signature-family audit, not a claim that every combination or behavior has
 been verified. The `v2_5` Cargo feature controls access to 2.5+ Rust APIs;
 the bridge selects the native ABI separately.
-The 59-test GPU descriptor suite also passed with the native 2.5.2 library on
-Windows; this does not establish hardware execution or full creator parity.
+The GPU descriptor suite passed on Windows with native 2.4.1 (64 tests, system
+static), 2.5.2 (80 tests, bundled), and 2.6.0 (80 tests, bundled), using their
+respective baseline, `v2_5`, and `v2_6` Rust interfaces. These results do not
+establish hardware execution or full
+creator parity. The suite includes persistent callback failure and ownership
+checks, including an opt-in Rust clone factory. An always-attached arbitrary
+`getCacheID` callback remains unsupported.
 
 | Native operation | Current Rust surface | Remaining issue |
 | --- | --- | --- |
 | `GPUProcessor::extractGpuShaderInfo(GpuShaderDescRcPtr&)` | `GPUProcessor::try_extract_shader_info` | Behavioral tests cover representative transforms, not the full transform matrix. |
 | `GPUProcessor::extractGpuShaderInfo(GpuShaderCreatorRcPtr&)` | `GpuShaderDesc::try_borrow_creator`, `GPUProcessor::try_extract_to_creator`, extraction hooks and unsafe native interop | The typed handle retains OCIO shared ownership and exclusively borrows its descriptor. Hooks are not an arbitrary Rust implementation. |
-| `clone() const -> GpuShaderCreatorRcPtr` | `GpuShaderCreator::try_clone_creator`, `GpuShaderDesc::clone_desc` | This invokes the native virtual clone. OCIO's descriptor clone returns a generic descriptor and does not reproduce every subclass resource; Rust cannot yet supply its own clone implementation. |
-| Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderDesc` getters/setters; persistent creators can update the first five settings | Persistent configuration changes do not clear existing code/resources or automatically update a custom cache ID; no arbitrary custom creator implementation. |
-| Descriptor set and texture binding start | `GpuShaderDesc::try_set_descriptor_set_index`, `try_descriptor_set_index`, `try_texture_binding_start` (`v2_5`) | Absent in native 2.4. |
-| `getCacheID() const noexcept` | `GpuShaderCreator::try_cache_id`, `GpuShaderDesc::try_cache_id`; custom ID via `ShaderCreatorOptions` and `set_custom_cache_id` | No arbitrary dynamic callback. The caller must invalidate its ID when configuration or output changes; native cloning does not preserve this override, and changing it does not rename existing resources. |
-| `begin(uid)`, `finalize()`, `end()` | Synchronous or persistent lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization in either mode | Begin/end remain notifications; this is not full native subclassing. |
-| `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Creator virtual access, synchronous hooks and `PersistentPolicyCreator` with retained Rust policy | Arbitrary Rust subclassing and custom clone remain absent. Policy widths must avoid OCIO's known LUT packing bug. |
-| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Manual getters; synchronous or persistent `ShaderUniformControl` can retain the live OCIO getter, choose descriptor or external storage, and report added/duplicate | Full custom subclassing is still absent; external uniform layouts are the caller's responsibility. |
-| `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Manual live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts and buffers require separate management. |
-| `addDynamicProperty`, count, index/type lookup and presence | Descriptor `add_dynamic_property` and dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | These methods are non-virtual in OCIO; they use its creator-owned store rather than a replaceable subclass hook. |
-| `addTexture(...)`, `add3DTexture(...)` | Descriptor insertion; texture callback; streaming sink; per-texture `ShaderTextureAction`; persistent `ShaderTextureControl` | 2.4 returns `void`, 2.5+ returns a binding. Other creator virtual methods remain non-customizable. |
+| `clone() const -> GpuShaderCreatorRcPtr` | `GpuShaderCreator::try_clone_creator`, `GpuShaderDesc::clone_desc`, `PersistentPolicyCreator::try_clone_with_policy` | The opt-in Rust factory supplies a distinct owned creator through the native virtual method. The callback is scoped to that operation. Separately, `try_fork_with_policy` can recreate persistent configuration and hooks with a new policy, without copying shader output or resources. |
+| Unique ID, language, function name, pixel name, resource prefix, next resource index | `GpuShaderCreator` and `GpuShaderDesc` getters/setters; persistent creators can update the first five settings | Creator methods dispatch through the native base without requiring descriptor conversion. Persistent configuration changes do not clear existing code/resources or automatically update a custom cache ID. |
+| Descriptor set and texture binding start | `GpuShaderCreator` and `GpuShaderDesc` fallible setters and getters (`v2_5`) | Absent in native 2.4. Descriptor-backed creators retain the bridge's existing binding-range checks; external non-descriptor creators are responsible for their own resource layouts. |
+| `getCacheID() const noexcept` | `GpuShaderCreator::try_cache_id`, `GpuShaderDesc::try_cache_id`; fixed ID via `ShaderCreatorOptions` and `set_custom_cache_id`; per-extraction callback via `ShaderCacheIdPolicy` | The dynamic callback is scoped to a persistent creator extraction, not an arbitrary native creator. Native cloning does not preserve these policies, and changing an ID does not rename existing resources. |
+| `begin(uid)`, `finalize()`, `end()` | `GpuShaderCreator` direct virtual calls; synchronous or persistent lifecycle notifications; `ShaderFinalizeControl` optionally replaces finalization in either mode | Begin/end hooks remain notifications; this is not full Rust subclassing. |
+| `set/getTextureMaxWidth`, `set/getAllowTexture1D` | Creator virtual access, synchronous hooks and `PersistentPolicyCreator` with retained Rust policy | Arbitrary Rust subclassing remains absent. Policy widths must avoid OCIO's known LUT packing bug. |
+| `addUniform(name, DoubleGetter/BoolGetter/Float3Getter) -> bool` | Creator constants, dynamic double, and thread-safe Rust live getters; descriptor manual getters; synchronous or persistent `ShaderUniformControl` | Full Rust-defined custom subclassing remains absent; external uniform layouts are the caller's responsibility. |
+| `addUniform(name, SizeGetter, VectorFloatGetter/VectorIntGetter[, maxSize]) -> bool` | Creator copied arrays and Rust live array getters, descriptor live array getters and `ShaderUniformControl`; maximum size is reported on native 2.5+ | Native 2.4 has no `maxSize` argument. Caller-owned layouts remain the application's responsibility. |
+| `addDynamicProperty`, count, index/type lookup and presence | `GpuShaderCreator` and descriptor dynamic-property access; `add_uniform_dynamic_double` binds a stored scalar property without a Rust callback | These methods are non-virtual in OCIO; they use its creator-owned store rather than a replaceable subclass hook. The non-descriptor native fixture exercises registration, duplicate rejection and shared lifetime on native 2.4.1 and 2.6.0. |
+| `addTexture(...)`, `add3DTexture(...)` | Direct `GpuShaderCreator` virtual calls, descriptor insertion, texture callback, streaming sink, per-texture `ShaderTextureAction`, persistent `ShaderTextureControl` | 2.4 returns `void`, 2.5.0 returns per-kind indices, and 2.5.1+ returns a binding. Imported native creators must not retain pointers borrowed during registration. Other Rust-defined creator virtual methods remain non-customizable. |
 | `addToDeclareShaderCode(code)` (2.4) | `add_to_declare_shader_code` | On native 2.5+ it maps to parameter declarations for non-Vulkan languages; split methods are required for Vulkan. |
 | `addToParameterDeclareShaderCode`, `addToTextureDeclareShaderCode` (2.5+) | Descriptor methods and code-fragment hooks (`v2_5`) | Hook rewrites fragments but does not provide arbitrary native subclassing. |
-| Helper, function header/body/footer append methods | Descriptor methods and synchronous or persistent code-fragment hooks | Hook rewrites fragments but does not provide arbitrary native subclassing. |
+| Helper, function header/body/footer append methods | Direct `GpuShaderCreator` virtual calls, descriptor methods, and synchronous or persistent code-fragment hooks | Hook rewrites fragments but does not provide arbitrary Rust subclassing. |
 | `createShaderText` (five sections in 2.4, six in 2.5+) | `create_shader_text`, synchronous and persistent `ShaderExtractionHooks::assemble`; default delegates to OCIO | Caller supplies any necessary Vulkan uniform-block handling when returning custom assembled text. |
 | Descriptor uniform/texture enumeration, data, offsets and bindings | Typed descriptor queries, borrowed texture slices and uniform cache; `GpuShaderCreator::try_borrow_desc` gives scoped access when the creator is a descriptor | Descriptor semantics apply; streamed textures are intentionally not enumerated. The scoped view does not expose `DerefMut`, preventing the descriptor handle from being moved out. |
 
+Texture scalar counts use the native metadata query without copying texels.
+The fallible count methods preserve native errors; their compatibility wrappers
+return zero on failure. These queries do not validate GPU hardware execution.
+Owned texture and uniform snapshots use fallible reservation, including when a
+dynamic uniform grows between reads. Capacity overflow and allocator-reported
+reservation failures return errors; borrowed texture reads do not allocate.
+Descriptor texture queries reject unknown native channel and dimension values
+before calculating payload sizes rather than treating them as RGB or 1D.
+Conversion boundary tests cover invalid discriminants; they do not simulate a
+third-party native descriptor returning malformed metadata end to end.
+
 ## Design constraints for closing the creator gap
+
+`GpuShaderCreator::from_native_shared_ptr` provides unsafe interop with an
+existing C++ shared creator without inventing a second control block. A manual
+fixture in `tools/creator-validation` uses a native non-descriptor subclass
+with custom clone, extracts a matrix shader, and checks ownership after both the
+original shared pointer and Rust owners are dropped. It passed on Windows with
+matching native 2.4.1 and 2.6.0 static headers and runtimes. Its versioned
+binding configuration also passed on 2.5.2 and 2.6.0. Lifecycle, shader-code
+virtual dispatch, exception propagation, and the version-specific five/six
+section assembly arguments, and 1D/2D and 3D texture registration passed on
+2.4.1 and 2.6.0. The fixture is not a
+Rust-defined arbitrary creator or a full GPU execution test.
+Borrowed creator configuration strings and cache IDs avoid a Rust allocation;
+their exclusive borrow prevents safe mutation until the reference expires.
+The bridge rejects `clone()` returning the identical native object. The unsafe
+native import contract additionally requires distinct clones (and descriptor
+views) not to share mutable storage whose mutation could invalidate borrowed
+pointers; object identity alone cannot establish this. It also requires returned
+pointers to remain valid and stable across that borrow. Descriptor-derived and native
+non-descriptor creator checks cover these borrows on Windows; they do not
+establish a general performance benchmark.
+
+- `PersistentPolicyCreator::try_extract_with_cache_policy` invokes an optional
+  Rust cache-ID policy from OCIO's native `noexcept` getter during that call.
+  The ID is borrowed from policy-owned `CStr` storage; OCIO 2.4.1, 2.5.2 and
+  2.6.0 immediately copy it before another callback. Empty IDs, errors and
+  panics are reported after native execution. The bridge returns a
+  temporary empty key on callback failure and rejects `begin` before resource
+  generation. Native state or external resources are not generally rolled back
+  if a later callback fails. A scope guard detaches the cache callback on every
+  exit, leaving the creator's fixed cache ID in effect. This does not implement
+  a persistent arbitrary native subclass or its custom clone. Windows native
+  2.4.1, 2.5.2 and 2.6.0 tests cover changing keys, callback failure/panic,
+  empty IDs and reuse; hardware execution remains a release gate.
+  `try_query_cache_policy` exercises the same native virtual getter without
+  extraction. It copies the policy-owned result for the caller and detaches
+  the callback on both success and failure, leaving the fixed ID in effect.
+  `set_extraction_cache_policy` can opt subsequent ordinary extractions into
+  this policy. The option lives in the Rust owner; attachment remains scoped
+  to each extraction and does not change the fixed ID or existing resources.
 
 - `PersistentPolicyCreator` keeps one native creator and Rust policy across
   calls. Rust owns the callback state; the native creator holds only its
@@ -41,7 +97,13 @@ Windows; this does not establish hardware execution or full creator parity.
   packing safety. `finish` detaches the policy and returns the generated native
   descriptor; its texture settings then use native stored values. The manual
   Vulkan validation exercises the resulting shader against the CPU. This is
-  not yet a complete custom creator or custom clone.
+  not yet a complete arbitrary custom creator. `try_fork_with_policy` creates
+  a fresh native owner with the same settings and hook selection (including
+  whether extraction uses a dynamic cache ID). It uses stored texture settings
+  without invoking the source policy, and takes an explicit replacement policy
+  and fixed cache ID. It neither copies extracted resources nor shares callback
+  state with the source. The stored factory is only called when forking; no
+  extra work is done during shader extraction.
 
 - `create_with_texture_control` additionally retains a texture registration
   controller in the same policy state. It may upload borrowed texels directly,
@@ -62,6 +124,10 @@ Windows; this does not establish hardware execution or full creator parity.
   `create_with_finalizer` can replace finalization or delegate to native
   finalization and the assembler; replacement bypasses the assembler and must
   supply language-specific wrappers itself.
+  `try_assemble_fragments` invokes the configured lifecycle, fragment,
+  assembly and finalization hooks with caller-supplied code rather than a
+  GPU processor. It attempts end after a successful begin even on error,
+  preserves the first failure, and does not roll back existing state.
 
 - `ShaderTexturePolicy` can supply the two texture-policy virtual getters on
   each query during synchronous extraction, alongside texture/uniform storage
@@ -99,8 +165,16 @@ Windows; this does not establish hardware execution or full creator parity.
   shader twice and may reject non-LUT textures. The separately callable
   `validate_shader_texture_layout` lets custom Rust hook users perform the same
   probe before extraction with unchanged template settings; it does not validate
-  arbitrary native creators with independent policies. Fixing the native
-  algorithm itself and guarding arbitrary native creators requires further work.
+  arbitrary native creators with independent policies. The vendored source
+  now allocates enough rows for OCIO's interpolation stride. Direct extraction
+  there still generates the shader once. The portable checks continue to
+  apply the conservative limits of unpatched releases.
+  OCIO does not expose the optimized LUT list in its public `GPUProcessor`
+  API. The faulty allocation occurs before the first texture-registration
+  callback, so a callback cannot intercept it in time. The direct
+  `try_extract_shader_info` retains native behavior; for unpatched system or
+  external-source builds use the checked variant when unknown LUT lengths may
+  be packed across rows.
   The manual Vulkan tool exercises both checked descriptor extraction and the
   explicit probe before hooks, including a width-4, five-entry packed LUT; it
   compares GPU pixels with OCIO CPU output without adding a PR CI job.
@@ -132,6 +206,53 @@ Windows; this does not establish hardware execution or full creator parity.
   property lifetime, binding conflicts and actual GPU execution where relevant.
 
 ## Per-texture storage design
+
+Native 2.5.0 lacks the 2.5.1 texture-binding query virtuals and returns
+per-kind texture indices from the generic descriptor. Baseline Rust texture
+insertion reports no binding for that native version. The custom descriptor
+uses a separate global sequence while extracting shader resources. A real
+Windows bundled 2.5.0 baseline suite passed 63 GPU descriptor tests; native
+2.4.1, 2.5.2 and 2.6.0 targeted suites also passed. This does not validate
+2.5.0 Vulkan execution on hardware.
+
+During texture-control or streaming callbacks on native 2.5+, proposed default
+bindings skip bindings already assigned by earlier registrations, including
+explicit overrides. An explicitly requested duplicate is still rejected. After
+callbacks are detached, the existing descriptor insertion behavior is retained.
+A regression checks the generated Vulkan binding declarations when an earlier
+override occupies the next default. The full Windows static-system descriptor
+suites passed with native 2.4.1 (62 tests), 2.5.2 (77 tests) and 2.6.0
+(77 tests). Additional persistent and streaming regression cases passed on
+2.5.2 and 2.6.0. The persistent mixed-resource case also ran on an NVIDIA
+RTX 3050 Laptop GPU with Vulkan and native 2.6.0, checking both texture orders
+and dynamic uniforms against CPU output (maximum error 0.000664 for those
+cases). This is not coverage of other hardware or all binding layouts.
+
+The same collision-aware proposal is also used for ordinary retained-texture
+callbacks. The inner native descriptor cannot see earlier callback overrides,
+so its own next binding is not necessarily available. A regression overrides
+the first texture to the next slot and verifies that the second callback and
+generated Vulkan declarations use the following free slot. The complete GPU
+descriptor suite passed on Windows against native 2.4.1, 2.5.2 and 2.6.0;
+the new binding-specific case applies to the latter two. It checks generated
+code, not execution of that particular shader on a GPU.
+
+Persistent texture control now reserves bookkeeping capacity before native
+descriptor storage and commits a binding only after that storage succeeds.
+Ordinary retained-texture registration also reserves both binding vectors
+before native storage, preventing a bookkeeping allocation failure from
+leaving a stored resource without an index. Capacity grows geometrically.
+The GPU descriptor suites passed after this change on Windows with native
+2.5.0 (baseline), 2.5.2 (`v2_5`) and 2.6.0 (`v2_6`); allocator failure was
+not injected, and these results do not verify GPU execution.
+On Windows, native 2.5.2 and 2.6.0 tests reproduce a width-limit failure and
+verify that a successful retry receives the original free binding. This does
+not roll back external uploads, earlier successful registrations, or other
+creator state; the test does not force an allocator failure or 3D storage error.
+After this change the baseline GPU descriptor suites also passed on Windows
+with native 2.4.1 and 2.5.0 (64 tests each); the 2.5.0 runtime version was
+asserted separately. The new retry test requires the `v2_5` interface and was
+therefore exercised on 2.5.2 and 2.6.0, not on those baseline builds.
 
 For the library's custom descriptor, default binding calculation is checked
 before inserting a texture: an offset plus resource count that exceeds the

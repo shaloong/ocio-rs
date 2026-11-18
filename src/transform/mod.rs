@@ -11,7 +11,8 @@
 //! - **Setters**: Legacy void setters panic on error; checked `try_*` variants
 //!   return `Result<()>` and surface OCIO validation errors.
 //! - **Direction**: Every transform that supports forward/inverse evaluation
-//!   provides `direction()` / `try_set_direction()`.
+//!   provides `direction()` / `try_set_direction()`. Import [`TransformHandle`]
+//!   for the shared fallible `try_direction()` query on editable transforms.
 //! - **Editable copy**: [`create_editable_copy`](std::result::Result) returns
 //!   an independent deep copy that can be mutated without affecting the original.
 
@@ -45,11 +46,24 @@ use std::ptr::NonNull;
 
 use ocio_sys;
 
+fn transform_diagnostic_text(handle: *mut c_void, is_const: bool) -> crate::Result<String> {
+    crate::clear_last_error();
+    let ptr = unsafe { ocio_sys::ocio_transform_diagnostic_text(handle, is_const) };
+    crate::ocio_call_status()?;
+    unsafe { crate::cstr_to_opt_string(ptr) }
+        .ok_or_else(|| crate::OcioError::Ocio("null transform diagnostic text".into()))
+}
+
 /// Shared immutable native transform, which can be processed without copying.
 pub struct ConstTransform {
     pub(crate) handle: NonNull<c_void>,
 }
 impl ConstTransform {
+    /// Return OCIO's diagnostic representation, which may include file paths.
+    /// This text is not a stable interchange format.
+    pub fn diagnostic_text(&self) -> crate::Result<String> {
+        transform_diagnostic_text(self.handle.as_ptr(), true)
+    }
     pub(crate) fn from_parent(
         parent: *mut c_void,
         kind: i32,
@@ -67,6 +81,23 @@ impl ConstTransform {
         crate::ocio_call_status()?;
         Ok(result)
     }
+    /// Query the native direction, rejecting unrecognized values.
+    pub fn try_direction(&self) -> crate::Result<crate::TransformDirection> {
+        crate::clear_last_error();
+        let raw = unsafe { ocio_sys::ocio_const_transform_get_direction(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        direction_from_raw(raw)
+    }
+    /// Validate this transform using OCIO without creating an editable copy.
+    ///
+    /// This checks the transform's parameters; it does not build a processor
+    /// or resolve external files.
+    pub fn validate(&self) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_const_transform_validate(self.handle.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
     /// Create an independently editable transform.
     pub fn create_editable_copy(&self) -> crate::Result<Transform> {
         crate::clear_last_error();
@@ -143,6 +174,65 @@ seal_transform_handles!(
 #[cfg(feature = "v2_5")]
 seal_transform_handles!(GradingHueCurveTransform);
 
+fn direction_from_raw(raw: i32) -> crate::Result<crate::TransformDirection> {
+    match raw {
+        0 => Ok(crate::TransformDirection::Forward),
+        1 => Ok(crate::TransformDirection::Inverse),
+        _ => Err(crate::OcioError::ValidationFailed(format!(
+            "unknown OCIO transform direction {raw}"
+        ))),
+    }
+}
+
+pub(crate) fn checked_native_count(count: i32, operation: &'static str) -> crate::Result<usize> {
+    usize::try_from(count).map_err(|_| {
+        crate::OcioError::ValidationFailed(format!("{operation}: negative native count {count}"))
+    })
+}
+
+pub(crate) fn checked_curve_count(count: usize) -> crate::Result<i32> {
+    i32::try_from(count)
+        .map_err(|_| crate::OcioError::InvalidInput("too many control points".into()))
+}
+
+pub(crate) fn reserve_native_items<T>(
+    count: usize,
+    operation: &'static str,
+) -> crate::Result<Vec<T>> {
+    let mut result = Vec::new();
+    result.try_reserve_exact(count).map_err(|error| {
+        crate::OcioError::ValidationFailed(format!(
+            "{operation}: cannot allocate {count} items: {error}"
+        ))
+    })?;
+    Ok(result)
+}
+
+#[cfg(test)]
+#[test]
+fn direction_conversion_rejects_unrecognized_native_values() {
+    assert_eq!(
+        direction_from_raw(0).unwrap(),
+        crate::TransformDirection::Forward
+    );
+    assert_eq!(
+        direction_from_raw(1).unwrap(),
+        crate::TransformDirection::Inverse
+    );
+    assert!(direction_from_raw(-1).is_err());
+    assert!(direction_from_raw(2).is_err());
+}
+
+#[cfg(test)]
+#[test]
+fn native_collection_count_validation_rejects_negative_and_capacity_overflow() {
+    assert!(checked_native_count(-1, "test").is_err());
+    assert_eq!(checked_native_count(0, "test").unwrap(), 0);
+    assert!(reserve_native_items::<u64>(usize::MAX, "test").is_err());
+    assert_eq!(checked_curve_count(i32::MAX as usize).unwrap(), i32::MAX);
+    assert!(checked_curve_count(i32::MAX as usize + 1).is_err());
+}
+
 /// A native transform handle supplied by this crate.
 ///
 /// This trait is sealed: arbitrary raw pointers cannot satisfy the internal
@@ -158,6 +248,55 @@ seal_transform_handles!(GradingHueCurveTransform);
 /// ```
 pub trait TransformHandle: sealed::Sealed {
     fn as_ptr(&self) -> *mut c_void;
+
+    /// Return OCIO's diagnostic representation, which may include file paths.
+    /// This text is not a stable interchange format.
+    fn diagnostic_text(&self) -> crate::Result<String> {
+        transform_diagnostic_text(self.as_ptr(), false)
+    }
+
+    /// Return the version-independent tag corresponding to [`crate::TransformType`].
+    fn try_type_tag(&self) -> crate::Result<i32> {
+        let tag = unsafe { ocio_sys::ocio_transform_get_transform_type(self.as_ptr()) };
+        if tag < 0 {
+            Err(crate::OcioError::Ocio(
+                "native transform type unavailable".into(),
+            ))
+        } else {
+            Ok(tag)
+        }
+    }
+
+    /// Change the native evaluation direction without modifying the stored parameters.
+    fn try_set_direction(&mut self, direction: crate::TransformDirection) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_transform_set_direction(self.as_ptr(), direction as i32) };
+        crate::ocio_call_status()
+    }
+
+    /// Validate the native transform without copying it or building a processor.
+    fn try_validate(&self) -> crate::Result<()> {
+        crate::clear_last_error();
+        unsafe { ocio_sys::ocio_transform_validate(self.as_ptr()) };
+        crate::ocio_call_status()
+    }
+
+    /// Create an independent native copy, preserving the concrete transform type.
+    fn try_create_editable_copy(&self) -> crate::Result<Transform> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.as_ptr()) };
+        crate::ocio_call_status()?;
+        transform_from_raw_handle(handle)
+            .ok_or_else(|| crate::OcioError::Ocio("unsupported or null transform copy".into()))
+    }
+
+    /// Query the native direction with validation, for any supported transform.
+    fn try_direction(&self) -> crate::Result<crate::TransformDirection> {
+        crate::clear_last_error();
+        let raw = unsafe { ocio_sys::ocio_transform_get_direction(self.as_ptr()) };
+        crate::ocio_call_status()?;
+        direction_from_raw(raw)
+    }
 }
 
 impl TransformHandle for FileTransform {

@@ -184,7 +184,8 @@ impl Lut3DTransform {
         self.try_values().unwrap_or_default()
     }
 
-    /// Replace every RGB LUT entry in blue-major, then green, then red order.
+    /// Replace every RGB LUT entry in grid order: the red coordinate changes
+    /// fastest, then green, then blue. Each grid entry is an RGB triplet.
     pub fn set_values(&self, data: &[f64]) -> Result<()> {
         let expected = required_value_count(self.grid_size())?;
         if data.len() != expected {

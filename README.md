@@ -163,6 +163,10 @@ time, failing with a clear error on mismatch.
 `v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
 `bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
 The vendored 2.5.2 source remains the default for builds without `v2_6`.
+With native 2.5.0, the baseline interface remains available, but texture
+insertion does not report a shader binding index: upstream returns a per-kind
+texture index and does not provide the binding-query virtual methods added in
+2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
 
 Vendored OCIO per release:
 

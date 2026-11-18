@@ -26,6 +26,30 @@ fn builtin_matching_and_hdr_check_use_native_config() {
     assert!(source
         .locate_builtin_color_space(c"no-such-space", &builtin)
         .is_err());
+    let source_baker = ocio_rs::Baker::create().unwrap();
+    source_baker.set_config(&source).unwrap();
+    let source_const = source_baker.const_config().unwrap().unwrap();
+    let builtin_baker = ocio_rs::Baker::create().unwrap();
+    builtin_baker.set_config(&builtin).unwrap();
+    let builtin_const = builtin_baker.const_config().unwrap().unwrap();
+    for result in [
+        source.locate_builtin_color_space_ref(c"ACEScg", &builtin),
+        source.locate_builtin_color_space_ref(c"ACEScg", &builtin_const),
+        source_const.locate_builtin_color_space(c"ACEScg", &builtin),
+        source_const.locate_builtin_color_space(c"ACEScg", &builtin_const),
+    ] {
+        assert_eq!(result.unwrap().as_deref(), Some("ACEScg"));
+    }
+    assert!(source_const
+        .locate_builtin_color_space(c"no-such-space", &builtin_const)
+        .is_err());
+    assert_eq!(
+        source_const
+            .locate_builtin_color_space(c"ACEScg", &builtin_const)
+            .unwrap()
+            .as_deref(),
+        Some("ACEScg")
+    );
 }
 
 #[test]
@@ -131,6 +155,53 @@ fn shared_and_display_view_aliases_round_trip() {
     );
     assert_eq!(config.display_description(c"missing").unwrap(), None);
     assert!(!config.check_hdr_display_compatibility().unwrap());
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    let shared = baker.const_config().unwrap().unwrap();
+    assert_eq!(
+        shared.canonical_display_name(c"Display").unwrap(),
+        config.canonical_display_name(c"Display").unwrap()
+    );
+    assert_eq!(
+        shared.canonical_view_name(c"Display", c"legacy").unwrap(),
+        config.canonical_view_name(c"Display", c"legacy").unwrap()
+    );
+    assert_eq!(
+        shared
+            .resolved_display_view_color_space_name(c"Display", c"legacy")
+            .unwrap(),
+        config
+            .resolved_display_view_color_space_name(c"Display", c"legacy")
+            .unwrap()
+    );
+    assert_eq!(shared.display_description(c"missing").unwrap(), None);
+    assert_eq!(
+        shared
+            .num_display_view_aliases(c"Display", c"Canonical")
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        shared
+            .display_view_alias(c"Display", c"Canonical", 0)
+            .unwrap()
+            .as_deref(),
+        Some("legacy")
+    );
+    assert_eq!(
+        shared
+            .display_view_alias(c"Display", c"Canonical", 9)
+            .unwrap(),
+        None
+    );
+    assert!(shared
+        .has_display_view_alias(c"Display", c"Canonical", c"legacy")
+        .unwrap());
+    assert!(shared.use_display_aliases().unwrap());
+    assert_eq!(
+        shared.check_hdr_display_compatibility().unwrap(),
+        config.check_hdr_display_compatibility().unwrap()
+    );
 }
 
 #[test]
@@ -172,7 +243,60 @@ fn display_color_space_alias_resolves_only_when_enabled() {
             .as_deref(),
         Some("Standard")
     );
+    let before_baker = ocio_rs::Baker::create().unwrap();
+    before_baker.set_config(&config).unwrap();
+    let before = before_baker.const_config().unwrap().unwrap();
+    drop(before_baker);
+    assert!(!before.use_display_aliases().unwrap());
+    assert_ne!(
+        before
+            .canonical_display_name(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
+    assert_eq!(
+        before
+            .canonical_view_name(c"Screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Standard")
+    );
     config.set_use_display_aliases(true).unwrap();
+    let after_baker = ocio_rs::Baker::create().unwrap();
+    after_baker.set_config(&config).unwrap();
+    let after = after_baker.const_config().unwrap().unwrap();
+    drop(after_baker);
+    assert!(after.use_display_aliases().unwrap());
+    assert_eq!(
+        after
+            .canonical_display_name(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
+    assert_eq!(
+        after
+            .canonical_view_name(c"old-screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Standard")
+    );
+    assert_eq!(
+        after
+            .resolved_display_view_color_space_name(c"old-screen", c"old-view")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
+    assert!(!before.use_display_aliases().unwrap());
+    assert_ne!(
+        before
+            .canonical_display_name(c"old-screen")
+            .unwrap()
+            .as_deref(),
+        Some("Screen")
+    );
     assert_eq!(
         config
             .display_description(c"old-screen")
@@ -205,6 +329,73 @@ fn display_color_space_alias_resolves_only_when_enabled() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.6")]
+fn display_and_view_aliases_produce_the_same_cpu_result() {
+    use ocio_rs::transform::DisplayViewTransform;
+    use ocio_rs::{ViewTransform, ViewTransformDirection};
+
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    config.set_version(2, 6).unwrap();
+    let source = ColorSpace::create().unwrap();
+    source.set_name("Input").unwrap();
+    config.try_add_color_space(&source).unwrap();
+    let display = ColorSpace::create_with_reference_space(ReferenceSpaceType::Display).unwrap();
+    display.set_name("Screen").unwrap();
+    display.add_alias("old-screen").unwrap();
+    config.try_add_color_space(&display).unwrap();
+    let view_transform = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    view_transform.set_name("ViewTransform").unwrap();
+    let scale = MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap();
+    view_transform.set_transform(Some(&scale), ViewTransformDirection::FromReference);
+    config.add_view_transform(&view_transform);
+    config
+        .add_display_view_with_aliases(
+            c"Screen",
+            ViewWithAliases {
+                view: c"Standard",
+                view_transform: c"ViewTransform",
+                color_space: c"Screen",
+                looks: c"",
+                rule: c"",
+                description: c"",
+                aliases: &[c"old-view"],
+            },
+        )
+        .unwrap();
+    let make_transform = |display: &str, view: &str| {
+        let transform = DisplayViewTransform::create().unwrap();
+        transform.set_src("Input").unwrap();
+        transform.set_display(display).unwrap();
+        transform.set_view(view).unwrap();
+        transform
+    };
+    let canonical = make_transform("Screen", "Standard");
+    let alias = make_transform("old-screen", "old-view");
+    assert!(config
+        .processor_from_transform(&alias, TransformDirection::Forward)
+        .is_err());
+    config.set_use_display_aliases(true).unwrap();
+    let process = |transform: &DisplayViewTransform| {
+        let mut pixel = [0.2, 0.4, 0.6, 1.0];
+        config
+            .processor_from_transform(transform, TransformDirection::Forward)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        pixel
+    };
+    let expected = process(&canonical);
+    let actual = process(&alias);
+    for (left, right) in actual.into_iter().zip(expected) {
+        assert!((left - right).abs() < 1e-6);
+    }
+    assert!((expected[0] - 0.4).abs() < 1e-6);
+    assert!((expected[2] - 0.3).abs() < 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.6")]
 fn color_interop_lookup_and_local_id_round_trip() {
     let config = Config::raw().unwrap().create_editable_copy().unwrap();
     config.set_name("test_config").unwrap();
@@ -226,6 +417,19 @@ fn color_interop_lookup_and_local_id_round_trip() {
         .unwrap()
         .is_none());
     assert!(config
+        .find_const_color_space_for_id(c"missing")
+        .unwrap()
+        .is_none());
+    assert!(config.find_const_color_space_for_id(c"").unwrap().is_none());
+    let shared = config
+        .find_const_color_space_for_id(c"vendor:test_alias")
+        .unwrap()
+        .unwrap();
+    assert_eq!(shared.name().unwrap(), c"test_space");
+    let copy = shared.create_editable_copy().unwrap();
+    copy.set_name("independent").unwrap();
+    assert_eq!(shared.name().unwrap(), c"test_space");
+    assert!(config
         .generate_local_id_for_color_space(c"missing")
         .is_err());
     let id = std::ffi::CString::new(
@@ -244,6 +448,81 @@ fn color_interop_lookup_and_local_id_round_trip() {
             .as_deref(),
         Some("test_space")
     );
+    drop(config);
+    assert_eq!(shared.name().unwrap(), c"test_space");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.6")]
+fn interop_id_lookup_uses_names_and_aliases_not_attributes() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    config.set_name("Studio Name").unwrap();
+    let first = ColorSpace::create().unwrap();
+    first.set_name("First Space").unwrap();
+    first.set_interop_id("vendor:shared").unwrap();
+    config.try_add_color_space(&first).unwrap();
+    let second = ColorSpace::create().unwrap();
+    second.set_name("Second Space").unwrap();
+    second.set_interop_id("vendor:shared").unwrap();
+    config.try_add_color_space(&second).unwrap();
+    assert!(config
+        .find_const_color_space_for_id(c"vendor:shared")
+        .unwrap()
+        .is_none());
+
+    second.add_alias("vendor:shared").unwrap();
+    config.try_add_color_space(&second).unwrap();
+    let match_space = config
+        .find_const_color_space_for_id(c"vendor:shared")
+        .unwrap()
+        .unwrap();
+    assert_eq!(match_space.name().unwrap(), c"Second Space");
+    let local_id = config
+        .generate_local_id_for_color_space(c"First Space")
+        .unwrap()
+        .unwrap();
+    let local_cstr = std::ffi::CString::new(local_id.as_str()).unwrap();
+    assert_eq!(
+        config
+            .find_const_color_space_for_id(&local_cstr)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap(),
+        c"First Space"
+    );
+    let (_, local_part) = local_id.split_once(':').unwrap();
+    let wrong_namespace = std::ffi::CString::new(format!("other:{local_part}")).unwrap();
+    assert!(config
+        .find_const_color_space_for_id(&wrong_namespace)
+        .unwrap()
+        .is_none());
+
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    let shared = baker.const_config().unwrap().unwrap();
+    assert_eq!(
+        shared
+            .find_const_color_space_for_id(c"vendor:shared")
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap(),
+        c"Second Space"
+    );
+    assert_eq!(
+        shared
+            .find_const_color_space_for_id(&local_cstr)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap(),
+        c"First Space"
+    );
+    assert!(shared
+        .find_const_color_space_for_id(&wrong_namespace)
+        .unwrap()
+        .is_none());
 }
 
 #[test]
@@ -254,6 +533,7 @@ fn hmj_and_jmh_agree_under_documented_coordinate_conversion() {
     let apply = |style| {
         let transform = FixedFunctionTransform::create_with_params(style, &params).unwrap();
         assert_eq!(transform.style(), style);
+        assert_eq!(transform.try_style().unwrap(), style);
         let mut pixel = [0.2, 0.4, 0.6, 1.0];
         config
             .processor_from_transform(&transform, TransformDirection::Forward)

@@ -8,7 +8,7 @@ subsystem inventory, not evidence of full-library parity.
 | Native declaration | Rust surface | Ownership and behavior |
 | --- | --- | --- |
 | `std::vector<uint8_t> getLutData(const char *) const` | `ConfigIOProvider::lut_data`; `ConfigIOProxy::read_lut_data_cstr` / `with_lut_data_cstr` | Direct reads do not query the hash first. Empty bytes are ambiguous; native OCIO owns its returned vector and the visitor borrows only for the callback. |
-| `std::string getConfigData() const` | `ConfigIOProvider::config_data_bytes`; `ConfigIOProxy::try_config_data_bytes` | Bytes and embedded NULs are preserved. Text adapters are conveniences, not a native UTF-8 guarantee. |
+| `std::string getConfigData() const` | `ConfigIOProvider::config_data_bytes`; `ConfigIOProxy::try_config_data_bytes` / `with_config_data` | Bytes and embedded NULs are preserved. The visitor borrows OCIO's result without a second payload copy. Text adapters are conveniences, not a native UTF-8 guarantee. |
 | `std::string getFastLutFileHash(const char *) const` | `ConfigIOProvider::fast_lut_file_hash`; `ConfigIOProxy::read_fast_lut_file_hash_cstr` / `with_fast_lut_file_hash_cstr` | Binary bytes are preserved; OCIO interprets an empty hash as file unavailable. |
 
 `ConfigIOProxy::from_provider` provides the native subclass: OCIO can retain
@@ -18,6 +18,9 @@ required by OCIO. Rust visitor callbacks borrow that native value without a
 second payload copy. Visitor and provider errors or panics are contained at
 the bridge; neither may reenter the same OCIO proxy. Native return data and
 hash calls are separate and do not form an atomic snapshot.
+The bridge rejects a null nonempty payload or a length beyond `ptrdiff_t`
+before pointer arithmetic and records failure even if a raw native provider
+ignores the write callback's return value.
 
 The `try_lut_data_cstr` convenience uses the native fast hash as an availability
 check for custom providers, whereas the direct `read_*` / `with_*` methods

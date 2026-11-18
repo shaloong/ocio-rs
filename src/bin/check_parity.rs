@@ -896,6 +896,11 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
     let overrides = l2_overrides();
 
     for f in bridge_funcs {
+        // A shared editable parameter handle can invalidate strings borrowed
+        // through another handle. Keep this operation in ocio-sys; L1 verifies it.
+        if f.name == "ocio_config_merger_params_shared" {
+            continue;
+        }
         if let Some(rust_class) = c_prefix_to_rust(&f.class_prefix) {
             total += 1;
 
@@ -906,7 +911,23 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
             }
 
             let rust_method = if let Some(methods) = rust_methods.get(rust_class) {
-                find_rust_method(&f.method_name, methods, &overrides)
+                let exact_override = match f.name.as_str() {
+                    "ocio_grading_rgb_curve_transform_set_checked" => Some("set_value_checked"),
+                    "ocio_grading_hue_curve_transform_set_checked" => {
+                        Some("set_complete_value_checked")
+                    }
+                    "ocio_config_locate_builtin_color_space_refs" => {
+                        Some("locate_builtin_color_space")
+                    }
+                    // The editable and read-only APIs share a private dispatcher.
+                    "ocio_config_get_cache_id_explicit" => Some("try_cache_id_for_const_context"),
+                    "ocio_format_metadata_stream" => Some("to_native_string"),
+                    _ => None,
+                };
+                exact_override
+                    .filter(|method| methods.contains(*method))
+                    .map(str::to_owned)
+                    .or_else(|| find_rust_method(&f.method_name, methods, &overrides))
             } else {
                 None
             };
@@ -1392,6 +1413,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn l2_exact_bridge_overrides_require_correct_wrapper() {
+        let funcs = vec![
+            CFunc {
+                name: "ocio_grading_rgb_curve_transform_set_checked".into(),
+                return_type: "void".into(),
+                params: String::new(),
+                class_prefix: "grading_rgb_curve_transform".into(),
+                method_name: "set_checked".into(),
+            },
+            CFunc {
+                name: "ocio_grading_hue_curve_transform_set_checked".into(),
+                return_type: "void".into(),
+                params: String::new(),
+                class_prefix: "grading_hue_curve_transform".into(),
+                method_name: "set_checked".into(),
+            },
+        ];
+        let mut methods = HashMap::from([
+            (
+                "GradingRGBCurveTransform".into(),
+                HashSet::from(["set_value_checked".into()]),
+            ),
+            (
+                "GradingHueCurveTransform".into(),
+                HashSet::from(["set_complete_value_checked".into()]),
+            ),
+        ]);
+        assert_eq!(run_l2(&funcs, &methods).matched, 2);
+        methods.get_mut("GradingHueCurveTransform").unwrap().clear();
+        let result = run_l2(&funcs, &methods);
+        assert_eq!(result.matched, 1);
+        assert_eq!(result.missing[0].bridge_func, funcs[1].name);
+    }
+
+    #[test]
     fn l2_maps_native_proxy_read_to_public_visitor() {
         let methods = HashSet::from(["with_lut_data_cstr".to_owned()]);
         assert_eq!(
@@ -1399,6 +1455,33 @@ mod tests {
             Some("with_lut_data_cstr")
         );
         assert!(find_rust_method("read_native", &HashSet::new(), &l2_overrides()).is_none());
+    }
+
+    #[test]
+    fn l2_matches_explicit_config_cache_id_without_a_duplicate_public_method() {
+        let funcs = [CFunc {
+            name: "ocio_config_get_cache_id_explicit".into(),
+            return_type: "const char*".into(),
+            params: "void*, bool, const void*".into(),
+            class_prefix: "config".into(),
+            method_name: "get_cache_id_explicit".into(),
+        }];
+        let mut methods = HashMap::from([(
+            "Config".into(),
+            HashSet::from([
+                "try_cache_id".into(),
+                "try_cache_id_for_const_context".into(),
+            ]),
+        )]);
+        assert_eq!(run_l2(&funcs, &methods).matched, 1);
+        methods
+            .get_mut("Config")
+            .unwrap()
+            .remove("try_cache_id_for_const_context");
+        assert_eq!(
+            run_l2(&funcs, &methods).missing[0].bridge_func,
+            funcs[0].name
+        );
     }
 
     #[test]

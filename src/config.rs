@@ -1,13 +1,30 @@
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
 use crate::transform::TransformHandle;
 use crate::{
     cstr_from_mut, cstr_to_opt_string, cstring, ColorSpace, ColorSpaceSet, ConfigIOProxy, Context,
     FileRules, Look, NamedTransform, OcioError, Processor, ReferenceSpaceType, Result,
-    SearchReferenceSpaceType, TransformDirection, ViewTransform, ViewingRules,
+    SearchReferenceSpaceType, TransformDirection, ViewTransform, ViewType, ViewingRules,
 };
 use ocio_sys;
+
+fn legacy_view_type(
+    reference_space: SearchReferenceSpaceType,
+    display: Option<&str>,
+) -> Result<ViewType> {
+    match reference_space {
+        SearchReferenceSpaceType::Scene => Ok(ViewType::Shared),
+        SearchReferenceSpaceType::Display => Ok(ViewType::DisplayDefined),
+        // With an empty display, OCIO enumerates global shared views regardless
+        // of type. Pass a valid enum rather than the old invalid discriminant.
+        SearchReferenceSpaceType::All if display == Some("") => Ok(ViewType::Shared),
+        SearchReferenceSpaceType::All => Err(OcioError::InvalidInput(
+            "view queries distinguish shared and display-defined views, not reference spaces"
+                .into(),
+        )),
+    }
+}
 
 /// An OpenColorIO configuration.
 ///
@@ -49,7 +66,45 @@ pub struct Config {
 pub struct ConstConfig {
     pub(crate) handle: NonNull<c_void>,
 }
+
+/// Destination of a processor connecting two read-only configurations.
+#[derive(Debug, Clone, Copy)]
+pub enum ConfigProcessorTarget<'a> {
+    /// Destination color-space or role name.
+    ColorSpace(&'a CStr),
+    /// Destination display and view in the other configuration.
+    DisplayView {
+        display: &'a CStr,
+        view: &'a CStr,
+        direction: TransformDirection,
+    },
+}
+
+fn explicit_config_cache_id(
+    handle: NonNull<c_void>,
+    read_only: bool,
+    context: Option<&crate::ConstContext>,
+) -> Result<Option<String>> {
+    crate::clear_last_error();
+    let raw = unsafe {
+        ocio_sys::ocio_config_get_cache_id_explicit(
+            handle.as_ptr(),
+            read_only,
+            context.map_or(std::ptr::null(), |ctx| ctx.handle.as_ptr()),
+        )
+    };
+    crate::ocio_call_status()?;
+    Ok(unsafe { cstr_to_opt_string(raw.cast()) })
+}
+
 impl ConstConfig {
+    /// Return the native environment mode without creating a config or context copy.
+    pub fn environment_mode(&self) -> Result<crate::EnvironmentMode> {
+        crate::clear_last_error();
+        let mode = unsafe { ocio_sys::ocio_const_config_environment_mode(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        crate::context::environment_mode_from_raw(mode)
+    }
     fn text(&self, field: i32) -> Result<Option<String>> {
         crate::clear_last_error();
         let ptr = unsafe { ocio_sys::ocio_const_config_text(self.handle.as_ptr(), field) };
@@ -64,6 +119,47 @@ impl ConstConfig {
     /// Native cache identifier as owned text.
     pub fn cache_id(&self) -> Result<Option<String>> {
         self.text(1)
+    }
+    /// Cache identifier including file references resolved with this context.
+    pub fn cache_id_for_context(&self, context: &crate::ConstContext) -> Result<Option<String>> {
+        explicit_config_cache_id(self.handle, true, Some(context))
+    }
+    /// Cache identifier for the serialized config alone, without file references.
+    ///
+    /// This passes a null context to OCIO, unlike [Self::cache_id], which
+    /// uses the current context.
+    pub fn cache_id_without_file_references(&self) -> Result<Option<String>> {
+        explicit_config_cache_id(self.handle, true, None)
+    }
+    /// Observe the native processor cache policy on this snapshot.
+    pub fn processor_cache_flags(&self) -> Result<crate::ProcessorCacheFlags> {
+        crate::clear_last_error();
+        let raw =
+            unsafe { ocio_sys::ocio_const_config_get_processor_cache_flags(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(crate::ProcessorCacheFlags(raw as u32))
+    }
+    /// Change the native processor cache policy on this shared object.
+    /// This does not evict existing cached processors.
+    ///
+    /// # Safety
+    /// Do not run this concurrently with any operation on this native config
+    /// or cached processors, including through other handles or external OCIO
+    /// code. OCIO's const-qualified setter is not a synchronized update.
+    /// Use [crate::try_set_processor_cache_flags] to replace the global policy
+    /// without mutating an existing snapshot.
+    pub unsafe fn try_set_processor_cache_flags(
+        &self,
+        flags: crate::ProcessorCacheFlags,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_const_config_set_processor_cache_flags(
+                self.handle.as_ptr(),
+                flags.0 as i32,
+            );
+        }
+        crate::ocio_call_status()
     }
     /// Config description as owned text.
     pub fn description(&self) -> Result<Option<String>> {
@@ -151,6 +247,103 @@ impl ConstConfig {
                 context.map_or(std::ptr::null_mut(), |c| c.handle.as_ptr()),
                 transform.handle.as_ptr(),
                 direction as i32,
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+
+    /// Build a processor in the native default direction (forward).
+    pub fn processor_from_const_transform_default_direction(
+        &self,
+        transform: &crate::transform::ConstTransform,
+    ) -> Result<Processor> {
+        self.processor_from_const_transform(transform, TransformDirection::Forward, None)
+    }
+
+    /// Build a processor between two read-only configs without making editable
+    /// copies for a static pipeline.
+    ///
+    /// With no explicit contexts, each config uses its current context. Without
+    /// an interchange pair, OCIO selects the required interchange roles.
+    /// Explicit pairs are ordered source, then destination. Dynamic pipelines
+    /// are rebuilt in isolated config copies as with [Self::processor].
+    pub fn processor_to_config(
+        &self,
+        source: &CStr,
+        destination: &ConstConfig,
+        target: ConfigProcessorTarget<'_>,
+        contexts: Option<(&crate::ConstContext, &crate::ConstContext)>,
+        interchange: Option<(&CStr, &CStr)>,
+    ) -> Result<Processor> {
+        let (target, view, direction) = match target {
+            ConfigProcessorTarget::ColorSpace(name) => {
+                (name, std::ptr::null(), TransformDirection::Forward)
+            }
+            ConfigProcessorTarget::DisplayView {
+                display,
+                view,
+                direction,
+            } => (display, view.as_ptr(), direction),
+        };
+        let (src_ctx, dst_ctx) = contexts.map_or(
+            (std::ptr::null_mut(), std::ptr::null_mut()),
+            |(src, dst)| (src.handle.as_ptr(), dst.handle.as_ptr()),
+        );
+        let (src_space, dst_space) = interchange
+            .map_or((std::ptr::null(), std::ptr::null()), |(src, dst)| {
+                (src.as_ptr(), dst.as_ptr())
+            });
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_configs_get_processor(
+                self.handle.as_ptr(),
+                source.as_ptr(),
+                destination.handle.as_ptr(),
+                target.as_ptr(),
+                view,
+                direction as i32,
+                src_ctx,
+                dst_ctx,
+                src_space,
+                dst_space,
+            )
+        };
+        Config::processor_handle_result(handle)
+    }
+
+    /// Build a processor from this config's color space to a space in OCIO's
+    /// default built-in config. OCIO resolves the interchange space.
+    pub fn processor_to_builtin_color_space(
+        &self,
+        source: &CStr,
+        builtin_destination: &CStr,
+    ) -> Result<Processor> {
+        self.builtin_color_space_processor(source, builtin_destination, false)
+    }
+
+    /// Build a processor from a space in OCIO's default built-in config to
+    /// this config's color space. OCIO resolves the interchange space.
+    pub fn processor_from_builtin_color_space(
+        &self,
+        builtin_source: &CStr,
+        destination: &CStr,
+    ) -> Result<Processor> {
+        self.builtin_color_space_processor(destination, builtin_source, true)
+    }
+
+    fn builtin_color_space_processor(
+        &self,
+        local: &CStr,
+        builtin: &CStr,
+        from_builtin: bool,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_get_builtin_processor(
+                self.handle.as_ptr(),
+                local.as_ptr(),
+                builtin.as_ptr(),
+                from_builtin,
             )
         };
         Config::processor_handle_result(handle)
@@ -402,6 +595,19 @@ impl Config {
         };
         crate::ocio_call_status()?;
         Ok(cache_id)
+    }
+
+    /// Use a shared read-only context, without making an editable copy of it.
+    pub fn try_cache_id_for_const_context(
+        &self,
+        context: &crate::ConstContext,
+    ) -> Result<Option<String>> {
+        explicit_config_cache_id(self.handle, false, Some(context))
+    }
+
+    /// Hash the serialized config alone by passing a null context to OCIO.
+    pub fn try_cache_id_without_file_references(&self) -> Result<Option<String>> {
+        explicit_config_cache_id(self.handle, false, None)
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer cache_id_for_context()")]
@@ -3026,16 +3232,22 @@ impl Config {
             .unwrap_or(0)
     }
 
-    /// Return the virtual-display view count, preserving bridge failures.
+    /// Compatibility query: `Scene` means shared and `Display` means display-defined.
+    /// Prefer [`Self::try_virtual_display_num_views_by_type`].
     pub fn try_virtual_display_num_views(
         &self,
         reference_space: SearchReferenceSpaceType,
     ) -> Result<i32> {
+        self.try_virtual_display_num_views_by_type(legacy_view_type(reference_space, None)?)
+    }
+
+    /// Return the count of shared or display-defined virtual views.
+    pub fn try_virtual_display_num_views_by_type(&self, view_type: ViewType) -> Result<i32> {
         crate::clear_last_error();
         let count = unsafe {
             ocio_sys::ocio_config_get_virtual_display_num_views(
                 self.handle.as_ptr(),
-                reference_space as i32,
+                view_type as i32,
             )
         };
         crate::ocio_call_status()?;
@@ -3061,17 +3273,27 @@ impl Config {
             .flatten()
     }
 
-    /// Return a virtual-display view by index, preserving bridge failures.
+    /// Compatibility query: `Scene` means shared and `Display` means display-defined.
+    /// Prefer [`Self::try_virtual_display_view_by_type`].
     pub fn try_virtual_display_view(
         &self,
         reference_space: SearchReferenceSpaceType,
+        index: i32,
+    ) -> Result<Option<String>> {
+        self.try_virtual_display_view_by_type(legacy_view_type(reference_space, None)?, index)
+    }
+
+    /// Return a virtual-display view by its origin and index.
+    pub fn try_virtual_display_view_by_type(
+        &self,
+        view_type: ViewType,
         index: i32,
     ) -> Result<Option<String>> {
         crate::clear_last_error();
         let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_virtual_display_view(
                 self.handle.as_ptr(),
-                reference_space as i32,
+                view_type as i32,
                 index,
             ))
         };
@@ -3631,12 +3853,21 @@ impl Config {
     pub fn set_role(&self, role: impl AsRef<str>, color_space: impl AsRef<str>) -> Result<()> {
         let r = cstring(role)?;
         let cs = cstring(color_space)?;
+        self.set_role_cstr(&r, Some(&cs))
+    }
+
+    /// Remove an authored role using OCIO's null color-space argument.
+    pub fn remove_role(&self, role: impl AsRef<str>) -> Result<()> {
+        self.set_role_cstr(&cstring(role)?, None)
+    }
+
+    fn set_role_cstr(&self, role: &CStr, color_space: Option<&CStr>) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_role(
                 self.handle.as_ptr(),
-                r.as_ptr().cast(),
-                cs.as_ptr().cast(),
+                role.as_ptr().cast(),
+                color_space.map_or(std::ptr::null(), |value| value.as_ptr().cast()),
             );
         }
         crate::ocio_call_status()
@@ -3651,6 +3882,11 @@ impl Config {
 
     /// Set the family separator character and surface any OCIO validation error.
     pub fn try_set_family_separator(&self, separator: char) -> Result<()> {
+        if separator != '\0' && !(' '..='~').contains(&separator) {
+            return Err(OcioError::InvalidInput(
+                "family separator must be printable ASCII or NUL".into(),
+            ));
+        }
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_config_set_family_separator(self.handle.as_ptr(), separator as i8);
@@ -3848,16 +4084,18 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    /// Return the current environment mode.
+    /// Return the current environment mode, or `Unknown` if the query fails.
     pub fn environment_mode(&self) -> crate::EnvironmentMode {
-        let m = unsafe {
-            ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr() as *mut c_void)
-        };
-        match m {
-            1 => crate::EnvironmentMode::LoadPredefined,
-            2 => crate::EnvironmentMode::LoadAll,
-            _ => crate::EnvironmentMode::Unknown,
-        }
+        self.try_environment_mode()
+            .unwrap_or(crate::EnvironmentMode::Unknown)
+    }
+
+    /// Return the native mode, preserving errors and unrecognized values.
+    pub fn try_environment_mode(&self) -> Result<crate::EnvironmentMode> {
+        crate::clear_last_error();
+        let mode = unsafe { ocio_sys::ocio_config_get_environment_mode(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        crate::context::environment_mode_from_raw(mode)
     }
 
     /// Refresh this config's context variables from the process environment.
@@ -4260,7 +4498,7 @@ impl Config {
         crate::ocio_call_status()
     }
 
-    /// Return the number of views for a display, filtered by reference space type.
+    /// Compatibility query. The argument selects the view origin, not a reference space.
     pub fn num_views_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -4270,13 +4508,22 @@ impl Config {
             .unwrap_or(0)
     }
 
-    /// Return the number of views for a display, filtered by reference space type.
-    ///
-    /// Unlike [`Self::num_views_by_reference_space`], this preserves invalid
-    /// input and OCIO query failures as [`OcioError`].
+    /// Compatibility query: `Scene` means shared and `Display` means display-defined.
+    /// Prefer [`Self::try_num_views_by_type`].
     pub fn try_num_views_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+    ) -> Result<i32> {
+        let display = display.as_ref();
+        self.try_num_views_by_type(legacy_view_type(reference_space, Some(display))?, display)
+    }
+
+    /// Return the count of shared or display-defined views. An empty display
+    /// queries all global shared views, regardless of the type.
+    pub fn try_num_views_by_type(
+        &self,
+        view_type: ViewType,
         display: impl AsRef<str>,
     ) -> Result<i32> {
         let display = cstring(display)?;
@@ -4284,7 +4531,7 @@ impl Config {
         let count = unsafe {
             ocio_sys::ocio_config_get_num_views_v2(
                 self.handle.as_ptr(),
-                reference_space as i32,
+                view_type as i32,
                 display.as_ptr().cast(),
             )
         };
@@ -4295,7 +4542,7 @@ impl Config {
     #[doc(hidden)]
     #[deprecated(
         since = "0.2.0",
-        note = "compat overload; prefer num_views_by_reference_space()"
+        note = "compat overload; prefer try_num_views_by_type()"
     )]
     pub fn get_num_views_v2(
         &self,
@@ -4305,7 +4552,7 @@ impl Config {
         self.num_views_by_reference_space(reference_space, display)
     }
 
-    /// Return the view name at a given index for a display, filtered by reference space type.
+    /// Compatibility query. The argument selects the view origin, not a reference space.
     pub fn view_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
@@ -4317,13 +4564,26 @@ impl Config {
             .flatten()
     }
 
-    /// Return the view name at a given index for a display and reference space type.
-    ///
-    /// Unlike [`Self::view_by_reference_space`], this preserves invalid input and
-    /// OCIO query failures as [`OcioError`].
+    /// Compatibility query: `Scene` means shared and `Display` means display-defined.
+    /// Prefer [`Self::try_view_by_type`].
     pub fn try_view_by_reference_space(
         &self,
         reference_space: SearchReferenceSpaceType,
+        display: impl AsRef<str>,
+        index: i32,
+    ) -> Result<Option<String>> {
+        let display = display.as_ref();
+        self.try_view_by_type(
+            legacy_view_type(reference_space, Some(display))?,
+            display,
+            index,
+        )
+    }
+
+    /// Return a view by origin and index. An empty display queries global shared views.
+    pub fn try_view_by_type(
+        &self,
+        view_type: ViewType,
         display: impl AsRef<str>,
         index: i32,
     ) -> Result<Option<String>> {
@@ -4332,7 +4592,7 @@ impl Config {
         let view = unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view_v2(
                 self.handle.as_ptr(),
-                reference_space as i32,
+                view_type as i32,
                 display.as_ptr().cast(),
                 index,
             ))
@@ -4342,10 +4602,7 @@ impl Config {
     }
 
     #[doc(hidden)]
-    #[deprecated(
-        since = "0.2.0",
-        note = "compat overload; prefer view_by_reference_space()"
-    )]
+    #[deprecated(since = "0.2.0", note = "compat overload; prefer try_view_by_type()")]
     pub fn get_view_v2(
         &self,
         reference_space: SearchReferenceSpaceType,

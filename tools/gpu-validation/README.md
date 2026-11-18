@@ -34,19 +34,23 @@ The checked dynamic texture-policy case also executes a 1D LUT promoted to a 2D
 texture by Rust's native virtual getter callbacks, checks setter events, and
 compares GPU with CPU.
 The persistent-policy case also extracts through a retained Rust policy,
-detaches it into a native descriptor, and executes the result on the GPU.
+uses a borrowed dynamic cache-ID callback, detaches it into a native descriptor,
+and executes the result on the GPU.
 Persistent texture-control cases additionally use explicit bindings and mix
 external and descriptor-owned 2D/3D textures in both registration orders;
 each order is tested with and without an externally retained, updated dynamic
 exposure uniform using the persistent uniform controller.
+The first explicit binding occupies the next default slot; the second texture
+uses the next unoccupied default binding and the resulting shader is executed.
 These cases also pass generated shader fragments through persistent lifecycle
 and code hooks and a persistent custom assembler before execution, including
 an explicitly constructed Vulkan uniform block when needed.
 Another mixed-resource case replaces persistent finalization itself and runs
 the resulting shader with a dynamic uniform before and after an update.
 
-The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, CMake,
-and OCIO 2.6 source usable by the `bundled` feature. The adapter must support
+The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, and either
+OCIO 2.6 source usable by `bundled` or an explicitly configured 2.6 installation.
+A source build also requires CMake. The adapter must support
 filtering 32-bit float textures. It uses a separate Cargo
 workspace and lockfile so its GPU dependencies do not enter the library's
 production dependency graph. Run from the repository root:
@@ -56,7 +60,8 @@ cargo run --locked --manifest-path tools/gpu-validation/Cargo.toml
 ```
 
 Set `OCIO_SOURCE_DIR` to an OpenColorIO 2.6 source checkout if the bundled
-source is not already available. For example, in PowerShell:
+source is not already available, or set `OCIO_INSTALL_DIR` to a compatible
+native installation. For example, in PowerShell:
 
 ```powershell
 $env:OCIO_SOURCE_DIR = 'C:\path\to\OpenColorIO-2.6.0'

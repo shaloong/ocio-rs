@@ -36,6 +36,7 @@ conveniences interpret an empty hash as unavailable for custom providers.
 The corresponding `with_*_cstr` methods let a synchronous visitor inspect the
 native result without a second payload copy; OCIO still allocates its native
 return value, and the borrowed slice may not outlive the callback.
+`with_config_data` provides the same scoped access for native config bytes.
 
 | Upstream addition | Rust coverage |
 | --- | --- |
@@ -54,17 +55,20 @@ Transform value exchange creates a native editable copy, while a constituent
 spline handle keeps its native curve alive independently.
 
 For rendering, build the processor once and pass the caller's mutable buffer
-to `CPUProcessor::try_apply_rgba_pixels`. A batch crosses the bridge once
-for processing, with no Rust pixel-buffer allocation or copy. This does not
-claim that OCIO itself never allocates.
+to `CPUProcessor::try_apply_rgba_pixels`. Tightly packed RGBA uses one native
+batch call without a Rust pixel-buffer allocation or copy. A strided buffer
+without enough trailing space for native pointer stepping may use an additional
+call and a stack-sized final pixel. OCIO itself may allocate.
 
 For two-dimensional packed buffers, `CPUProcessor::try_apply_packed_image`
-and `try_convert_packed_image` pass validated borrowed buffers directly to
-native packed image descriptors. `PackedImageLayout` supports OCIO's RGB,
+and `try_convert_packed_image` accept validated borrowed buffers.
+`PackedImageLayout` supports OCIO's RGB,
 BGR, RGBA, BGRA and ABGR orderings, channel spacing, and signed pixel and row
-strides; its documented pointer-step padding requirements must be met.
+strides. Unpadded tails are supported by splitting affected regions and copying
+at most one pixel at a time; tight forward RGBA retains the native fast path.
 `CPUProcessor::try_convert_packed_to_planar` and `try_convert_planar_to_packed`
-also pass borrowed, validated buffers directly to OCIO. Missing source alpha is
+also accept borrowed, validated buffers and may use a one-pixel tail fallback.
+A later failure can leave earlier output modified. Missing source alpha is
 interpreted according to the native library: zero in 2.4/2.5 and one in 2.6.
 
 The HMJ benchmark compares batch and per-pixel calls using the same native
@@ -81,8 +85,24 @@ cargo bench --features bundled,v2_6 --bench pipeline -- ocio_2_6_hmj
 Set `OCIO_SOURCE_DIR` to the 2.6.0 checkout before running this command.
 Config queries take reusable `&CStr` arguments without converting them in
 the bridge. Returned config text is owned because the native config can
-invalidate its strings. ID lookup returns an independent editable color
-space; alias authoring materializes the vector required by the C++ API.
+invalidate its strings. `find_color_space_for_id` returns an independent
+editable copy; `find_const_color_space_for_id` instead retains the native
+read-only shared object without a deep copy, with one ownership-handle
+allocation. The same read-only lookup is available on `ConstConfig` without
+first copying the config; `ConstConfig::generate_local_id_for_color_space`
+also calls the native const method directly, returning the generated owned text.
+OCIO's ID lookup searches names and aliases, not the `interop_id` attribute
+itself; it applies its namespace and config-specific local-ID fallback rules.
+Alias authoring materializes the vector required by the C++ API.
+Built-in matching also accepts a `ConfigRef` to editable or shared read-only
+configurations. It does not copy either config, so reused native objects retain
+their OCIO fingerprint caches.
+Read-only `ConstConfig` also exposes the 2.6 canonical display/view, alias,
+resolved color-space, display description and HDR compatibility queries.
+Display aliases follow the config's `use_display_aliases` setting; view aliases
+remain active independently. A `Baker` stores an editable config copy when
+configured, so an earlier `Baker::const_config` snapshot does not track later
+changes to the source config.
 `try_is_color_space_linear_cstr` preserves native missing-space errors instead
 of conflating them with a negative linearity result.
 Color-space and named-transform index queries also offer fallible `&CStr`
@@ -217,6 +237,12 @@ output changes, since OCIO's template-derived ID cannot describe dynamic policy.
 `PersistentPolicyCreator` keeps a Rust texture policy attached to the same
 native creator between calls. It detaches callbacks before releasing Rust state,
 requires explicit cache invalidation, and does not itself preflight LUT packing.
+`ShaderCacheIdPolicy` and `try_extract_with_cache_policy` optionally provide a
+dynamic native cache ID for one extraction. The callback is detached on return;
+outside that call the creator's fixed ID remains in effect. Errors and panics
+are returned to the caller, and the callback must not reenter the creator. It
+can borrow a `CStr` stored in the policy without a Rust-side string allocation;
+OCIO copies the ID for its native cache-key construction.
 Its optional persistent texture controller selects descriptor or external
 storage and can consume borrowed texels without a Rust-side copy. External
 resources created before an extraction error remain the caller's responsibility.

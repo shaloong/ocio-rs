@@ -33,15 +33,25 @@ pub(crate) unsafe fn write_to<W: Write + ?Sized>(
             } else {
                 unsafe { std::slice::from_raw_parts(data, len) }
             };
-            state.writer.write_all(bytes)
+            state
+                .writer
+                .write_all(bytes)
+                .map_err(|error| OcioError::Ocio(error.to_string()))
         }));
         match result {
             Ok(Ok(())) => true,
             Ok(Err(error)) => {
-                state.error = Some(OcioError::Ocio(error.to_string()));
+                state.error = Some(error);
                 false
             }
-            Err(_) => {
+            Err(payload) => {
+                // A panic payload is user-controlled and its destructor can
+                // itself panic. Never let that unwind through the C callback.
+                if let Err(second) =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(payload)))
+                {
+                    std::mem::forget(second);
+                }
                 state.error = Some(OcioError::Ocio(format!(
                     "{} output writer panicked",
                     state.label
