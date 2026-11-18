@@ -47,6 +47,18 @@ return value, and the borrowed slice may not outlive the callback.
 | SMPTE ST 2136-1 CLF | Existing file/group transform APIs and `metadata_id_element()` |
 | Updated built-in configs and transforms | Existing built-in registries; use the native identifiers |
 
+The 2.6 Config additions above have these direct paths:
+
+| Native operation | Rust path and result |
+| --- | --- |
+| `LocateBuiltinColorSpace` | `Config::locate_builtin_color_space[_ref]` and `ConstConfig::locate_builtin_color_space`; an empty native result becomes `None`. Both input configs can be retained without a deep copy. |
+| `findColorSpaceForID` | `find_const_color_space_for_id` retains the returned native shared object; editable `Config::find_color_space_for_id` creates an independent copy. A missing ID becomes `None`. |
+| `generateLocalIDForColorSpace` | `generate_local_id_for_color_space` copies the native result into owned Rust text; native errors remain errors. The bridge's temporary text must not be retained across later calls. |
+| `getNumDisplayViewAliases`, `getDisplayViewAlias`, `hasDisplayViewAlias` | Matching methods exist on editable and const configs. A missing or out-of-range alias yields native empty text, represented as `None`. |
+| `getUseDisplayAliases`, `setUseDisplayAliases` | `use_display_aliases` on both config handles and `set_use_display_aliases` on editable `Config`. |
+| `getCanonicalDisplayName`, `getCanonicalViewName`, `getResolvedDisplayViewColorSpaceName`, `getDisplayDescription` | Matching fallible methods on both config handles copy returned text while its native owner is alive. |
+| Alias-aware `addSharedView` and `addDisplayView` overloads | `add_shared_view_with_aliases` and `add_display_view_with_aliases` pass all view fields plus an alias vector; empty vectors and native alias collisions have behavior regressions. |
+
 The native enum inserts HMJ before the HSY variants. The bridge translates
 style values in both directions at the API boundary, not in the pixel loop.
 
