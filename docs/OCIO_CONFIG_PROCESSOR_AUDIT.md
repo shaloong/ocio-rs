@@ -62,6 +62,12 @@ exercises distinct context variables resolving LUTs. No new CI job is needed.
 Together these suites passed on Windows: 13 tests with native 2.4.1 and
 16 each with native 2.5.2 and 2.6.0.
 
+The raw editable-config transform overloads also preserve OCIO's error for a
+null transform or, on the explicitly contextual overload, a null context.
+Both editable and const transform-handle bridge paths have native 2.4.1 and
+2.6.0 regressions; passing an absent context to an overload that explicitly
+uses it as the default-context selector remains supported.
+
 ## Cache controls
 
 `getCacheID()` uses the config's current context. The explicit context

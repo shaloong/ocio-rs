@@ -4863,8 +4863,7 @@ void* ocio_config_get_processor_v10(void* handle, void* transform) {
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
-    auto transform_ptr = _transform_h->get_ocio_transform();
+    auto transform_ptr = transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : ocio::TransformRcPtr{};
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(transform_ptr);
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -4881,8 +4880,7 @@ void* ocio_config_get_processor_v11(void* handle, void* transform, int direction
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
-    auto transform_ptr = _transform_h->get_ocio_transform();
+    auto transform_ptr = transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : ocio::TransformRcPtr{};
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(transform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -4899,10 +4897,12 @@ void* ocio_config_get_processor_v12(void* handle, void* context, void* transform
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto* _context_h = static_cast<ocio_rs_bridge::ContextHandle*>(context);
-    auto context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(_context_h->inner)->context;
-    auto* _transform_h = static_cast<ocio_rs_bridge::TransformHandleBase*>(transform);
-    auto transform_ptr = _transform_h->get_ocio_transform();
+    ocio::ConstContextRcPtr context_ptr;
+    if (context) {
+      auto* context_handle = static_cast<ocio_rs_bridge::ContextHandle*>(context);
+      context_ptr = std::static_pointer_cast<ocio_rs_bridge::RealContext>(context_handle->inner)->context;
+    }
+    auto transform_ptr = transform ? static_cast<ocio_rs_bridge::TransformHandleBase*>(transform)->get_ocio_transform() : ocio::TransformRcPtr{};
     auto result = ocio_rs_bridge::get_real_config(handle)->getProcessor(context_ptr, transform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!result) return nullptr;
     auto out_handle = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
@@ -6840,8 +6840,9 @@ void* ocio_config_get_processor_const_transform_with_const_context(void* config,
   return ocio_rs_bridge::make_stub_processor().release();
 #else
   try {
-    auto processor = ocio_rs_bridge::get_real_config(config)->getProcessor(*static_cast<ocio::ConstContextRcPtr*>(context),
-      *static_cast<ocio::ConstTransformRcPtr*>(transform), static_cast<ocio::TransformDirection>(direction));
+    auto context_ptr = context ? *static_cast<ocio::ConstContextRcPtr*>(context) : ocio::ConstContextRcPtr{};
+    auto transform_ptr = transform ? *static_cast<ocio::ConstTransformRcPtr*>(transform) : ocio::ConstTransformRcPtr{};
+    auto processor = ocio_rs_bridge::get_real_config(config)->getProcessor(context_ptr, transform_ptr, static_cast<ocio::TransformDirection>(direction));
     if (!processor) return nullptr;
     auto out = std::make_unique<ocio_rs_bridge::ProcessorHandle>();
     out->inner = std::make_shared<ocio_rs_bridge::RealProcessor>(ocio_rs_bridge::RealProcessor{std::const_pointer_cast<ocio::Processor>(processor)});
@@ -6988,7 +6989,8 @@ void* ocio_config_get_processor_from_const_transform(void* config, void* context
 #else
   try {
     auto cfg = ocio_rs_bridge::get_real_config(config);
-    auto& t = *static_cast<ocio::ConstTransformRcPtr*>(transform);
+    const ocio::ConstTransformRcPtr empty_transform;
+    const auto& t = transform ? *static_cast<ocio::ConstTransformRcPtr*>(transform) : empty_transform;
     auto dir = static_cast<ocio::TransformDirection>(direction);
     auto processor = context ? cfg->getProcessor(ocio_rs_bridge::get_real_context(context), t, dir) : cfg->getProcessor(t, dir);
     if (!processor) return nullptr;

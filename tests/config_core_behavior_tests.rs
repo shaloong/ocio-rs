@@ -24,6 +24,41 @@ fn config_core_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_processor_transform_overloads_report_null_arguments() {
+    let _guard = config_core_test_lock();
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let config = sys::ocio_config_create_raw();
+        let context = sys::ocio_context_create();
+        let matrix = sys::ocio_matrix_transform_create();
+        assert!(!config.is_null() && !context.is_null() && !matrix.is_null());
+        let null = std::ptr::null_mut();
+        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 6] = [
+            Box::new(|| sys::ocio_config_get_processor_v10(config, null)),
+            Box::new(|| sys::ocio_config_get_processor_v11(config, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v12(config, context, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v12(config, null, matrix, 0)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_const_transform_with_const_context(
+                    config, null, null, 0,
+                )
+            }),
+            Box::new(|| sys::ocio_config_get_processor_from_const_transform(config, null, null, 0)),
+        ];
+        for call in calls {
+            sys::ocio_error_clear_last();
+            assert!(call().is_null());
+            assert!(!sys::ocio_error_get_last().is_null());
+        }
+        sys::ocio_error_clear_last();
+        sys::ocio_matrix_transform_destroy(matrix);
+        sys::ocio_context_destroy(context);
+        sys::ocio_config_destroy(config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn missing_canonical_and_color_space_index_return_none() {
     let _guard = config_core_test_lock();
     let config = Config::raw().unwrap();
