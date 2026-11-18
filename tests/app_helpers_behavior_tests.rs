@@ -117,6 +117,39 @@ fn ociom_raw_shared_parameters_update_the_merger() {
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn config_merging_section_strategies_are_independent_and_inherit_default() {
+    use ocio_rs::{ConfigMergingParameters as Params, MergeStrategy as Strategy};
+    type Setter = fn(&mut Params, Strategy) -> ocio_rs::Result<()>;
+    type Getter = fn(&Params) -> ocio_rs::Result<Strategy>;
+    let fields: [(Setter, Getter); 7] = [
+        (Params::set_roles, Params::roles),
+        (Params::set_file_rules, Params::file_rules),
+        (Params::set_display_views, Params::display_views),
+        (Params::set_view_transforms, Params::view_transforms),
+        (Params::set_looks, Params::looks),
+        (Params::set_color_spaces, Params::color_spaces),
+        (Params::set_named_transforms, Params::named_transforms),
+    ];
+    let mut options = Params::create().unwrap();
+    options.set_default_strategy(Strategy::PreferBase).unwrap();
+    for (index, (setter, getter)) in fields.iter().enumerate() {
+        setter(&mut options, Strategy::Remove).unwrap();
+        for (other_index, (_, other_getter)) in fields.iter().enumerate() {
+            let expected = if index == other_index {
+                Strategy::Remove
+            } else {
+                Strategy::PreferBase
+            };
+            assert_eq!(other_getter(&options).unwrap(), expected);
+        }
+        setter(&mut options, Strategy::Unspecified).unwrap();
+        assert_eq!(getter(&options).unwrap(), Strategy::PreferBase);
+    }
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     use ocio_rs::{ConfigMergingParameters, MergeStrategy};
     let base = Config::raw().unwrap().create_editable_copy().unwrap();

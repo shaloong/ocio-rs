@@ -25,3 +25,6 @@ Rust-defined subclasses or duplicate overload spellings are required.
 Windows native behavior suites passed on 2.4.1 (7 tests), 2.5.2 (10), and
 2.6.0 (10), including copy/retain semantics, lifetime after dropping parent
 handles, mutation through the shared low-level handle, and invalid indices.
+The seven per-section merge-strategy setter/getter pairs were also tested
+individually on native 2.5.1, 2.5.2 and 2.6.0: updating one leaves the
+others unchanged, and an unspecified section inherits the default strategy.
