@@ -12,6 +12,37 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use ocio_rs::ViewingRules;
 
 #[test]
+#[cfg(target_pointer_width = "32")]
+fn oversized_indices_are_rejected_before_native_narrowing() {
+    let rules = ViewingRules::create().unwrap();
+    let oversized = u64::from(u32::MAX) + 1;
+    assert!(matches!(
+        rules.try_remove_rule(oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_color_space(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_encoding(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_remove_color_space(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_remove_encoding(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_custom_key_name(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+}
+
+#[test]
 #[cfg(ocio_stub)]
 fn stub_rule_lookup_reports_unavailable() {
     let rules = ViewingRules::create().expect("viewing rules create");

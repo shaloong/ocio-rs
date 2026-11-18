@@ -163,8 +163,14 @@ accepts only an index. Viewing-rule insertion accepts `(index, name)`, and
 its color-space and encoding removals each take a rule and selector index.
 The editable methods retain `u64` compatibility and check conversion to native
 `size_t`; const queries take `usize`. Index lookup preserves native missing-name
-errors through the fallible APIs. These checks do not establish 32-bit runtime
-behavior, where the conversion guard is particularly relevant.
+errors through the fallible APIs. On Windows i686, the file- and viewing-rule
+oversized-index tests passed with the stub backend, exercising the 32-bit Rust
+conversion guards without a native OCIO library. This does not establish
+32-bit native runtime behavior.
+
+A separate one-off Windows i686 C++/Rust executable comparison matched size,
+alignment and field offsets for 11 FFI structs. This is target-specific layout
+evidence, not a native OCIO behavior test or a guarantee for other platforms.
 
 The vendored GPU generator now counts LUT rows using its interpolation stride
 of width minus one, fixing under-allocation without adding a second extraction.
