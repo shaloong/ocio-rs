@@ -45,6 +45,13 @@ as cheap name checks, not signature or behavior claims.
 | Known native boundary | Unpatched external OCIO can reject some GPU LUT layouts; the vendored patch and opt-in checked path are documented. Group removal is a Rust convenience with replacement semantics, not a missing C++ operation. |
 | Runtime and packaging | [Complete native matrix](https://github.com/shaloong/ocio-rs/actions/runs/44261686973) passed on `7ad100a`; [PR CI](https://github.com/shaloong/ocio-rs/actions/runs/44262749190) and [offline release audit](https://github.com/shaloong/ocio-rs/actions/runs/44263176004) passed on `0b1fa81`. The difference does not touch binding code. These are baseline results; verify the final candidate before releasing. |
 
+A focused scan of public, same-name member declarations found 54 overload
+families in 2.4.1, 58 in 2.5.2, and 59 in 2.6.0. It is a review aid, not a
+compiler-level inventory. The 2.6 additions to these families are the alias-aware
+shared-view and display-view writers. Ownership review also found that reading
+children of a retained const group formerly required copying the container;
+the [group audit](OCIO_GROUP_TRANSFORM_AUDIT.md) records the direct const path.
+
 Within the 53 selected classes, [the monitor and built-in registry
 audit](OCIO_REGISTRY_AUDIT.md) records the direct and raw paths for all three
 classes and the replacement for the removed default-config getter.

@@ -122,6 +122,37 @@ fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
     MatrixTransform::scale(&scale).expect("scale matrix")
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_group_child_retains_the_native_transform() {
+    let group = GroupTransform::create().unwrap();
+    group
+        .append_transform(&scale_matrix([2.0, 1.0, 1.0, 1.0]))
+        .unwrap();
+    let look = ocio_rs::Look::create().unwrap();
+    look.try_set_transform(&group).unwrap();
+    let retained_group = look.try_const_transform().unwrap().unwrap();
+    assert_eq!(retained_group.group_child_count().unwrap(), 1);
+    assert!(retained_group.group_child(-1).is_err());
+    assert!(retained_group.group_child(1).is_err());
+    let child = retained_group.group_child(0).unwrap().unwrap();
+    assert!(child.group_child_count().is_err());
+    assert!(child.group_child(0).is_err());
+    drop(retained_group);
+    drop(look);
+    drop(group);
+
+    let cpu = Config::raw()
+        .unwrap()
+        .processor_from_const_transform(&child, TransformDirection::Forward, None)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut pixel = [0.25, 0.5, 0.75, 1.0];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert_eq!(pixel, [0.5, 0.5, 0.75, 1.0]);
+}
+
 fn offset_matrix(offset: [f64; 4]) -> MatrixTransform {
     let matrix = MatrixTransform::identity().expect("identity matrix");
     matrix.set_offset(&offset).expect("set matrix offset");

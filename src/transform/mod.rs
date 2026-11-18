@@ -59,6 +59,23 @@ pub struct ConstTransform {
     pub(crate) handle: NonNull<c_void>,
 }
 impl ConstTransform {
+    /// Count children of a native group without copying it. A non-group
+    /// transform returns an error.
+    pub fn group_child_count(&self) -> crate::Result<i32> {
+        crate::clear_last_error();
+        let count =
+            unsafe { ocio_sys::ocio_const_transform_group_child_count(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Retain one native group child without copying the group or transform.
+    /// Invalid indices and non-group handles return errors. The returned
+    /// child can outlive the group.
+    pub fn group_child(&self, index: i32) -> crate::Result<Option<Self>> {
+        Self::from_parent(self.handle.as_ptr(), 12, index)
+    }
+
     /// Return OCIO's diagnostic representation, which may include file paths.
     /// This text is not a stable interchange format.
     pub fn diagnostic_text(&self) -> crate::Result<String> {

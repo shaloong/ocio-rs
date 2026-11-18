@@ -7,6 +7,7 @@ ownership and editing semantics, not every transform subclass.
 | Operation | Rust behavior | Ownership and limitation |
 | --- | --- | --- |
 | Append, prepend, index and replace | `append_transform`, `prepend_transform`, `try_transform`, `set_transform` | OCIO retains shared children. The binding rejects cycles before writes; acyclic DAG sharing is retained. |
+| Const child access and count | `ConstTransform::group_child`, `group_child_count` | These call the const group interface without copying the container. A returned child retains native shared ownership, independent of the group handle. |
 | Native `createEditableCopy` | `create_editable_copy` | Copies the group container and metadata, **not** child transforms. |
 | Independent graph copy | `create_deep_copy` | Copies each distinct built-in transform once, preserves sharing within the copied DAG, and rejects cycles/null children. Groups are reconstructed as native OCIO groups; external custom subclasses may have additional state or copy semantics. Explicit opt-in; no pixel-path cost. |
 | Remove and clear children | `remove_transform`, `clear_transforms` | OCIO has no public in-place removal; the binding rebuilds this wrapper's group. Existing native references keep the old group. This is an unresolved semantic difference, not in-place mutation. |

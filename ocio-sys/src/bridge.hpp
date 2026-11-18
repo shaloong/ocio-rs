@@ -74,6 +74,7 @@ void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t cou
 void* ocio_const_color_space_create_editable_copy(void* handle);
 void* ocio_const_color_space_copy_transform(void* handle, int direction);
 void* ocio_get_const_child_transform(void* parent, int parent_kind, int direction);
+int ocio_const_transform_group_child_count(void* handle);
 void ocio_const_transform_destroy(void* handle);
 int ocio_const_transform_get_type(void* handle);
 int ocio_const_transform_get_direction(void* handle);

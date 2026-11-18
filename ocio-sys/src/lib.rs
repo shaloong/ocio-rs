@@ -372,11 +372,15 @@ unsafe extern "C" {
         transform: *mut c_void,
         direction: i32,
     ) -> *mut c_void;
+    /// Parent kind 12 takes a bridge-owned const transform handle and a group
+    /// child index in the third argument. Release the result with
+    /// `ocio_const_transform_destroy`.
     pub fn ocio_get_const_child_transform(
         parent: *mut c_void,
         parent_kind: i32,
         direction: i32,
     ) -> *mut c_void;
+    pub fn ocio_const_transform_group_child_count(handle: *mut c_void) -> i32;
     pub fn ocio_const_transform_destroy(handle: *mut c_void);
     pub fn ocio_const_transform_get_type(handle: *mut c_void) -> i32;
     pub fn ocio_const_transform_get_direction(handle: *mut c_void) -> i32;

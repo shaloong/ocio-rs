@@ -6847,9 +6847,22 @@ void* ocio_config_get_processor_const_transform_with_const_context(void* config,
 #endif
 }
 
+#ifndef OCIO_RS_STUB
+static const ocio::GroupTransform& ocio_rs_const_group(void* handle) {
+  if (!handle) throw std::invalid_argument("null const transform");
+  const auto* group = dynamic_cast<const ocio::GroupTransform*>(
+      static_cast<const ocio::ConstTransformRcPtr*>(handle)->get());
+  if (!group) throw std::invalid_argument("expected a GroupTransform");
+  return *group;
+}
+#endif
+
 void* ocio_get_const_child_transform(void* parent, int parent_kind, int direction) {
 #ifdef OCIO_RS_STUB
-  (void)parent; (void)parent_kind; (void)direction; return nullptr;
+  (void)parent; (void)direction;
+  if (parent_kind == 12)
+    ocio_rs_bridge::capture_error_message("Group transform requires a native OpenColorIO backend");
+  return nullptr;
 #else
   try {
     ocio::ConstTransformRcPtr value;
@@ -6876,10 +6889,21 @@ void* ocio_get_const_child_transform(void* parent, int parent_kind, int directio
           throw std::invalid_argument("named transform has no forward or inverse transform");
         value = ocio::NamedTransform::GetTransform(nt, static_cast<ocio::TransformDirection>(direction)); break;
       }
+      case 12: value = ocio_rs_const_group(parent).getTransform(direction); break;
       default: throw std::invalid_argument("invalid transform parent kind");
     }
     return value ? new ocio::ConstTransformRcPtr(std::move(value)) : nullptr;
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+int ocio_const_transform_group_child_count(void* handle) {
+#ifdef OCIO_RS_STUB
+  (void)handle;
+  ocio_rs_bridge::capture_error_message("Group transform requires a native OpenColorIO backend");
+  return 0;
+#else
+  try { return ocio_rs_const_group(handle).getNumTransforms(); }
+  catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 void ocio_const_transform_destroy(void* handle) {
