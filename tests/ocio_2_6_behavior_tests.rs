@@ -308,6 +308,10 @@ fn display_color_space_alias_resolves_only_when_enabled() {
             .as_deref(),
         Some("Screen")
     );
+    assert_eq!(
+        after.display_description(c"old-screen").unwrap().as_deref(),
+        Some("Reference monitor")
+    );
     assert!(!before.use_display_aliases().unwrap());
     assert_ne!(
         before
