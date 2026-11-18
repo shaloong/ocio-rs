@@ -626,6 +626,50 @@ fn native_menu_filters_and_borrows_immutable_entries() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn menu_parameters_retain_const_configs_without_copying() {
+    let first = Config::raw().unwrap().create_editable_copy().unwrap();
+    let first_source = ColorSpaceMenuParameters::create(&first).unwrap();
+    let first_const = first_source.const_config().unwrap();
+    first.set_name("first shared config").unwrap();
+
+    let mut parameters = ColorSpaceMenuParameters::create_from_const(&first_const).unwrap();
+    assert_eq!(
+        parameters
+            .const_config()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first shared config")
+    );
+
+    let second = Config::raw().unwrap().create_editable_copy().unwrap();
+    let second_source = ColorSpaceMenuParameters::create(&second).unwrap();
+    let second_const = second_source.const_config().unwrap();
+    parameters.set_const_config(&second_const);
+    second.set_name("second shared config").unwrap();
+    drop(second_const);
+    drop(second_source);
+    drop(second);
+    assert_eq!(
+        parameters
+            .const_config()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("second shared config")
+    );
+    assert!(
+        ColorSpaceMenuHelper::create(&parameters)
+            .unwrap()
+            .num_color_spaces()
+            > 0
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn menu_configuration_is_an_editable_copy_and_invalid_entries_error() {
     let config = Config::raw().unwrap().create_editable_copy().unwrap();
     config.set_name("menu source").unwrap();

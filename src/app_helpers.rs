@@ -53,10 +53,31 @@ impl ColorSpaceMenuParameters {
         })
     }
 
+    /// Create options retaining a read-only config without copying it.
+    pub fn create_from_const(config: &ConstConfig) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_menu_parameters_create_from_const(config.handle.as_ptr())
+        };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
     /// Replace the retained configuration.
     pub fn set_config(&mut self, config: &Config) {
         unsafe {
             ocio_sys::ocio_color_space_menu_parameters_set_config(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+            )
+        }
+    }
+
+    /// Replace the retained configuration with a read-only shared config.
+    pub fn set_const_config(&mut self, config: &ConstConfig) {
+        unsafe {
+            ocio_sys::ocio_color_space_menu_parameters_set_const_config(
                 self.handle.as_ptr(),
                 config.handle.as_ptr(),
             )

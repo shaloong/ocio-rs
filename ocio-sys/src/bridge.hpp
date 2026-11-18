@@ -1712,12 +1712,14 @@ void ocio_config_add_display_view_with_aliases(void* handle, const char* display
 const char* ocio_metadata_id_element(void);
 
 void* ocio_color_space_menu_parameters_create(void* config);
+void* ocio_color_space_menu_parameters_create_from_const(void* config);
 /* kind: 0 menu parameters, 1 menu, 2 mixing manager, 3 slider,
  * 4 legacy viewing pipeline, 5 merging parameters (2.5+). The returned
  * thread-local string is invalidated by the next call on the same thread. */
 const char* ocio_app_helper_serialize(void* handle, int kind);
 void ocio_color_space_menu_parameters_destroy(void* handle);
 void ocio_color_space_menu_parameters_set_config(void* handle, void* config);
+void ocio_color_space_menu_parameters_set_const_config(void* handle, void* config);
 void* ocio_color_space_menu_parameters_get_config(void* handle);
 void* ocio_color_space_menu_parameters_get_const_config(void* handle);
 const char* ocio_color_space_menu_parameters_get_role(void* handle);

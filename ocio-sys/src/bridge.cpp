@@ -19263,6 +19263,19 @@ void* ocio_color_space_menu_parameters_create(void* config) {
 #endif
 }
 
+void* ocio_color_space_menu_parameters_create_from_const(void* config) {
+#ifdef OCIO_RS_STUB
+  (void)config;
+  ocio_rs_bridge::capture_error_message("Color-space menus require a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    return new MenuParameters(ocio::ColorSpaceMenuParameters::Create(
+        *static_cast<const ocio::ConstConfigRcPtr*>(config)));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_color_space_menu_parameters_destroy(void* handle) {
 #if defined(OCIO_RS_STUB)
   (void)handle;
@@ -19278,6 +19291,14 @@ void ocio_color_space_menu_parameters_set_config(void* handle, void* config) {
   return;
 #else
   menu_parameters(handle)->setConfig(ocio_rs_bridge::get_real_config(config));
+#endif
+}
+
+void ocio_color_space_menu_parameters_set_const_config(void* handle, void* config) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config;
+#else
+  menu_parameters(handle)->setConfig(*static_cast<const ocio::ConstConfigRcPtr*>(config));
 #endif
 }
 
