@@ -61,7 +61,7 @@ behavioral audit remains necessary before claiming full-library coverage.
 | GPU shader extraction | Wrapped, with bundled runtime coverage for shader text, uniforms, textures, descriptor configuration, descriptor-side dynamic-property access, manual shader assembly, manual texture/uniform insertion, and real-config extraction validation |
 | Dynamic properties | Wrapped, with bundled runtime coverage for processor/CPU semantics plus GPU-descriptor property enumeration and mutation |
 | Error propagation | Strong but still expanding — fallible safe APIs preserve C++ exceptions for mutators and audited getters; legacy low-level compatibility endpoints may retain default-return semantics |
-| docs.rs documentation | Built in stub mode with `v2_5` and feature annotations; missing-doc enforcement is not a release gate |
+| docs.rs documentation | Built in stub mode with `v2_6` and feature annotations; missing-doc enforcement is not a release gate |
 | Send/Sync | Dynamic processor and shader handles are thread-confined; validated non-dynamic CPU processors may be shared across threads |
 | CI stub validation | Linux / macOS / Windows matrix for `--no-default-features` tests |
 | CI real-OCIO validation | Automatic Fedora system backend, PR OpenColorIO 2.6 and Arch/zlib-ng bundled backends, weekly/manual bundled matrix and exact minima; manual release audit |
@@ -93,7 +93,7 @@ runs in each release PR. See [RELEASING.md](docs/RELEASING.md) for the full flow
 - Run `cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1`.
 - `cargo clippy --workspace --all-targets --no-default-features -- -D warnings`
   and the same command with `--features v2_5` must pass.
-- Build docs with warnings denied, both without and with `v2_5`.
+- Build docs with warnings denied, both without and with `v2_6`.
 - Package both crates together with `cargo package --workspace`; Cargo stages
   the matching local `ocio-sys` package for verification before publication.
 - Build the extracted `ocio-sys` package offline with both `bundled` and

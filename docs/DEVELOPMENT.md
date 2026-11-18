@@ -114,7 +114,7 @@ The native Adapter is deterministic. With no backend feature, `cargo build`
 preserves the historical stub default. `system` requires an installed native
 library; `bundled` adds the source-build Adapter and takes precedence when
 Cargo unifies it with `system`. A real-backend resolution failure is fatal and
-may not silently become a stub. docs.rs enables only the `v2_5` Interface, so
+may not silently become a stub. docs.rs enables only the `v2_6` Interface, so
 its native Adapter remains stub.
 
 `OCIO_RS_ENABLE_REAL=0/1` remains as a legacy adapter. Invalid values and
@@ -178,7 +178,7 @@ Upgrade workflow: update submodule → run generator → fix compile errors → 
 ### Version-gated API
 
 API added by OCIO minors newer than the 2.4.1 baseline is exposed behind
-additive `vX_Y` cargo features (currently `v2_5`). Each API item is gated in
+additive `vX_Y` cargo features (currently `v2_5` and `v2_6`). Each API item is gated in
 every layer with the same marker:
 
 1. `build_support/compatibility.rs` owns the minimum versions and generates
