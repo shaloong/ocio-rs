@@ -36,6 +36,16 @@ fn configured_linear_grading_primary_transform() -> GradingPrimaryTransform {
 }
 
 #[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn grading_primary_value_constructor_matches_native_defaults() {
+    let _guard = grading_primary_transform_test_lock();
+    for style in [GradingStyle::Log, GradingStyle::Lin, GradingStyle::Video] {
+        let native = GradingPrimaryTransform::create(style).unwrap().value();
+        assert_eq!(GradingPrimary::new(style), native, "{style:?}");
+    }
+}
+
+#[test]
 fn grading_primary_value_validation_does_not_require_a_transform() {
     let style = GradingStyle::Log;
     let mut value = GradingPrimary::new(style);
