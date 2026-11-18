@@ -118,9 +118,8 @@ fn bench_ocio_2_6(c: &mut Criterion) {
             b.iter_batched_ref(
                 || input.clone(),
                 |pixels| {
-                    for pixel in pixels.chunks_exact_mut(4) {
-                        cpu.try_apply_rgba(black_box(pixel.try_into().unwrap()))
-                            .unwrap();
+                    for pixel in pixels.as_chunks_mut::<4>().0 {
+                        cpu.try_apply_rgba(black_box(pixel)).unwrap();
                     }
                 },
                 criterion::BatchSize::SmallInput,
