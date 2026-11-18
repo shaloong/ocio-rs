@@ -19801,6 +19801,56 @@ void ocio_legacy_viewing_pipeline_destroy(void* handle) {
 #endif
 }
 
+void* ocio_legacy_viewing_pipeline_get_const_stage(void* handle, int stage) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)stage;
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+  return nullptr;
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null legacy viewing pipeline");
+    const auto& pipeline = viewing_pipeline(handle);
+    ocio::ConstTransformRcPtr value;
+    switch (stage) {
+      case 0: value = pipeline->getDisplayViewTransform(); break;
+      case 1: value = pipeline->getLinearCC(); break;
+      case 2: value = pipeline->getColorTimingCC(); break;
+      case 3: value = pipeline->getChannelView(); break;
+      case 4: value = pipeline->getDisplayCC(); break;
+      default: throw std::invalid_argument("invalid legacy viewing stage");
+    }
+    return value ? new ocio::ConstTransformRcPtr(std::move(value)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_legacy_viewing_pipeline_set_const_stage(void* handle, int stage, const void* transform) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)stage; (void)transform;
+  ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");
+#else
+  try {
+    if (!handle) throw std::invalid_argument("null legacy viewing pipeline");
+    const auto& pipeline = viewing_pipeline(handle);
+    const ocio::ConstTransformRcPtr empty;
+    const auto& value = transform ? *static_cast<const ocio::ConstTransformRcPtr*>(transform) : empty;
+    switch (stage) {
+      case 0: {
+        auto display = std::dynamic_pointer_cast<const ocio::DisplayViewTransform>(value);
+        if (value && !display) throw std::invalid_argument("expected a display-view transform");
+        pipeline->setDisplayViewTransform(display);
+        break;
+      }
+      case 1: pipeline->setLinearCC(value); break;
+      case 2: pipeline->setColorTimingCC(value); break;
+      case 3: pipeline->setChannelView(value); break;
+      case 4: pipeline->setDisplayCC(value); break;
+      default: throw std::invalid_argument("invalid legacy viewing stage");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void* ocio_legacy_viewing_pipeline_get_display_view_transform(void* handle) {
 #ifdef OCIO_RS_STUB
   (void)handle;

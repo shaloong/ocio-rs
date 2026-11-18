@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::transform::{
-    transform_from_raw_handle, DisplayViewTransform, Transform, TransformHandle,
+    transform_from_raw_handle, ConstTransform, DisplayViewTransform, Transform, TransformHandle,
 };
 use crate::Context;
 use crate::{Config, ConstConfig, Processor, Result, SearchReferenceSpaceType, TransformDirection};
@@ -705,7 +705,54 @@ pub struct LegacyViewingPipeline {
     handle: NonNull<c_void>,
 }
 
+/// Transform slots exposed by the native legacy viewing pipeline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum LegacyViewingStage {
+    DisplayView = 0,
+    LinearCorrection = 1,
+    ColorTimingCorrection = 2,
+    ChannelView = 3,
+    DisplayCorrection = 4,
+}
+
 impl LegacyViewingPipeline {
+    /// Retain the native stage without creating an editable copy. The handle
+    /// remains usable after the stage is replaced or the pipeline is dropped.
+    /// The display stage reflects the state stored by OCIO, including its
+    /// internal looks-bypass setting, not the original caller-supplied state.
+    pub fn const_stage(&self, stage: LegacyViewingStage) -> Result<Option<ConstTransform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_get_const_stage(
+                self.handle.as_ptr(),
+                stage as i32,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConstTransform { handle }))
+    }
+
+    /// Pass a retained transform directly to OCIO, which makes its own copy.
+    /// `None` clears the stage. `DisplayView` accepts only a display-view transform.
+    pub fn set_const_stage(
+        &mut self,
+        stage: LegacyViewingStage,
+        transform: Option<&ConstTransform>,
+    ) -> Result<()> {
+        let transform =
+            transform.map_or(std::ptr::null(), |value| value.handle.as_ptr().cast_const());
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_legacy_viewing_pipeline_set_const_stage(
+                self.handle.as_ptr(),
+                stage as i32,
+                transform,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Serialize using OCIO's diagnostic stream operator.
     pub fn serialize(&self) -> Result<String> {
         serialize_app_helper(self.handle, 4)

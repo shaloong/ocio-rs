@@ -233,6 +233,7 @@ fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
     use ocio_rs::transform::{DisplayViewTransform, MatrixTransform, Transform};
+    use ocio_rs::LegacyViewingStage;
     use ocio_rs::{Context, LegacyViewingPipeline};
     let config = Config::from_stream(
         "ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\n\
@@ -248,6 +249,10 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
     display.set_display("Monitor").unwrap();
     display.set_view("Raw").unwrap();
     pipeline.set_display_view_transform(Some(&display));
+    let retained_display = pipeline
+        .const_stage(LegacyViewingStage::DisplayView)
+        .unwrap()
+        .unwrap();
     assert!(pipeline
         .serialize()
         .unwrap()
@@ -267,6 +272,17 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
     pipeline.set_linear_cc(Some(&stage));
     pipeline.set_color_timing_cc(Some(&stage));
     pipeline.set_channel_view(Some(&stage));
+    let retained_correction = pipeline
+        .const_stage(LegacyViewingStage::DisplayCorrection)
+        .unwrap()
+        .unwrap();
+    assert!(pipeline
+        .set_const_stage(LegacyViewingStage::DisplayView, Some(&retained_correction))
+        .is_err());
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::DisplayView)
+        .unwrap()
+        .is_some());
     drop(stage);
     assert!(matches!(
         pipeline.display_cc().unwrap(),
@@ -308,6 +324,39 @@ fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
             .unwrap();
         assert_eq!(rgba, [0.5, 0.5, 0.375, 1.0]);
     }
+    drop(pipeline);
+
+    let mut pipeline = LegacyViewingPipeline::create().unwrap();
+    pipeline
+        .set_const_stage(LegacyViewingStage::DisplayView, Some(&retained_display))
+        .unwrap();
+    pipeline
+        .set_const_stage(
+            LegacyViewingStage::DisplayCorrection,
+            Some(&retained_correction),
+        )
+        .unwrap();
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::LinearCorrection)
+        .unwrap()
+        .is_none());
+    let mut rgba = [0.25, 0.5, 0.75, 1.0];
+    pipeline
+        .processor(&config)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap()
+        .try_apply_rgba(&mut rgba)
+        .unwrap();
+    assert_eq!(rgba, [0.5, 0.5, 0.375, 1.0]);
+    pipeline
+        .set_const_stage(LegacyViewingStage::DisplayCorrection, None)
+        .unwrap();
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::DisplayCorrection)
+        .unwrap()
+        .is_none());
+    retained_correction.validate().unwrap();
 }
 
 #[test]

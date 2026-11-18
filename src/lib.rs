@@ -93,7 +93,7 @@ pub use system_monitors::SystemMonitors;
 mod baker;
 pub use app_helpers::{
     ColorSpaceMenuHelper, ColorSpaceMenuParameters, DisplayViewFromFile, LegacyViewingPipeline,
-    MixingColorSpaceManager, MixingSlider,
+    LegacyViewingStage, MixingColorSpaceManager, MixingSlider,
 };
 mod builtin_config_registry;
 mod builtin_transform_registry;

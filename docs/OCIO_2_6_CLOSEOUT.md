@@ -60,7 +60,7 @@ classes, including the look-result operation missed by name-only checking.
 value classes and the two curve transform classes, including full-width slope
 access in `ocio-sys` and direct forwarding of retained values.
 
-On this worktree, the checker unit tests (7) passed. L1 matched all 1,570
+At the time of the core transform audit, the checker unit tests (7) passed. L1 matched all 1,570
 bridge declaration names; L2 matched all 1,372 checked wrappers; selected
 L3 name matches were 865/865 (2.4.1), 1,005/1,005 (2.5.2), and
 1,013/1,013 (2.6.0). The explicit cache-ID entry is counted through the

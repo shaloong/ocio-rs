@@ -1777,6 +1777,8 @@ float ocio_mixing_slider_mixing_to_slider(void* handle, float value);
 
 void* ocio_legacy_viewing_pipeline_create(void);
 void ocio_legacy_viewing_pipeline_destroy(void* handle);
+void* ocio_legacy_viewing_pipeline_get_const_stage(void* handle, int stage);
+void ocio_legacy_viewing_pipeline_set_const_stage(void* handle, int stage, const void* transform);
 void* ocio_legacy_viewing_pipeline_get_display_view_transform(void* handle);
 void ocio_legacy_viewing_pipeline_set_display_view_transform(void* handle, void* transform);
 void* ocio_legacy_viewing_pipeline_get_linear_cc(void* handle);

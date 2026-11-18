@@ -175,6 +175,15 @@ unsafe extern "C" {
     pub fn ocio_mixing_slider_mixing_to_slider(handle: *mut c_void, value: f32) -> f32;
     pub fn ocio_legacy_viewing_pipeline_create() -> *mut c_void;
     pub fn ocio_legacy_viewing_pipeline_destroy(handle: *mut c_void);
+    pub fn ocio_legacy_viewing_pipeline_get_const_stage(
+        handle: *mut c_void,
+        stage: i32,
+    ) -> *mut c_void;
+    pub fn ocio_legacy_viewing_pipeline_set_const_stage(
+        handle: *mut c_void,
+        stage: i32,
+        transform: *const c_void,
+    );
     pub fn ocio_legacy_viewing_pipeline_get_display_view_transform(
         handle: *mut c_void,
     ) -> *mut c_void;
