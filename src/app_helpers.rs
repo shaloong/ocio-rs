@@ -949,7 +949,7 @@ impl LegacyViewingPipeline {
     ) -> Result<Processor> {
         crate::clear_last_error();
         let handle = unsafe {
-            ocio_sys::ocio_legacy_viewing_pipeline_get_processor_const(
+            ocio_sys::ocio_legacy_viewing_pipeline_get_processor_with_const_config(
                 self.handle.as_ptr(),
                 config.handle.as_ptr(),
                 context.map_or(std::ptr::null(), |ctx| ctx.handle.as_ptr().cast_const()),

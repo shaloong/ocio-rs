@@ -20047,7 +20047,7 @@ void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void
 #endif
 }
 
-void* ocio_legacy_viewing_pipeline_get_processor_const(void* handle, const void* config, const void* context) {
+void* ocio_legacy_viewing_pipeline_get_processor_with_const_config(void* handle, const void* config, const void* context) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)config; (void)context;
   ocio_rs_bridge::capture_error_message("Legacy viewing requires a native OpenColorIO backend");

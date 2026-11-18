@@ -224,7 +224,7 @@ unsafe extern "C" {
         config: *mut c_void,
         context: *mut c_void,
     ) -> *mut c_void;
-    pub fn ocio_legacy_viewing_pipeline_get_processor_const(
+    pub fn ocio_legacy_viewing_pipeline_get_processor_with_const_config(
         handle: *mut c_void,
         config: *const c_void,
         context: *const c_void,
