@@ -13,6 +13,38 @@ and 2.6.0 public headers. This does not cover the rest of the config API.
 | Eight static two-config overloads | `Config` exposes explicit methods. `ConstConfig::processor_to_config` combines a typed color-space or display/view target, optional context pair, and optional interchange pair. Omitted contexts use each config's own context, as in the native convenience overloads. |
 | Two static built-in color-space helpers | Both config types support conversion to and from the default built-in config, retaining native interchange selection. |
 
+## Individual instance overloads
+
+The 2.6 header declares thirteen instance `getProcessor` signatures. The
+following lists their argument shapes explicitly, using `ConstConfig` as the
+read-only path. `None` means call the no-context native overload, not a null
+native context. The corresponding editable `Config` methods are listed in
+the table above.
+
+| Native arguments (excluding `this`) | `ConstConfig` call |
+| --- | --- |
+| `(source space object, destination space object)` | `processor_from_const_color_spaces(source, destination, None)` |
+| `(context, source space object, destination space object)` | Same method with `Some(context)` |
+| `(source name, destination name)` | `processor(source, destination)` |
+| `(context, source name, destination name)` | `processor_with_const_context(source, destination, context)` |
+| `(source name, display, view, direction)` | `processor_display(..., None)` |
+| `(context, source name, display, view, direction)` | `processor_display(..., Some(context))` |
+| `(named-transform object, direction)` | `processor_from_const_named_transform(..., None)` |
+| `(context, named-transform object, direction)` | `processor_from_const_named_transform(..., Some(context))` |
+| `(named-transform name, direction)` | `processor_named_transform(..., None)` |
+| `(context, named-transform name, direction)` | `processor_named_transform(..., Some(context))` |
+| `(transform)` | `processor_from_const_transform_default_direction(transform)` |
+| `(transform, direction)` | `processor_from_const_transform(transform, direction, None)` |
+| `(context, transform, direction)` | `processor_from_const_transform(transform, direction, Some(context))` |
+
+For the eight static two-config signatures, `processor_to_config` combines
+the independent choices of a color-space versus display/view target, an
+optional pair of contexts, and an optional pair of interchange names. Both
+context pointers and both interchange names are supplied together, as in the
+native signatures; display direction is retained only for a display/view
+target. Its bridge dispatches to the matching full native overload, obtaining
+each config's current context when the context pair is omitted.
+
 Two read-only configs are passed directly to OCIO. For static pipelines,
 the method does not copy configuration data and leaves the component
 processor caches to OCIO. For dynamic pipelines, it follows the existing
