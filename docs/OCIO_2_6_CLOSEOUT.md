@@ -52,6 +52,19 @@ shared-view and display-view writers. Ownership review also found that reading
 children of a retained const group formerly required copying the container;
 the [group audit](OCIO_GROUP_TRANSFORM_AUDIT.md) records the direct const path.
 
+The public static entry points in the 2.6 `Config`, transform, and application
+helper class declarations were also inventoried separately. Their factories,
+registries, processor construction, CDL file loading, look resolution, format
+enumeration, curve constructors, and matrix operations are covered by the
+linked class audits. `MatrixTransform::Identity` writes directly to caller
+arrays through `ocio-sys`; the existing typed `identity` factory instead
+constructs a transform. `ConfigMerger::from_file` makes an editable native copy
+of the read-only result returned by OCIO; it is a configuration-time copy,
+not a zero-copy read-only merger handle. Constructors that are deleted,
+protected, or exposed only for native destruction are not callable factories.
+This static scan does not establish coverage of every instance signature or
+behavior.
+
 Within the 53 selected classes, [the monitor and built-in registry
 audit](OCIO_REGISTRY_AUDIT.md) records the direct and raw paths for all three
 classes and the replacement for the removed default-config getter.
