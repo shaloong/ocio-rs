@@ -230,7 +230,8 @@ impl Look {
         crate::colorspace::interchange_attributes_snapshot(self.handle.as_ptr(), false, Some(0))
     }
 
-    /// Get an independent editable copy of the forward transform.
+    /// Get an editable copy of the forward transform. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self) -> Option<Transform> {
         self.try_transform().ok().flatten()
     }
@@ -279,7 +280,8 @@ impl Look {
         crate::ocio_call_status()
     }
 
-    /// Get an independent editable copy of the inverse transform.
+    /// Get an editable copy of the inverse transform. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn inverse_transform(&self) -> Option<Transform> {
         self.try_inverse_transform().ok().flatten()
     }

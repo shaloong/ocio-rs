@@ -311,7 +311,8 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
-    /// Get an independent editable copy of the transform for the given direction.
+    /// Get an editable copy for the given direction. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
@@ -350,7 +351,7 @@ impl NamedTransform {
     }
 
     /// Set a shared read-only transform or clear the selected direction.
-    /// OCIO stores an independent copy of a supplied transform.
+    /// OCIO stores an editable copy. A copied group still shares its children.
     pub fn try_set_const_transform(
         &self,
         transform: Option<&crate::transform::ConstTransform>,

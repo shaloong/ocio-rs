@@ -793,7 +793,7 @@ impl LegacyViewingPipeline {
         }
     }
 
-    /// Return an independent editable copy, if this stage is set.
+    /// Return an editable copy, if this stage is set. A copied group still shares its children.
     pub fn linear_cc(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle =
@@ -810,7 +810,7 @@ impl LegacyViewingPipeline {
         }
     }
 
-    /// Return an independent editable copy, if this stage is set.
+    /// Return an editable copy, if this stage is set. A copied group still shares its children.
     pub fn color_timing_cc(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -831,7 +831,7 @@ impl LegacyViewingPipeline {
         }
     }
 
-    /// Return an independent editable copy, if this stage is set.
+    /// Return an editable copy, if this stage is set. A copied group still shares its children.
     pub fn channel_view(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -849,7 +849,7 @@ impl LegacyViewingPipeline {
         }
     }
 
-    /// Return an independent editable copy, if this stage is set.
+    /// Return an editable copy, if this stage is set. A copied group still shares its children.
     pub fn display_cc(&self) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle =

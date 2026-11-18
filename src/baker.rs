@@ -22,7 +22,8 @@ impl Baker {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an editable deep copy of this baker.
+    /// Create an editable copy of this baker. OCIO copies the settings and
+    /// metadata but retains the same native configuration.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_baker_create_editable_copy(self.handle.as_ptr()) };

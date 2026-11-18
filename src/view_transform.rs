@@ -345,7 +345,8 @@ impl ViewTransform {
         }
     }
 
-    /// Get an independent editable copy for the given direction.
+    /// Get an editable copy for the given direction. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: ViewTransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
@@ -407,7 +408,8 @@ impl ViewTransform {
         crate::ocio_call_status()
     }
 
-    /// Create an editable deep copy of this view transform.
+    /// Create an editable copy using OCIO's native copy semantics. A group
+    /// transform in the copy may still share its children with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =

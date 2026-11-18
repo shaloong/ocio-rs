@@ -276,6 +276,25 @@ fn group_deep_copy_is_independent_and_preserves_internal_sharing() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn group_children_remain_shared_through_look_transform_copies() {
+    let _guard = group_transform_test_lock();
+    let leaf = scale_matrix([2.0, 1.0, 1.0, 1.0]);
+    let group = GroupTransform::create().unwrap();
+    group.append_transform(&leaf).unwrap();
+    let look = ocio_rs::Look::create().unwrap();
+    look.try_set_transform(&group).unwrap();
+    let Some(Transform::Group(retrieved)) = look.try_transform().unwrap() else {
+        panic!("group expected")
+    };
+    leaf.set_offset(&[0.25, 0.0, 0.0, 0.0]).unwrap();
+    let Some(Transform::Matrix(retrieved_leaf)) = retrieved.try_transform(0).unwrap() else {
+        panic!("matrix expected")
+    };
+    assert_eq!(retrieved_leaf.offset()[0], 0.25);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn group_transform_order_copy_and_mutation_behavior() {
     let _guard = group_transform_test_lock();
     if is_stub() {

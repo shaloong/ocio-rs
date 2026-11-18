@@ -11,7 +11,7 @@ It does not establish full behavioral, platform, or performance coverage.
 | `getInterchangeAttribute`, `setInterchangeAttribute`, `getInterchangeAttributes` | Editable and const access under `v2_5`; map reads are snapshots. Native 2.4.1 lacks these signatures; both 2.5.2 and 2.6.0 contain them. |
 | `hasCategory`, `addCategory`, `removeCategory`, `getNumCategories`, `getCategory`, `clearCategories` | Editable membership, mutation, fallible count and indexed read; const membership and indexed borrowed reads. Native indexed out-of-range values are null in the tested implementations. |
 | `getReferenceSpaceType() noexcept` | Editable `reference_space_type` and const reference-space query. |
-| `getTransform(ViewTransformDirection) -> ConstTransformRcPtr` | `try_const_transform` preserves shared native ownership; editable `try_transform` returns an independent editable copy. |
+| `getTransform(ViewTransformDirection) -> ConstTransformRcPtr` | `try_const_transform` preserves shared native ownership; `try_transform` returns a native editable copy. A copied group still shares its children. |
 | `setTransform(ConstTransformRcPtr, ViewTransformDirection)` | Editable and const-handle setters allow clearing with `None`. Native setters copy a non-null input in the inspected implementations. |
 | Stream insertion | `serialize` produces diagnostic text, not a stable interchange format. |
 

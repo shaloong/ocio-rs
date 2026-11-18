@@ -13,8 +13,9 @@
 //! - **Direction**: Every transform that supports forward/inverse evaluation
 //!   provides `direction()` / `try_set_direction()`. Import [`TransformHandle`]
 //!   for the shared fallible `try_direction()` query on editable transforms.
-//! - **Editable copy**: [`create_editable_copy`](std::result::Result) returns
-//!   an independent deep copy that can be mutated without affecting the original.
+//! - **Editable copy**: Native copy semantics apply. In particular, copying a
+//!   [`GroupTransform`] copies its container but keeps its children shared;
+//!   use [`GroupTransform::create_deep_copy`] for an independent built-in graph.
 
 mod allocation;
 mod builtin;
@@ -115,7 +116,9 @@ impl ConstTransform {
         crate::ocio_call_status()
     }
 
-    /// Create an independently editable transform.
+    /// Create an editable copy using the concrete transform's native semantics.
+    /// A copied group shares its children with the original. For an independent
+    /// built-in group graph, use [`GroupTransform::create_deep_copy`].
     pub fn create_editable_copy(&self) -> crate::Result<Transform> {
         crate::clear_last_error();
         let handle =
@@ -298,7 +301,9 @@ pub trait TransformHandle: sealed::Sealed {
         crate::ocio_call_status()
     }
 
-    /// Create an independent native copy, preserving the concrete transform type.
+    /// Create a native editable copy, preserving the concrete transform type.
+    /// A copied group shares its children with the original. For an independent
+    /// built-in group graph, use [`GroupTransform::create_deep_copy`].
     fn try_create_editable_copy(&self) -> crate::Result<Transform> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.as_ptr()) };

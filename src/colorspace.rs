@@ -110,7 +110,8 @@ impl ConstColorSpace {
     ) -> Result<Option<crate::transform::ConstTransform>> {
         crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 1, direction as i32)
     }
-    /// Copy the native transform in `direction` into an independent editable transform.
+    /// Copy the native transform in `direction` using OCIO's editable-copy semantics.
+    /// A copied group still shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn copy_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -632,7 +633,8 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
-    /// Get an independent editable copy of the transform for the given direction.
+    /// Get an editable copy of the transform for the given direction.
+    /// A copied group still shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
@@ -674,7 +676,7 @@ impl ColorSpace {
     }
 
     /// Set a shared read-only transform in `direction`.
-    /// OCIO stores an independent copy of the supplied transform.
+    /// OCIO stores an editable copy. A copied group still shares its children.
     pub fn try_set_const_transform(
         &self,
         transform: &crate::transform::ConstTransform,
