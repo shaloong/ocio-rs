@@ -334,8 +334,14 @@ pub unsafe fn current_config() -> Option<Config> {
 /// other libraries, from accessing any config that may be current or mutating
 /// objects retained by it. OCIO const operations such as cache-ID queries can
 /// mutate lazy caches. Concurrent snapshot calls from this crate are permitted
-/// when this condition holds. The returned snapshot can be used normally after
-/// this call.
+/// when this condition holds.
+///
+/// OCIO copies can retain external objects, such as a native config IO proxy or
+/// state owned by a custom transform. For as long as the snapshot, any object
+/// derived from it, or a config subsequently installed from it may use such
+/// objects, the caller must ensure those objects support concurrent use or
+/// coordinate all other native access. Rust-managed [`ConfigIOProxy`] providers
+/// are required to be thread-safe.
 ///
 /// ```compile_fail
 /// let _ = ocio_rs::try_current_config(); // Requires explicit synchronization.
@@ -374,7 +380,7 @@ pub unsafe fn try_const_current_config() -> Result<Option<ConstConfig>> {
 ///
 /// # Safety
 /// The caller must serialize all access to the retained native config and its
-/// aliases with all other OCIO users of that config, including calls through
+/// aliases and to any shared native objects with all other OCIO users, including
 /// global snapshot getters, for the lifetime of this handle and derived handles.
 /// OCIO may mutate lazy caches even for const operations; copying it while a
 /// different thread uses those caches can also race.

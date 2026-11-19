@@ -225,7 +225,11 @@ the application must prevent independent native code from accessing a config
 that may be current or mutating objects retained by it; a Rust-only lock cannot
 synchronize independent C++ users.
 Coordinate global cache-flag read/modify/write operations with other global
-writes as well. Once obtained, a snapshot can be used normally.
+writes as well. OCIO may retain external IO proxies or custom-transform state
+in a snapshot; throughout the lifetime of the snapshot and derived objects,
+including any config installed from it, the caller must ensure those external
+objects support concurrent use or synchronize access to them. Rust-managed IO
+providers already require `Send + Sync`.
 
 Global snapshot getters and safe setters detach mutable group-transform
 children. For shared-global semantics without a snapshot copy,
