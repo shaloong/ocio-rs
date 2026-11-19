@@ -31,3 +31,13 @@ and const/editable metadata. The strengthened native behavior tests use distinct
 values for every field and channel, including the optional slope, and passed
 with 2.4.1, 2.5.2, and 2.6.0. This verifies those specific mappings, not all
 possible processor or numerical behavior.
+
+The remaining individual 2.6 declarations were also checked. `LogTransform`
+has a factory, base get/set, equality, both metadata overloads and the common
+base-transform operations. `RangeTransform` has a factory, style and file
+input/output bit-depth pairs, both metadata overloads, equality, and separate
+get/set/has/unset operations for each of min-in, max-in, min-out and max-out.
+Each maps to its corresponding typed native call; the presence methods are
+not inferred from the numeric values. Deleted copy operations, protected
+constructors and native destructors do not need extra Rust callables. This
+declaration check does not prove every numeric edge case.
