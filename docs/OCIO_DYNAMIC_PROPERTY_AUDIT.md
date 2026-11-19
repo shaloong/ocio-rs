@@ -31,6 +31,9 @@ then makes the source transform dynamic and checks that the already-built CPU
 processor remains static and cannot expose the exposure property. It passed
 with native 2.4.1, 2.5.2 and 2.6.0 on Windows. This tests those representative
 processors, not arbitrary external native mutation or every possible pipeline.
+A separate check creates a processor for each supported dynamic property kind
+and verifies that it is reported dynamic, exposes the requested property and
+is rejected by `try_into_static`; it passed on the same three native versions.
 
 The 2.4.1, 2.5.0, 2.5.2 and 2.6.0 headers contain the double, primary,
 RGB-curve and tone conversions. Hue-curve conversion is absent in 2.4.1 and

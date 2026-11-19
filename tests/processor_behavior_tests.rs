@@ -217,6 +217,61 @@ fn static_cpu_processor_is_shareable_and_dynamic_processors_are_rejected() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn static_cpu_rejects_each_dynamic_property_kind() {
+    use ocio_rs::transform::{
+        ExposureContrastTransform, GradingPrimaryTransform, GradingRGBCurveTransform,
+        GradingToneTransform, TransformHandle,
+    };
+    use ocio_rs::{Config, DynamicPropertyType as Kind, GradingStyle};
+
+    fn check(config: &Config, transform: &impl TransformHandle, kind: Kind) {
+        let cpu = config
+            .processor_from_transform(transform, TransformDirection::Forward)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        assert!(cpu.try_is_dynamic().unwrap(), "{kind:?}");
+        assert!(cpu.try_has_dynamic_property_kind(kind).unwrap(), "{kind:?}");
+        assert!(cpu.dynamic_property(kind).is_ok(), "{kind:?}");
+        assert!(cpu.try_into_static().is_err(), "{kind:?}");
+    }
+
+    let _guard = processor_behavior_test_lock();
+    let config = Config::raw().unwrap();
+    for (kind, make_dynamic) in [
+        (
+            Kind::Exposure,
+            ExposureContrastTransform::make_exposure_dynamic as fn(&ExposureContrastTransform),
+        ),
+        (
+            Kind::Contrast,
+            ExposureContrastTransform::make_contrast_dynamic,
+        ),
+        (Kind::Gamma, ExposureContrastTransform::make_gamma_dynamic),
+    ] {
+        let transform = ExposureContrastTransform::create().unwrap();
+        make_dynamic(&transform);
+        check(&config, &transform, kind);
+    }
+    let primary = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
+    primary.make_dynamic();
+    check(&config, &primary, Kind::GradingPrimary);
+    let rgb = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
+    rgb.make_dynamic();
+    check(&config, &rgb, Kind::GradingRgbCurve);
+    let tone = GradingToneTransform::create(GradingStyle::Log).unwrap();
+    tone.make_dynamic();
+    check(&config, &tone, Kind::GradingTone);
+    #[cfg(feature = "v2_5")]
+    {
+        let hue = ocio_rs::transform::GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
+        hue.make_dynamic();
+        check(&config, &hue, Kind::GradingHueCurve);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_group_transform_and_metadata_behavior() {
     let _guard = processor_behavior_test_lock();
     if is_stub() {
