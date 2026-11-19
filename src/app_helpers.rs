@@ -1111,6 +1111,49 @@ impl Config {
     }
 }
 
+impl ConstConfig {
+    /// Build a display processor using this retained config and an optional
+    /// retained context. Dynamic processors are isolated from shared caches,
+    /// matching the other `ConstConfig` processor methods.
+    pub fn application_display_processor(
+        &self,
+        context: Option<&crate::ConstContext>,
+        working: &CStr,
+        display: &CStr,
+        view: &CStr,
+        channel: Option<&crate::transform::MatrixTransform>,
+        direction: TransformDirection,
+    ) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_application_display_processor(
+                self.handle.as_ptr(),
+                context.map_or(std::ptr::null(), |c| c.handle.as_ptr().cast_const()),
+                working.as_ptr(),
+                display.as_ptr(),
+                view.as_ptr(),
+                channel.map_or(std::ptr::null_mut(), TransformHandle::as_ptr),
+                direction as i32,
+                true,
+            )
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
+    /// Create an identity viewing processor with isolated dynamic adjustments.
+    pub fn display_view_helper_identity_processor(&self) -> Result<Processor> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_config_display_view_identity_processor(self.handle.as_ptr(), true)
+        };
+        Ok(Processor {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+}
+
 /** Inputs to the native helper that authors a display view from a transform file. */
 pub struct DisplayViewFromFile<'a> {
     /// Display name.

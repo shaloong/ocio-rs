@@ -32,6 +32,18 @@ and translated UI name while removing the source color space, then drops the
 query input, parameters and config. It passes on native 2.4.1, 2.5.2 and 2.6.0;
 these observations do not permit external mutation of native helper storage.
 
+The namespace-level display helper's config and optional context are native
+const shared pointers. `ConstConfig::application_display_processor` forwards
+those handles and the optional matrix without an editable copy on the first
+native call; its identity counterpart follows the same policy. As with other
+safe `ConstConfig` processor builders, a dynamic result is rebuilt with an
+editable config copy to isolate mutable properties. The `ocio-sys` entry points
+also allow direct native cache semantics without this rebuild; callers choosing
+that mode must synchronize shared dynamic properties. Native 2.4.1, 2.5.2 and
+2.6.0 tests check both context choices, channel-matrix forwarding, pixel
+results, identity, and dynamic-property independence. This is not a claim that
+the safe dynamic path avoids the native rebuild or config copy.
+
 The two `getSlider` signatures return the same manager-owned native object;
 the two-argument form first sets its mixing-space edge values. Rust's
 `slider_with_edges` and `slider` borrow that object exclusively, rather than

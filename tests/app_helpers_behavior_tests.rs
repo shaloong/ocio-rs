@@ -300,6 +300,90 @@ fn file_backed_display_helpers_author_process_and_remove() {
     }
     assert_eq!(output[0], output[1]);
     assert_ne!(output[0], [0.25, 0.5, 0.75, 1.0]);
+    let params = ocio_rs::ColorSpaceMenuParameters::create(&config).unwrap();
+    let shared = params.const_config().unwrap();
+    let shared_context = shared.try_const_current_context().unwrap().unwrap();
+    for ctx in [None, Some(&shared_context)] {
+        let cpu = shared
+            .application_display_processor(
+                ctx,
+                c"linear",
+                c"Extra",
+                c"File View",
+                None,
+                TransformDirection::Forward,
+            )
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        let mut rgba = [0.25, 0.5, 0.75, 1.0];
+        cpu.try_apply_rgba(&mut rgba).unwrap();
+        assert_eq!(rgba, output[0]);
+    }
+    let channel = ocio_rs::transform::MatrixTransform::scale(&[0.5, 1.0, 1.0, 1.0]).unwrap();
+    let editable = config
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let retained = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut a = [0.25, 0.5, 0.75, 1.0];
+    let mut b = a;
+    editable.try_apply_rgba(&mut a).unwrap();
+    retained.try_apply_rgba(&mut b).unwrap();
+    assert_eq!(a, b);
+    assert_ne!(a, output[0]);
+    let first = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let second = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    first
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
     config
         .remove_display_view_and_unused_color_space(c"Extra", c"File View")
         .unwrap();
@@ -322,6 +406,73 @@ fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {
     let mut rgba = [0.25, 0.5, 0.75, 0.5];
     cpu.try_apply_rgba(&mut rgba).unwrap();
     assert_eq!(rgba, [0.25, 0.5, 0.75, 0.5]);
+    let config = Config::raw().unwrap();
+    let params = ocio_rs::ColorSpaceMenuParameters::create(&config).unwrap();
+    let shared = params.const_config().unwrap();
+    let shared_cpu = shared
+        .display_view_helper_identity_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut rgba = [0.25, 0.5, 0.75, 0.5];
+    shared_cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.25, 0.5, 0.75, 0.5]);
+    let another = shared.display_view_helper_identity_processor().unwrap();
+    let first = shared.display_view_helper_identity_processor().unwrap();
+    first
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        another
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn raw_const_identity_helper_allows_native_cache_semantics() {
+    unsafe {
+        let config = ocio_sys::ocio_get_const_current_config();
+        assert!(!config.is_null());
+        let processor = ocio_sys::ocio_const_config_display_view_identity_processor(config, false);
+        assert!(!processor.is_null());
+        ocio_sys::ocio_processor_destroy(processor);
+        ocio_sys::ocio_const_config_destroy(config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn raw_const_display_helper_allows_native_cache_semantics() {
+    unsafe {
+        let config = ocio_sys::ocio_config_create_from_stream(c"ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\ndisplays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\ncolorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n".as_ptr());
+        assert!(!config.is_null());
+        let params = ocio_sys::ocio_color_space_menu_parameters_create(config);
+        assert!(!params.is_null());
+        let shared = ocio_sys::ocio_color_space_menu_parameters_get_const_config(params);
+        assert!(!shared.is_null());
+        let processor = ocio_sys::ocio_const_config_application_display_processor(
+            shared,
+            std::ptr::null(),
+            c"linear".as_ptr(),
+            c"Monitor".as_ptr(),
+            c"Raw".as_ptr(),
+            std::ptr::null_mut(),
+            ocio_rs::TransformDirection::Forward as i32,
+            false,
+        );
+        assert!(!processor.is_null());
+        ocio_sys::ocio_processor_destroy(processor);
+        ocio_sys::ocio_const_config_destroy(shared);
+        ocio_sys::ocio_color_space_menu_parameters_destroy(params);
+        ocio_sys::ocio_config_destroy(config);
+    }
 }
 
 #[test]

@@ -1817,6 +1817,10 @@ void* ocio_legacy_viewing_pipeline_get_processor_with_const_config(void* handle,
 void* ocio_config_get_display_view_helper_identity_processor(void* handle);
 
 void* ocio_config_get_application_display_processor(void* handle, void* context, const char* working, const char* display, const char* view, void* channel, int direction);
+// Const handles are from this ABI. Without dynamic isolation, callers must
+// coordinate any native cache aliases and mutable dynamic properties.
+void* ocio_const_config_application_display_processor(const void* config, const void* context, const char* working, const char* display, const char* view, void* channel, int direction, bool isolate_dynamic);
+void* ocio_const_config_display_view_identity_processor(const void* config, bool isolate_dynamic);
 void ocio_config_add_display_view_from_file(void* handle, const char* display, const char* view, const char* looks, const char* space, const char* family, const char* description, const char* categories, const char* file, const char* connection);
 void ocio_config_remove_display_view_and_unused_color_space(void* handle, const char* display, const char* view);
 void ocio_config_add_color_space_from_file(void* handle, const char* name, const char* file, const char* categories, const char* connection);

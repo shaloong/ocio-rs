@@ -20398,6 +20398,41 @@ void* ocio_config_get_application_display_processor(void* handle, void* context,
 #endif
 }
 
+void* ocio_const_config_application_display_processor(const void* config, const void* context, const char* working, const char* display, const char* view, void* channel, int direction, bool isolate_dynamic) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)context; (void)working; (void)display; (void)view; (void)channel; (void)direction; (void)isolate_dynamic;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!config || !working || !display || !view) throw std::invalid_argument("invalid display helper arguments");
+    const auto& cfg = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    if (!cfg) throw std::invalid_argument("null native config");
+    ocio::ConstMatrixTransformRcPtr matrix = channel ? ocio_rs_bridge::get_real_matrix_transform(channel) : nullptr;
+    const auto dir = static_cast<ocio::TransformDirection>(direction);
+    auto build = [&](const ocio::ConstConfigRcPtr& current) {
+      return context ? ocio::DisplayViewHelpers::GetProcessor(current, *static_cast<const ocio::ConstContextRcPtr*>(context), working, display, view, matrix, dir)
+                     : ocio::DisplayViewHelpers::GetProcessor(current, working, display, view, matrix, dir);
+    };
+    return isolate_dynamic ? ocio_rs_const_config_processor(cfg, build) : ocio_rs_wrap_const_processor(build(cfg));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_config_display_view_identity_processor(const void* config, bool isolate_dynamic) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)isolate_dynamic;
+  ocio_rs_bridge::capture_error_message("Application helpers require native OpenColorIO"); return nullptr;
+#else
+  try {
+    if (!config) throw std::invalid_argument("null config");
+    const auto& cfg = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    if (!cfg) throw std::invalid_argument("null native config");
+    auto build = [](const ocio::ConstConfigRcPtr& current) { return ocio::DisplayViewHelpers::GetIdentityProcessor(current); };
+    return isolate_dynamic ? ocio_rs_const_config_processor(cfg, build) : ocio_rs_wrap_const_processor(build(cfg));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 void ocio_config_add_display_view_from_file(void* handle, const char* display, const char* view, const char* looks, const char* space, const char* family, const char* description, const char* categories, const char* file, const char* connection) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)display; (void)view; (void)looks; (void)space; (void)family; (void)description; (void)categories; (void)file; (void)connection;

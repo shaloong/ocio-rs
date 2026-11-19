@@ -251,6 +251,35 @@ unsafe extern "C" {
         channel: *mut c_void,
         direction: i32,
     ) -> *mut c_void;
+    /// Call the native display helper with retained const handles.
+    ///
+    /// # Safety
+    /// `config` must be a live const-config handle from this ABI; `context`
+    /// and `channel` must be null or live const-context and matrix-transform
+    /// handles respectively. The three text pointers must be valid C strings.
+    /// A non-null result is an owned processor handle and must be destroyed.
+    /// If `isolate_dynamic` is false, synchronize mutable properties shared by
+    /// native OCIO caches.
+    pub fn ocio_const_config_application_display_processor(
+        config: *const c_void,
+        context: *const c_void,
+        working: *const c_char,
+        display: *const c_char,
+        view: *const c_char,
+        channel: *mut c_void,
+        direction: i32,
+        isolate_dynamic: bool,
+    ) -> *mut c_void;
+    /// Call the native identity helper with a retained const config.
+    ///
+    /// # Safety
+    /// `config` must be a live const-config handle from this ABI. A non-null
+    /// result is an owned processor handle and must be destroyed. Without
+    /// isolation the caller must synchronize native shared dynamic properties.
+    pub fn ocio_const_config_display_view_identity_processor(
+        config: *const c_void,
+        isolate_dynamic: bool,
+    ) -> *mut c_void;
     pub fn ocio_config_add_display_view_from_file(
         handle: *mut c_void,
         display: *const c_char,
