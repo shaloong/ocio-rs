@@ -21,6 +21,25 @@ the common transform handle covers direction, validation, type and copying.
 
 ### Individual factory and buffer checks
 
+* `AllocationTransform` has one public factory, `Create()`. Its remaining
+  class-specific signatures are `getAllocation()`, `setAllocation(Allocation)`,
+  `getNumVars() -> int`, `getVars(float *)`, and
+  `setVars(int, const float *)`. These map respectively to the typed allocation
+  accessors, signed count, caller-buffer read, and slice setter. The setter
+  checks conversion of the slice length to `int`; the safe output method
+  verifies the exact count before the native write. Direction, type,
+  validation, and editable copying are inherited or overridden base-transform
+  operations. Copy construction and assignment are not public native paths.
+  The native behavior test checks copy independence, an unchanged undersized
+  output buffer, and clearing the variable list. The class does not declare
+  format-metadata access; the compatibility helper may therefore return `None`.
+* `BuiltinTransform` adds `Create()`, `getStyle()`, `setStyle(const char *)`,
+  and `getDescription()` to the common transform operations. The Rust methods
+  call these native signatures; setting a style preserves native errors, and
+  the copied style and description strings do not borrow mutable native
+  storage. Enumeration comes from the separate native registry, not from
+  additional `BuiltinTransform` factory overloads. It has no class-specific
+  format-metadata method or public copy constructor.
 * The 2.6 `ColorSpaceTransform` instance fields are source, destination and
   data-bypass; `DisplayViewTransform` adds display, view and looks-bypass.
   Their Rust setters forward the native fields, and the common transform path
