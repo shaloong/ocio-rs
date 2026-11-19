@@ -54,6 +54,20 @@ an empty value. The config core, display management, and role behavior suites
 passed on Windows against native 2.4.1, 2.5.1, 2.5.2, and 2.6.0. The bounds
 check is a constant-time configuration query and does not affect pixel paths.
 
+The virtual-display declarations were also checked individually against the
+2.6 header. The display-defined writer forwards view, view-transform,
+color-space, looks, rule and description in that order; the shared-view writer
+uses a single name. Count and indexed enumeration take `ViewType` and a signed
+index. The five field queries, remove/clear operations, and monitor-name and
+ICC-profile instantiation calls have corresponding bridge paths. The 2.5+
+`hasVirtualView`, `isVirtualViewShared`, and `AreVirtualViewsEqual` operations
+are feature-gated; equality compares the two supplied configs and a view name.
+The older Rust enumeration overloads use a legacy selector conversion; the
+`*_by_type` methods expose the native view-origin selector directly. Native
+behavior tests cover authored fields, shared versus display-defined views,
+enumeration and removal. They do not establish physical monitor or ICC profile
+discovery across operating systems.
+
 The short `addDisplayView` overload maps to `Config::add_display`: its
 third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps
