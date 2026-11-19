@@ -611,11 +611,20 @@ fn native_menu_filters_and_borrows_immutable_entries() {
     let menu_text = menu.serialize().unwrap();
     assert!(menu_text.contains("Menu Input"));
     assert!(parameters_text.contains("ocio_rs_camera_test"));
+    let index = menu.index_from_name(c"Menu Input").unwrap();
+    let retained_name = menu.name(index);
+    let retained_ui_name = {
+        let input = std::ffi::CString::new("Menu Input").unwrap();
+        menu.ui_name_from_name(&input)
+    };
+    config.remove_color_space("Menu Input").unwrap();
+    assert_eq!(retained_name, c"Menu Input");
+    assert_eq!(retained_ui_name, c"Menu Input");
     parameters.clear_added_color_spaces();
     drop(parameters);
     drop(config);
 
-    let index = menu.index_from_name(c"Menu Input").unwrap();
+    assert_eq!(menu.index_from_name(c"Menu Input"), Some(index));
     assert_eq!(menu.name(index), c"Menu Input");
     assert_eq!(menu.description(index), c"Camera input space");
     assert_eq!(menu.family(index), c"Input/Camera");

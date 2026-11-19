@@ -22,6 +22,16 @@ handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
+The menu parameter factory and setter accept native shared config pointers;
+the helper factory accepts shared read-only parameters and creates its menu
+entries at construction. The native helper stores entry names, UI names,
+families, descriptions and hierarchy strings in its own immutable entries.
+Its name/UI-name translation returns an entry-owned string, or native empty
+text, not the caller's input pointer. A regression retains both a menu name
+and translated UI name while removing the source color space, then drops the
+query input, parameters and config. It passes on native 2.4.1, 2.5.2 and 2.6.0;
+these observations do not permit external mutation of native helper storage.
+
 The two `getSlider` signatures return the same manager-owned native object;
 the two-argument form first sets its mixing-space edge values. Rust's
 `slider_with_edges` and `slider` borrow that object exclusively, rather than
