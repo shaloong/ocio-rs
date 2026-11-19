@@ -23,6 +23,23 @@ fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg(ocio_stub)]
+fn legacy_display_symbol_links_in_stub() {
+    unsafe {
+        let config = ocio_sys::ocio_config_create_raw();
+        assert!(!config.is_null());
+        ocio_sys::ocio_config_add_display(
+            config,
+            c"display".as_ptr(),
+            c"view".as_ptr(),
+            c"raw".as_ptr(),
+            c"".as_ptr(),
+        );
+        ocio_sys::ocio_config_destroy(config);
+    }
+}
+
 fn identity_view_transform(name: &str) -> ViewTransform {
     let view_transform =
         ViewTransform::create(ReferenceSpaceType::Scene).expect("create view transform");
@@ -75,6 +92,32 @@ fn basic_display_view_arguments_are_color_space_and_looks() {
             .display_view_looks("BasicDisplay", "BasicView")
             .as_deref(),
         Some("+film")
+    );
+    // Exercise the legacy exported symbol directly, including its argument order.
+    let (raw, is_const) = ocio_rs::ConfigRef::from(&config).as_raw_parts();
+    assert!(!is_const);
+    unsafe {
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_config_add_display(
+            raw,
+            c"LegacyDisplay".as_ptr(),
+            c"LegacyView".as_ptr(),
+            c"raw".as_ptr(),
+            c"-film".as_ptr(),
+        );
+        assert!(ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(
+        config
+            .display_view_color_space_name("LegacyDisplay", "LegacyView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .display_view_looks("LegacyDisplay", "LegacyView")
+            .as_deref(),
+        Some("-film")
     );
 }
 

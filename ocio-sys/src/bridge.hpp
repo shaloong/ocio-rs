@@ -366,7 +366,8 @@ void* ocio_config_get_display_view_looks(void* handle, const char* display, cons
 void* ocio_config_get_display_view_rule(void* handle, const char* display, const char* view);
 void* ocio_config_get_display_view_description(void* handle, const char* display, const char* view);
 bool ocio_config_has_view(void* handle, const char* dispName, const char* viewName);
-void ocio_config_add_display(void* handle, const char* display, const char* view, const char* transformName, const char* rule);
+// Legacy alias for the four-argument native addDisplayView overload.
+void ocio_config_add_display(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks);
 void ocio_config_add_display_view_v1(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks);
 void ocio_config_add_display_view_v2(void* handle, const char* display, const char* view, const char* viewTransformName, const char* colorSpaceName, const char* looks, const char* ruleName, const char* description);
 void ocio_config_add_display_shared_view(void* handle, const char* display, const char* sharedView);

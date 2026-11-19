@@ -3475,8 +3475,8 @@ unsafe extern "C" {
         config: *mut c_void,
         display: *const i8,
         view: *const i8,
-        transformName: *const i8,
-        rule: *const i8,
+        color_space_name: *const i8,
+        looks: *const i8,
     ) -> ();
 
     pub fn ocio_config_create_editable_copy(config: *mut c_void) -> *mut c_void;

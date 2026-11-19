@@ -54,6 +54,10 @@ and 1,390 checked wrapper names. Its selected-class method-name counts match
 865/865 against 2.4.1, 1,005/1,005 against 2.5.2, and 1,013/1,013 against
 2.6.0. These are lexical checks, not evidence for overload signatures,
 ownership, errors, behavior, or the 13 separately reviewed classes.
+An additional Windows native 2.6.0 full-feature build was inspected with
+`nm`: all 1,608 bridge header names are exported after restoring the legacy
+`ocio_config_add_display` symbol. This verifies that build's symbol presence,
+not signatures, feature-specific builds, or semantic correctness.
 The dynamic-property and processor behavior suites also passed locally against
 native 2.4.1 and 2.6.0, including the 2.6 hue-property paths; this is targeted
 runtime evidence, not a substitute for the other excluded-class reviews.

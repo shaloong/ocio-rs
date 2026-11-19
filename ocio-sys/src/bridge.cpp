@@ -3965,6 +3965,10 @@ bool ocio_config_has_view(void* handle, const char* dispName, const char* viewNa
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
 
+void ocio_config_add_display(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks) {
+  ocio_config_add_display_view_v1(handle, display, view, colorSpaceName, looks);
+}
+
 void ocio_config_add_display_view_v1(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)display; (void)view; (void)colorSpaceName; (void)looks;

@@ -58,6 +58,9 @@ The short `addDisplayView` overload maps to `Config::add_display`: its
 third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps
 to `add_display_view_detailed`, which includes those additional fields.
+The legacy `ocio_config_add_display` FFI symbol forwards to the same short
+overload. A direct FFI regression verifies both argument positions against
+native 2.4.1, 2.5.2 and 2.6.0, and a stub test also requires the symbol to link.
 The 2.6 alias-aware shared-view overload takes view, view transform, color
 space, looks, rule, description, then a vector of aliases. The display-view
 overload takes the display first and the same remaining arguments in that
