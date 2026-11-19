@@ -2233,10 +2233,12 @@ void* ocio_const_config_get_builtin_processor(void* config, const char* local,
   try {
     if (!config || !local || !builtin) throw std::invalid_argument("invalid built-in processor arguments");
     const auto& value = *static_cast<const ocio::ConstConfigRcPtr*>(config);
-    return ocio_rs_const_config_processor(value, [&](const ocio::ConstConfigRcPtr& cfg) {
-      return from_builtin ? ocio::Config::GetProcessorFromBuiltinColorSpace(builtin, cfg, local)
-                          : ocio::Config::GetProcessorToBuiltinColorSpace(cfg, local, builtin);
-    });
+    // IdentifyInterchangeSpace may temporarily change the config's cache flags,
+    // even through a const handle. Isolate it before entering the heuristic.
+    const auto cfg = value->createEditableCopy();
+    return ocio_rs_wrap_const_processor(
+      from_builtin ? ocio::Config::GetProcessorFromBuiltinColorSpace(builtin, cfg, local)
+                   : ocio::Config::GetProcessorToBuiltinColorSpace(cfg, local, builtin));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }

@@ -329,6 +329,8 @@ fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     let input_params = ColorSpaceMenuParameters::create(&input).unwrap();
     let shared_base = base_params.const_config().unwrap();
     let shared_input = input_params.const_config().unwrap();
+    let base_flags = shared_base.processor_cache_flags().unwrap();
+    let input_flags = shared_input.processor_cache_flags().unwrap();
     let shared_space = shared_input
         .try_const_color_space(c"new-space")
         .unwrap()
@@ -371,6 +373,8 @@ fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     }
     assert!(base.color_space("new-space").is_none());
     assert_ne!(input.name().as_deref(), Some("merged"));
+    assert_eq!(shared_base.processor_cache_flags().unwrap(), base_flags);
+    assert_eq!(shared_input.processor_cache_flags().unwrap(), input_flags);
 }
 
 #[test]

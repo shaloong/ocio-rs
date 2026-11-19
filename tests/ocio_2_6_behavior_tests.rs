@@ -32,6 +32,8 @@ fn builtin_matching_and_hdr_check_use_native_config() {
     let builtin_baker = ocio_rs::Baker::create().unwrap();
     builtin_baker.set_config(&builtin).unwrap();
     let builtin_const = builtin_baker.const_config().unwrap().unwrap();
+    let source_flags = source_const.processor_cache_flags().unwrap();
+    let builtin_flags = builtin_const.processor_cache_flags().unwrap();
     for result in [
         source.locate_builtin_color_space_ref(c"ACEScg", &builtin),
         source.locate_builtin_color_space_ref(c"ACEScg", &builtin_const),
@@ -49,6 +51,11 @@ fn builtin_matching_and_hdr_check_use_native_config() {
             .unwrap()
             .as_deref(),
         Some("ACEScg")
+    );
+    assert_eq!(source_const.processor_cache_flags().unwrap(), source_flags);
+    assert_eq!(
+        builtin_const.processor_cache_flags().unwrap(),
+        builtin_flags
     );
 }
 

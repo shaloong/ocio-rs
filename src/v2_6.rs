@@ -9,6 +9,10 @@ fn locate_builtin_color_space_refs(
     name: &CStr,
     builtin: ConfigRef<'_>,
 ) -> Result<Option<String>> {
+    let source_copy = source.isolated_copy()?;
+    let builtin_copy = builtin.isolated_copy()?;
+    let source = source_copy.as_ref().map_or(source, ConfigRef::Editable);
+    let builtin = builtin_copy.as_ref().map_or(builtin, ConfigRef::Editable);
     let (source, source_const) = source.raw();
     let (builtin, builtin_const) = builtin.raw();
     crate::clear_last_error();
@@ -122,6 +126,8 @@ impl crate::ConstConfig {
 
     /// Find an equivalent space in a built-in config without copying either config.
     /// Reuse the built-in config to retain OCIO's fingerprint cache.
+    /// Read-only configs are copied because OCIO's matching heuristics temporarily
+    /// change their cache flags. For repeated matching, create editable copies once.
     pub fn locate_builtin_color_space<'a>(
         &self,
         name: &CStr,
@@ -301,6 +307,7 @@ impl Config {
     }
 
     /// Find an equivalent space using an editable or shared read-only built-in config.
+    /// A read-only built-in config is copied to isolate OCIO's cache-flag changes.
     pub fn locate_builtin_color_space_ref<'a>(
         &self,
         name: &CStr,

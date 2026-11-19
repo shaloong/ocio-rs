@@ -87,11 +87,31 @@ impl<'a> From<&'a ConstConfig> for ConfigRef<'a> {
     }
 }
 impl ConfigRef<'_> {
+    // Some native algorithms temporarily change cache flags even through a
+    // const config. A retained config may also be used by another thread.
+    pub(crate) fn isolated_copy(self) -> Result<Option<Config>> {
+        match self {
+            Self::Editable(_) => Ok(None),
+            Self::ReadOnly(value) => value.create_editable_copy().map(Some),
+        }
+    }
     #[cfg(feature = "v2_5")]
     pub(crate) fn raw(self) -> (*mut c_void, bool) {
         match self {
             Self::Editable(value) => (value.handle.as_ptr(), false),
             Self::ReadOnly(value) => (value.handle.as_ptr(), true),
+        }
+    }
+}
+
+impl<'a> ConfigRef<'a> {
+    fn with_isolated_copy<'b>(self, copy: &'b Option<Config>) -> &'b Config
+    where
+        'a: 'b,
+    {
+        match (self, copy) {
+            (_, Some(value)) | (Self::Editable(value), None) => value,
+            (Self::ReadOnly(_), None) => unreachable!("read-only config must be isolated"),
         }
     }
 }
@@ -343,7 +363,8 @@ impl ConstConfig {
     }
 
     /// Build a processor from this config's color space to a space in OCIO's
-    /// default built-in config. OCIO resolves the interchange space.
+    /// default built-in config. OCIO resolves the interchange space using an
+    /// isolated config copy because its heuristic changes native cache flags.
     pub fn processor_to_builtin_color_space(
         &self,
         source: &CStr,
@@ -353,7 +374,8 @@ impl ConstConfig {
     }
 
     /// Build a processor from a space in OCIO's default built-in config to
-    /// this config's color space. OCIO resolves the interchange space.
+    /// this config's color space. OCIO resolves the interchange space using an
+    /// isolated config copy because its heuristic changes native cache flags.
     pub fn processor_from_builtin_color_space(
         &self,
         builtin_source: &CStr,
@@ -869,6 +891,22 @@ impl Config {
         Ok(name)
     }
 
+    /// Identify a built-in space using editable or retained configurations.
+    /// Read-only inputs are copied to isolate OCIO's cache-flag changes.
+    pub fn try_identify_builtin_color_space_ref<'a, 'b>(
+        src_config: impl Into<ConfigRef<'a>>,
+        builtin_config: impl Into<ConfigRef<'b>>,
+        name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let src = src_config.into();
+        let builtin = builtin_config.into();
+        let src_copy = src.isolated_copy()?;
+        let builtin_copy = builtin.isolated_copy()?;
+        let src = src.with_isolated_copy(&src_copy);
+        let builtin = builtin.with_isolated_copy(&builtin_copy);
+        Self::try_identify_builtin_color_space(src, builtin, name)
+    }
+
     /// Identify the interchange color spaces used to convert a color space between two configs.
     ///
     /// The returned names are owned Rust strings. An OCIO failure to identify either interchange
@@ -903,6 +941,23 @@ impl Config {
                 cstr_from_mut(builtin_interchange_name),
             )
         })
+    }
+
+    /// Identify interchange spaces using editable or retained configurations.
+    /// Read-only inputs are copied to isolate OCIO's cache-flag changes.
+    pub fn try_identify_interchange_space_ref<'a, 'b>(
+        src_config: impl Into<ConfigRef<'a>>,
+        src_name: impl AsRef<str>,
+        builtin_config: impl Into<ConfigRef<'b>>,
+        builtin_name: impl AsRef<str>,
+    ) -> Result<(Option<String>, Option<String>)> {
+        let src = src_config.into();
+        let builtin = builtin_config.into();
+        let src_copy = src.isolated_copy()?;
+        let builtin_copy = builtin.isolated_copy()?;
+        let src = src.with_isolated_copy(&src_copy);
+        let builtin = builtin.with_isolated_copy(&builtin_copy);
+        Self::try_identify_interchange_space(src, src_name, builtin, builtin_name)
     }
 
     /// # Safety

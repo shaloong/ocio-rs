@@ -869,6 +869,37 @@ fn config_static_color_space_identification_preserves_errors() {
             .expect("identify interchange spaces");
     assert!(src_interchange.is_some());
     assert!(builtin_interchange.is_some());
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    let retained = baker.const_config().unwrap().unwrap();
+    let flags = retained.processor_cache_flags().unwrap();
+    for (source, builtin) in [
+        (
+            ocio_rs::ConfigRef::from(&config),
+            ocio_rs::ConfigRef::from(&retained),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&retained),
+            ocio_rs::ConfigRef::from(&config),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&retained),
+            ocio_rs::ConfigRef::from(&retained),
+        ),
+    ] {
+        assert_eq!(
+            Config::try_identify_builtin_color_space_ref(source, builtin, &color_space)
+                .unwrap()
+                .as_deref(),
+            Some(color_space.as_str())
+        );
+        assert_eq!(
+            Config::try_identify_interchange_space_ref(source, &color_space, builtin, &color_space)
+                .unwrap(),
+            (src_interchange.clone(), builtin_interchange.clone())
+        );
+    }
+    assert_eq!(retained.processor_cache_flags().unwrap(), flags);
 
     assert!(Config::try_identify_builtin_color_space(
         &config,

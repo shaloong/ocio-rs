@@ -636,15 +636,25 @@ impl ConfigMergingParameters {
         })
     }
 
-    /// Merge editable or retained read-only configs without copying the inputs
-    /// in the binding. OCIO constructs the editable result.
+    /// Merge editable or retained read-only configs. Read-only configs are
+    /// copied to isolate native cache-flag changes during merge heuristics.
     pub fn merge_configs_ref<'a, 'b>(
         &self,
         base: impl Into<crate::ConfigRef<'a>>,
         input: impl Into<crate::ConfigRef<'b>>,
     ) -> Result<Config> {
-        let (base, base_const) = base.into().raw();
-        let (input, input_const) = input.into().raw();
+        let base = base.into();
+        let input = input.into();
+        let base_copy = base.isolated_copy()?;
+        let input_copy = input.isolated_copy()?;
+        let (base, base_const) = base_copy
+            .as_ref()
+            .map_or(base, crate::ConfigRef::Editable)
+            .raw();
+        let (input, input_const) = input_copy
+            .as_ref()
+            .map_or(input, crate::ConfigRef::Editable)
+            .raw();
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_merge_config_refs(
@@ -676,13 +686,19 @@ impl ConfigMergingParameters {
     }
 
     /// Merge an editable or retained read-only color space into an editable or
-    /// retained read-only config without making binding-side input copies.
+    /// retained read-only config. A read-only config is copied to isolate native
+    /// cache-flag changes; the color-space handle is forwarded directly.
     pub fn merge_color_space_ref<'a, 'b>(
         &self,
         base: impl Into<crate::ConfigRef<'a>>,
         input: impl Into<crate::ColorSpaceRef<'b>>,
     ) -> Result<Config> {
-        let (base, base_const) = base.into().raw();
+        let base = base.into();
+        let base_copy = base.isolated_copy()?;
+        let (base, base_const) = base_copy
+            .as_ref()
+            .map_or(base, crate::ConfigRef::Editable)
+            .raw();
         let (input, input_const) = input.into().raw();
         crate::clear_last_error();
         let value = unsafe {

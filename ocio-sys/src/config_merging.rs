@@ -127,7 +127,9 @@ unsafe extern "C" {
     /// # Safety
     /// All pointers must be live handles from this ABI. Each flag must match
     /// whether its corresponding handle is a const or editable config. A
-    /// non-null returned config is owned by the caller.
+    /// non-null returned config is owned by the caller. Native heuristics may
+    /// change cache flags even on const inputs; serialize all concurrent use of
+    /// both native configs, including operations through other aliases.
     pub fn ocio_config_merging_parameters_merge_config_refs(
         handle: *mut c_void,
         base: *mut c_void,
@@ -138,7 +140,9 @@ unsafe extern "C" {
     /// # Safety
     /// All pointers must be live handles from this ABI. Flags identify the
     /// const or editable config and color-space handle representations. A
-    /// non-null returned config is owned by the caller.
+    /// non-null returned config is owned by the caller. Native heuristics may
+    /// change the base config's cache flags; serialize concurrent use of it,
+    /// including operations through other aliases.
     pub fn ocio_config_merging_parameters_merge_color_space_refs(
         handle: *mut c_void,
         base: *mut c_void,

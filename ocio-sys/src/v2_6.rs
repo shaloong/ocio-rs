@@ -52,6 +52,11 @@ unsafe extern "C" {
         name: *const c_char,
         builtin: *mut c_void,
     ) -> *const c_char;
+    /// # Safety
+    /// Handles must be live and match their const flags. Names must be valid C
+    /// strings. Native heuristics may change cache flags through const configs;
+    /// serialize all concurrent use of both configs, including other aliases.
+    /// The result is borrowed from a live input config.
     pub fn ocio_config_locate_builtin_color_space_refs(
         source: *mut c_void,
         source_const: bool,
