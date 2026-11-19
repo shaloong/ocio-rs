@@ -58,12 +58,36 @@ fn legacy_view_type(
 /// displays and views, and create [`Processor`] instances for color-space
 /// conversions or display-view pipelines.
 ///
+/// Config handles are thread-confined. Some native const operations also
+/// update internal caches, so a Rust handle must not be moved or shared
+/// between threads without explicit native interop and synchronization.
+///
+/// ```compile_fail
+/// fn require_send<T: Send>() {}
+/// require_send::<ocio_rs::Config>();
+/// ```
+/// ```compile_fail
+/// fn require_sync<T: Sync>() {}
+/// require_sync::<ocio_rs::Config>();
+/// ```
+///
 /// [`Processor`]: crate::Processor
 pub struct Config {
     pub(crate) handle: NonNull<c_void>,
 }
 
 /// Shared immutable native configuration, independent of later global replacement.
+///
+/// The handle is thread-confined: native const access can update lazy caches.
+///
+/// ```compile_fail
+/// fn require_send<T: Send>() {}
+/// require_send::<ocio_rs::ConstConfig>();
+/// ```
+/// ```compile_fail
+/// fn require_sync<T: Sync>() {}
+/// require_sync::<ocio_rs::ConstConfig>();
+/// ```
 pub struct ConstConfig {
     pub(crate) handle: NonNull<c_void>,
 }
