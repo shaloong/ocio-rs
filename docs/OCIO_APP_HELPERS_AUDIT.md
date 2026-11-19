@@ -17,6 +17,20 @@ Namespace functions are tracked in the [closeout ledger](OCIO_2_6_CLOSEOUT.md).
 | `ConfigMergingParameters` | Factory and editable copy, filenames/output name/prefixes, boolean controls, override strings, environment variables, replace/append search paths, default and per-section strategies. The six native strategy discriminants match the Rust enum; environment indices and count use `i32`. |
 | `ConfigMerger` | Factory, OCIOM loading/serialization, editable copy, search paths/working dir, parameters, merge and version. Native signed counts/indices and unsigned version fields are retained. `merge_configs_shared` retains OCIO's read-only merger result; `ConstConfigMerger` can retain its completed configurations, re-run the merge, or explicitly make an editable copy. The older editable merge method still makes that native copy. The final result and indexed result share one Rust entry, with `-1` reserved for the final result and other invalid indices returning `None`. `params` returns an editable copy; `ocio-sys` exposes the original mutable shared handle for callers that can uphold aliasing requirements. `add_params` retains the native parameter object. |
 
+The 2.6 `ConfigMergingParameters` declarations were checked individually:
+factory/copy, five filename or prefix fields, name and description, four
+boolean options, search path replacement and append, four override fields,
+environment name/value pairs with signed indices, and the default plus seven
+section strategies all map to native-backed operations. Native editable copies
+share their internal override config in OCIO 2.5.1, 2.5.2, and 2.6.0. Thus a
+copy retrieved directly or from a merger can mutate the other's search path,
+environment, active displays/views and inactive color spaces. The six Rust
+override string getters return owned snapshots; borrowing their native pointers
+would be unsound. Other parameter fields belong to the separate native copy.
+Native strategy getters resolve `UNSPECIFIED` through the default, so recreating
+the object from getter values would not faithfully preserve later default
+changes. Raw FFI retains OCIO's native shared-copy semantics.
+
 Native constructors are represented by their factories, destruction by
 handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. A retained

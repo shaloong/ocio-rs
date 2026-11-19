@@ -1,5 +1,56 @@
 use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config};
 
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn merging_parameter_override_snapshots_survive_native_shared_mutation() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
+
+    let mut original = ConfigMergingParameters::create().unwrap();
+    original.set_search_path(c"original").unwrap();
+    original.set_active_views(c"first").unwrap();
+    original.set_active_displays(c"display").unwrap();
+    original.set_inactive_color_spaces(c"space").unwrap();
+    original.add_environment_var(c"VAR", c"original").unwrap();
+
+    let mut copy = original.create_editable_copy().unwrap();
+    copy.set_default_strategy(MergeStrategy::PreferBase)
+        .unwrap();
+    assert_eq!(copy.roles().unwrap(), MergeStrategy::PreferBase);
+    assert_eq!(original.roles().unwrap(), MergeStrategy::PreferInput);
+    let path = original.search_path().unwrap();
+    let views = original.active_views().unwrap();
+    let displays = original.active_displays().unwrap();
+    let spaces = original.inactive_color_spaces().unwrap();
+    let var = original.environment_var(0).unwrap();
+    let value = original.environment_var_value(0).unwrap();
+    copy.set_search_path(c"copy").unwrap();
+    copy.set_active_views(c"second").unwrap();
+    copy.set_active_displays(c"other display").unwrap();
+    copy.set_inactive_color_spaces(c"other space").unwrap();
+    copy.add_environment_var(c"VAR", c"copy").unwrap();
+    assert_eq!(path.as_c_str(), c"original");
+    assert_eq!(views.as_c_str(), c"first");
+    assert_eq!(displays.as_c_str(), c"display");
+    assert_eq!(spaces.as_c_str(), c"space");
+    assert_eq!(var.as_c_str(), c"VAR");
+    assert_eq!(value.as_c_str(), c"original");
+    assert_eq!(original.search_path().unwrap().as_c_str(), c"copy");
+    assert_eq!(original.active_views().unwrap().as_c_str(), c"second");
+    assert_eq!(
+        original.environment_var_value(0).unwrap().as_c_str(),
+        c"copy"
+    );
+
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.add_params(&original).unwrap();
+    let mut from_merger = merger.params(0).unwrap().unwrap();
+    let prior = original.search_path().unwrap();
+    from_merger.set_search_path(c"merger copy").unwrap();
+    assert_eq!(prior.as_c_str(), c"copy");
+    assert_eq!(original.search_path().unwrap().as_c_str(), c"merger copy");
+}
+
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn system_monitors_checks_bounds_and_keeps_snapshot() {
@@ -318,8 +369,11 @@ fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
         .unwrap();
     let copy = options.create_editable_copy().unwrap();
     assert_eq!(copy.color_spaces().unwrap(), MergeStrategy::PreferInput);
-    assert_eq!(copy.environment_var(0).unwrap(), c"MERGE_TEST");
-    assert_eq!(copy.environment_var_value(0).unwrap(), c"default");
+    assert_eq!(copy.environment_var(0).unwrap().as_c_str(), c"MERGE_TEST");
+    assert_eq!(
+        copy.environment_var_value(0).unwrap().as_c_str(),
+        c"default"
+    );
     let merged = copy.merge_configs(&base, &input).unwrap();
     assert_eq!(merged.name().as_deref(), Some("merged"));
     assert!(merged.color_space("new-space").is_some());

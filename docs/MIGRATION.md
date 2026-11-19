@@ -1,5 +1,16 @@
 # Migration Notes
 
+## Unreleased: merge-parameter override snapshots
+
+`ConfigMergingParameters::{search_path, active_displays, active_views,
+inactive_color_spaces, environment_var, environment_var_value}` now return
+owned `CString` values instead of borrowed `&CStr` values. Use `.as_c_str()`
+when a borrowed C string is required. OCIO's editable parameter copies share
+their internal override configuration, so a mutation through another copy can
+invalidate a borrowed pointer. The owned snapshots avoid that invalidation;
+they do not change OCIO's shared-mutation behavior. The raw `ocio-sys` getters
+retain their original pointer and synchronization contracts.
+
 ## Unreleased: legacy GPU texture output pointers
 
 The four low-level `ocio-sys` legacy GPU texture queries now type their name

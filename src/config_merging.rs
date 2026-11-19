@@ -1,7 +1,7 @@
 //! Native OCIO 2.5.1+ configuration merging.
 use crate::{ColorSpace, Config, ConstConfig, OcioError, Result};
 use std::{
-    ffi::{c_char, c_void, CStr},
+    ffi::{c_char, c_void, CStr, CString},
     ptr::NonNull,
 };
 
@@ -56,7 +56,11 @@ impl ConfigMergingParameters {
         })
     }
 
-    /// Create editable copy via the native merge API.
+    /// Create an editable copy via the native merge API.
+    ///
+    /// OCIO copies the parameters but shares their internal override config;
+    /// changes to search paths, environment, displays, and views are visible
+    /// through both copies.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let value = unsafe {
@@ -217,14 +221,14 @@ impl ConfigMergingParameters {
         crate::ocio_call_status()
     }
 
-    /// Search path via the native merge API.
-    pub fn search_path(&self) -> Result<&CStr> {
+    /// Search path as an owned snapshot of the shared native override config.
+    pub fn search_path(&self) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_search_path(self.handle.as_ptr())
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
     /// Set search path via the native merge API.
@@ -239,14 +243,14 @@ impl ConfigMergingParameters {
         crate::ocio_call_status()
     }
 
-    /// Active displays via the native merge API.
-    pub fn active_displays(&self) -> Result<&CStr> {
+    /// Active displays as an owned snapshot of the shared native override config.
+    pub fn active_displays(&self) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_active_displays(self.handle.as_ptr())
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
     /// Set active displays via the native merge API.
@@ -261,14 +265,14 @@ impl ConfigMergingParameters {
         crate::ocio_call_status()
     }
 
-    /// Active views via the native merge API.
-    pub fn active_views(&self) -> Result<&CStr> {
+    /// Active views as an owned snapshot of the shared native override config.
+    pub fn active_views(&self) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_active_views(self.handle.as_ptr())
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
     /// Set active views via the native merge API.
@@ -283,14 +287,14 @@ impl ConfigMergingParameters {
         crate::ocio_call_status()
     }
 
-    /// Inactive color spaces via the native merge API.
-    pub fn inactive_color_spaces(&self) -> Result<&CStr> {
+    /// Inactive color spaces as an owned snapshot of the shared native override config.
+    pub fn inactive_color_spaces(&self) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_inactive_color_spaces(self.handle.as_ptr())
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
     /// Set inactive color spaces via the native merge API.
@@ -595,8 +599,8 @@ impl ConfigMergingParameters {
         Ok(value)
     }
 
-    /// Environment var via the native merge API.
-    pub fn environment_var(&self, index: i32) -> Result<&CStr> {
+    /// Environment variable name as an owned snapshot of the shared override config.
+    pub fn environment_var(&self, index: i32) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_environment_var(
@@ -605,11 +609,11 @@ impl ConfigMergingParameters {
             )
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
-    /// Environment var value via the native merge API.
-    pub fn environment_var_value(&self, index: i32) -> Result<&CStr> {
+    /// Environment variable value as an owned snapshot of the shared override config.
+    pub fn environment_var_value(&self, index: i32) -> Result<CString> {
         crate::clear_last_error();
         let value = unsafe {
             ocio_sys::ocio_config_merging_parameters_get_environment_var_value(
@@ -618,7 +622,7 @@ impl ConfigMergingParameters {
             )
         };
         crate::ocio_call_status()?;
-        Ok(unsafe { text(value) })
+        Ok(unsafe { text(value) }.to_owned())
     }
 
     /// Merge configs via the native merge API.
@@ -812,6 +816,8 @@ impl ConfigMerger {
     }
 
     /// Return an editable copy of one set of merge parameters.
+    ///
+    /// As in OCIO, the copy shares its override configuration with the entry.
     pub fn params(&self, index: i32) -> Result<Option<ConfigMergingParameters>> {
         crate::clear_last_error();
         let value = unsafe { ocio_sys::ocio_config_merger_params(self.handle.as_ptr(), index) };
@@ -982,6 +988,8 @@ impl ConstConfigMerger {
     }
 
     /// Copy one parameter entry for safe editable access.
+    ///
+    /// As in OCIO, the copy shares its override configuration with the entry.
     pub fn params(&self, index: i32) -> Result<Option<ConfigMergingParameters>> {
         crate::clear_last_error();
         let value = unsafe {
