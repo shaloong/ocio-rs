@@ -11516,6 +11516,19 @@ int ocio_gpu_uniform_cache_double(void* handle, unsigned index, double* value) {
 #endif
 }
 
+const char* ocio_gpu_shader_desc_get_uniform_name(void* handle, unsigned index) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)index;
+  ocio_rs_bridge::capture_error_message("uniform names require native OpenColorIO");
+  return nullptr;
+#else
+  try {
+    ocio::GpuShaderDesc::UniformData data;
+    return ocio_rs_bridge::get_real_gpu_shader_desc(handle)->getUniform(index, data);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpuUniformInfo* out) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)index; (void)out;

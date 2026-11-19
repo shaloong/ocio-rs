@@ -9736,7 +9736,11 @@ impl GpuShaderDesc {
 
     /// Returns the uniform symbol name for the given index, if present.
     pub fn uniform_name(&self, index: u32) -> Option<String> {
-        self.uniform(index).map(|uniform| uniform.name)
+        crate::clear_last_error();
+        let name =
+            unsafe { ocio_sys::ocio_gpu_shader_desc_get_uniform_name(self.handle.as_ptr(), index) };
+        crate::ocio_call_status().ok()?;
+        required_ocio_string(name)
     }
 }
 

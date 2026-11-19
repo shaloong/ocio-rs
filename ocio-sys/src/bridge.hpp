@@ -926,6 +926,7 @@ void ocio_gpu_shader_desc_destroy(void* handle);
 
 void* ocio_gpu_shader_desc_clone(void* handle);
 unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle);
+const char* ocio_gpu_shader_desc_get_uniform_name(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpuUniformInfo* out);
 void* ocio_gpu_uniform_cache_create(void* handle);
 void ocio_gpu_uniform_cache_destroy(void* handle);

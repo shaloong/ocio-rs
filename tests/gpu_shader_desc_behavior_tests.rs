@@ -5613,6 +5613,31 @@ fn gpu_shader_desc_manual_uniform_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn uniform_name_does_not_sample_live_value() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    let _guard = gpu_shader_desc_test_lock();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let captured = Arc::clone(&calls);
+    let desc = GpuShaderDesc::create().unwrap();
+    desc.add_uniform_f64_getter("liveName", move || {
+        captured.fetch_add(1, Ordering::SeqCst);
+        1.0
+    })
+    .unwrap();
+    calls.store(0, Ordering::SeqCst);
+    assert_eq!(desc.uniform_name(0).as_deref(), Some("liveName"));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert!(desc.uniform_name(99).is_none());
+    assert!(desc.try_uniform(0).unwrap().is_some());
+    assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn cached_uniforms_are_live_and_validate_buffers() {
     use ocio_rs::GpuUniformCopy;
     use std::sync::{

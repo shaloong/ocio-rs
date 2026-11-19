@@ -2371,6 +2371,16 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_destroy(handle: *mut c_void);
     pub fn ocio_gpu_shader_desc_clone(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num_uniforms_u32(handle: *mut c_void) -> u32;
+    /// Returns a name borrowed from the descriptor. Errors use the bridge error slot.
+    ///
+    /// # Safety
+    /// `handle` must be a valid descriptor handle. The returned pointer must not
+    /// outlive the descriptor or be used across mutation of its native storage;
+    /// externally shared native aliases require appropriate synchronization.
+    pub fn ocio_gpu_shader_desc_get_uniform_name(
+        handle: *mut c_void,
+        index: u32,
+    ) -> *const std::ffi::c_char;
     pub fn ocio_gpu_shader_desc_get_uniform_info(
         handle: *mut c_void,
         index: u32,

@@ -59,6 +59,13 @@ The allocation regression tracks large Rust allocations on the calling thread
 and uses full-resource reads as a positive control. It passed with native
 2.4.1 and 2.6.0; it does not measure allocations inside C++ or other threads.
 
+`uniform_name` uses the native `getUniform` name directly instead of sampling
+the value or allocating an array snapshot. The bridge creates the C++
+`UniformData` locally, so callers do not have to construct native function
+objects. Its returned raw name remains descriptor-owned. A live scalar getter
+regression verifies name lookup does not invoke the getter; the allocation
+regression also covers a large array uniform.
+
 The five native uniform overload shapes are `(name, double getter)`,
 `(name, bool getter)`, `(name, float3 getter)`, `(name, size getter, float
 vector getter[, unsigned max size])`, and the corresponding integer vector
