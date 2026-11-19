@@ -26,28 +26,46 @@ fn builtin_matching_and_hdr_check_use_native_config() {
     assert!(source
         .locate_builtin_color_space(c"no-such-space", &builtin)
         .is_err());
-    // OCIO's data-space path looks up raw even when it is inactive in the
-    // built-in config, rather than enumerating only active color spaces.
+    // Both data-space lookup and non-data matching include inactive spaces
+    // in the target built-in config, rather than active spaces only.
     let inactive_builtin = builtin.create_editable_copy().unwrap();
-    inactive_builtin.set_inactive_color_spaces("raw").unwrap();
+    inactive_builtin
+        .set_inactive_color_spaces("raw,ACEScg")
+        .unwrap();
     let raw_name = inactive_builtin.color_space("raw").unwrap().name().unwrap();
-    assert_eq!(
-        inactive_builtin
-            .try_color_space_name_by_index_filtered(
-                ocio_rs::SearchReferenceSpaceType::All,
-                ocio_rs::ColorSpaceVisibility::Inactive,
-                0,
-            )
-            .unwrap()
-            .as_deref(),
-        Some(raw_name.as_str())
-    );
+    let inactive_count = inactive_builtin
+        .try_num_color_spaces_filtered(
+            ocio_rs::SearchReferenceSpaceType::All,
+            ocio_rs::ColorSpaceVisibility::Inactive,
+        )
+        .unwrap();
+    let inactive_names: Vec<_> = (0..inactive_count)
+        .map(|index| {
+            inactive_builtin
+                .try_color_space_name_by_index_filtered(
+                    ocio_rs::SearchReferenceSpaceType::All,
+                    ocio_rs::ColorSpaceVisibility::Inactive,
+                    index,
+                )
+                .unwrap()
+                .unwrap()
+        })
+        .collect();
+    assert!(inactive_names.contains(&raw_name));
+    assert!(inactive_names.iter().any(|name| name == "ACEScg"));
     assert_eq!(
         source
             .locate_builtin_color_space(c"raw", &inactive_builtin)
             .unwrap()
             .as_deref(),
         Some(raw_name.as_str())
+    );
+    assert_eq!(
+        source
+            .locate_builtin_color_space(c"ACEScg", &inactive_builtin)
+            .unwrap()
+            .as_deref(),
+        Some("ACEScg")
     );
     let source_baker = ocio_rs::Baker::create().unwrap();
     source_baker.set_config(&source).unwrap();
