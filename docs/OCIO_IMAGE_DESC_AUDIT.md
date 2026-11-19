@@ -34,6 +34,12 @@ releases its provider exactly once. Existing fixed-layout descriptors do not
 allocate Rust callback state or dispatch through Rust. Externally implemented
 C++ subclasses remain usable through raw interop.
 
+OCIO selects its packed-float optimization only when both `isRGBAPacked()`
+and `isFloat()` are true. The fixed custom descriptor always returns false for
+the packed predicate, even for F32 data, so irregular channel offsets use
+generic packing. Both version-endpoint CPU suites were rechecked with this
+path and signed strides; each passed 42 tests on native 2.4.1 and 2.6.0.
+
 The native interface exposes one x stride and one y stride shared by all
 channels. Independent per-channel strides require a different processing
 abstraction, not a different implementation of these getters.
