@@ -3,7 +3,8 @@ use std::ptr::NonNull;
 
 use super::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, Config, OcioError, Result, TransformDirection,
+    cstr_from_mut, cstr_to_opt_string, cstring, Config, ConstConfig, OcioError, Result,
+    TransformDirection,
 };
 use ocio_sys;
 
@@ -182,6 +183,25 @@ impl GroupTransform {
         crate::clear_last_error();
         let result = unsafe {
             cstr_from_mut(ocio_sys::ocio_group_transform_write_to_string(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+                format_name.as_ptr(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
+    }
+
+    /// Serialize using a retained read-only native config without copying it.
+    pub fn write_to_string_with_const_config(
+        &self,
+        config: &ConstConfig,
+        format_name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let format_name = cstring(format_name)?;
+        crate::clear_last_error();
+        let result = unsafe {
+            cstr_from_mut(ocio_sys::ocio_group_transform_write_to_string_const(
                 self.handle.as_ptr(),
                 config.handle.as_ptr(),
                 format_name.as_ptr(),

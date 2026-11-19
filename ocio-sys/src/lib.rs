@@ -3113,6 +3113,17 @@ unsafe extern "C" {
         config: *mut c_void,
         formatName: *const i8,
     ) -> *mut c_void;
+    pub fn ocio_group_transform_write_const(
+        handle: *mut c_void,
+        config: *const c_void,
+        format_name: *const i8,
+        os: *mut c_void,
+    );
+    pub fn ocio_group_transform_write_to_string_const(
+        handle: *mut c_void,
+        config: *const c_void,
+        format_name: *const i8,
+    ) -> *mut c_void;
     pub fn ocio_group_transform_get_num_write_formats() -> i32;
     pub fn ocio_group_transform_get_format_name_by_index(index: i32) -> *const i8;
     pub fn ocio_group_transform_get_format_extension_by_index(index: i32) -> *const i8;

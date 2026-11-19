@@ -14,6 +14,7 @@ ownership and editing semantics, not every transform subclass.
 | Independent graph copy | `create_deep_copy` | Copies each distinct built-in transform once, preserves sharing within the copied DAG, and rejects cycles/null children. Groups are reconstructed as native OCIO groups; external custom subclasses may have additional state or copy semantics. Explicit opt-in; no pixel-path cost. |
 | Remove and clear children | `remove_transform`, `clear_transforms` | OCIO has no public in-place removal; the binding rebuilds this wrapper's group. Existing native references keep the old group. This is an unresolved semantic difference, not in-place mutation. |
 | Metadata, direction and write formats | Corresponding group methods | Metadata handles retain their owner; external native mutation requires coordination. |
+| Write with editable or retained const config | `write_to_string`, `write_to_string_with_const_config`; native ostream through `ocio-sys` | Both pass the native config directly. The shared-config path retains the existing native `ConstConfig` and makes no editable config copy; string output is owned by Rust. |
 
 Supporting in-place removal for every native group would require either an
 upstream public mutation API or a carefully validated custom implementation of
@@ -29,3 +30,9 @@ native strings (including empty strings) at valid indices. The raw FFI still
 exposes OCIO's own sentinel. The regression checks every valid index and three
 invalid boundaries on native 2.4.1, 2.5.2 and 2.6.0. The extra count query is
 per registry lookup, not per pixel or LUT element.
+
+Group writing with the same editable and retained read-only config produced
+identical CLF output and surfaced invalid-format errors on native 2.4.1,
+2.5.2 and 2.6.0. The read-only handle remained valid after its source menu
+parameters were dropped. Native `ostream` interop is unsafe and requires the
+caller to provide a valid stream for the duration of the call.

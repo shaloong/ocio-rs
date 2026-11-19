@@ -696,4 +696,16 @@ fn group_transform_writer_and_format_query_behavior() {
     assert!(written.contains("ProcessList"));
     assert!(written.contains("Matrix"));
     assert!(written.contains("Range"));
+
+    let parameters = ocio_rs::ColorSpaceMenuParameters::create(&config).unwrap();
+    let shared_config = parameters.const_config().unwrap();
+    drop(parameters);
+    let written_from_shared = group
+        .write_to_string_with_const_config(&shared_config, "Academy/ASC Common LUT Format")
+        .unwrap()
+        .unwrap();
+    assert_eq!(written_from_shared, written);
+    assert!(group
+        .write_to_string_with_const_config(&shared_config, "not-a-format")
+        .is_err());
 }

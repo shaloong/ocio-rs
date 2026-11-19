@@ -16456,6 +16456,34 @@ void* ocio_group_transform_write_to_string(void* handle, void* config, const cha
 #endif
 }
 
+void ocio_group_transform_write_const(void* handle, const void* config, const char* formatName, void* os) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config; (void)formatName; (void)os;
+#else
+  try {
+    if (!handle || !config || !formatName || !os) throw std::invalid_argument("invalid group writer arguments");
+    const auto& shared = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    ocio_rs_bridge::get_real_group_transform(handle)->write(shared, formatName, *static_cast<std::ostream*>(os));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void* ocio_group_transform_write_to_string_const(void* handle, const void* config, const char* formatName) {
+#ifdef OCIO_RS_STUB
+  (void)handle; (void)config; (void)formatName;
+  return nullptr;
+#else
+  try {
+    if (!handle || !config || !formatName) throw std::invalid_argument("invalid group writer arguments");
+    const auto& shared = *static_cast<const ocio::ConstConfigRcPtr*>(config);
+    std::ostringstream stream;
+    ocio_rs_bridge::get_real_group_transform(handle)->write(shared, formatName, stream);
+    ocio_rs_bridge::g_serialized_text = stream.str();
+    return (void*)ocio_rs_bridge::g_serialized_text.c_str();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 int ocio_group_transform_get_num_write_formats(void) {
 #ifdef OCIO_RS_STUB
   return 0;

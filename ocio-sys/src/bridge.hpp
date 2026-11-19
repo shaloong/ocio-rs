@@ -1465,6 +1465,8 @@ void ocio_group_transform_remove_transform(void* handle, uint64_t index);
 void ocio_group_transform_clear_transforms(void* handle);
 void ocio_group_transform_write(void* handle, void* config, const char* formatName, void* os);
 void* ocio_group_transform_write_to_string(void* handle, void* config, const char* formatName);
+void ocio_group_transform_write_const(void* handle, const void* config, const char* formatName, void* os);
+void* ocio_group_transform_write_to_string_const(void* handle, const void* config, const char* formatName);
 int ocio_group_transform_get_num_write_formats(void);
 const char* ocio_group_transform_get_format_name_by_index(int index);
 const char* ocio_group_transform_get_format_extension_by_index(int index);

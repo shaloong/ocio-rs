@@ -896,9 +896,12 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
     let overrides = l2_overrides();
 
     for f in bridge_funcs {
-        // A shared editable parameter handle can invalidate strings borrowed
-        // through another handle. Keep this operation in ocio-sys; L1 verifies it.
-        if f.name == "ocio_config_merger_params_shared" {
+        // Shared mutable merger parameters can invalidate borrowed strings.
+        // Native ostream interop likewise remains in ocio-sys; L1 verifies both.
+        if matches!(
+            f.name.as_str(),
+            "ocio_config_merger_params_shared" | "ocio_group_transform_write_const"
+        ) {
             continue;
         }
         if let Some(rust_class) = c_prefix_to_rust(&f.class_prefix) {
@@ -923,6 +926,9 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
                     "ocio_config_get_cache_id_explicit" => Some("try_cache_id_for_const_context"),
                     "ocio_format_metadata_stream" => Some("to_native_string"),
                     "ocio_look_transform_get_result_color_space" => Some("result_color_space"),
+                    "ocio_group_transform_write_to_string_const" => {
+                        Some("write_to_string_with_const_config")
+                    }
                     _ => None,
                 };
                 exact_override
@@ -1412,6 +1418,34 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn l2_group_const_writer_maps_string_and_excludes_native_ostream() {
+        let funcs = [
+            CFunc {
+                name: "ocio_group_transform_write_const".into(),
+                return_type: "void".into(),
+                params: String::new(),
+                class_prefix: "group_transform".into(),
+                method_name: "write_const".into(),
+            },
+            CFunc {
+                name: "ocio_group_transform_write_to_string_const".into(),
+                return_type: "void*".into(),
+                params: String::new(),
+                class_prefix: "group_transform".into(),
+                method_name: "write_to_string_const".into(),
+            },
+        ];
+        let mut methods = HashMap::from([(
+            "GroupTransform".into(),
+            HashSet::from(["write_to_string_with_const_config".into()]),
+        )]);
+        let result = run_l2(&funcs, &methods);
+        assert_eq!((result.total, result.matched), (1, 1));
+        methods.get_mut("GroupTransform").unwrap().clear();
+        assert_eq!(run_l2(&funcs, &methods).missing.len(), 1);
+    }
 
     #[test]
     fn l2_exact_bridge_overrides_require_correct_wrapper() {
