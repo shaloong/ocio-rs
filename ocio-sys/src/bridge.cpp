@@ -4223,7 +4223,9 @@ bool ocio_config_is_display_temporary(void* handle, int index) {
   return false;
 #else
   try {
-    return ocio_rs_bridge::get_real_config(handle)->isDisplayTemporary(index);
+    const auto& config = ocio_rs_bridge::get_real_config(handle);
+    if (index < 0 || index >= config->getNumDisplaysAll()) return false;
+    return config->isDisplayTemporary(index);
   } catch (...) { return false; }
 #endif
 }
@@ -4235,7 +4237,9 @@ void ocio_config_set_display_temporary(void* handle, int index, bool isTemporary
   return;
 #else
   try {
-    ocio_rs_bridge::get_real_config(handle)->setDisplayTemporary(index, isTemporary);
+    const auto& config = ocio_rs_bridge::get_real_config(handle);
+    if (index < 0 || index >= config->getNumDisplaysAll()) return;
+    config->setDisplayTemporary(index, isTemporary);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #endif
 }
@@ -4258,7 +4262,15 @@ void* ocio_config_get_view_v2(void* handle, int type, const char* display, int i
   return nullptr;
 #else
   try {
-    return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_config(handle)->getView(ocio_rs_bridge::checked_view_type(type), display, index)));
+    const auto& config = ocio_rs_bridge::get_real_config(handle);
+    const auto viewType = ocio_rs_bridge::checked_view_type(type);
+    // Older OCIO versions have the same incorrect bounds condition when
+    // querying the global shared views with an empty display.
+    if ((!display || !*display) &&
+        (index < 0 || index >= config->getNumViews(viewType, display))) {
+      return const_cast<char*>("");
+    }
+    return const_cast<void*>(static_cast<const void*>(config->getView(viewType, display, index)));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }

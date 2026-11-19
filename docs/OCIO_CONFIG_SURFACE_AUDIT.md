@@ -30,9 +30,10 @@ overload otherwise keeps OCIO's own fallback behavior, which may return a
 view even when no filtered view matched. The config core and display suites
 exercise missing and present views against native 2.4.1, 2.5.2 and 2.6.0.
 
-The all-display indexed query checks the native count before calling OCIO:
-the 2.4.1 and 2.5.1 implementations use an incorrect bounds condition that
-can access outside the display list. The raw bridge retains OCIO's empty
+The all-display and temporary-display indexed queries, as well as global
+shared-view lookup, check the native count before calling OCIO: the 2.4.1
+and 2.5.1 implementations use incorrect bounds conditions that can access
+outside their lists. The raw bridge retains OCIO's empty
 missing-name sentinel, while the Rust query returns `None`. Role-name
 enumeration also maps OCIO's empty out-of-range sentinel to `None`; role
 color-space values remain unchanged because an authored role may contain

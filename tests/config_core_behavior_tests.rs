@@ -114,6 +114,25 @@ fn missing_display_view_and_look_names_return_none() {
     assert_eq!(config.try_display(-1).unwrap(), None);
     assert_eq!(config.try_display_all(-1).unwrap(), None);
     assert_eq!(config.try_display_all(0).unwrap(), None);
+    assert!(!config.is_display_temporary(-1));
+    assert!(!config.is_display_temporary(i32::MAX));
+    #[cfg(feature = "v2_5")]
+    {
+        config.set_display_temporary(-1, true).unwrap();
+        config.set_display_temporary(i32::MAX, true).unwrap();
+    }
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "", -1)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "", i32::MAX)
+            .unwrap(),
+        None
+    );
     assert_eq!(config.try_role_name(-1).unwrap(), None);
     assert_eq!(config.try_role_name(config.num_roles()).unwrap(), None);
     unsafe {
@@ -124,6 +143,17 @@ fn missing_display_view_and_look_names_return_none() {
             let ptr = sys::ocio_config_get_display_all(raw, index);
             assert!(!ptr.is_null());
             assert_eq!(std::ffi::CStr::from_ptr(ptr.cast()).to_bytes(), b"");
+            assert!(!sys::ocio_config_is_display_temporary(raw, index));
+            #[cfg(feature = "v2_5")]
+            sys::ocio_config_set_display_temporary(raw, index, true);
+            let view = sys::ocio_config_get_view_v2(
+                raw,
+                ocio_rs::ViewType::Shared as i32,
+                std::ptr::null(),
+                index,
+            );
+            assert!(!view.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(view.cast()).to_bytes(), b"");
         }
         sys::ocio_config_destroy(raw);
     }

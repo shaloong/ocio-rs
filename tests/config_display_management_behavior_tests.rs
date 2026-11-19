@@ -49,6 +49,17 @@ fn basic_display_view_arguments_are_color_space_and_looks() {
     );
     assert_eq!(config.try_display_all(-1).unwrap(), None);
     assert_eq!(config.try_display_all(i32::MAX).unwrap(), None);
+    assert!(!config.is_display_temporary(-1));
+    assert!(!config.is_display_temporary(i32::MAX));
+    #[cfg(feature = "v2_5")]
+    {
+        config.set_display_temporary(-1, true).unwrap();
+        config.set_display_temporary(i32::MAX, true).unwrap();
+        assert!(!config.is_display_temporary(display_index));
+        config.set_display_temporary(display_index, true).unwrap();
+        assert!(config.is_display_temporary(display_index));
+        config.set_display_temporary(display_index, false).unwrap();
+    }
     assert_eq!(
         config.try_display_all(config.num_displays_all()).unwrap(),
         None
@@ -83,6 +94,23 @@ fn view_type_selects_shared_and_display_defined_views() {
         .add_display_view_detailed(display, "Defined", "TypedTransform", "raw", "", "", "")
         .unwrap();
     config.add_virtual_display_shared_view("Shared").unwrap();
+    assert_eq!(
+        config.try_view_by_type(ViewType::Shared, "", -1).unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ViewType::Shared, "", i32::MAX)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ViewType::Shared, "", 0)
+            .unwrap()
+            .as_deref(),
+        Some("Shared")
+    );
     config
         .add_virtual_display_view("Defined", "TypedTransform", "raw", "", "", "")
         .unwrap();
