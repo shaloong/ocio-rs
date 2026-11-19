@@ -83,13 +83,13 @@ fn log_affine_transform_value_copy_and_direction_behavior() {
         .create_editable_copy()
         .expect("log affine transform editable copy");
     copy.set_base(10.0).expect("set copy base");
-    copy.set_log_side_slope_value(&[0.9, 0.9, 0.9])
+    copy.set_log_side_slope_value(&[0.7, 0.8, 0.9])
         .expect("set copy log-side slope");
-    copy.set_log_side_offset_value(&[0.1, 0.1, 0.1])
+    copy.set_log_side_offset_value(&[0.1, 0.2, 0.3])
         .expect("set copy log-side offset");
-    copy.set_lin_side_slope_value(&[1.0, 1.0, 1.0])
+    copy.set_lin_side_slope_value(&[1.1, 1.2, 1.3])
         .expect("set copy lin-side slope");
-    copy.set_lin_side_offset_value(&[0.0, 0.0, 0.0])
+    copy.set_lin_side_offset_value(&[0.4, 0.5, 0.6])
         .expect("set copy lin-side offset");
     copy.set_direction(TransformDirection::Inverse);
 
@@ -98,28 +98,28 @@ fn log_affine_transform_value_copy_and_direction_behavior() {
         &copy
             .log_side_slope_value()
             .expect("read copy log-side slope"),
-        &[0.9, 0.9, 0.9],
+        &[0.7, 0.8, 0.9],
         1e-10,
     );
     assert_vec_close(
         &copy
             .log_side_offset_value()
             .expect("read copy log-side offset"),
-        &[0.1, 0.1, 0.1],
+        &[0.1, 0.2, 0.3],
         1e-10,
     );
     assert_vec_close(
         &copy
             .lin_side_slope_value()
             .expect("read copy lin-side slope"),
-        &[1.0, 1.0, 1.0],
+        &[1.1, 1.2, 1.3],
         1e-10,
     );
     assert_vec_close(
         &copy
             .lin_side_offset_value()
             .expect("read copy lin-side offset"),
-        &[0.0, 0.0, 0.0],
+        &[0.4, 0.5, 0.6],
         1e-10,
     );
     assert_eq!(copy.direction(), TransformDirection::Inverse);

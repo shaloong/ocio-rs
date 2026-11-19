@@ -54,46 +54,62 @@ fn log_camera_transform_value_copy_and_direction_behavior() {
     }
 
     let transform = configured_log_camera_transform();
+    transform
+        .set_log_side_slope_value(&[1.1, 1.2, 1.3])
+        .unwrap();
+    transform
+        .set_log_side_offset_value(&[0.1, 0.2, 0.3])
+        .unwrap();
+    transform
+        .set_lin_side_slope_value(&[2.1, 2.2, 2.3])
+        .unwrap();
+    transform
+        .set_lin_side_offset_value(&[0.4, 0.5, 0.6])
+        .unwrap();
+    transform
+        .set_lin_side_break_value(&[0.7, 0.8, 0.9])
+        .unwrap();
+    transform.set_linear_slope_value(&[3.1, 3.2, 3.3]).unwrap();
 
     assert_close(transform.base().expect("read base"), 2.0, 1e-10);
     assert_vec_close(
         &transform
             .log_side_slope_value()
             .expect("read log-side slope"),
-        &[1.0, 1.0, 1.0],
+        &[1.1, 1.2, 1.3],
         1e-10,
     );
     assert_vec_close(
         &transform
             .log_side_offset_value()
             .expect("read log-side offset"),
-        &[0.0, 0.0, 0.0],
+        &[0.1, 0.2, 0.3],
         1e-10,
     );
     assert_vec_close(
         &transform
             .lin_side_slope_value()
             .expect("read lin-side slope"),
-        &[1.0, 1.0, 1.0],
+        &[2.1, 2.2, 2.3],
         1e-10,
     );
     assert_vec_close(
         &transform
             .lin_side_offset_value()
             .expect("read lin-side offset"),
-        &[0.0, 0.0, 0.0],
+        &[0.4, 0.5, 0.6],
         1e-10,
     );
     assert_vec_close(
         &transform
             .lin_side_break_value()
             .expect("read lin-side break"),
-        &[0.5, 0.5, 0.5],
+        &[0.7, 0.8, 0.9],
         1e-10,
     );
     assert_eq!(
         transform.linear_slope_value().expect("read linear slope"),
-        Some([1.0, 1.0, 1.0])
+        Some([3.1, 3.2, 3.3])
     );
     assert_eq!(transform.direction(), TransformDirection::Forward);
 
@@ -127,14 +143,14 @@ fn log_camera_transform_value_copy_and_direction_behavior() {
         &transform
             .lin_side_break_value()
             .expect("re-read lin-side break"),
-        &[0.5, 0.5, 0.5],
+        &[0.7, 0.8, 0.9],
         1e-10,
     );
     assert_eq!(
         transform
             .linear_slope_value()
             .expect("re-read linear slope"),
-        Some([1.0, 1.0, 1.0])
+        Some([3.1, 3.2, 3.3])
     );
     assert_eq!(transform.direction(), TransformDirection::Forward);
 }

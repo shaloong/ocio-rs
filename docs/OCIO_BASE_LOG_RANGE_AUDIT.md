@@ -19,3 +19,15 @@ when set, and after clearing it. The check runs in the existing transform
 suite; no new CI job or public API is needed.
 The five existing transform suites passed on Windows with each pinned
 version (16 tests per version).
+
+The 2.6 signatures for `LogAffineTransform` and `LogCameraTransform` use
+three-element `double` array references for log-side slope and offset and
+linear-side slope and offset. The camera also requires a three-element break
+in its factory, provides get/set for that break, and has a distinct optional
+three-element linear slope with get/set/unset. The bridge converts the C ABI
+buffers into fixed C++ arrays; the Rust methods preserve the RGB length and
+copy no heap storage. Both classes expose the common base operations, equality,
+and const/editable metadata. The strengthened native behavior tests use distinct
+values for every field and channel, including the optional slope, and passed
+with 2.4.1, 2.5.2, and 2.6.0. This verifies those specific mappings, not all
+possible processor or numerical behavior.
