@@ -95,6 +95,12 @@ copying it. The slider getters may report perceptual-space edges, so the
 regression verifies mixing-space endpoints and retained state rather than
 assuming the getters always equal the supplied values. This regression passed
 on Windows with native 2.4.1, 2.5.1, 2.5.2 and 2.6.0.
+For the stock native manager in those four versions, indexed mixing-space
+names are stored in the manager's own vector rather than borrowed from its
+retained config. The Rust borrow prevents refreshing the manager while a name
+is live. A native 2.4.1 and 2.6.0 regression also checks that editing the
+retained source config leaves an already borrowed name valid until the manager
+is refreshed.
 The current app-helper behavior suite also passed on native 2.4.1 (9 tests),
 2.5.2 (14) and 2.6.0 (14).
 

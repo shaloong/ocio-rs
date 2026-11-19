@@ -946,14 +946,13 @@ fn mixing_manager_uses_retained_const_config_without_copying() {
     config.set_role("color_picking", "raw").unwrap();
     let mut manager = ocio_rs::MixingColorSpaceManager::create_from_const(&retained).unwrap();
     assert_eq!(manager.num_mixing_spaces(), 1);
-    assert!(manager
-        .mixing_space_ui_name(0)
-        .unwrap()
-        .to_bytes()
-        .ends_with(b"(raw)"));
+    let name = manager.mixing_space_ui_name(0).unwrap();
+    assert!(name.to_bytes().ends_with(b"(raw)"));
 
-    // Refresh must use the same native config, not an editable snapshot.
+    // The borrowed name belongs to the manager, not the mutable source config.
     config.remove_role("color_picking").unwrap();
+    assert!(name.to_bytes().ends_with(b"(raw)"));
+    // Refresh must use the same native config, not an editable snapshot.
     manager.refresh_from_const(&retained).unwrap();
     assert_eq!(manager.num_mixing_spaces(), 2);
     drop(retained);
