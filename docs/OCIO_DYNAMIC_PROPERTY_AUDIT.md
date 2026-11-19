@@ -63,3 +63,8 @@ includes restoring a retained curve, preserving hue draw-only state, and
 rejecting incompatible native property types. The signature mapping is
 complete for this header family; it does not establish behavior of arbitrary
 third-party subclasses or concurrent mutation.
+The primary and tone dynamic-property round trips now exercise all 34 and 31
+flattened scalar slots, respectively, with distinct non-default values across
+the field groups. They compare the full value after both native property and CPU
+processor transfers and check that invalid replacements leave it unchanged.
+This is a round-trip check, not an independent numerical test of every field.

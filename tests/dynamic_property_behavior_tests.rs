@@ -417,10 +417,19 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let mut value = processor_prop
         .grading_primary_value()
         .expect("grading primary value");
-    value.brightness.red = 0.125;
-    value.contrast.master = 1.15;
-    value.gain.blue = 1.25;
+    value.brightness = ocio_rs::grading::GradingRGBM::new(0.125, 0.13, 0.14, 0.15);
+    value.contrast = ocio_rs::grading::GradingRGBM::new(1.11, 1.12, 1.13, 1.15);
+    value.gamma = ocio_rs::grading::GradingRGBM::new(1.21, 1.22, 1.23, 1.24);
+    value.offset = ocio_rs::grading::GradingRGBM::new(0.01, 0.0, 0.03, 0.04);
+    value.exposure = ocio_rs::grading::GradingRGBM::new(0.05, 0.06, 0.07, 0.08);
+    value.lift = ocio_rs::grading::GradingRGBM::new(0.09, 0.10, 0.11, 0.12);
+    value.gain = ocio_rs::grading::GradingRGBM::new(1.21, 1.22, 1.25, 1.24);
     value.saturation = 0.9;
+    value.pivot = -0.1;
+    value.pivot_black = 0.01;
+    value.pivot_white = 0.95;
+    value.clamp_black = -2.0;
+    value.clamp_white = 2.0;
     processor_prop
         .set_grading_primary_value(&value)
         .expect("set grading primary value");
@@ -497,9 +506,11 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let mut value = processor_prop
         .grading_tone_value()
         .expect("grading tone value");
-    value.blacks.red = 0.95;
-    value.midtones.master = 1.1;
-    value.highlights.width = 0.8;
+    value.blacks = ocio_rs::grading::GradingRGBMSW::new(0.95, 0.96, 0.97, 0.98, 0.1, 0.2);
+    value.shadows = ocio_rs::grading::GradingRGBMSW::new(0.81, 0.82, 0.83, 0.84, 0.5, 0.3);
+    value.midtones = ocio_rs::grading::GradingRGBMSW::new(1.01, 1.02, 1.03, 1.1, 0.3, 0.4);
+    value.highlights = ocio_rs::grading::GradingRGBMSW::new(1.11, 1.12, 1.13, 1.14, 0.4, 0.8);
+    value.whites = ocio_rs::grading::GradingRGBMSW::new(1.21, 1.22, 1.23, 1.24, 0.4, 0.6);
     value.scontrast = 1.2;
     processor_prop
         .set_grading_tone_value(&value)
