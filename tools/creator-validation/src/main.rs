@@ -247,6 +247,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             assert!(error.to_string().contains("exposure fixture failure"));
         }
         assert!(ExposureContrastTransform::create()?.try_exposure().is_ok());
+        let space = config.try_color_space("fixture-cdl")?.unwrap();
+        let transform = space
+            .try_transform(ocio_rs::ColorSpaceDirection::ToReference)?
+            .unwrap();
+        let ocio_rs::transform::Transform::CDL(cdl) = transform else {
+            panic!("unexpected CDL transform");
+        };
+        for error in [
+            cdl.try_style().unwrap_err(),
+            cdl.try_id().unwrap_err(),
+            cdl.try_first_sop_description().unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("CDL fixture failure"));
+        }
+        assert!(ocio_rs::transform::CDLTransform::create()?
+            .try_style()
+            .is_ok());
     }
     {
         use std::ffi::CStr;

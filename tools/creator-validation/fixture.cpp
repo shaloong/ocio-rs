@@ -93,6 +93,33 @@ public:
     double getLogMidGray() const override { throw OCIO::Exception("exposure fixture failure"); }
     void setLogMidGray(double value) override { delegate->setLogMidGray(value); }
 };
+class ThrowingCDLTransform final : public OCIO::CDLTransform {
+    OCIO::CDLTransformRcPtr delegate = OCIO::CDLTransform::Create();
+public:
+    OCIO::TransformRcPtr createEditableCopy() const override { return std::make_shared<ThrowingCDLTransform>(); }
+    OCIO::TransformDirection getDirection() const noexcept override { return delegate->getDirection(); }
+    void setDirection(OCIO::TransformDirection dir) noexcept override { delegate->setDirection(dir); }
+    const OCIO::FormatMetadata& getFormatMetadata() const noexcept override { return delegate->getFormatMetadata(); }
+    OCIO::FormatMetadata& getFormatMetadata() noexcept override { return delegate->getFormatMetadata(); }
+    bool equals(const OCIO::CDLTransform&) const noexcept override { return false; }
+    OCIO::CDLStyle getStyle() const override { throw OCIO::Exception("CDL fixture failure"); }
+    void setStyle(OCIO::CDLStyle value) override { delegate->setStyle(value); }
+    void getSlope(double* value) const override { delegate->getSlope(value); }
+    void setSlope(const double* value) override { delegate->setSlope(value); }
+    void getOffset(double* value) const override { delegate->getOffset(value); }
+    void setOffset(const double* value) override { delegate->setOffset(value); }
+    void getPower(double* value) const override { delegate->getPower(value); }
+    void setPower(const double* value) override { delegate->setPower(value); }
+    void getSOP(double* value) const override { delegate->getSOP(value); }
+    void setSOP(const double* value) override { delegate->setSOP(value); }
+    double getSat() const override { return delegate->getSat(); }
+    void setSat(double value) override { delegate->setSat(value); }
+    void getSatLumaCoefs(double* value) const override { delegate->getSatLumaCoefs(value); }
+    const char* getID() const override { throw OCIO::Exception("CDL fixture failure"); }
+    void setID(const char* value) override { delegate->setID(value); }
+    const char* getFirstSOPDescription() const override { throw OCIO::Exception("CDL fixture failure"); }
+    void setFirstSOPDescription(const char* value) override { delegate->setFirstSOPDescription(value); }
+};
 extern "C" void* grading_fixture_create(bool tone, bool fail) {
     OCIO::ConstTransformRcPtr value;
     if (tone) {
@@ -127,6 +154,10 @@ extern "C" void* grading_fixture_install_config() {
         exposure->setName("fixture-exposure");
         exposure->setTransform(std::make_shared<ThrowingExposureTransform>(), OCIO::COLORSPACE_DIR_TO_REFERENCE);
         config->addColorSpace(exposure);
+        auto cdl = OCIO::ColorSpace::Create();
+        cdl->setName("fixture-cdl");
+        cdl->setTransform(std::make_shared<ThrowingCDLTransform>(), OCIO::COLORSPACE_DIR_TO_REFERENCE);
+        config->addColorSpace(cdl);
         OCIO::SetCurrentConfig(config);
         return saved.release();
     } catch (...) { return nullptr; }

@@ -39,6 +39,12 @@ Windows with native 2.4.1, 2.5.2 and 2.6.0, and the normal round-trip suite
 passed on the same versions. Stub fallible queries report that native OCIO is
 unavailable. This does not establish behavior for every external subclass.
 
+CDL style, ID and first SOP description also have fallible queries, in
+addition to the existing fallible numeric queries. The original infallible
+methods retain their fallback values. A native subclass throwing from those
+three getters was tested through the Rust methods on Windows with OCIO 2.4.1,
+2.5.2 and 2.6.0; the normal CDL behavior suite passed against 2.6.0.
+
 ### Individual factory and buffer checks
 
 * `AllocationTransform` has one public factory, `Create()`. Its remaining

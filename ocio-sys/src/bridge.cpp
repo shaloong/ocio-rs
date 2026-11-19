@@ -13973,7 +13973,7 @@ int ocio_cdl_transform_get_style(void* handle) {
 #else
   try {
     return ocio_rs_bridge::get_real_cdl_transform(handle)->getStyle();
-  } catch (...) { return 0; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
 #endif
 }
 
@@ -14116,7 +14116,7 @@ void* ocio_cdl_transform_get_id(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cdl_transform(handle)->getID()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
@@ -14138,7 +14138,7 @@ void* ocio_cdl_transform_get_first_sop_description(void* handle) {
 #else
   try {
     return const_cast<void*>(static_cast<const void*>(ocio_rs_bridge::get_real_cdl_transform(handle)->getFirstSOPDescription()));
-  } catch (...) { return nullptr; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
 
