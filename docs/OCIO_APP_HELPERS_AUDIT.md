@@ -21,8 +21,10 @@ Native constructors are represented by their factories, destruction by
 handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. A retained
 merger returned by `ConstConfigMerger::from_file` avoids the editable copy;
-inspection not exposed on the retained handle remains available after an
-explicit editable copy. No
+its native search paths, working directory, version, parameters and OCIOM
+serialization are directly queryable. Safe parameter access copies only the
+selected parameters; `ocio-sys` also exposes the original mutable shared
+handle to callers who coordinate aliases. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
 `ConfigMergingHelpers::MergeConfigs` accepts two native const configs and
@@ -77,4 +79,5 @@ The multi-stage merger test also distinguishes the first result, second result,
 and final-result sentinel through editable and retained read-only config paths.
 It also checks the retained native merger path, explicit editable copying,
 invalid indices, repeated merging, and retained-config lifetime after dropping
-the read-only merger on native 2.5.2 and 2.6.0.
+the read-only merger on native 2.5.2 and 2.6.0. Read-only queries are compared
+with editable queries, including serialization and parameter-handle lifetime.

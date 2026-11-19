@@ -910,6 +910,22 @@ pub struct ConstConfigMerger {
 }
 
 impl ConstConfigMerger {
+    fn number(&self, field: i32) -> Result<i64> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_config_merger_number(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    fn native_text(&self, field: i32, index: i32) -> Result<&CStr> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_config_merger_text(self.handle.as_ptr(), field, index) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { text(value) })
+    }
+
     /// Load an OCIOM file without making an editable merger copy.
     pub fn from_file(path: &CStr) -> Result<Self> {
         crate::clear_last_error();
@@ -927,6 +943,51 @@ impl ConstConfigMerger {
         Ok(Self {
             handle: crate::handle_result(value)?,
         })
+    }
+
+    /// Number of native search paths.
+    pub fn num_search_paths(&self) -> Result<i32> {
+        Ok(self.number(0)? as i32)
+    }
+
+    /// Borrow a native search path; an invalid index returns native empty text.
+    pub fn search_path(&self, index: i32) -> Result<&CStr> {
+        self.native_text(0, index)
+    }
+
+    /// Borrow the native working directory.
+    pub fn working_dir(&self) -> Result<&CStr> {
+        self.native_text(1, 0)
+    }
+
+    /// Number of native merge-parameter entries.
+    pub fn num_params(&self) -> Result<i32> {
+        Ok(self.number(1)? as i32)
+    }
+
+    /// Copy one parameter entry for safe editable access.
+    pub fn params(&self, index: i32) -> Result<Option<ConfigMergingParameters>> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_const_config_merger_params(self.handle.as_ptr(), index, false)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(value).map(|handle| ConfigMergingParameters { handle }))
+    }
+
+    /// Serialize the native merger to OCIOM text.
+    pub fn serialize(&self) -> Result<String> {
+        Ok(self.native_text(2, 0)?.to_string_lossy().into_owned())
+    }
+
+    /// Major OCIOM format version.
+    pub fn major_version(&self) -> Result<u32> {
+        Ok(self.number(2)? as u32)
+    }
+
+    /// Minor OCIOM format version.
+    pub fn minor_version(&self) -> Result<u32> {
+        Ok(self.number(3)? as u32)
     }
 
     /// Return the number of completed merge steps.

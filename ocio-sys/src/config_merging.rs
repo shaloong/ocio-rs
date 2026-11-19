@@ -192,6 +192,26 @@ unsafe extern "C" {
     /// `h` must be a live read-only merger handle. Destroy a non-null result
     /// with `ocio_config_merger_destroy`.
     pub fn ocio_const_config_merger_editable_copy(h: *const c_void) -> *mut c_void;
+    /// Query search-path count (0), parameter count (1), major (2), or minor (3).
+    /// # Safety
+    /// `h` must be a live read-only merger handle from this ABI.
+    pub fn ocio_const_config_merger_number(h: *const c_void, field: i32) -> i64;
+    /// Query a search path (0), working directory (1), or serialized OCIOM (2).
+    /// # Safety
+    /// `h` must be live. Returned text is borrowed; serialized text is only
+    /// valid until the next bridge serialization on the same thread.
+    pub fn ocio_const_config_merger_text(h: *const c_void, field: i32, index: i32)
+        -> *const c_char;
+    /// Get a parameter object, optionally retaining the native mutable handle.
+    /// # Safety
+    /// `h` must be live. A non-null result must be destroyed with
+    /// `ocio_config_merging_parameters_destroy`. When `shared` is true, callers
+    /// must synchronize all aliases and invalidate borrowed strings before edits.
+    pub fn ocio_const_config_merger_params(
+        h: *const c_void,
+        index: i32,
+        shared: bool,
+    ) -> *mut c_void;
     pub fn ocio_config_merger_num_merged_configs(h: *mut c_void) -> i32;
     pub fn ocio_config_merger_merged_config(h: *mut c_void, index: i32) -> *mut c_void;
     /// Retain a read-only result. Index `-1` selects the final result.

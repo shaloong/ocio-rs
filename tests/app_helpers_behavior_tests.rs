@@ -53,9 +53,65 @@ fn ociom_controller_round_trip_and_execute() {
     let path = std::ffi::CString::new(temp.to_str().unwrap()).unwrap();
     let parsed = ConfigMerger::from_file(&path).unwrap();
     let parsed_shared = ocio_rs::ConstConfigMerger::from_file(&path).unwrap();
+    unsafe {
+        let native = ocio_sys::ocio_const_config_merger_from_file(path.as_ptr());
+        assert!(!native.is_null());
+        let shared = ocio_sys::ocio_const_config_merger_params(native, 0, true);
+        assert!(!shared.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_name(shared, c"native shared".as_ptr());
+        let copy = ocio_sys::ocio_const_config_merger_params(native, 0, false);
+        assert!(!copy.is_null());
+        ocio_sys::ocio_const_config_merger_destroy(native);
+        for handle in [shared, copy] {
+            let name = ocio_sys::ocio_config_merging_parameters_get_name(handle);
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), c"native shared");
+            ocio_sys::ocio_config_merging_parameters_destroy(handle);
+        }
+    }
     std::fs::remove_file(&temp).unwrap();
     assert_eq!(parsed.num_params().unwrap(), 1);
     assert_eq!(parsed_shared.num_merged_configs().unwrap(), 0);
+    assert_eq!(
+        parsed_shared.num_params().unwrap(),
+        parsed.num_params().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.num_search_paths().unwrap(),
+        parsed.num_search_paths().unwrap()
+    );
+    for index in -1..=parsed.num_search_paths().unwrap() {
+        assert_eq!(
+            parsed_shared.search_path(index).unwrap(),
+            parsed.search_path(index).unwrap()
+        );
+    }
+    assert_eq!(
+        parsed_shared.working_dir().unwrap(),
+        parsed.working_dir().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.major_version().unwrap(),
+        parsed.major_version().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.minor_version().unwrap(),
+        parsed.minor_version().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.serialize().unwrap(),
+        parsed.serialize().unwrap()
+    );
+    assert!(parsed_shared.params(-1).unwrap().is_none());
+    assert_eq!(
+        parsed_shared
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .input_config_name()
+            .unwrap(),
+        c"input.ocio"
+    );
     assert_eq!(
         parsed_shared
             .create_editable_copy()

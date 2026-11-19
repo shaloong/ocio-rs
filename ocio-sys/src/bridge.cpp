@@ -21441,6 +21441,59 @@ void* ocio_const_config_merger_editable_copy(const void* h) {
 #endif
 }
 
+int64_t ocio_const_config_merger_number(const void* h, int field) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)field; ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer"); return 0;
+#else
+  try {
+    if (!h || !*static_cast<const ocio::ConstConfigMergerRcPtr*>(h)) throw std::invalid_argument("null merger");
+    const auto& value = *static_cast<const ocio::ConstConfigMergerRcPtr*>(h);
+    switch (field) {
+      case 0: return value->getNumSearchPaths();
+      case 1: return value->getNumConfigMergingParameters();
+      case 2: return value->getMajorVersion();
+      case 3: return value->getMinorVersion();
+      default: throw std::invalid_argument("invalid merger number field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
+const char* ocio_const_config_merger_text(const void* h, int field, int index) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)field; (void)index; ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer"); return nullptr;
+#else
+  try {
+    if (!h || !*static_cast<const ocio::ConstConfigMergerRcPtr*>(h)) throw std::invalid_argument("null merger");
+    const auto& value = *static_cast<const ocio::ConstConfigMergerRcPtr*>(h);
+    switch (field) {
+      case 0: return value->getSearchPath(index);
+      case 1: return value->getWorkingDir();
+      case 2: {
+        std::ostringstream stream;
+        value->serialize(stream);
+        ocio_rs_bridge::g_serialized_text = stream.str();
+        return ocio_rs_bridge::g_serialized_text.c_str();
+      }
+      default: throw std::invalid_argument("invalid merger text field");
+    }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_const_config_merger_params(const void* h, int index, bool shared) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)h; (void)index; (void)shared; ocio_rs_bridge::capture_error_message("ConfigMerger requires native OpenColorIO 2.5.1 or newer"); return nullptr;
+#else
+  try {
+    if (!h || !*static_cast<const ocio::ConstConfigMergerRcPtr*>(h)) throw std::invalid_argument("null merger");
+    auto value = (*static_cast<const ocio::ConstConfigMergerRcPtr*>(h))->getParams(index);
+    if (!value) return nullptr;
+    return new MergeParams(shared ? std::move(value) : value->createEditableCopy());
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
 int ocio_config_merger_num_merged_configs(void* h) {
 #if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
   (void)h;
