@@ -72,7 +72,7 @@ The 2.6 Config additions above have these direct paths:
 
 | Native operation | Rust path and result |
 | --- | --- |
-| `LocateBuiltinColorSpace` | `Config::locate_builtin_color_space[_ref]` and `ConstConfig::locate_builtin_color_space`; an empty native result becomes `None`. Both input configs can be retained without a deep copy. |
+| `LocateBuiltinColorSpace` | `Config::locate_builtin_color_space[_ref]` and `ConstConfig::locate_builtin_color_space`; an empty native result becomes `None`. Editable inputs are forwarded directly; each read-only input is copied to isolate native cache-flag changes. |
 | `findColorSpaceForID` | `find_const_color_space_for_id` retains the returned native shared object; editable `Config::find_color_space_for_id` creates an independent copy. A missing ID becomes `None`. |
 | `generateLocalIDForColorSpace` | `generate_local_id_for_color_space` copies the native result into owned Rust text; native errors remain errors. The bridge's temporary text must not be retained across later calls. |
 | `getNumDisplayViewAliases`, `getDisplayViewAlias`, `hasDisplayViewAlias` | Matching methods exist on editable and const configs. A missing or out-of-range alias yields native empty text, represented as `None`. |
@@ -129,8 +129,11 @@ OCIO's ID lookup searches names and aliases, not the `interop_id` attribute
 itself; it applies its namespace and config-specific local-ID fallback rules.
 Alias authoring materializes the vector required by the C++ API.
 Built-in matching also accepts a `ConfigRef` to editable or shared read-only
-configurations. It does not copy either config, so reused native objects retain
-their OCIO fingerprint caches.
+configurations. The safe path copies each read-only input because OCIO's matching
+heuristics temporarily change cache flags; editable inputs are forwarded
+directly. Reuse editable configurations for repeated calls to avoid those
+binding-side copies and retain their native caches. Advanced callers may use the
+raw FFI on retained read-only handles only when they synchronize all aliases.
 Read-only `ConstConfig` also exposes the 2.6 canonical display/view, alias,
 resolved color-space, display description and HDR compatibility queries.
 Display aliases follow the config's `use_display_aliases` setting; view aliases

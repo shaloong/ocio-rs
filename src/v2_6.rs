@@ -124,10 +124,12 @@ impl crate::ConstConfig {
         Ok(self.v26_display_number(3, c"", c"", c"")? != 0)
     }
 
-    /// Find an equivalent space in a built-in config without copying either config.
-    /// Reuse the built-in config to retain OCIO's fingerprint cache.
-    /// Read-only configs are copied because OCIO's matching heuristics temporarily
-    /// change their cache flags. For repeated matching, create editable copies once.
+    /// Find an equivalent space in a built-in config.
+    ///
+    /// The read-only source and any read-only built-in config are copied because
+    /// OCIO's matching heuristics temporarily change their cache flags. Editable
+    /// built-in configs are passed directly. For repeated matching without these
+    /// binding-side copies, create editable copies once and reuse them.
     pub fn locate_builtin_color_space<'a>(
         &self,
         name: &CStr,
