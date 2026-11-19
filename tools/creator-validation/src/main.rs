@@ -30,6 +30,8 @@ extern "C" {
     fn proxy_fixture_empty() -> *mut c_void;
     fn proxy_fixture_destroy(ptr: *mut c_void);
     fn proxy_fixture_destroyed() -> u32;
+    fn grading_fixture_create(tone: bool, fail: bool) -> *mut c_void;
+    fn grading_fixture_destroy(ptr: *mut c_void);
     fn image_fixture_rgba(data: *mut f32) -> *mut c_void;
     fn image_fixture_planar(data: *mut f32) -> *mut c_void;
     fn image_fixture_custom(data: *mut f32) -> *mut c_void;
@@ -152,6 +154,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ocio_rs::version_hex(),
         "headers and runtime must match"
     );
+    for tone in [false, true] {
+        for fail in [true, false] {
+            unsafe {
+                let native = grading_fixture_create(tone, fail);
+                let handle = ocio_sys::ocio_const_transform_create_readonly_handle(native);
+                grading_fixture_destroy(native);
+                assert!(!handle.is_null());
+                let mut values = [123.0_f64; 34];
+                ocio_sys::ocio_error_clear_last();
+                let copied = if tone {
+                    ocio_sys::ocio_grading_tone_transform_copy_value(
+                        handle,
+                        values.as_mut_ptr(),
+                        31,
+                    )
+                } else {
+                    ocio_sys::ocio_grading_primary_transform_copy_value(
+                        handle,
+                        values.as_mut_ptr(),
+                        34,
+                    )
+                };
+                if fail {
+                    assert!(!copied);
+                    assert_eq!(values, [123.0; 34]);
+                    let error = ocio_sys::ocio_error_get_last();
+                    assert!(!error.is_null());
+                    assert_eq!(
+                        std::ffi::CStr::from_ptr(error).to_bytes(),
+                        b"grading fixture failure"
+                    );
+                } else {
+                    assert!(copied);
+                    assert!(ocio_sys::ocio_error_get_last().is_null());
+                }
+                ocio_sys::ocio_error_clear_last();
+                ocio_sys::ocio_transform_destroy(handle);
+            }
+        }
+    }
     {
         use std::ffi::CStr;
         assert!(

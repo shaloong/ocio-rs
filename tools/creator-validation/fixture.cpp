@@ -38,6 +38,43 @@ extern "C" void proxy_fixture_destroy(void* ptr) {
 }
 extern "C" unsigned proxy_fixture_destroyed() { return proxy_destroyed.load(); }
 
+// Verify that exceptions from external virtual getters cross the C bridge as
+// errors, without requiring a production-only error-injection API.
+template<class Base, class Value>
+class ThrowingGradingTransform final : public Base {
+    std::shared_ptr<Base> delegate = Base::Create(OCIO::GRADING_LIN);
+public:
+    OCIO::TransformRcPtr createEditableCopy() const override { return delegate->createEditableCopy(); }
+    OCIO::TransformDirection getDirection() const noexcept override { return delegate->getDirection(); }
+    void setDirection(OCIO::TransformDirection dir) noexcept override { delegate->setDirection(dir); }
+    const OCIO::FormatMetadata& getFormatMetadata() const noexcept override { return delegate->getFormatMetadata(); }
+    OCIO::FormatMetadata& getFormatMetadata() noexcept override { return delegate->getFormatMetadata(); }
+    bool equals(const Base&) const noexcept override { return false; }
+    OCIO::GradingStyle getStyle() const noexcept override { return delegate->getStyle(); }
+    void setStyle(OCIO::GradingStyle style) noexcept override { delegate->setStyle(style); }
+    const Value& getValue() const override { throw OCIO::Exception("grading fixture failure"); }
+    void setValue(const Value& value) override { delegate->setValue(value); }
+    bool isDynamic() const noexcept override { return delegate->isDynamic(); }
+    void makeDynamic() noexcept override { delegate->makeDynamic(); }
+    void makeNonDynamic() noexcept override { delegate->makeNonDynamic(); }
+};
+extern "C" void* grading_fixture_create(bool tone, bool fail) {
+    OCIO::ConstTransformRcPtr value;
+    if (tone) {
+        value = fail ? std::static_pointer_cast<OCIO::Transform>(
+                           std::make_shared<ThrowingGradingTransform<OCIO::GradingToneTransform, OCIO::GradingTone>>())
+                     : std::static_pointer_cast<OCIO::Transform>(OCIO::GradingToneTransform::Create(OCIO::GRADING_LIN));
+    } else {
+        value = fail ? std::static_pointer_cast<OCIO::Transform>(
+                           std::make_shared<ThrowingGradingTransform<OCIO::GradingPrimaryTransform, OCIO::GradingPrimary>>())
+                     : std::static_pointer_cast<OCIO::Transform>(OCIO::GradingPrimaryTransform::Create(OCIO::GRADING_LIN));
+    }
+    return new OCIO::ConstTransformRcPtr(value);
+}
+extern "C" void grading_fixture_destroy(void* ptr) {
+    delete static_cast<OCIO::ConstTransformRcPtr*>(ptr);
+}
+
 // Deliberately not a GpuShaderDesc. It delegates storage to an OCIO descriptor
 // solely to keep this test fixture small; its creator virtuals are independent.
 class Creator final : public OCIO::GpuShaderCreator, public std::enable_shared_from_this<Creator> {

@@ -8,6 +8,8 @@ generated shader or prove general subclass correctness.
 It also imports a C++ `ConfigIOProxy` subclass and checks virtual dispatch,
 binary payloads, exceptions, config loading and ownership retained by
 contexts and configs.
+It also injects exceptions from C++ primary and tone transform value getters,
+checking bridge error propagation, unchanged buffers and subsequent recovery.
 The same fixture verifies CPU processing with C++-owned image descriptors:
 packed RGBA in place, separate packed input and planar output, and an
 independent `ImageDesc` subclass with irregular channel offsets.

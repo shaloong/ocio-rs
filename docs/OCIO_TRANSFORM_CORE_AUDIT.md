@@ -23,6 +23,10 @@ For primary and tone transform value reads, `try_value` returns native bridge
 errors rather than silently substituting defaults. The existing `value`
 compatibility method retains its style-default fallback on failure. Both use a
 fixed-size stack buffer; the native getter may still perform its own work.
+The manual C++ subclass fixture makes each native getter throw and checks the
+raw bridge error message, unchanged output buffer, and subsequent successful
+read on Windows with native 2.4.1, 2.5.2 and 2.6.0. This exercises the bridge
+boundary; it does not inject the subclass through the high-level Rust wrapper.
 
 ### Individual factory and buffer checks
 
