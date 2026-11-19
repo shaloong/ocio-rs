@@ -80,6 +80,11 @@ The 2.6 Config additions above have these direct paths:
 | `getCanonicalDisplayName`, `getCanonicalViewName`, `getResolvedDisplayViewColorSpaceName`, `getDisplayDescription` | Matching fallible methods on both config handles copy returned text while its native owner is alive. |
 | Alias-aware `addSharedView` and `addDisplayView` overloads | `add_shared_view_with_aliases` and `add_display_view_with_aliases` pass all view fields plus an alias vector; empty vectors and native alias collisions have behavior regressions. |
 
+The native 2.6 regression also exercises `LocateBuiltinColorSpace` for a data
+space when the target config's `raw` space is inactive. It checks the returned
+canonical name rather than assuming a particular capitalization. This covers
+the native data-space path, not every fingerprint-matching candidate.
+
 The native enum inserts HMJ before the HSY variants. The bridge translates
 style values in both directions at the API boundary, not in the pixel loop.
 
