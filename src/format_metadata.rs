@@ -18,10 +18,12 @@ pub struct FormatMetadata {
     pub(crate) handle: NonNull<c_void>,
 }
 
-/// Shared read-only metadata owned by an OCIO processor.
+/// Shared read-only metadata retained by an OCIO processor or transform.
 ///
-/// Child handles keep the processor alive independently. Borrowed text stays
-/// valid while this handle is alive, absent external native mutation.
+/// Child handles retain the native owner. Borrowed text remains valid while
+/// this handle is alive, absent external native mutation. Metadata supplied
+/// by [`crate::transform::ConstTransform::with_readonly_metadata`] is additionally
+/// subject to that callback's scope and aliasing safety requirements.
 pub struct ConstFormatMetadata {
     pub(crate) handle: NonNull<c_void>,
 }

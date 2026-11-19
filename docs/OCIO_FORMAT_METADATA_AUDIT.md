@@ -15,6 +15,16 @@ this class. This is a class-level inventory, not proof of full-library parity.
 | Stream insertion operator | `to_native_string` on both types | Delegates to OCIO's native diagnostic stream operator and copies the result. It is not a safe XML serializer; non-UTF-8 output is converted lossily. |
 | Protected constructor, deleted copy constructor and virtual destructor | Native objects are owned by transforms, bakers or processors; wrapper handles retain owners and release on drop | No standalone public C++ constructor is exposed. `ConstFormatMetadata::create_editable_copy` uses an owned native group metadata container. |
 
+The individual 2.6 declarations were checked against these paths. Both
+`getAttributeValue(int)` and `getAttributeValue(const char *)` are separate
+calls; `getChildElement(int)` const and editable variants retain their distinct
+read-only and editable ownership contracts. `getNumAttributes`,
+`getAttributeName(int)`, `addAttribute`, `getNumChildrenElements`,
+`addChildElement`, `clear`, and assignment are all represented separately.
+The element name/value and the `name`/`id` convenience pairs are also
+independent native getters/setters; no native method is inferred from the
+name-only parity scan. All native indices and counts use signed `int`.
+
 The editable and readonly behavior suites passed on Windows with native static
 2.4.1, 2.5.2 and 2.6.0, including ownership after parent drop, sibling growth,
 invalidation, aliasing assignment, and stream output. Self-assignment is also
