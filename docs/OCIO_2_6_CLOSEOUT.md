@@ -205,6 +205,22 @@ The stream insertion operators are diagnostics, not required operations.
 Windows tests for file rules, viewing rules, and const config items passed
 on each of 2.4.1, 2.5.2, and 2.6.0 (16 per version).
 
+The individual 2.6.0 declarations for both rule classes were checked against
+their Rust and bridge paths:
+
+| Native declarations | Callable path |
+| --- | --- |
+| Both: `Create()`, `createEditableCopy()`, `getNumEntries()`, `getIndexForRule(const char *)`, `getName(size_t)` | Editable factories, copies and queries, plus const queries on installed rules; fallible index/name calls preserve native errors. |
+| File rules: `getPattern` / `setPattern`, `getExtension` / `setExtension`, `getRegex` / `setRegex`, `getColorSpace` / `setColorSpace` | Separate rule-indexed operations, retaining native pattern/regex replacement semantics. |
+| Both: `getNumCustomKeys(size_t)`, `getCustomKeyName(size_t, size_t)`, `getCustomKeyValue(size_t, size_t)`, `setCustomKey(size_t, const char *, const char *)` | Indexed reads and the editable key/value setter; passing an empty value uses native removal semantics. |
+| File rules: both `insertRule` overloads, `insertPathSearchRule`, `setDefaultRuleColorSpace`, `removeRule`, `increaseRulePriority`, `decreaseRulePriority`, `isDefault` | Direct editable methods, including distinct pattern/extension and regex argument lists; const queries expose the native default predicate. |
+| Viewing rules: `getNumColorSpaces`, `getColorSpace`, `addColorSpace`, `removeColorSpace`, and the four corresponding encoding methods | Separate editable and const selector queries and editable mutations; outer indices and counts are `size_t`, with the additional native narrowing guard described below. |
+| Viewing rules: `insertRule(size_t, const char *)`, `removeRule(size_t)` | Editable insertion and removal methods with checked conversion from the legacy Rust `u64` index. |
+
+The two file-rule reserved names are exposed as constants. Deleted copy
+operations, private constructors, destructors used for native ownership and
+diagnostic stream output do not require additional color-management methods.
+
 The 2.6 declarations were also checked by argument shape: the file-rule
 insertion overloads accept `(index, name, color space, pattern, extension)`
 and `(index, name, color space, regex)` respectively; the path-search rule
