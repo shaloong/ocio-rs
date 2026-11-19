@@ -28,6 +28,65 @@ fn runtime_helpers_test_lock() -> MutexGuard<'static, ()> {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn global_callback_panic_payload_drop_is_contained() {
+    const CHILD: &str = "OCIO_RS_GLOBAL_PANIC_PAYLOAD_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "global_callback_panic_payload_drop_is_contained"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "child failed: {}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("panic payload destructor");
+        }
+    }
+    let logged = Arc::new(AtomicUsize::new(0));
+    let count = logged.clone();
+    unsafe {
+        set_logging_callback_unchecked(move |_| {
+            count.fetch_add(1, Ordering::SeqCst);
+            std::panic::panic_any(PanicOnDrop)
+        })
+    }
+    .unwrap();
+    try_log_message(LoggingLevel::Warning, "callback test").unwrap();
+    unsafe { reset_logging_callback_unchecked() }.unwrap();
+    assert_eq!(logged.load(Ordering::SeqCst), 1);
+
+    let hashed = Arc::new(AtomicUsize::new(0));
+    let count = hashed.clone();
+    unsafe {
+        set_compute_hash_callback(move |_| {
+            count.fetch_add(1, Ordering::SeqCst);
+            std::panic::panic_any(PanicOnDrop)
+        })
+    }
+    .unwrap();
+    try_clear_all_caches().unwrap();
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/clf/matrix_3x4_example.clf");
+    let transform = FileTransform::create().unwrap();
+    transform.set_src(path.to_string_lossy()).unwrap();
+    assert!(Config::raw()
+        .unwrap()
+        .processor_from_transform_default_direction(&transform)
+        .is_err());
+    unsafe { reset_compute_hash_callback() }.unwrap();
+    assert!(hashed.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn global_version_and_logging_helper_behavior() {
     let _guard = runtime_helpers_test_lock();
     if is_stub() {

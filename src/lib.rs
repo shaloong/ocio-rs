@@ -258,7 +258,7 @@ unsafe extern "C" fn rust_logging_callback(message: *const i8) {
             }
             active.set(true);
             let _reset = Reset(active);
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
+            let _ = catch_callback_unwind(std::panic::AssertUnwindSafe(|| callback(&message)));
         });
     }
 }
@@ -284,8 +284,7 @@ unsafe extern "C" fn rust_compute_hash_callback(
     } else {
         unsafe { std::slice::from_raw_parts(input, input_len) }
     };
-    let Ok(value) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| callback(input)))
-    else {
+    let Ok(value) = catch_callback_unwind(std::panic::AssertUnwindSafe(|| callback(input))) else {
         return false;
     };
     COMPUTE_HASH_OUTPUT.with(|slot| {
@@ -827,6 +826,19 @@ pub(crate) fn clear_last_error() {
 pub(crate) fn discard_callback_panic(payload: Box<dyn std::any::Any + Send>) {
     if let Err(second) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(payload))) {
         std::mem::forget(second);
+    }
+}
+
+pub(crate) fn catch_callback_unwind<F, T>(callback: F) -> std::result::Result<T, ()>
+where
+    F: FnOnce() -> T + std::panic::UnwindSafe,
+{
+    match std::panic::catch_unwind(callback) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            discard_callback_panic(payload);
+            Err(())
+        }
     }
 }
 

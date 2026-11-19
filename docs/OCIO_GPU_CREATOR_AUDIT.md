@@ -41,6 +41,15 @@ The descriptor declarations above were checked against 2.4.1, 2.5.2 and
 only when the underlying creator is a descriptor. Its scoped view does not
 expose `DerefMut`, preventing the descriptor handle from being moved out.
 
+Rust GPU callbacks use a common unwind boundary that also catches a panic
+caused by dropping the original panic payload; it intentionally forgets the
+second payload if necessary to prevent unwinding through C. A subprocess
+regression covers a live uniform getter, its destructor, and a persistent
+texture policy. GPU descriptor and runtime-helper suites passed on Windows
+with native 2.4.1 (66 and 13 tests), 2.5.2 (82 and 13), and 2.6.0 (82 and 13).
+This applies to unwinding panics, not `panic=abort`, and does not certify every
+third-party callback implementation.
+
 Texture scalar counts use the native metadata query without copying texels.
 The fallible count methods preserve native errors; their compatibility wrappers
 return zero on failure. These queries do not validate GPU hardware execution.

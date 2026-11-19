@@ -3829,14 +3829,14 @@ impl GpuShaderCreator<'_> {
             context: *mut c_void,
             out: *mut c_void,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let value = unsafe { (&*context.cast::<F>())() };
                 unsafe { out.cast::<T>().write(value) };
             }))
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -3953,7 +3953,7 @@ impl GpuShaderCreator<'_> {
             capacity: usize,
             length: *mut usize,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 let data = if capacity == 0 {
                     NonNull::<T>::dangling().as_ptr()
@@ -3966,7 +3966,7 @@ impl GpuShaderCreator<'_> {
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -4679,7 +4679,7 @@ unsafe extern "C" fn persistent_clone_callback<P: ShaderClonePolicy>(
     let Some(state) = (unsafe { context.cast::<PersistentPolicyState<P>>().as_mut() }) else {
         return std::ptr::null_mut();
     };
-    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    match crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
         state.policy.clone_creator()
     })) {
         Ok(Ok(creator)) => std::mem::ManuallyDrop::new(creator).handle.as_ptr(),
@@ -4704,7 +4704,7 @@ unsafe extern "C" fn persistent_cache_id_callback<P: ShaderCacheIdPolicy>(
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<_> {
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<_> {
         if output.is_null() {
             return Err(OcioError::InvalidInput("null cache ID output".into()));
         }
@@ -4739,7 +4739,7 @@ unsafe extern "C" fn persistent_policy_callback<P: ShaderTexturePolicy>(
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
         if value.is_null() {
             return Err(OcioError::InvalidInput("null texture policy value".into()));
         }
@@ -5346,7 +5346,7 @@ unsafe extern "C" fn persistent_texture_control_callback<
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
         || -> Result<ShaderTextureAction> {
             let event = unsafe { event.as_ref() }
                 .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
@@ -5417,7 +5417,7 @@ unsafe extern "C" fn persistent_uniform_control_callback<
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
         || -> Result<ShaderUniformAction> {
             if name.is_null() || action.is_null() || !(0..=4).contains(&uniform_type) {
                 return Err(OcioError::InvalidInput(
@@ -5487,7 +5487,7 @@ unsafe extern "C" fn persistent_lifecycle_callback<
     if state.error.is_some() && event != 2 {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
         let event = match event {
             0 if !uid.is_null() => ShaderLifecycle::Begin {
                 unique_id: unsafe { std::ffi::CStr::from_ptr(uid) }
@@ -5534,7 +5534,7 @@ unsafe extern "C" fn persistent_code_callback<P: ShaderTexturePolicy + ShaderExt
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
         || -> Result<Option<std::ffi::CString>> {
             let section = match section {
                 0 => ShaderCodeSection::Declarations,
@@ -5607,7 +5607,7 @@ unsafe extern "C" fn persistent_assembler_callback<
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
         || -> Result<Option<std::ffi::CString>> {
             if output.is_null() {
                 return Err(OcioError::InvalidInput("null shader output".into()));
@@ -5675,7 +5675,7 @@ unsafe extern "C" fn persistent_finalizer_callback<
     if state.error.is_some() {
         return false;
     }
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+    let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
         || -> Result<Option<std::ffi::CString>> {
             if output.is_null() {
                 return Err(OcioError::InvalidInput(
@@ -6562,7 +6562,7 @@ impl GPUProcessor {
                 return false;
             }
             let result =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
+                crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<u32> {
                     if value.is_null() || !(0..=3).contains(&kind) {
                         return Err(OcioError::InvalidInput(
                             "invalid texture policy event".into(),
@@ -6612,7 +6612,7 @@ impl GPUProcessor {
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<Option<std::ffi::CString>> {
                     if output.is_null() {
                         return Err(OcioError::InvalidInput(
@@ -6661,7 +6661,7 @@ impl GPUProcessor {
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<Option<std::ffi::CString>> {
                     let section = match section {
                         0 => ShaderCodeSection::Declarations,
@@ -6723,7 +6723,7 @@ impl GPUProcessor {
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
             let result =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
                     let event = match event {
                         0 if !uid.is_null() => ShaderLifecycle::Begin {
                             unique_id: unsafe { std::ffi::CStr::from_ptr(uid) }.to_str().map_err(
@@ -6772,7 +6772,7 @@ impl GPUProcessor {
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
             let result =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+                crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
                     if name.is_null() || !(0..=4).contains(&uniform_type) {
                         return Err(OcioError::InvalidInput("invalid uniform event".into()));
                     }
@@ -6816,7 +6816,7 @@ impl GPUProcessor {
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<Option<std::ffi::CString>> {
                     let read = |ptr: *const i8| -> Result<&str> {
                         if ptr.is_null() {
@@ -6878,7 +6878,7 @@ impl GPUProcessor {
             G: FnMut(ShaderTexture<'_>) -> Result<Option<u32>>,
         {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<Option<u32>> {
                     let event = unsafe { event.as_ref() }
                         .ok_or_else(|| OcioError::InvalidInput("null texture event".into()))?;
@@ -6961,7 +6961,7 @@ impl GPUProcessor {
                 },
                 uniform_type: GpuUniformType::from_raw(uniform_type),
             };
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<ShaderUniformAction> {
                     if name.is_null() || action.is_null() || !(0..=4).contains(&uniform_type) {
                         return Err(OcioError::InvalidInput(
@@ -8757,7 +8757,7 @@ impl GpuShaderDesc {
         F: Fn() -> f64 + Send + Sync + 'static,
     {
         unsafe extern "C" fn invoke<F: Fn() -> f64>(context: *mut c_void, out: *mut f64) -> bool {
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            match crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 unsafe { *out = getter() };
             })) {
@@ -8766,7 +8766,7 @@ impl GpuShaderDesc {
             }
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -8806,14 +8806,14 @@ impl GpuShaderDesc {
         F: Fn() -> bool + Send + Sync + 'static,
     {
         unsafe extern "C" fn invoke<F: Fn() -> bool>(context: *mut c_void, out: *mut bool) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 unsafe { *out = getter() };
             }))
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -8860,7 +8860,7 @@ impl GpuShaderDesc {
             context: *mut c_void,
             out: *mut f32,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 let value = getter();
                 unsafe { std::ptr::copy_nonoverlapping(value.as_ptr(), out, 3) };
@@ -8868,7 +8868,7 @@ impl GpuShaderDesc {
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -8937,7 +8937,7 @@ impl GpuShaderDesc {
             capacity: usize,
             length: *mut usize,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 let data = if capacity == 0 {
                     std::ptr::NonNull::<f32>::dangling().as_ptr()
@@ -8950,7 +8950,7 @@ impl GpuShaderDesc {
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }
@@ -9022,7 +9022,7 @@ impl GpuShaderDesc {
             capacity: usize,
             length: *mut usize,
         ) -> bool {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
                 let getter = unsafe { &*context.cast::<F>() };
                 let data = if capacity == 0 {
                     std::ptr::NonNull::<i32>::dangling().as_ptr()
@@ -9035,7 +9035,7 @@ impl GpuShaderDesc {
             .is_ok()
         }
         unsafe extern "C" fn release<F>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+            let _ = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| unsafe {
                 drop(Box::from_raw(context.cast::<F>()));
             }));
         }

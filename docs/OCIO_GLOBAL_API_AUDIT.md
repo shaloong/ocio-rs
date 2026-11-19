@@ -17,6 +17,11 @@ namespaces, other headers, or prove complete behavioral equivalence.
 | `const char * ResolveConfigPath(const char *) noexcept` | `resolve_config_path` | `runtime_helpers_behavior_tests`; the result is copied into owned Rust text. |
 | `void ExtractOCIOZArchive(const char *, const char *)` | `extract_ocioz_archive` | Error-path and archive creation/load/extraction round-trip tests exist; broader filesystem boundary cases need further verification. |
 
+An isolated subprocess test exercises logging and hash callbacks whose panic
+payload also panics on drop. Both are contained without unwinding through C;
+the test and runtime-helper suite passed on Windows with native 2.4.1, 2.5.2
+and 2.6.0. This applies to unwinding panics, not `panic=abort`.
+
 The listed behavioral tests include stub branches; real-native verification
 must be assessed separately for each version and platform. This inventory is
 one subsystem of the [full-coverage plan](OCIO_2_6_PLAN.md), not a claim that

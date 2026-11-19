@@ -22,7 +22,7 @@ pub(crate) fn interchange_attributes_snapshot(
         value: *const u8,
         value_len: usize,
     ) -> bool {
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
             if context.is_null()
                 || name.is_null()
                 || value.is_null()

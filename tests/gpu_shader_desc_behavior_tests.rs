@@ -5833,6 +5833,76 @@ fn rust_uniform_double_getter_contains_panic() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn gpu_callback_panic_payload_drop_is_contained() {
+    const CHILD: &str = "OCIO_RS_GPU_PANIC_PAYLOAD_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "gpu_callback_panic_payload_drop_is_contained"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "child failed: {}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("panic payload destructor");
+        }
+    }
+    struct DropGetter(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for DropGetter {
+        fn drop(&mut self) {
+            self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+            std::panic::panic_any(PanicOnDrop);
+        }
+    }
+    let called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let dropped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let getter = DropGetter(dropped.clone());
+    let getter_called = called.clone();
+    let desc = GpuShaderDesc::create().unwrap();
+    assert!(desc
+        .add_uniform_f64_getter("panic", move || {
+            let _ = &getter;
+            getter_called.store(true, std::sync::atomic::Ordering::SeqCst);
+            std::panic::panic_any(PanicOnDrop)
+        })
+        .unwrap());
+    assert!(desc.try_uniform_f64_value(0).is_err());
+    assert!(called.load(std::sync::atomic::Ordering::SeqCst));
+    drop(desc);
+    assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+
+    struct Policy(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl ocio_rs::ShaderTexturePolicy for Policy {
+        fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
+            self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+            std::panic::panic_any(PanicOnDrop)
+        }
+        fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
+            Ok(false)
+        }
+    }
+    let template = GpuShaderDesc::create().unwrap();
+    let policy_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut creator = ocio_rs::PersistentPolicyCreator::create(
+        &template,
+        Policy(policy_called.clone()),
+        c"panic",
+    )
+    .unwrap();
+    assert!(creator.try_texture_max_width().is_err());
+    assert!(policy_called.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn rust_uniform_bool_and_float3_getters_are_live_and_contain_panics() {
     use std::sync::{
         atomic::{AtomicBool, AtomicU32, Ordering},
