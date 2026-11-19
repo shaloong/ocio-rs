@@ -478,7 +478,10 @@ impl ColorSpaceSet {
         crate::ocio_call_status()
     }
 
-    /// Remove one color space by name.
+    /// Remove one color space by canonical name, case-insensitively.
+    ///
+    /// Unlike lookup and membership queries, OCIO does not resolve aliases
+    /// when removing; an alias or other missing name leaves the set unchanged.
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();

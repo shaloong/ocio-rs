@@ -226,6 +226,26 @@ fn set_shared_color_space_lookups_keep_native_values_alive() {
         .try_const_color_space_by_index(-1)
         .unwrap()
         .is_none());
+    set.remove_color_space("stablealias").unwrap();
+    assert_eq!(set.num_color_spaces(), 1);
+    let replacement = named_color_space("Stable", &[]);
+    replacement.set_description("replacement").unwrap();
+    set.add_color_space(&replacement);
+    assert_eq!(
+        set.try_const_color_space("Stable")
+            .unwrap()
+            .unwrap()
+            .description()
+            .unwrap()
+            .to_bytes(),
+        b"replacement"
+    );
+    assert_eq!(
+        indexed.description().unwrap().to_bytes(),
+        b"color space set behavior test"
+    );
+    set.remove_color_space("sTaBlE").unwrap();
+    assert_eq!(set.num_color_spaces(), 0);
     set.clear_color_spaces();
     drop(set);
     drop(read_only);

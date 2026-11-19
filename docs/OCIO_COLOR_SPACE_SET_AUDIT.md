@@ -19,3 +19,8 @@ All operations below exist in each of those native versions.
 aliases, missing entries, native set operations and retained handle lifetime.
 These tests do not by themselves prove every native alias-collision, error,
 or concurrency behavior.
+
+Lookup and membership resolve aliases case-insensitively, whereas native
+`removeColorSpace` matches canonical names only. The binding preserves this
+distinction. A retained read-only color-space handle keeps the prior native
+object alive if the set replaces or removes its entry.
