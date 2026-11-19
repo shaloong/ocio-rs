@@ -41,6 +41,16 @@ The descriptor declarations above were checked against 2.4.1, 2.5.2 and
 only when the underlying creator is a descriptor. Its scoped view does not
 expose `DerefMut`, preventing the descriptor handle from being moved out.
 
+The five native uniform overload shapes are `(name, double getter)`,
+`(name, bool getter)`, `(name, float3 getter)`, `(name, size getter, float
+vector getter[, unsigned max size])`, and the corresponding integer vector
+form. The maximum exists in 2.5+ but not 2.4; the bridge dispatches according
+to the linked native ABI. The index and type dynamic-property overloads are
+likewise dispatched separately and return retained native shared handles.
+Existing creator regressions distinguish all five types, live callback values,
+duplicate registrations and vector capacity; they do not certify arbitrary
+third-party native subclasses.
+
 Rust GPU callbacks use a common unwind boundary that also catches a panic
 caused by dropping the original panic payload; it intentionally forgets the
 second payload if necessary to prevent unwinding through C. A subprocess
