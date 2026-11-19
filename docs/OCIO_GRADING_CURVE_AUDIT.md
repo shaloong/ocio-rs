@@ -23,6 +23,21 @@ tests for representative validation.
 | Both transforms: `getValue`, `setValue` | `SharedGrading*Curve::from_transform` and `set_transform`; editable copies are opt-in | The shared setter passes the native const handle without a bridge-side copy. |
 | Native diagnostic stream operators | `serialize` on splines, borrowed spline views, editable and shared curve sets | Native diagnostic output is not a stable interchange format. |
 
+The 2.6 curve-value declarations were additionally checked by signature:
+the spline has six factory shapes (count or points, each with no type,
+spline type or hue type), editable copy, `size_t` point count and index,
+mutable/const point access, `float` slopes, validation and spline type.
+The RGB and hue sets each have style, existing-set and constituent-spline
+factories, editable copy, validation, identity, and mutable/const child
+access. Hue additionally exposes the type mapping and draw-only get/set.
+For OCIO's stock curve implementations the existing-set factory yields the
+same copied curve values as an editable copy; arbitrary external subclasses
+may implement their virtual copy differently. Points are read or updated as
+values rather than exposing C++ member references.
+The four RGB and eight hue constituent arguments preserve header order.
+Shared or borrowed child handles retain the same native ownership constraints
+described below; these mappings do not prove every possible curve behavior.
+
 Transform and dynamic-property `getValue` return native const curve sets.
 `SharedGradingRGBCurve` and `SharedGradingHueCurve` retain those values without
 deep copying, and can retain child splines or make explicit editable copies.

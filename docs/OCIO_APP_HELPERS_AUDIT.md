@@ -47,6 +47,26 @@ that otherwise-invalid index to select the separate no-argument overload. No
 valid indexed result is lost. Native constructors and destruction remain
 represented by factory and shared-handle ownership.
 
+The `LegacyViewingPipeline` declarations were checked by argument and return
+shape: `Create`; the display-view stage and four correction-stage getter/setter
+pairs; the independent looks-override string and enable flag; and both
+processor overloads with or without an explicit context. `const_stage` and
+`set_const_stage` cover the five native const shared-pointer stage paths,
+including null-to-clear and the display-view type check. The older editable
+stage getters return copies. The processor paths retain the distinction
+between a config-owned and an explicitly supplied context. The native looks
+string is pipeline-owned, and its safe setter requires an exclusive borrow.
+
+The `MixingColorSpaceManager` and `MixingSlider` signatures were also checked:
+the manager's configuration, two indexed name/count/selection groups,
+perceptual predicate, refresh, four-argument processor construction, and both
+slider overloads have corresponding native-backed calls. Counts and indices
+retain native `size_t`, and the processor preserves working/display/view and
+direction order. The slider exposes both `float` edge pairs and both `float`
+conversions. Both slider overloads return the same manager-owned object, held
+as an exclusive Rust borrow. Protected construction, deleted copying and
+native-owned destruction do not require additional public constructors.
+
 Native constructors are represented by their factories, destruction by
 handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. A retained
