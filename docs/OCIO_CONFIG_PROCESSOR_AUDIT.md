@@ -93,8 +93,9 @@ synchronization. `clearProcessorCache` is non-const and remains on editable
 The safe process-global setter replaces the installed config only if the
 flags changed. It installs fresh caches and does not mutate any existing
 snapshots or processors. This is a configuration-time operation; callers
-must serialize it with other global config writes. Reading the global
-flags does not deep-copy the config.
+must serialize it with other global config writes. The current safe global
+flags query first takes a config snapshot; reuse a read-only snapshot for
+repeated queries if this configuration-time copy matters.
 
 The existing runtime-settings and current-config suites verified the
 context/cache-ID distinction, actual global off/on changes, and snapshot
