@@ -922,6 +922,12 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
                     "ocio_config_locate_builtin_color_space_refs" => {
                         Some("locate_builtin_color_space")
                     }
+                    "ocio_config_identify_builtin_color_space_refs" => {
+                        Some("try_identify_builtin_color_space_ref")
+                    }
+                    "ocio_config_identify_interchange_space_refs" => {
+                        Some("try_identify_interchange_space_ref")
+                    }
                     // The editable and read-only APIs share a private dispatcher.
                     "ocio_config_get_cache_id_explicit" => Some("try_cache_id_for_const_context"),
                     "ocio_format_metadata_stream" => Some("to_native_string"),
@@ -1422,6 +1428,38 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn l2_config_identification_refs_require_the_matching_methods() {
+        let funcs: Vec<_> = [
+            (
+                "ocio_config_identify_builtin_color_space_refs",
+                "identify_builtin_color_space_refs",
+            ),
+            (
+                "ocio_config_identify_interchange_space_refs",
+                "identify_interchange_space_refs",
+            ),
+        ]
+        .into_iter()
+        .map(|(name, method)| CFunc {
+            name: name.into(),
+            return_type: "void*".into(),
+            params: String::new(),
+            class_prefix: "config".into(),
+            method_name: method.into(),
+        })
+        .collect();
+        let methods = HashMap::from([(
+            "Config".into(),
+            HashSet::from([
+                "try_identify_builtin_color_space_ref".into(),
+                "try_identify_interchange_space_ref".into(),
+            ]),
+        )]);
+        assert_eq!(run_l2(&funcs, &methods).matched, 2);
+        assert_eq!(run_l2(&funcs, &HashMap::new()).missing.len(), 2);
+    }
 
     #[test]
     fn l2_config_merge_refs_require_the_matching_methods() {
