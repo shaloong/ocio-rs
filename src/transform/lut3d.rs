@@ -165,7 +165,10 @@ impl Lut3DTransform {
         self.set_grid_size(size)
     }
 
-    /// Return all RGB LUT values as a flat `f64` vector.
+    /// Return all RGB LUT values as a flat `f64` vector in the same order as
+    /// [`Self::set_values`]: red coordinate fastest, then green, then blue.
+    /// Each grid entry is an RGB triplet. OCIO stores its native array in a
+    /// different order; this method copies and reorders the values.
     pub fn try_values(&self) -> Result<Vec<f64>> {
         let mut data = vec![0.0f64; required_value_count(self.grid_size())?];
         if data.is_empty() {
@@ -179,7 +182,8 @@ impl Lut3DTransform {
         Ok(data)
     }
 
-    /// Return all RGB LUT values as a flat `f64` vector.
+    /// Return all RGB LUT values in [`Self::try_values`] order, or an empty
+    /// vector if the query fails.
     pub fn values(&self) -> Vec<f64> {
         self.try_values().unwrap_or_default()
     }

@@ -21,3 +21,13 @@ leaves both LUT contents and caller read buffers unchanged. It also verifies
 3D batch ordering against independently addressed grid coordinates.
 The five existing suites passed on Windows against each of 2.4.1, 2.5.2,
 and 2.6.0 (33 tests per version).
+
+The individual LUT factory and value signatures have also been checked against
+the 2.6 header: the 1D factory accepts `unsigned long` length plus half-domain,
+while the 3D factory accepts one `unsigned long` grid size. `try_value` and
+`set_value` use one 1D coordinate or three 3D coordinates and preserve the
+three native `float` channels. An out-of-range safe read is `None`; callers
+requiring OCIO's error for the same read can use the raw entry point. The 3D
+bulk convenience copies to or from `f64` triplets in red-fastest order; native
+OCIO internally stores its array blue-fastest. It is not a borrowed native
+array, and the single-entry paths do not allocate that bulk snapshot.
