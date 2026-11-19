@@ -95,11 +95,17 @@ impl ConfigIOProxy {
     /// The shared-pointer object need only remain alive for this call; OCIO may
     /// retain the proxy after the returned Rust handle is dropped.
     ///
+    /// ```compile_fail
+    /// # use ocio_rs::ConfigIOProxy;
+    /// let _ = ConfigIOProxy::from_native_shared_ptr(std::ptr::null());
+    /// ```
+    ///
     /// # Safety
     /// A null `shared_ptr` is reported as an error. Otherwise, it must point to
     /// an initialized `OCIO::ConfigIOProxyRcPtr` built with the same OCIO version,
-    /// C++ standard library, ABI and runtime as this binding. The proxy and all
-    /// state used by its virtual methods must
+    /// C++ standard library, ABI and runtime as this binding. The shared-pointer
+    /// object must not be destroyed or modified concurrently during this call.
+    /// The proxy and all state used by its virtual methods must
     /// remain valid and safe for every access until the last native or Rust owner,
     /// including configs and derived contexts retaining it, is destroyed. OCIO
     /// may invoke the proxy from native threads, so callers must ensure all such
