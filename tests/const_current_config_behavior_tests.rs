@@ -528,6 +528,41 @@ fn check_global_group_children_are_isolated() {
         try_current_config().unwrap().unwrap().serialize().unwrap(),
         serialized
     );
+    // No other threads use the native global during this scoped test. The
+    // native-copy API must preserve OCIO's original shared-child semantics.
+    {
+        let native_copy = unsafe { ocio_rs::try_current_config_native_copy() }
+            .unwrap()
+            .unwrap();
+        let space = native_copy
+            .try_color_space("group-source")
+            .unwrap()
+            .unwrap();
+        let Some(ocio_rs::transform::Transform::Group(group)) = space
+            .try_transform(ocio_rs::ColorSpaceDirection::ToReference)
+            .unwrap()
+        else {
+            panic!("group expected")
+        };
+        let Some(ocio_rs::transform::Transform::Group(nested)) = group.try_transform(0).unwrap()
+        else {
+            panic!("nested group expected")
+        };
+        let Some(ocio_rs::transform::Transform::Matrix(leaf)) = nested.try_transform(0).unwrap()
+        else {
+            panic!("matrix expected")
+        };
+        leaf.set_offset(&[0.125, 0.0, 0.0, 0.0]).unwrap();
+        assert_ne!(
+            try_current_config().unwrap().unwrap().serialize().unwrap(),
+            serialized
+        );
+        leaf.set_offset(&[0.0, 0.0, 0.0, 0.0]).unwrap();
+    }
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized
+    );
     let editable_snapshot = try_current_config().unwrap().unwrap();
     let space = editable_snapshot
         .try_color_space("group-source")

@@ -28,6 +28,9 @@ snapshot. Global snapshot getters are unsafe because OCIO copies lazy cache
 state without synchronizing other native aliases. The explicit unsafe
 shared-global getter and raw FFI preserve native
 aliasing for callers able to synchronize all native access.
+`try_current_config_native_copy` additionally offers OCIO's native editable
+copy without detaching group children, with explicit lifetime-wide aliasing
+requirements. Reuse an isolated snapshot where independent mutation matters.
 `ConfigRef::as_raw_parts` exposes a borrowed, tagged binding handle for
 `ocio-sys` functions accepting editable or read-only configs. This enables
 zero-copy native matching and merging when the caller can uphold their unsafe

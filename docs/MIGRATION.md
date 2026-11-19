@@ -232,7 +232,10 @@ objects support concurrent use or synchronize access to them. Rust-managed IO
 providers already require `Send + Sync`.
 
 Global snapshot getters and safe setters detach mutable group-transform
-children. For shared-global semantics without a snapshot copy,
+children. `try_current_config_native_copy` makes OCIO's native editable copy
+without detaching group children; its unsafe contract requires coordination of
+those shared children for the returned config and derived handles' lifetimes.
+For shared-global semantics without a snapshot copy,
 `try_const_current_config_shared` is unsafe and its stronger synchronization
 requirement lasts for the retained handle and any derived handles. Explicitly
 install an edited config with `try_set_current_config`.

@@ -353,6 +353,33 @@ pub unsafe fn try_current_config() -> Result<Option<Config>> {
     Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
 }
 
+/// Return OCIO's native editable copy of the process-global config.
+///
+/// Unlike [`try_current_config`], this does not detach group-transform
+/// children; OCIO's native copy retains them. It avoids that extra graph copy
+/// when callers can coordinate the resulting shared objects.
+///
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`]
+/// while this function copies the global config. For the lifetime of the
+/// returned config and every derived handle, callers must also prevent
+/// conflicting access through all aliases to shared group children. This
+/// includes native aliases and other snapshots derived from the global config.
+/// OCIO may additionally retain external IO proxies and custom-transform state;
+/// the lifetime-wide requirements in [`try_current_config`] apply to them.
+/// Native processor caches are not automatically invalidated by edits through
+/// a shared transform alias.
+///
+/// ```compile_fail
+/// let _ = ocio_rs::try_current_config_native_copy();
+/// ```
+pub unsafe fn try_current_config_native_copy() -> Result<Option<Config>> {
+    clear_last_error();
+    let handle = unsafe { ocio_sys::ocio_get_current_config() };
+    ocio_call_status()?;
+    Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
+}
+
 /// Return a separate read-only snapshot of the process-global config.
 ///
 /// This makes a native config copy: OCIO's copy operation reads mutable lazy
