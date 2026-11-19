@@ -508,7 +508,8 @@ fn shared_memory_proxy_concurrent_read_and_replace_uses_stable_snapshots() {
         }
     }
     let _guard = config_io_proxy_test_lock();
-    let _restore = Restore(ocio_rs::try_current_config().unwrap().unwrap());
+    // This isolated test process has no independent native global-config users.
+    let _restore = Restore(unsafe { ocio_rs::try_current_config() }.unwrap().unwrap());
     let proxy = ConfigIOProxy::create().unwrap();
     proxy.set_config_data("first").unwrap();
     proxy.set_lut_data("shared.clf", &[1; 4096], "one").unwrap();
@@ -521,7 +522,8 @@ fn shared_memory_proxy_concurrent_read_and_replace_uses_stable_snapshots() {
         .map(|_| {
             let start = Arc::clone(&start);
             std::thread::spawn(move || {
-                let config = ocio_rs::try_current_config().unwrap().unwrap();
+                // Other workers only acquire snapshots; none mutate native global caches.
+                let config = unsafe { ocio_rs::try_current_config() }.unwrap().unwrap();
                 let proxy = config.try_config_io_proxy_object().unwrap().unwrap();
                 start.wait();
                 start.wait();

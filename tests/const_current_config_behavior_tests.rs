@@ -1,7 +1,14 @@
-use ocio_rs::{
-    try_const_current_config, try_current_config, try_set_const_current_config,
-    try_set_current_config, Config,
-};
+use ocio_rs::{try_set_const_current_config, try_set_current_config, Config};
+
+// This integration-test process owns its OCIO global. The only concurrent
+// global accesses in this test are read-only snapshot acquisitions.
+fn try_current_config() -> ocio_rs::Result<Option<Config>> {
+    unsafe { ocio_rs::try_current_config() }
+}
+
+fn try_const_current_config() -> ocio_rs::Result<Option<ocio_rs::ConstConfig>> {
+    unsafe { ocio_rs::try_const_current_config() }
+}
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]

@@ -217,13 +217,21 @@ processor creation. Reassign editable copies to their parent to apply changes.
 `try_const_current_context` for a shared read-only context; context text queries
 return owned strings because the configuration can change the underlying state.
 
-The process-global `current_config` getter returns an editable config copy.
-`try_const_current_config` also copies the config, returning a read-only
-snapshot that can be reused for queries. Safe global getters and setters detach
-mutable group-transform children. For native shared-global
-semantics without this snapshot copy, `try_const_current_config_shared` is
-unsafe and requires synchronization with all aliases. Explicitly install an
-edited config with `try_set_current_config`.
+Global snapshot getters (`current_config`, `get_current_config`,
+`try_current_config`, and `try_const_current_config`) and the global processor
+cache flag helpers now require `unsafe`. OCIO's config copy reads lazy caches
+that other native OCIO users may update through const handles. During each call,
+the application must prevent independent native code from accessing a config
+that may be current or mutating objects retained by it; a Rust-only lock cannot
+synchronize independent C++ users.
+Coordinate global cache-flag read/modify/write operations with other global
+writes as well. Once obtained, a snapshot can be used normally.
+
+Global snapshot getters and safe setters detach mutable group-transform
+children. For shared-global semantics without a snapshot copy,
+`try_const_current_config_shared` is unsafe and its stronger synchronization
+requirement lasts for the retained handle and any derived handles. Explicitly
+install an edited config with `try_set_current_config`.
 
 Config look, named-transform and view-transform getters return independent
 editable copies. Register edits back into the config. For shared read-only

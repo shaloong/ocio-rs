@@ -130,15 +130,18 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         return;
     }
 
-    let original = try_current_config().expect("read current config");
+    // This integration-test process serializes its global OCIO operations.
+    let original = unsafe { try_current_config() }.expect("read current config");
 
     let config = create_test_config()
         .expect("raw config")
         .create_editable_copy()
         .expect("editable config copy");
     try_set_current_config(&config).expect("install current config");
-    let snapshot = ocio_rs::try_const_current_config().unwrap().unwrap();
-    let installed = try_current_config()
+    let snapshot = unsafe { ocio_rs::try_const_current_config() }
+        .unwrap()
+        .unwrap();
+    let installed = unsafe { try_current_config() }
         .expect("read current config after install")
         .expect("current config after install");
     assert_eq!(
@@ -146,8 +149,9 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         config.processor_cache_flags()
     );
 
-    try_set_processor_cache_flags(ProcessorCacheFlags::OFF).expect("disable cache globally");
-    assert_eq!(processor_cache_flags(), ProcessorCacheFlags::OFF);
+    unsafe { try_set_processor_cache_flags(ProcessorCacheFlags::OFF) }
+        .expect("disable cache globally");
+    assert_eq!(unsafe { processor_cache_flags() }, ProcessorCacheFlags::OFF);
     assert_eq!(
         snapshot.processor_cache_flags().unwrap(),
         ProcessorCacheFlags::DEFAULT
@@ -167,9 +171,13 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         snapshot.processor_cache_flags().unwrap(),
         ProcessorCacheFlags::ENABLED
     );
-    assert_eq!(processor_cache_flags(), ProcessorCacheFlags::OFF);
-    try_set_processor_cache_flags(ProcessorCacheFlags::DEFAULT).expect("re-enable cache globally");
-    assert_eq!(processor_cache_flags(), ProcessorCacheFlags::DEFAULT);
+    assert_eq!(unsafe { processor_cache_flags() }, ProcessorCacheFlags::OFF);
+    unsafe { try_set_processor_cache_flags(ProcessorCacheFlags::DEFAULT) }
+        .expect("re-enable cache globally");
+    assert_eq!(
+        unsafe { processor_cache_flags() },
+        ProcessorCacheFlags::DEFAULT
+    );
     try_clear_all_caches().expect("clear global caches");
 
     if let Some(ref original_config) = original {

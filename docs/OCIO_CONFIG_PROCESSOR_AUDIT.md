@@ -90,11 +90,12 @@ an explicitly unsafe in-place setter for callers that can guarantee native
 synchronization. `clearProcessorCache` is non-const and remains on editable
 `Config`. Disabling the cache is not equivalent to clearing it.
 
-The safe process-global setter replaces the installed config only if the
+The process-global flag setter replaces the installed config only if the
 flags changed. It installs fresh caches and does not mutate any existing
 snapshots or processors. This is a configuration-time operation; callers
-must serialize it with other global config writes. The current safe global
-flags query first takes a config snapshot; reuse a read-only snapshot for
+must serialize it with other global config writes. The global flag query and
+setter are unsafe because taking a snapshot can race with other native users
+of the same config. The query first takes a config snapshot; reuse a read-only snapshot for
 repeated queries if this configuration-time copy matters.
 
 The existing runtime-settings and current-config suites verified the

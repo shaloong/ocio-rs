@@ -314,19 +314,33 @@ pub fn is_stub_build() -> bool {
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
-/// # Threading
-/// These process-global helpers do not synchronize OCIO global state. Serialize
-/// calls that mutate the current config, global caches, or logging level with
-/// other application threads that use the same OCIO process.
-pub fn current_config() -> Option<Config> {
-    try_current_config().ok().flatten()
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`].
+///
+/// ```compile_fail
+/// let _ = ocio_rs::current_config();
+/// ```
+pub unsafe fn current_config() -> Option<Config> {
+    unsafe { try_current_config() }.ok().flatten()
 }
 
 /// Try to get the process-global current OCIO config.
 ///
 /// Returns `Ok(None)` when no config is installed, and surfaces OCIO bridge
 /// errors separately.
-pub fn try_current_config() -> Result<Option<Config>> {
+///
+/// # Safety
+/// During this call, the caller must prevent independent native code, including
+/// other libraries, from accessing any config that may be current or mutating
+/// objects retained by it. OCIO const operations such as cache-ID queries can
+/// mutate lazy caches. Concurrent snapshot calls from this crate are permitted
+/// when this condition holds. The returned snapshot can be used normally after
+/// this call.
+///
+/// ```compile_fail
+/// let _ = ocio_rs::try_current_config(); // Requires explicit synchronization.
+/// ```
+pub unsafe fn try_current_config() -> Result<Option<Config>> {
     clear_last_error();
     let handle = unsafe { ocio_sys::ocio_get_isolated_current_config() };
     ocio_call_status()?;
@@ -341,7 +355,15 @@ pub fn try_current_config() -> Result<Option<Config>> {
 /// for repeated operations. Group children are detached from the global config;
 /// further ordinary OCIO copies may share their own group children.
 /// The snapshot remains alive when another config is installed.
-pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
+///
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`]
+/// for the duration of this call.
+///
+/// ```compile_fail
+/// let _ = ocio_rs::try_const_current_config();
+/// ```
+pub unsafe fn try_const_current_config() -> Result<Option<ConstConfig>> {
     clear_last_error();
     let handle = unsafe { ocio_sys::ocio_get_isolated_const_current_config() };
     ocio_call_status()?;
@@ -353,7 +375,7 @@ pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
 /// # Safety
 /// The caller must serialize all access to the retained native config and its
 /// aliases with all other OCIO users of that config, including calls through
-/// safe global getters, for the lifetime of this handle and derived handles.
+/// global snapshot getters, for the lifetime of this handle and derived handles.
 /// OCIO may mutate lazy caches even for const operations; copying it while a
 /// different thread uses those caches can also race.
 pub unsafe fn try_const_current_config_shared() -> Result<Option<ConstConfig>> {
@@ -364,8 +386,15 @@ pub unsafe fn try_const_current_config_shared() -> Result<Option<ConstConfig>> {
 }
 
 #[deprecated(since = "0.2.0", note = "compat alias; prefer current_config()")]
-pub fn get_current_config() -> Option<Config> {
-    current_config()
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`].
+///
+/// ```compile_fail
+/// # #[allow(deprecated)]
+/// let _ = ocio_rs::get_current_config();
+/// ```
+pub unsafe fn get_current_config() -> Option<Config> {
+    unsafe { current_config() }
 }
 
 /// Installs `config` as the process-global current OCIO config.
@@ -790,8 +819,15 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 /// Returns the processor cache flags from the current global config.
 ///
 /// If no current config is installed, this returns an empty flag set.
-pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    try_const_current_config()
+///
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`].
+///
+/// ```compile_fail
+/// let _ = ocio_rs::processor_cache_flags(); // Reads a native global snapshot.
+/// ```
+pub unsafe fn processor_cache_flags() -> crate::ProcessorCacheFlags {
+    unsafe { try_const_current_config() }
         .ok()
         .flatten()
         .and_then(|config| config.processor_cache_flags().ok())
@@ -803,8 +839,15 @@ pub fn processor_cache_flags() -> crate::ProcessorCacheFlags {
     since = "0.2.0",
     note = "discarded OCIO errors; prefer try_set_processor_cache_flags()"
 )]
-pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
-    let _ = try_set_processor_cache_flags(flags);
+/// # Safety
+/// The caller must meet the requirements of [`try_set_processor_cache_flags`].
+///
+/// ```compile_fail
+/// # #[allow(deprecated)]
+/// ocio_rs::set_processor_cache_flags(ocio_rs::ProcessorCacheFlags::DEFAULT);
+/// ```
+pub unsafe fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
+    let _ = unsafe { try_set_processor_cache_flags(flags) };
 }
 
 /// Try to update processor-cache flags on the current global config.
@@ -813,8 +856,16 @@ pub fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
 /// Earlier read-only snapshots and existing processors are unaffected.
 /// Serialize this read/modify/install operation with other global config writes.
 /// This returns `Ok(())` when no global config is installed.
-pub fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
-    if let Some(current) = try_const_current_config()? {
+///
+/// # Safety
+/// The caller must meet the synchronization requirements of [`try_current_config`]
+/// throughout this read/modify/install operation and coordinate global writes.
+///
+/// ```compile_fail
+/// let _ = ocio_rs::try_set_processor_cache_flags(ocio_rs::ProcessorCacheFlags::DEFAULT);
+/// ```
+pub unsafe fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
+    if let Some(current) = unsafe { try_const_current_config()? } {
         if current.processor_cache_flags()? != flags {
             let config = current.create_editable_copy()?;
             config.try_set_processor_cache_flags(flags.0 as i32)?;
@@ -1031,18 +1082,19 @@ mod tests {
 
     #[test]
     fn processor_cache_flags_no_crash() {
-        let f = processor_cache_flags();
-        assert!(try_set_processor_cache_flags(f).is_ok());
+        // This test process has no foreign native global-config users.
+        let f = unsafe { processor_cache_flags() };
+        assert!(unsafe { try_set_processor_cache_flags(f) }.is_ok());
     }
 
     #[test]
     fn current_config_no_crash() {
-        let _ = current_config();
+        let _ = unsafe { current_config() };
     }
 
     #[test]
     fn try_current_config_no_crash() {
-        let _ = try_current_config();
+        let _ = unsafe { try_current_config() };
     }
 
     #[cfg(feature = "bundled")]
@@ -1080,6 +1132,6 @@ mod tests {
     #[test]
     #[allow(deprecated)]
     fn current_config_compat_alias_no_crash() {
-        let _ = get_current_config();
+        let _ = unsafe { get_current_config() };
     }
 }
