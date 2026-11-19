@@ -740,14 +740,11 @@ impl ColorSpace {
         Ok(value)
     }
 
-    /// Get the alias at the given index.
+    /// Get the alias at the given index, or `None` if it is out of range.
     pub fn alias(&self, index: i32) -> Option<String> {
-        unsafe {
-            cstr_from_mut(ocio_sys::ocio_color_space_get_alias(
-                self.handle.as_ptr(),
-                index as usize,
-            ))
-        }
+        self.try_alias_at(usize::try_from(index).ok()?)
+            .ok()
+            .flatten()
     }
 
     /// Add an alias for this color space.

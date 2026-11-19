@@ -109,6 +109,9 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert_eq!(cs.try_alias_at(0).unwrap().as_deref(), Some("unit_cs_a"));
     assert!(cs.try_alias_at(usize::MAX).unwrap().is_none());
     assert_eq!(cs.alias(0).as_deref(), Some("unit_cs_a"));
+    assert!(cs.alias(-1).is_none());
+    assert!(cs.alias(1).is_none());
+    assert!(cs.alias(i32::MAX).is_none());
     assert!(cs.has_alias("unit_cs_a"));
     assert!(cs.try_has_alias_cstr(c"unit_cs_a").unwrap());
     assert!(!cs.try_has_alias("absent").unwrap());
