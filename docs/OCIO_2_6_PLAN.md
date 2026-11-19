@@ -246,11 +246,11 @@ from missing evidence, native limits, and optional convenience APIs.
 1. Finish a signature-level inventory against the exact 2.4.1, 2.5.2 and
    2.6.0 public headers. Record evidence per API family, including overloads,
    virtual methods and ownership; do not interpret a passing name-based parity
-   check as proof of completeness. The GPU creator and grading curve audits are
-   partial examples, not substitutes for the remaining subsystem inventories.
+   check as proof of completeness. Consult the closeout ledger for the current
+   status; the linked family audits do not by themselves prove every signature.
    `OCIO_FORMAT_METADATA_AUDIT.md` and `OCIO_CONTEXT_AUDIT.md` record class-level
    signature and ownership mappings. `OCIO_NAMED_TRANSFORM_AUDIT.md` records the
-   corresponding named-transform mapping and remaining custom-subclass gap;
+   corresponding named-transform mapping and its validation limits;
    `OCIO_VIEW_TRANSFORM_AUDIT.md` maps the view-transform signatures and
    ownership. `OCIO_IMAGE_DESC_AUDIT.md` maps all three image descriptor
    declarations, including raw pointer getters and native diagnostic output.

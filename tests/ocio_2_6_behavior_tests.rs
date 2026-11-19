@@ -148,6 +148,67 @@ fn shared_and_display_view_aliases_round_trip() {
     config
         .add_display_view_with_aliases(c"Display", view())
         .unwrap();
+    let detailed = || ViewWithAliases {
+        view: c"Detailed",
+        view_transform: c"DistinctTransform",
+        color_space: c"raw",
+        looks: c"DistinctLook",
+        rule: c"DistinctRule",
+        description: c"Distinct description",
+        aliases: &[c"first-alias", c"second-alias"],
+    };
+    config.add_shared_view_with_aliases(detailed()).unwrap();
+    config
+        .add_display_view_with_aliases(c"Display", detailed())
+        .unwrap();
+    for (display, display_cstr) in [("", c""), ("Display", c"Display")] {
+        assert_eq!(
+            config
+                .display_view_transform_name(display, "Detailed")
+                .as_deref(),
+            Some("DistinctTransform")
+        );
+        assert_eq!(
+            config
+                .display_view_color_space_name(display, "Detailed")
+                .as_deref(),
+            Some("raw")
+        );
+        assert_eq!(
+            config.display_view_looks(display, "Detailed").as_deref(),
+            Some("DistinctLook")
+        );
+        assert_eq!(
+            config.display_view_rule(display, "Detailed").as_deref(),
+            Some("DistinctRule")
+        );
+        assert_eq!(
+            config
+                .display_view_description(display, "Detailed")
+                .as_deref(),
+            Some("Distinct description")
+        );
+        assert_eq!(
+            config
+                .num_display_view_aliases(display_cstr, c"Detailed")
+                .unwrap(),
+            2
+        );
+        assert_eq!(
+            config
+                .display_view_alias(display_cstr, c"Detailed", 0)
+                .unwrap()
+                .as_deref(),
+            Some("first-alias")
+        );
+        assert_eq!(
+            config
+                .display_view_alias(display_cstr, c"Detailed", 1)
+                .unwrap()
+                .as_deref(),
+            Some("second-alias")
+        );
+    }
     assert!(config
         .has_display_view_alias(c"Display", c"Canonical", c"legacy")
         .unwrap());

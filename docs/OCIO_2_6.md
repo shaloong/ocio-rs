@@ -3,7 +3,7 @@
 See [the full-coverage plan](OCIO_2_6_PLAN.md) for remaining work, validation
 tiers, and the criteria for claiming completeness.
 The [GPU creator signature-family audit](OCIO_GPU_CREATOR_AUDIT.md) records
-the current mappings and the gaps in custom creator ownership and callbacks.
+the current native-creator mappings, callback ownership, and limitations.
 The [grading curve signature-family audit](OCIO_GRADING_CURVE_AUDIT.md) tracks
 its overloads, ownership, and retained read-only access.
 The [global API audit](OCIO_GLOBAL_API_AUDIT.md) maps the global declarations

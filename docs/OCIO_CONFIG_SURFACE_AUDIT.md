@@ -52,6 +52,12 @@ The short `addDisplayView` overload maps to `Config::add_display`: its
 third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps
 to `add_display_view_detailed`, which includes those additional fields.
+The 2.6 alias-aware shared-view overload takes view, view transform, color
+space, looks, rule, description, then a vector of aliases. The display-view
+overload takes the display first and the same remaining arguments in that
+order. `ViewWithAliases` forwards those fields through the corresponding bridge
+calls; the existing 2.6 native test verifies distinct values for all fields,
+two ordered aliases, and both shared and display-defined views.
 
 The filtered color-space count and indexed-name overloads use
 `try_num_color_spaces_filtered` and `try_color_space_name_by_index_filtered`;
