@@ -136,7 +136,8 @@ fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn format_registry_invalid_indices_are_absent() {
     use ocio_rs::{transform::FileTransform, Baker};
-    let registries: [(i32, fn(i32) -> Option<String>, fn(i32) -> Option<String>); 3] = [
+    type FormatQuery = fn(i32) -> Option<String>;
+    let registries: [(i32, FormatQuery, FormatQuery); 3] = [
         (
             GroupTransform::num_write_formats(),
             GroupTransform::format_name_by_index,
