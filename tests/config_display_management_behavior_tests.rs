@@ -155,6 +155,48 @@ fn view_type_selects_shared_and_display_defined_views() {
         .is_err());
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn filtered_views_preserve_native_fallback_when_no_rule_matches() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    let transform = identity_view_transform("FilteredTransform");
+    config.try_add_view_transform(&transform).unwrap();
+
+    let rules = ocio_rs::ViewingRules::create().unwrap();
+    rules.insert_rule(0, "OtherSpaceOnly").unwrap();
+    rules.add_color_space(0, "other-space").unwrap();
+    config.set_viewing_rules_object(&rules).unwrap();
+    config
+        .add_display_view_detailed(
+            "FilteredDisplay",
+            "Fallback",
+            "FilteredTransform",
+            "raw",
+            "",
+            "OtherSpaceOnly",
+            "",
+        )
+        .unwrap();
+
+    assert_eq!(
+        config
+            .try_num_views_with_color_space("FilteredDisplay", "raw")
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        config
+            .try_view_with_color_space("FilteredDisplay", "raw", 0)
+            .unwrap()
+            .as_deref(),
+        Some("Fallback")
+    );
+    assert!(config
+        .try_view_with_color_space("FilteredDisplay", "missing-space", 0)
+        .is_err());
+}
+
 #[cfg(feature = "v2_5")]
 fn virtual_view_names(
     config: &ocio_rs::Config,

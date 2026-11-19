@@ -27,8 +27,9 @@ The corresponding Rust queries preserve those distinctions and use native
 signed indices. Rust `Option` queries translate OCIO's empty missing-view
 sentinel to `None`, including virtual-display views. The color-space-filtered
 overload otherwise keeps OCIO's own fallback behavior, which may return a
-view even when no filtered view matched. The config core and display suites
-exercise missing and present views against native 2.4.1, 2.5.2 and 2.6.0.
+view even when no filtered view matched. A regression checks a zero filtered
+count, the fallback view, and the missing-color-space error on native 2.4.1,
+2.5.1, 2.5.2 and 2.6.0.
 
 The all-display and temporary-display indexed queries, as well as global
 shared-view lookup, check the native count before calling OCIO: the 2.4.1
