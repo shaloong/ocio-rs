@@ -94,8 +94,21 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert_eq!(shared.view().serialize().unwrap(), red.serialize().unwrap());
     assert!(value.serialize().unwrap().contains("<red="));
     let shared_set = GradingRGBCurve::create_from_shared_curves([&shared; 4]).unwrap();
+    let mut other_value = value.create_editable_copy().unwrap();
+    let mut other_curve = other_value.curve(RGBCurveType::Red).unwrap();
     let view = value.curve_ref(RGBCurveType::Red).unwrap();
+    let other = other_value.curve_ref(RGBCurveType::Red).unwrap();
+    assert!(view.equals(&shared.view()).unwrap());
+    assert!(view.equals(&other).unwrap());
     red.set_slope(0, 0.37).unwrap();
+    assert!(view.equals(&shared.view()).unwrap());
+    assert_eq!(
+        view.equals(&other).unwrap(),
+        red.equals(&other_curve).unwrap()
+    );
+    let (x, y) = other_curve.control_point(0).unwrap();
+    other_curve.set_control_point(0, x, y + 0.1).unwrap();
+    assert!(!view.equals(&other).unwrap());
     assert!(shared_set.is_identity().unwrap());
     assert_eq!(shared.view().slope(0).unwrap(), 0.37);
     assert_eq!(red_alias.slope(0).unwrap(), 0.37);

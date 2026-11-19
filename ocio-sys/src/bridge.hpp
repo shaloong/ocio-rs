@@ -1960,6 +1960,7 @@ void* ocio_grading_curve_const_shared(void* h, int kind, bool hue);
 const void* ocio_grading_spline_shared_data(const void* h);
 void ocio_grading_spline_shared_destroy(void* h);
 size_t ocio_grading_spline_const_count(const void* h);
+bool ocio_grading_spline_const_equals(const void* left, const void* right);
 void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y);
 float ocio_grading_spline_const_slope(const void* h, size_t index);
 bool ocio_grading_spline_const_slopes_default(const void* h);

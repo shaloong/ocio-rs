@@ -29,6 +29,12 @@ deep copying, and can retain child splines or make explicit editable copies.
 Their `curve_ref` methods additionally borrow a child without allocating a new
 ownership handle; the borrow cannot outlive its shared parent. Their `slope`
 methods read a child slope in one bridge call without creating a child handle.
+Borrowed spline views also compare directly using the native equality operator,
+without copying either curve. The semantics are native-version-specific: OCIO
+2.4.1 compares control points but not slopes, whereas 2.6.0 also compares slope
+and spline type. The borrowed comparison regression passed on Windows against
+native 2.4.1, 2.5.2 and 2.6.0, including equality with a retained alias and
+comparison with a distinct modified curve.
 Replacing the source value does not retarget a retained value. The typed
 editable `from_transform` and legacy raw-value paths create independent copies;
 editable and shared `set_transform` delegate native validation and copying

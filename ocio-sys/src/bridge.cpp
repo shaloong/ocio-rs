@@ -22683,6 +22683,18 @@ const void* ocio_grading_curve_const_view(void* h, int kind, bool hue) {
 #endif
 }
 
+bool ocio_grading_spline_const_equals(const void* left, const void* right) {
+#ifdef OCIO_RS_STUB
+  (void)left; (void)right;
+  ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return false;
+#else
+  try {
+    if (!left || !right) throw std::invalid_argument("null spline");
+    return *static_cast<const ocio::GradingBSplineCurve*>(left) ==
+           *static_cast<const ocio::GradingBSplineCurve*>(right);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
+#endif
+}
 size_t ocio_grading_spline_const_count(const void* h) {
 #ifdef OCIO_RS_STUB
   (void)h; ocio_rs_bridge::capture_error_message("spline view requires native OpenColorIO"); return 0;

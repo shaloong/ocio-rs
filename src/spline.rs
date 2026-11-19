@@ -365,6 +365,20 @@ impl Drop for SharedGradingBSplineCurve {
     }
 }
 impl ConstGradingBSplineCurve<'_> {
+    /// Compare two borrowed splines using OCIO's native equality operator.
+    ///
+    /// Neither spline is copied or modified. As with other spline views,
+    /// native aliases must not be mutated concurrently with this call.
+    /// The comparison follows the linked OCIO version: for example, 2.4.1
+    /// compares control points but does not compare slopes.
+    pub fn equals(&self, other: &ConstGradingBSplineCurve<'_>) -> Result<bool> {
+        crate::clear_last_error();
+        let equal = unsafe {
+            ocio_sys::ocio_grading_spline_const_equals(self.handle.as_ptr(), other.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(equal)
+    }
     /// Copy a range of `[x, y, slope]` values into a caller-owned buffer in one
     /// bridge call. An out-of-bounds range is rejected before writing anything.
     pub fn copy_points_into(&self, start: usize, points: &mut [[f32; 3]]) -> Result<()> {

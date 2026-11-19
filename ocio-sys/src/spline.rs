@@ -55,6 +55,7 @@ unsafe extern "C" {
     pub fn ocio_grading_spline_shared_data(h: *const c_void) -> *const c_void;
     pub fn ocio_grading_spline_shared_destroy(h: *mut c_void);
     pub fn ocio_grading_spline_const_count(h: *const c_void) -> usize;
+    pub fn ocio_grading_spline_const_equals(left: *const c_void, right: *const c_void) -> bool;
     pub fn ocio_grading_spline_const_point(
         h: *const c_void,
         index: usize,
