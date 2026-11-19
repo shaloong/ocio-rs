@@ -18,6 +18,11 @@ required by OCIO. Rust visitor callbacks borrow that native value without a
 second payload copy. Visitor and provider errors or panics are contained at
 the bridge; neither may reenter the same OCIO proxy. Native return data and
 hash calls are separate and do not form an atomic snapshot.
+This panic containment requires unwinding; `panic=abort` cannot be caught.
+If dropping a caught panic payload itself panics, the bridge catches that
+second panic and intentionally leaks its payload rather than unwinding through
+the C ABI. An isolated child-process regression covers provider reads, visitors,
+and provider destruction with such a payload.
 The bridge rejects a null nonempty payload or a length beyond `ptrdiff_t`
 before pointer arithmetic and records failure even if a raw native provider
 ignores the write callback's return value.

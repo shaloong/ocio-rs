@@ -57,7 +57,7 @@ unsafe extern "C" fn append_bytes(destination: *mut c_void, data: *const u8, len
     if destination.is_null() || len > isize::MAX as usize || (len != 0 && data.is_null()) {
         return false;
     }
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let result = unsafe { &mut *destination.cast::<Vec<u8>>() };
         if len != 0 {
             if result.try_reserve(len).is_err() {
@@ -67,8 +67,13 @@ unsafe extern "C" fn append_bytes(destination: *mut c_void, data: *const u8, len
             result.extend_from_slice(data);
         }
         true
-    }))
-    .unwrap_or(false)
+    })) {
+        Ok(result) => result,
+        Err(payload) => {
+            crate::discard_callback_panic(payload);
+            false
+        }
+    }
 }
 
 /// Provider for OCIO config text and LUT file payloads.
@@ -86,9 +91,10 @@ pub struct ConfigIOProxy {
 
 impl ConfigIOProxy {
     /// Create an on-demand provider whose lifetime is retained by OCIO.
-    /// Provider errors and panics become OCIO errors without unwinding across
-    /// the native boundary. Error messages include the provider's error text;
-    /// do not include secrets in it. The in-memory `set_*` methods do not apply.
+    /// Provider errors and unwinding panics become OCIO errors without unwinding
+    /// across the native boundary. A `panic=abort` build cannot catch panics.
+    /// Error messages include the provider's error text; do not include secrets
+    /// in it. The in-memory `set_*` methods do not apply.
     pub fn from_provider<P: ConfigIOProvider>(provider: P) -> Result<Self> {
         type Write = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool;
         unsafe extern "C" fn read<P: ConfigIOProvider>(
@@ -126,7 +132,8 @@ impl ConfigIOProxy {
                     unsafe { write(destination, message.as_ptr(), message.len()) };
                     false
                 }
-                Err(_) => {
+                Err(payload) => {
+                    crate::discard_callback_panic(payload);
                     let message = b"Rust config IO provider panicked";
                     unsafe { write(destination, message.as_ptr(), message.len()) };
                     false
@@ -134,9 +141,13 @@ impl ConfigIOProxy {
             }
         }
         unsafe extern "C" fn release<P>(context: *mut c_void) {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
-                drop(Box::from_raw(context.cast::<P>()));
-            }));
+            if let Err(payload) =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                    drop(Box::from_raw(context.cast::<P>()));
+                }))
+            {
+                crate::discard_callback_panic(payload);
+            }
         }
         let context = Box::into_raw(Box::new(provider)).cast();
         crate::clear_last_error();
@@ -376,7 +387,10 @@ impl ConfigIOProxy {
                 };
                 visitor(bytes)
             }))
-            .unwrap_or_else(|_| Err(OcioError::Ocio("native proxy visitor panicked".into())));
+            .unwrap_or_else(|payload| {
+                crate::discard_callback_panic(payload);
+                Err(OcioError::Ocio("native proxy visitor panicked".into()))
+            });
             let ok = result.is_ok();
             state.result = Some(result);
             ok

@@ -15,6 +15,74 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::{Config, ConfigIOProvider, ConfigIOProxy, Context};
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn callback_panic_payload_drop_cannot_cross_ffi() {
+    const CHILD: &str = "OCIO_RS_PROXY_PANIC_PAYLOAD_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "callback_panic_payload_drop_cannot_cross_ffi"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "callback child failed: {}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("panic payload destructor");
+        }
+    }
+    struct Provider(bool, std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for Provider {
+        fn drop(&mut self) {
+            if self.0 {
+                self.1.store(true, std::sync::atomic::Ordering::SeqCst);
+                std::panic::panic_any(PanicOnDrop);
+            }
+        }
+    }
+    impl ConfigIOProvider for Provider {
+        fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
+            std::panic::panic_any(PanicOnDrop)
+        }
+        fn lut_data<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+        fn fast_lut_file_hash<'a>(&'a self, _: &std::ffi::CStr) -> ocio_rs::Result<Cow<'a, [u8]>> {
+            Ok(Cow::Borrowed(&[]))
+        }
+    }
+    let dropped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let proxy = ConfigIOProxy::from_provider(Provider(false, dropped.clone())).unwrap();
+    assert!(proxy
+        .try_config_data_bytes()
+        .unwrap_err()
+        .to_string()
+        .contains("provider panicked"));
+    drop(proxy);
+    let memory = ConfigIOProxy::create().unwrap();
+    memory.set_config_data("test").unwrap();
+    let visited = std::cell::Cell::new(false);
+    let error = memory
+        .with_config_data::<()>(|_| {
+            visited.set(true);
+            std::panic::panic_any(PanicOnDrop)
+        })
+        .unwrap_err();
+    assert!(visited.get());
+    assert!(error.to_string().contains("visitor panicked"));
+    drop(ConfigIOProxy::from_provider(Provider(true, dropped.clone())).unwrap());
+    assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+}
+
 struct OnDemandProvider {
     config: String,
     lut: Vec<u8>,

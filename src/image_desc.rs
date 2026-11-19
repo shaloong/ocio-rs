@@ -59,13 +59,6 @@ pub unsafe trait ImageDescProvider {
     }
 }
 
-fn discard_provider_panic(payload: Box<dyn std::any::Any + Send>) {
-    // A user-controlled payload may itself panic when dropped.
-    if let Err(second) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(payload))) {
-        std::mem::forget(second);
-    }
-}
-
 unsafe extern "C" fn query_image_desc<P: ImageDescProvider>(
     context: *const c_void,
     query: ocio_sys::OcioImageDescQuery,
@@ -99,7 +92,7 @@ unsafe extern "C" fn query_image_desc<P: ImageDescProvider>(
     match result {
         Ok(()) => true,
         Err(payload) => {
-            discard_provider_panic(payload);
+            crate::discard_callback_panic(payload);
             false
         }
     }
@@ -110,7 +103,7 @@ unsafe extern "C" fn release_image_desc<P: ImageDescProvider>(context: *mut c_vo
         drop(unsafe { Box::from_raw(context.cast::<P>()) });
     }));
     if let Err(payload) = result {
-        discard_provider_panic(payload);
+        crate::discard_callback_panic(payload);
     }
 }
 

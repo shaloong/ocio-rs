@@ -822,6 +822,14 @@ pub(crate) fn clear_last_error() {
     unsafe { ocio_sys::ocio_error_clear_last() };
 }
 
+// A user-supplied panic payload can itself panic when dropped. Never let a
+// second panic unwind across a C callback boundary.
+pub(crate) fn discard_callback_panic(payload: Box<dyn std::any::Any + Send>) {
+    if let Err(second) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(payload))) {
+        std::mem::forget(second);
+    }
+}
+
 pub(crate) fn last_error_message() -> Option<String> {
     unsafe { cstr_to_opt_string(ocio_sys::ocio_error_get_last()) }
 }
