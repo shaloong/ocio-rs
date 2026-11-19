@@ -49,6 +49,16 @@ to native `unsigned`, including binding-index queries. Existing native tests
 exercise 1D/2D and 3D outputs and reject oversized indices on 64-bit targets;
 typed texture-info and borrowed-value paths remain preferable for new code.
 
+The high-level `texture_info` and 1D/2D and 3D binding-index convenience
+queries now use the existing metadata bridge without first allocating and
+copying the texture payload. `texture_info` still copies the two names into
+owned Rust strings; binding-index queries do not copy names or texels. The
+full `texture_2d` and `texture_3d` methods continue to return owned texels.
+Metadata queries can now succeed independently of a subsequent payload read.
+The allocation regression tracks large Rust allocations on the calling thread
+and uses full-resource reads as a positive control. It passed with native
+2.4.1 and 2.6.0; it does not measure allocations inside C++ or other threads.
+
 The five native uniform overload shapes are `(name, double getter)`,
 `(name, bool getter)`, `(name, float3 getter)`, `(name, size getter, float
 vector getter[, unsigned max size])`, and the corresponding integer vector

@@ -7807,15 +7807,61 @@ impl GpuShaderDesc {
 
     /// Returns lightweight legacy metadata for a 1D/2D texture resource.
     pub fn texture_info(&self, index: u32) -> Option<TextureInfo> {
-        self.texture_2d(index).map(|texture| TextureInfo {
-            texture_name: texture.texture_name,
-            sampler_name: texture.sampler_name,
-            width: texture.width,
-            height: texture.height,
-            channel: texture.channel as i32,
-            dimensions: texture.dimensions as i32,
-            interpolation: texture.interpolation as i32,
+        let info = self.texture_info_raw(index)?;
+        let channel = GpuTextureChannel::from_raw(info.channel).ok()?;
+        let dimensions = GpuTextureDimensions::from_raw(info.dimensions).ok()?;
+        Some(TextureInfo {
+            texture_name: required_ocio_string(info.texture_name)?,
+            sampler_name: required_ocio_string(info.sampler_name)?,
+            width: info.width,
+            height: info.height,
+            channel: channel as i32,
+            dimensions: dimensions as i32,
+            interpolation: interpolation_from_raw(info.interpolation) as i32,
         })
+    }
+
+    // The returned pointers borrow descriptor storage. Callers must consume
+    // them before mutating the descriptor or returning from the safe method.
+    fn texture_info_raw(&self, index: u32) -> Option<ocio_sys::OcioGpuTexture2DInfo> {
+        let mut info = ocio_sys::OcioGpuTexture2DInfo {
+            texture_name: std::ptr::null(),
+            sampler_name: std::ptr::null(),
+            width: 0,
+            height: 0,
+            channel: 0,
+            dimensions: 0,
+            interpolation: 0,
+            has_binding_index: false,
+            binding_index: 0,
+        };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get_texture_info(self.handle.as_ptr(), index, &mut info)
+        };
+        crate::ocio_call_status().ok()?;
+        ok.then_some(info)
+    }
+
+    fn texture_3d_info_raw(&self, index: u32) -> Option<ocio_sys::OcioGpuTexture3DInfo> {
+        let mut info = ocio_sys::OcioGpuTexture3DInfo {
+            texture_name: std::ptr::null(),
+            sampler_name: std::ptr::null(),
+            edge_len: 0,
+            interpolation: 0,
+            has_binding_index: false,
+            binding_index: 0,
+        };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_info(
+                self.handle.as_ptr(),
+                index,
+                &mut info,
+            )
+        };
+        crate::ocio_call_status().ok()?;
+        ok.then_some(info)
     }
 
     /// Returns a structured 1D/2D texture resource and copied texel payload.
@@ -9669,8 +9715,8 @@ impl GpuShaderDesc {
 
     /// Returns the binding index for a 3D texture resource, if present.
     pub fn texture_3d_shader_binding_index(&self, index: u32) -> Option<u32> {
-        self.texture_3d(index)
-            .and_then(|texture| texture.binding_index)
+        let info = self.texture_3d_info_raw(index)?;
+        info.has_binding_index.then_some(info.binding_index)
     }
 
     #[doc(hidden)]
@@ -9684,8 +9730,8 @@ impl GpuShaderDesc {
 
     /// Returns the binding index for a 1D/2D texture resource, if present.
     pub fn texture_shader_binding_index(&self, index: u32) -> Option<u32> {
-        self.texture_2d(index)
-            .and_then(|texture| texture.binding_index)
+        let info = self.texture_info_raw(index)?;
+        info.has_binding_index.then_some(info.binding_index)
     }
 
     /// Returns the uniform symbol name for the given index, if present.

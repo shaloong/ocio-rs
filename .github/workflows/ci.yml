@@ -205,7 +205,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           cargo test --locked --no-default-features --features bundled,v2_6 \
-            --test ocio_2_6_behavior_tests --test gpu_shader_desc_behavior_tests \
+            --test ocio_2_6_behavior_tests --test gpu_shader_desc_behavior_tests --test gpu_texture_metadata_alloc_tests \
             --test app_helpers_behavior_tests --test const_current_config_behavior_tests \
             --test const_config_item_behavior_tests \
             --test config_behavior_tests --test config_core_behavior_tests --test context_behavior_tests --test format_metadata_behavior_tests \

@@ -5448,6 +5448,13 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(tex2d.interpolation, Interpolation::Linear);
     assert_eq!(tex2d.binding_index, Some(5));
     assert_eq!(tex2d.values, values_2d);
+    let info = desc.texture_info(0).expect("texture metadata");
+    assert_eq!(info.texture_name, tex2d.texture_name);
+    assert_eq!(info.sampler_name, tex2d.sampler_name);
+    assert_eq!((info.width, info.height), (tex2d.width, tex2d.height));
+    assert_eq!(desc.texture_shader_binding_index(0), binding_2d);
+    assert_eq!(desc.texture_shader_binding_index(99), None);
+    assert!(desc.texture_info(99).is_none());
     assert_eq!(desc.try_texture_value_count(0).unwrap(), values_2d.len());
     assert!(desc.try_texture_value_count(99).is_err());
     assert_eq!(desc.texture_value_count(99), 0);
@@ -5483,6 +5490,8 @@ fn gpu_shader_desc_manual_texture_round_trip_behavior() {
     assert_eq!(tex3d.interpolation, Interpolation::Nearest);
     assert_eq!(tex3d.binding_index, Some(6));
     assert_eq!(tex3d.values, values_3d);
+    assert_eq!(desc.texture_3d_shader_binding_index(0), binding_3d);
+    assert_eq!(desc.texture_3d_shader_binding_index(99), None);
     assert_eq!(queried_tex3d.texture_name, tex3d.texture_name);
     assert_eq!(queried_tex3d.sampler_name, tex3d.sampler_name);
     assert_eq!(queried_tex3d.values, tex3d.values);
