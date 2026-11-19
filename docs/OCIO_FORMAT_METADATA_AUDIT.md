@@ -16,8 +16,10 @@ this class. This is a class-level inventory, not proof of full-library parity.
 | Protected constructor, deleted copy constructor and virtual destructor | Native objects are owned by transforms, bakers or processors; wrapper handles retain owners and release on drop | No standalone public C++ constructor is exposed. `ConstFormatMetadata::create_editable_copy` uses an owned native group metadata container. |
 
 The editable and readonly behavior suites passed on Windows with native static
-2.4.1 and 2.6.0, including ownership after parent drop, sibling growth,
-invalidation, aliasing assignment, and stream output. Allocation failures,
+2.4.1, 2.5.2 and 2.6.0, including ownership after parent drop, sibling growth,
+invalidation, aliasing assignment, and stream output. Self-assignment is also
+checked through separately acquired handles to the same native element; live
+descendants remain valid. Allocation failures,
 32-bit builds, external native mutation and other operating systems have not
 been exhaustively validated. Both suites already belong to existing CI jobs;
 no separate matrix or job is required.

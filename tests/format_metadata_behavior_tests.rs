@@ -134,6 +134,10 @@ fn metadata_assignment_preserves_alias_safety_and_invalidates_descendants() {
     let live = destination.try_child_element(0).unwrap().unwrap();
     destination.assign(&destination).unwrap();
     assert_eq!(live.try_element_name().unwrap().as_deref(), Some("nested"));
+    // A separately acquired handle may refer to the same native element.
+    let same_destination = root.try_child_element(1).unwrap().unwrap();
+    destination.assign(&same_destination).unwrap();
+    assert_eq!(live.try_element_name().unwrap().as_deref(), Some("nested"));
 
     // Destination is an ancestor of the source; the source must be copied
     // before replacement destroys it.
