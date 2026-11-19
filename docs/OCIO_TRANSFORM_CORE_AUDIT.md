@@ -26,7 +26,10 @@ fixed-size stack buffer; the native getter may still perform its own work.
 The manual C++ subclass fixture makes each native getter throw and checks the
 raw bridge error message, unchanged output buffer, and subsequent successful
 read on Windows with native 2.4.1, 2.5.2 and 2.6.0. This exercises the bridge
-boundary; it does not inject the subclass through the high-level Rust wrapper.
+boundary. The same standalone fixture also installs the custom transforms in
+a temporary native config, obtains editable Rust handles and verifies that
+both high-level `try_value` calls return the native error. It restores the
+process-global config after the check and does not test arbitrary subclasses.
 
 ### Individual factory and buffer checks
 

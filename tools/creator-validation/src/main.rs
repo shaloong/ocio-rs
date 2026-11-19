@@ -32,6 +32,8 @@ extern "C" {
     fn proxy_fixture_destroyed() -> u32;
     fn grading_fixture_create(tone: bool, fail: bool) -> *mut c_void;
     fn grading_fixture_destroy(ptr: *mut c_void);
+    fn grading_fixture_install_config() -> *mut c_void;
+    fn grading_fixture_restore_config(ptr: *mut c_void);
     fn image_fixture_rgba(data: *mut f32) -> *mut c_void;
     fn image_fixture_planar(data: *mut f32) -> *mut c_void;
     fn image_fixture_custom(data: *mut f32) -> *mut c_void;
@@ -192,6 +194,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ocio_sys::ocio_error_clear_last();
                 ocio_sys::ocio_transform_destroy(handle);
             }
+        }
+    }
+    {
+        struct RestoreConfig(*mut c_void);
+        impl Drop for RestoreConfig {
+            fn drop(&mut self) {
+                unsafe { grading_fixture_restore_config(self.0) };
+            }
+        }
+        let saved = unsafe { grading_fixture_install_config() };
+        assert!(!saved.is_null());
+        let _restore = RestoreConfig(saved);
+        // This fixture is a standalone, single-threaded process and controls
+        // all native accesses to the temporary global config and its children.
+        let config = unsafe { ocio_rs::try_current_config_native_copy() }?.unwrap();
+        for (name, tone) in [("fixture-primary", false), ("fixture-tone", true)] {
+            let space = config.try_color_space(name)?.unwrap();
+            let transform = space
+                .try_transform(ocio_rs::ColorSpaceDirection::ToReference)?
+                .unwrap();
+            let error = match transform {
+                ocio_rs::transform::Transform::GradingPrimary(value) if !tone => {
+                    value.try_value().unwrap_err()
+                }
+                ocio_rs::transform::Transform::GradingTone(value) if tone => {
+                    value.try_value().unwrap_err()
+                }
+                _ => panic!("unexpected grading transform"),
+            };
+            assert!(error.to_string().contains("grading fixture failure"));
         }
     }
     {

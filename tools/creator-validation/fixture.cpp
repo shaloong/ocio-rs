@@ -44,7 +44,9 @@ template<class Base, class Value>
 class ThrowingGradingTransform final : public Base {
     std::shared_ptr<Base> delegate = Base::Create(OCIO::GRADING_LIN);
 public:
-    OCIO::TransformRcPtr createEditableCopy() const override { return delegate->createEditableCopy(); }
+    OCIO::TransformRcPtr createEditableCopy() const override {
+        return std::make_shared<ThrowingGradingTransform<Base, Value>>();
+    }
     OCIO::TransformDirection getDirection() const noexcept override { return delegate->getDirection(); }
     void setDirection(OCIO::TransformDirection dir) noexcept override { delegate->setDirection(dir); }
     const OCIO::FormatMetadata& getFormatMetadata() const noexcept override { return delegate->getFormatMetadata(); }
@@ -73,6 +75,28 @@ extern "C" void* grading_fixture_create(bool tone, bool fail) {
 }
 extern "C" void grading_fixture_destroy(void* ptr) {
     delete static_cast<OCIO::ConstTransformRcPtr*>(ptr);
+}
+extern "C" void* grading_fixture_install_config() {
+    auto saved = std::make_unique<OCIO::ConstConfigRcPtr>(OCIO::GetCurrentConfig());
+    try {
+        auto config = OCIO::Config::CreateRaw()->createEditableCopy();
+        auto primary = OCIO::ColorSpace::Create();
+        primary->setName("fixture-primary");
+        primary->setTransform(std::make_shared<ThrowingGradingTransform<OCIO::GradingPrimaryTransform, OCIO::GradingPrimary>>(),
+                              OCIO::COLORSPACE_DIR_TO_REFERENCE);
+        config->addColorSpace(primary);
+        auto tone = OCIO::ColorSpace::Create();
+        tone->setName("fixture-tone");
+        tone->setTransform(std::make_shared<ThrowingGradingTransform<OCIO::GradingToneTransform, OCIO::GradingTone>>(),
+                           OCIO::COLORSPACE_DIR_TO_REFERENCE);
+        config->addColorSpace(tone);
+        OCIO::SetCurrentConfig(config);
+        return saved.release();
+    } catch (...) { return nullptr; }
+}
+extern "C" void grading_fixture_restore_config(void* ptr) {
+    std::unique_ptr<OCIO::ConstConfigRcPtr> saved(static_cast<OCIO::ConstConfigRcPtr*>(ptr));
+    if (saved) OCIO::SetCurrentConfig(*saved);
 }
 
 // Deliberately not a GpuShaderDesc. It delegates storage to an OCIO descriptor
