@@ -41,6 +41,18 @@ fn basic_display_view_arguments_are_color_space_and_looks() {
     config
         .add_display("BasicDisplay", "BasicView", "raw", "+film")
         .unwrap();
+    let display_index = config.try_display_all_index("BasicDisplay").unwrap();
+    assert!(display_index >= 0);
+    assert_eq!(
+        config.try_display_all(display_index).unwrap().as_deref(),
+        Some("BasicDisplay")
+    );
+    assert_eq!(config.try_display_all(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(i32::MAX).unwrap(), None);
+    assert_eq!(
+        config.try_display_all(config.num_displays_all()).unwrap(),
+        None
+    );
     assert_eq!(
         config
             .display_view_color_space_name("BasicDisplay", "BasicView")

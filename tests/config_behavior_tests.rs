@@ -746,6 +746,15 @@ fn config_role_mutation_errors_surface_behavior() {
     );
 
     let before = config.num_roles();
+    config.set_role("UnitEmptyRole", "").unwrap();
+    assert_eq!(
+        config
+            .try_role_color_space("UnitEmptyRole")
+            .unwrap()
+            .as_deref(),
+        Some("")
+    );
+    config.remove_role("UnitEmptyRole").unwrap();
     config.set_role("UnitRemovableRole", "raw").unwrap();
     assert!(config.has_role("UnitRemovableRole"));
     assert_eq!(config.num_roles(), before + 1);

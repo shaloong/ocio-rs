@@ -30,6 +30,16 @@ overload otherwise keeps OCIO's own fallback behavior, which may return a
 view even when no filtered view matched. The config core and display suites
 exercise missing and present views against native 2.4.1, 2.5.2 and 2.6.0.
 
+The all-display indexed query checks the native count before calling OCIO:
+the 2.4.1 and 2.5.1 implementations use an incorrect bounds condition that
+can access outside the display list. The raw bridge retains OCIO's empty
+missing-name sentinel, while the Rust query returns `None`. Role-name
+enumeration also maps OCIO's empty out-of-range sentinel to `None`; role
+color-space values remain unchanged because an authored role may contain
+an empty value. The config core, display management, and role behavior suites
+passed on Windows against native 2.4.1, 2.5.1, 2.5.2, and 2.6.0. The bounds
+check is a constant-time configuration query and does not affect pixel paths.
+
 The short `addDisplayView` overload maps to `Config::add_display`: its
 third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps

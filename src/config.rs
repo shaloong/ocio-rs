@@ -1441,7 +1441,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(name)
+        Ok(name.filter(|name| !name.is_empty()))
     }
 
     /// Return the color-space name bound to the role at a given index.
@@ -4537,7 +4537,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(display)
+        Ok(display.filter(|display| !display.is_empty()))
     }
 
     #[doc(hidden)]

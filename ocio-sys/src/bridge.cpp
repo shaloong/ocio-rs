@@ -4195,7 +4195,13 @@ void* ocio_config_get_display_all(void* handle, int index) {
   return nullptr;
 #else
   try {
-    return (void*)ocio_rs_bridge::get_real_config(handle)->getDisplayAll(index);
+    const auto& config = ocio_rs_bridge::get_real_config(handle);
+    // OCIO 2.4.1 and 2.5.1 use || instead of && in getDisplayAll's bounds
+    // check. Avoid out-of-bounds access while preserving its empty sentinel.
+    if (index < 0 || index >= config->getNumDisplaysAll()) {
+      return const_cast<char*>("");
+    }
+    return (void*)config->getDisplayAll(index);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }

@@ -112,6 +112,21 @@ fn missing_display_view_and_look_names_return_none() {
     let config = Config::create().unwrap();
     assert_eq!(config.try_default_display().unwrap(), None);
     assert_eq!(config.try_display(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(0).unwrap(), None);
+    assert_eq!(config.try_role_name(-1).unwrap(), None);
+    assert_eq!(config.try_role_name(config.num_roles()).unwrap(), None);
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let raw = sys::ocio_config_create_raw();
+        assert!(!raw.is_null());
+        for index in [-1, i32::MAX] {
+            let ptr = sys::ocio_config_get_display_all(raw, index);
+            assert!(!ptr.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(ptr.cast()).to_bytes(), b"");
+        }
+        sys::ocio_config_destroy(raw);
+    }
     assert_eq!(config.try_default_view("missing_display").unwrap(), None);
     assert_eq!(config.try_view("missing_display", 0).unwrap(), None);
     assert_eq!(
