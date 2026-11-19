@@ -542,6 +542,24 @@ fn check_global_group_children_are_isolated() {
         (pixel[0] - 0.2).abs() < 1e-6,
         "global config retained the caller's mutable group child: {pixel:?}"
     );
+    matrix
+        .set_matrix(&[
+            2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ])
+        .unwrap();
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    let retained = baker.const_config().unwrap().unwrap();
+    try_set_const_current_config(&retained).unwrap();
+    matrix
+        .set_matrix(&[
+            3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ])
+        .unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized
+    );
 }
 
 fn check_cross_config_processors(dynamic: &ocio_rs::ConstConfig) {
