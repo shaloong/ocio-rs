@@ -41,6 +41,19 @@ The descriptor declarations above were checked against 2.4.1, 2.5.2 and
 only when the underlying creator is a descriptor. Its scoped view does not
 expose `DerefMut`, preventing the descriptor handle from being moved out.
 
+The 2.6 creator and descriptor declarations were also checked individually.
+Texture registration takes names, unsigned dimensions, channel/dimension and
+interpolation enums, and borrowed `float` values; 3D registration takes one
+edge length. Descriptor queries return names and dimensions separately from
+borrowed value pointers, with separate 2D and 3D counts and binding queries.
+The six shader-text sections are parameter declarations, texture declarations,
+helpers, function header, body and footer. The five uniform callback shapes and
+their version-dependent array maximum are documented below. Descriptor-set,
+uniform-buffer and binding queries require 2.5 or newer; texture registration
+return semantics also differ between 2.4, 2.5.0 and 2.5.1+. Native shared
+creator interop remains the route for external C++ subclasses; the Rust hooks
+are deliberately not a claim of arbitrary C++ virtual subclass support.
+
 The legacy raw texture query declarations now describe name and value outputs
 as pointer-to-pointer parameters, matching how the bridge has always written
 them. This corrects the source-level FFI contract without changing the binary

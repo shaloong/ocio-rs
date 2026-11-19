@@ -115,6 +115,21 @@ three getters was tested through the Rust methods on Windows with OCIO 2.4.1,
   transform operations are also exposed. Existing native tests exercise
   parameter round trips, error handling and processor execution; they do not
   exhaust every style or every possible parameter value.
+* The remaining 2.6 declarations were checked individually. CDL's slope,
+  offset, power and saturation-luma arrays each contain three `double`s,
+  its SOP contains nine, and saturation is scalar. Its style, ID and first
+  SOP description pairs and both file factories are exposed as described
+  above. Exposure/contrast has six `double` getter/setter pairs (exposure,
+  contrast, gamma, pivot, log exposure step and log mid-gray), a style pair,
+  and separate query/dynamic/non-dynamic operations for each of exposure,
+  contrast and gamma. Fixed function has the style pair and `size_t`-counted
+  `double` parameters, with the output buffer checked before a safe read.
+  Primary and tone each have a style factory and pair, a const native value
+  getter and validating setter, and three dynamic operations. A style change
+  resets that value to the new style's defaults. All five have equality and
+  const/editable metadata; common transform operations are provided separately.
+  Fallible entry points should be used where a native exception must not be
+  hidden by a legacy compatibility getter.
 
 Existing typed and read-only handles cover immutable access where native
 objects are const. Raw calls retain their documented pointer/length contracts;

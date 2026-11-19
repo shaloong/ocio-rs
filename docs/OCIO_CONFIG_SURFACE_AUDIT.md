@@ -123,6 +123,23 @@ The callable binding need not reproduce private constructors, C++ stream
 operator spellings, or an independent read-only Rust wrapper for every
 operation already available through the editable handle or native bridge.
 
+The remaining 2.6 declaration groups were checked against the bridge and
+the existing paths above. Creation includes empty, raw, environment, file,
+stream, built-in and I/O-proxy forms; native const results may be retained or
+explicitly copied for editing. Color-space and role enumeration use signed
+indices, while filtered enumeration adds reference-space and visibility
+selectors. Native color-space, look, view-transform, named-transform and rule
+getters return const shared objects; existing read-only handles preserve shared
+ownership, and editable copies are separate. Display/view queries distinguish
+unfiltered, source-filtered and `ViewType` overloads; active display and view
+lists provide string and indexed access, with incremental mutation gated at
+2.5. File-path matching has both the name-only and `size_t` rule-index forms;
+file and viewing rules are installed as native shared objects. Default luma
+uses exactly three doubles. Processor overloads and 2.6-specific alias and ID
+operations remain covered by their separately linked audits. These checks map
+the declared calls and ownership paths; they do not test every input or every
+implementation of an external native subclass.
+
 Windows native config, config core, display management, and runtime-settings
 suites passed on 2.4.1 (35 tests), 2.5.2 (45), and 2.6.0 (45). The added
 regressions cover both view origins on physical and virtual displays, native

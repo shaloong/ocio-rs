@@ -23,6 +23,18 @@ tests for representative validation.
 | Both transforms: `getValue`, `setValue` | `SharedGrading*Curve::from_transform` and `set_transform`; editable copies are opt-in | The shared setter passes the native const handle without a bridge-side copy. |
 | Native diagnostic stream operators | `serialize` on splines, borrowed spline views, editable and shared curve sets | Native diagnostic output is not a stable interchange format. |
 
+The 2.6 transform declarations were checked individually: each factory takes
+one `GradingStyle`; each style setter resets values when the style changes.
+Each value getter returns a const shared curve set, and each setter takes a
+const shared curve set and may reject an invalid value. Slope access takes the
+corresponding RGB or Hue curve enum, a `size_t` index and a `float` value;
+`slopesAreDefault` takes only the curve enum. Both transforms have the three
+dynamic controls, equality and const/editable metadata. RGB additionally has
+the boolean lin-to-log bypass, whereas Hue has the `HSYTransformStyle` getter
+and setter. Hue is gated at `v2_5`; RGB is available in all pinned versions.
+The native shared-value path avoids forcing the legacy Rust value snapshot;
+using that snapshot remains an explicit copying convenience.
+
 The 2.6 curve-value declarations were additionally checked by signature:
 the spline has six factory shapes (count or points, each with no type,
 spline type or hue type), editable copy, `size_t` point count and index,
