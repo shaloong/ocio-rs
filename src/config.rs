@@ -1184,6 +1184,7 @@ impl Config {
     }
 
     /// Return a view name by display and index, preserving bridge failures.
+    /// An empty native result is returned as `None`.
     pub fn try_view(&self, display: impl AsRef<str>, index: i32) -> Result<Option<String>> {
         let display = cstring(display)?;
         crate::clear_last_error();
@@ -1195,7 +1196,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     /// Return the view name at a given index for a display, filtered by color-space name.
@@ -1213,7 +1214,8 @@ impl Config {
     /// Return the view name at a given index for a display and color-space name.
     ///
     /// Unlike [`Self::view_with_color_space`], this preserves invalid input and
-    /// OCIO query failures as [`OcioError`].
+    /// OCIO query failures as [`OcioError`]. An empty native result becomes
+    /// `None`; OCIO may instead return a fallback view for some filters.
     pub fn try_view_with_color_space(
         &self,
         display: impl AsRef<str>,
@@ -1232,7 +1234,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     #[doc(hidden)]
@@ -3333,7 +3335,8 @@ impl Config {
         self.try_virtual_display_view_by_type(legacy_view_type(reference_space, None)?, index)
     }
 
-    /// Return a virtual-display view by its origin and index.
+    /// Return a virtual-display view by its origin and index, or `None` for
+    /// an empty native result.
     pub fn try_virtual_display_view_by_type(
         &self,
         view_type: ViewType,
@@ -3348,7 +3351,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     #[doc(hidden)]
@@ -4669,7 +4672,8 @@ impl Config {
         )
     }
 
-    /// Return a view by origin and index. An empty display queries global shared views.
+    /// Return a view by origin and index. An empty display queries global shared views;
+    /// an empty native result is returned as `None`.
     pub fn try_view_by_type(
         &self,
         view_type: ViewType,
@@ -4687,7 +4691,7 @@ impl Config {
             ))
         };
         crate::ocio_call_status()?;
-        Ok(view)
+        Ok(view.filter(|view| !view.is_empty()))
     }
 
     #[doc(hidden)]

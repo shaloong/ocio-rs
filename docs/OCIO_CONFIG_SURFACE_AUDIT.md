@@ -21,6 +21,15 @@ alias-aware authoring and queries, canonical names, resolved view color
 spaces, and display descriptions. These use the existing version-gated
 paths; the HDR compatibility check is an app-helper namespace operation.
 
+The three `getNumViews` and `getView` overloads accept, respectively, a
+display, a display plus source color space, or a view origin plus display.
+The corresponding Rust queries preserve those distinctions and use native
+signed indices. Rust `Option` queries translate OCIO's empty missing-view
+sentinel to `None`, including virtual-display views. The color-space-filtered
+overload otherwise keeps OCIO's own fallback behavior, which may return a
+view even when no filtered view matched. The config core and display suites
+exercise missing and present views against native 2.4.1, 2.5.2 and 2.6.0.
+
 The short `addDisplayView` overload maps to `Config::add_display`: its
 third and fourth arguments are the color-space name and looks expression,
 not a view-transform name and viewing rule. The longer native overload maps

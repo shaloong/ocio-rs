@@ -113,6 +113,25 @@ fn missing_display_view_and_look_names_return_none() {
     assert_eq!(config.try_default_display().unwrap(), None);
     assert_eq!(config.try_display(-1).unwrap(), None);
     assert_eq!(config.try_default_view("missing_display").unwrap(), None);
+    assert_eq!(config.try_view("missing_display", 0).unwrap(), None);
+    assert_eq!(
+        config
+            .try_view_with_color_space("missing_display", "raw", 0)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "missing_display", 0)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view_by_type(ocio_rs::ViewType::Shared, -1)
+            .unwrap(),
+        None
+    );
     assert_eq!(
         config
             .try_default_view_with_color_space("missing_display", "raw")
@@ -349,10 +368,20 @@ fn assert_context_test1_metadata(config: &Config) {
             .as_deref(),
         Some("Raw")
     );
-    assert!(config
-        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
-        .expect("reference-space-filtered view query")
-        .is_some());
+    assert_eq!(
+        config
+            .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
+            .expect("shared-view query"),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::DisplayDefined, "sRGB", 0)
+            .expect("display-defined view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert_eq!(config.try_view("sRGB", -1).unwrap(), None);
     assert!(config
         .try_view_with_color_space("sRGB\0", "raw", 0)
         .is_err());
