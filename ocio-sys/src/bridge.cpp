@@ -10295,6 +10295,7 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle) {
 
 #ifndef OCIO_RS_STUB
 static bool ocio_rs_texture_count(size_t, size_t, size_t, size_t, size_t&);
+static bool ocio_rs_texture_storage_count(size_t, size_t, size_t, size_t, size_t&);
 // Keep OCIO's resource ownership and live getter behavior while allowing Rust
 // to customize the native virtual createShaderText stage synchronously.
 class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
@@ -10366,10 +10367,10 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   uint64_t streamed_texture_count = 0;
   bool has_external_texture = false;
 #endif
-  static void validateTextureSize(unsigned w, unsigned h, unsigned d, TextureType channel) {
+  static void validateTextureStorageSize(unsigned w, unsigned h, unsigned d, TextureType channel) {
     size_t count = 0;
     const size_t channels = channel == TEXTURE_RED_CHANNEL ? 1 : 3;
-    if (!ocio_rs_texture_count(w, h, d, channels, count))
+    if (!ocio_rs_texture_storage_count(w, h, d, channels, count))
       throw ocio::Exception("GPU texture payload size overflow");
   }
   unsigned controlTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
@@ -10571,13 +10572,13 @@ public:
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
-    validateTextureSize(w, h, 1, c);
     if (texture_control_callback) {
       const unsigned next = nextDefaultBinding();
       bool store = true;
       const auto binding = controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, true, next, store);
       reserveBinding(binding);
       if (store) {
+        validateTextureStorageSize(w, h, 1, c);
         reserveOne(texture_bindings);
         resources->addTexture(n, s, w, h, c, d, i, v);
         texture_bindings.push_back(binding);
@@ -10600,6 +10601,7 @@ public:
     // corresponding binding entry.
     reserveOne(used_bindings);
     reserveOne(texture_bindings);
+    validateTextureStorageSize(w, h, 1, c);
     resources->addTexture(n, s, w, h, c, d, i, v);
     // The inner descriptor does not know about overridden bindings. Use the
     // collision-aware sequence for both the callback proposal and shader.
@@ -10610,13 +10612,13 @@ public:
   unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                         const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
-    validateTextureSize(e, e, e, TEXTURE_RGB_CHANNEL);
     if (texture_control_callback) {
       const unsigned next = nextDefaultBinding();
       bool store = true;
       const auto binding = controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, next, store);
       reserveBinding(binding);
       if (store) {
+        validateTextureStorageSize(e, e, e, TEXTURE_RGB_CHANNEL);
         reserveOne(texture3d_bindings);
         resources->add3DTexture(n, s, e, i, v);
         texture3d_bindings.push_back(binding);
@@ -10636,6 +10638,7 @@ public:
     const auto next = nextDefaultBinding();
     reserveOne(used_bindings);
     reserveOne(texture3d_bindings);
+    validateTextureStorageSize(e, e, e, TEXTURE_RGB_CHANNEL);
     resources->add3DTexture(n, s, e, i, v);
     const auto binding = recordBinding(texture_callback ? notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, true, next) : next);
     texture3d_bindings.push_back(binding);
@@ -10659,34 +10662,40 @@ public:
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                   TextureDimensions d, ocio::Interpolation i, const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
-    validateTextureSize(w, h, 1, c);
     if (texture_control_callback) {
       bool store = true;
       controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0, store);
-      if (store) resources->addTexture(n, s, w, h, c, d, i, v);
+      if (store) {
+        validateTextureStorageSize(w, h, 1, c);
+        resources->addTexture(n, s, w, h, c, d, i, v);
+      }
       return;
     }
     if (stream_textures) {
       notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0);
       return;
     }
+    validateTextureStorageSize(w, h, 1, c);
     resources->addTexture(n, s, w, h, c, d, i, v);
     notifyTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0);
   }
   void add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                     const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
-    validateTextureSize(e, e, e, TEXTURE_RGB_CHANNEL);
     if (texture_control_callback) {
       bool store = true;
       controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0, store);
-      if (store) resources->add3DTexture(n, s, e, i, v);
+      if (store) {
+        validateTextureStorageSize(e, e, e, TEXTURE_RGB_CHANNEL);
+        resources->add3DTexture(n, s, e, i, v);
+      }
       return;
     }
     if (stream_textures) {
       notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0);
       return;
     }
+    validateTextureStorageSize(e, e, e, TEXTURE_RGB_CHANNEL);
     resources->add3DTexture(n, s, e, i, v);
     notifyTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0);
   }
@@ -10978,6 +10987,12 @@ bool ocio_gpu_shader_creator_add_texture(void* handle, const char* name, const c
       throw std::invalid_argument("GPU texture payload size mismatch or overflow");
     auto& c = *static_cast<ocio::GpuShaderCreatorRcPtr*>(handle);
     if (!c) throw std::invalid_argument("null native shader creator");
+    // Imported creators may delegate to OCIO's generic storage even when
+    // they are not descriptors. Only our forwarding creator can prove when a
+    // texture will be streamed without entering that storage.
+    if (!std::dynamic_pointer_cast<OcioRsAssemblingDesc>(c) &&
+        !ocio_rs_texture_storage_count(width, height, depth, is_3d || channel == 1 ? 3 : 1, expected))
+      throw std::invalid_argument("GPU texture payload exceeds native storage limit");
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
     if (auto desc = std::dynamic_pointer_cast<ocio::GpuShaderDesc>(c))
       ocio_rs_check_generic_texture_binding_range(desc, c->getTextureBindingStart(), 1);
@@ -11791,18 +11806,19 @@ bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
 }
 
 static bool ocio_rs_texture_count(size_t a, size_t b, size_t c, size_t d, size_t& count) {
-  // OCIO 2.4--2.6 multiplies texture dimensions as unsigned before widening
-  // to size_t. A larger product would make its allocation smaller than the
-  // dimensions reported by the descriptor.
-  const size_t max_count = std::min(
-      static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) / sizeof(float),
-      static_cast<size_t>(std::numeric_limits<unsigned>::max()));
+  const size_t max_count = static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) / sizeof(float);
   count = 1;
   for (const size_t factor : {a, b, c, d}) {
     if (factor != 0 && count > max_count / factor) return false;
     count *= factor;
   }
   return true;
+}
+
+static bool ocio_rs_texture_storage_count(size_t a, size_t b, size_t c, size_t d, size_t& count) {
+  // OCIO 2.4--2.6 multiplies dimensions as unsigned before widening to size_t.
+  return ocio_rs_texture_count(a, b, c, d, count) &&
+         count <= static_cast<size_t>(std::numeric_limits<unsigned>::max());
 }
 
 bool ocio_gpu_shader_desc_add_texture(
@@ -11828,7 +11844,7 @@ bool ocio_gpu_shader_desc_add_texture(
   try {
     const size_t channels = channel == static_cast<int>(ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL) ? 1 : 3;
     size_t expected = 0;
-    if (!ocio_rs_texture_count(width, height, channels, 1, expected))
+    if (!ocio_rs_texture_storage_count(width, height, channels, 1, expected))
       throw std::invalid_argument("GPU texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
@@ -11924,7 +11940,7 @@ size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index
   if (!ocio_gpu_shader_desc_get_texture_info(handle, index, &info)) return 0;
   const size_t channels = info.channel == ocio::GpuShaderDesc::TEXTURE_RED_CHANNEL ? 1 : 3;
   size_t count = 0;
-  if (!ocio_rs_texture_count(info.width, info.height, channels, 1, count)) {
+  if (!ocio_rs_texture_storage_count(info.width, info.height, channels, 1, count)) {
     ocio_rs_bridge::capture_error_message("GPU texture payload size overflow");
     return 0;
   }
@@ -11970,7 +11986,7 @@ bool ocio_gpu_shader_desc_add3d_texture(
   try {
     const size_t edge = static_cast<size_t>(edgeLen);
     size_t expected = 0;
-    if (!ocio_rs_texture_count(edge, edge, edge, 3, expected))
+    if (!ocio_rs_texture_storage_count(edge, edge, edge, 3, expected))
       throw std::invalid_argument("GPU 3D texture payload size overflow");
     if (!values || len < expected) return false;
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
@@ -12045,7 +12061,7 @@ size_t ocio_gpu_shader_desc_get3d_texture_value_count(void* handle, unsigned ind
   if (!ocio_gpu_shader_desc_get3d_texture_info(handle, index, &info)) return 0;
   const size_t edge = static_cast<size_t>(info.edge_len);
   size_t count = 0;
-  if (!ocio_rs_texture_count(edge, edge, edge, 3, count)) {
+  if (!ocio_rs_texture_storage_count(edge, edge, edge, 3, count)) {
     ocio_rs_bridge::capture_error_message("GPU 3D texture payload size overflow");
     return 0;
   }

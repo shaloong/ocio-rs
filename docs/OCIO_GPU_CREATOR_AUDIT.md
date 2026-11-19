@@ -55,11 +55,13 @@ Texture scalar counts use the native metadata query without copying texels.
 The fallible count methods preserve native errors; their compatibility wrappers
 return zero on failure. These queries do not validate GPU hardware execution.
 OCIO 2.4.1 through 2.6.0 multiplies dimensions and channel count in `unsigned`
-before widening to `size_t` when storing a texture. The bridge limits checked
-texture scalar counts to both `unsigned` and Rust slice `ptrdiff_t` limits,
-including descriptor reads, manual registration and the bridge's forwarding
-creator. This conservatively rejects larger custom-creator payloads too; raw
-native interop remains subject to the native caller's own safety contract.
+before widening to `size_t` when storing a texture. The bridge limits scalar
+counts for descriptor storage and reads to both `unsigned` and Rust slice
+`ptrdiff_t` limits. The forwarding creator checks the native-storage limit only
+when retaining a texture; its stream-only callbacks retain the wider
+address-space limit. Imported custom creators are checked conservatively,
+including non-descriptors, because they may delegate to native storage. Raw native
+interop remains subject to the native caller's own safety contract.
 The low-level creator also rejects non-cubic 3D dimensions and non-unit depth
 for 1D/2D textures before native dispatch. Regressions exercise these checks
 without allocating huge buffers, including the unsigned upper boundary.
