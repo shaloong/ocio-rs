@@ -929,6 +929,10 @@ fn run_l2(bridge_funcs: &[CFunc], rust_methods: &HashMap<String, HashSet<String>
                     "ocio_group_transform_write_to_string_const" => {
                         Some("write_to_string_with_const_config")
                     }
+                    "ocio_config_merging_parameters_merge_config_refs" => Some("merge_configs_ref"),
+                    "ocio_config_merging_parameters_merge_color_space_refs" => {
+                        Some("merge_color_space_ref")
+                    }
                     _ => None,
                 };
                 exact_override
@@ -1418,6 +1422,35 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn l2_config_merge_refs_require_the_matching_methods() {
+        let funcs: Vec<_> = [
+            (
+                "ocio_config_merging_parameters_merge_config_refs",
+                "merge_config_refs",
+            ),
+            (
+                "ocio_config_merging_parameters_merge_color_space_refs",
+                "merge_color_space_refs",
+            ),
+        ]
+        .into_iter()
+        .map(|(name, method)| CFunc {
+            name: name.into(),
+            return_type: "void*".into(),
+            params: String::new(),
+            class_prefix: "config_merging_parameters".into(),
+            method_name: method.into(),
+        })
+        .collect();
+        let methods = HashMap::from([(
+            "ConfigMergingParameters".into(),
+            HashSet::from(["merge_configs_ref".into(), "merge_color_space_ref".into()]),
+        )]);
+        assert_eq!(run_l2(&funcs, &methods).matched, 2);
+        assert_eq!(run_l2(&funcs, &HashMap::new()).missing.len(), 2);
+    }
 
     #[test]
     fn l2_group_const_writer_maps_string_and_excludes_native_ostream() {

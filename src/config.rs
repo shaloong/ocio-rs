@@ -68,6 +68,34 @@ pub struct ConstConfig {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Borrow an editable or shared read-only configuration for native queries.
+#[derive(Clone, Copy)]
+pub enum ConfigRef<'a> {
+    /// A configuration with editable Rust access.
+    Editable(&'a Config),
+    /// A retained read-only native configuration.
+    ReadOnly(&'a ConstConfig),
+}
+impl<'a> From<&'a Config> for ConfigRef<'a> {
+    fn from(value: &'a Config) -> Self {
+        Self::Editable(value)
+    }
+}
+impl<'a> From<&'a ConstConfig> for ConfigRef<'a> {
+    fn from(value: &'a ConstConfig) -> Self {
+        Self::ReadOnly(value)
+    }
+}
+impl ConfigRef<'_> {
+    #[cfg(feature = "v2_5")]
+    pub(crate) fn raw(self) -> (*mut c_void, bool) {
+        match self {
+            Self::Editable(value) => (value.handle.as_ptr(), false),
+            Self::ReadOnly(value) => (value.handle.as_ptr(), true),
+        }
+    }
+}
+
 /// Destination of a processor connecting two read-only configurations.
 #[derive(Debug, Clone, Copy)]
 pub enum ConfigProcessorTarget<'a> {

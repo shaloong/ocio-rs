@@ -636,6 +636,30 @@ impl ConfigMergingParameters {
         })
     }
 
+    /// Merge editable or retained read-only configs without copying the inputs
+    /// in the binding. OCIO constructs the editable result.
+    pub fn merge_configs_ref<'a, 'b>(
+        &self,
+        base: impl Into<crate::ConfigRef<'a>>,
+        input: impl Into<crate::ConfigRef<'b>>,
+    ) -> Result<Config> {
+        let (base, base_const) = base.into().raw();
+        let (input, input_const) = input.into().raw();
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_config_merging_parameters_merge_config_refs(
+                self.handle.as_ptr(),
+                base,
+                base_const,
+                input,
+                input_const,
+            )
+        };
+        Ok(Config {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
     /// Merge color space via the native merge API.
     pub fn merge_color_space(&self, base: &Config, input: &ColorSpace) -> Result<Config> {
         crate::clear_last_error();
@@ -644,6 +668,30 @@ impl ConfigMergingParameters {
                 self.handle.as_ptr(),
                 base.handle.as_ptr(),
                 input.handle.as_ptr(),
+            )
+        };
+        Ok(Config {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// Merge an editable or retained read-only color space into an editable or
+    /// retained read-only config without making binding-side input copies.
+    pub fn merge_color_space_ref<'a, 'b>(
+        &self,
+        base: impl Into<crate::ConfigRef<'a>>,
+        input: impl Into<crate::ColorSpaceRef<'b>>,
+    ) -> Result<Config> {
+        let (base, base_const) = base.into().raw();
+        let (input, input_const) = input.into().raw();
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_config_merging_parameters_merge_color_space_refs(
+                self.handle.as_ptr(),
+                base,
+                base_const,
+                input,
+                input_const,
             )
         };
         Ok(Config {

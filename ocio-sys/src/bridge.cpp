@@ -21158,6 +21158,44 @@ void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base,
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+
+void* ocio_config_merging_parameters_merge_config_refs(void* handle, void* base, bool base_const, void* input, bool input_const) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)base; (void)base_const; (void)input; (void)input_const;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer"); return nullptr;
+#else
+  try {
+    if (!handle || !base || !input) throw std::invalid_argument("null merge arguments");
+    ocio::ConstConfigRcPtr b = base_const ? *static_cast<ocio::ConstConfigRcPtr*>(base) : ocio::ConstConfigRcPtr(ocio_rs_bridge::get_real_config(base));
+    ocio::ConstConfigRcPtr i = input_const ? *static_cast<ocio::ConstConfigRcPtr*>(input) : ocio::ConstConfigRcPtr(ocio_rs_bridge::get_real_config(input));
+    if (!b || !i) throw std::invalid_argument("null native config");
+    auto result = ocio::ConfigMergingHelpers::MergeConfigs(merge_params(handle), b, i);
+    if (!result) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::move(result)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void* ocio_config_merging_parameters_merge_color_space_refs(void* handle, void* base, bool base_const, void* input, bool input_const) {
+#if defined(OCIO_RS_STUB) || OCIO_RS_NATIVE_API_HEX < 0x02050100
+  (void)handle; (void)base; (void)base_const; (void)input; (void)input_const;
+  ocio_rs_bridge::capture_error_message("Config merging requires native OpenColorIO 2.5.1 or newer"); return nullptr;
+#else
+  try {
+    if (!handle || !base || !input) throw std::invalid_argument("null merge arguments");
+    ocio::ConstConfigRcPtr b = base_const ? *static_cast<ocio::ConstConfigRcPtr*>(base) : ocio::ConstConfigRcPtr(ocio_rs_bridge::get_real_config(base));
+    ocio::ConstColorSpaceRcPtr i = input_const ? *static_cast<ocio::ConstColorSpaceRcPtr*>(input) : ocio::ConstColorSpaceRcPtr(ocio_rs_bridge::get_real_color_space(input));
+    if (!b || !i) throw std::invalid_argument("null native merge input");
+    auto result = ocio::ConfigMergingHelpers::MergeColorSpace(merge_params(handle), b, i);
+    if (!result) return nullptr;
+    auto out = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    out->inner = std::make_shared<ocio_rs_bridge::RealConfig>(ocio_rs_bridge::RealConfig{std::move(result)});
+    return out.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 #endif
 
 #if OCIO_RS_INTERFACE_API_HEX >= 0x02050100

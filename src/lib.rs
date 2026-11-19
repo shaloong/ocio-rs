@@ -129,7 +129,7 @@ pub use builtin_config_registry::BuiltinConfigRegistry;
 pub use builtin_transform_registry::BuiltinTransformRegistry;
 pub use color_space_set::{ColorSpaceSet, ColorSpaceSetRef, ConstColorSpaceSet};
 pub use colorspace::{ColorSpace, ColorSpaceRef, ConstColorSpace};
-pub use config::{Config, ConfigProcessorTarget, ConstConfig};
+pub use config::{Config, ConfigProcessorTarget, ConfigRef, ConstConfig};
 pub use config_io_proxy::{ConfigIOProvider, ConfigIOProxy};
 pub use const_config_item::{ConstLook, ConstNamedTransform, ConstViewTransform};
 pub use const_rules::{ConstFileRules, ConstViewingRules};
@@ -163,7 +163,7 @@ pub use types::*;
 #[cfg(feature = "v2_6")]
 mod v2_6;
 #[cfg(feature = "v2_6")]
-pub use v2_6::{metadata_id_element, ConfigRef, ViewWithAliases};
+pub use v2_6::{metadata_id_element, ViewWithAliases};
 pub use view_transform::ViewTransform;
 pub use viewing_rules::ViewingRules;
 

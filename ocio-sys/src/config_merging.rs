@@ -124,6 +124,28 @@ unsafe extern "C" {
         base: *mut c_void,
         input: *mut c_void,
     ) -> *mut c_void;
+    /// # Safety
+    /// All pointers must be live handles from this ABI. Each flag must match
+    /// whether its corresponding handle is a const or editable config. A
+    /// non-null returned config is owned by the caller.
+    pub fn ocio_config_merging_parameters_merge_config_refs(
+        handle: *mut c_void,
+        base: *mut c_void,
+        base_const: bool,
+        input: *mut c_void,
+        input_const: bool,
+    ) -> *mut c_void;
+    /// # Safety
+    /// All pointers must be live handles from this ABI. Flags identify the
+    /// const or editable config and color-space handle representations. A
+    /// non-null returned config is owned by the caller.
+    pub fn ocio_config_merging_parameters_merge_color_space_refs(
+        handle: *mut c_void,
+        base: *mut c_void,
+        base_const: bool,
+        input: *mut c_void,
+        input_const: bool,
+    ) -> *mut c_void;
     pub fn ocio_config_merger_create() -> *mut c_void;
     pub fn ocio_config_merger_from_file(path: *const c_char) -> *mut c_void;
     pub fn ocio_config_merger_create_editable_copy(h: *mut c_void) -> *mut c_void;

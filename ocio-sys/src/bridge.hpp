@@ -1881,6 +1881,8 @@ const char* ocio_config_merging_parameters_get_environment_var(void* handle, int
 const char* ocio_config_merging_parameters_get_environment_var_value(void* handle, int index);
 void* ocio_config_merging_parameters_merge_configs(void* handle, void* base, void* input);
 void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base, void* input);
+void* ocio_config_merging_parameters_merge_config_refs(void* handle, void* base, bool base_const, void* input, bool input_const);
+void* ocio_config_merging_parameters_merge_color_space_refs(void* handle, void* base, bool base_const, void* input, bool input_const);
 
 void* ocio_config_merger_create(void);
 void* ocio_config_merger_from_file(const char* path);

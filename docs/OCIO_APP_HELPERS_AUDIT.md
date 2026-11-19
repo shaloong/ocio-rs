@@ -22,6 +22,15 @@ handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
+`ConfigMergingHelpers::MergeConfigs` accepts two native const configs and
+`MergeColorSpace` accepts a const config and const color space. The
+`merge_configs_ref` and `merge_color_space_ref` methods accept any mix of
+editable and retained read-only inputs and forward their shared pointers;
+the binding does not make editable input copies. OCIO itself constructs the
+editable output. Mixed and shared input combinations, source lifetime after
+dropping menu parameters, and unchanged inputs were exercised against native
+2.5.2 and 2.6.0; the API is gated at 2.5.1.
+
 The menu parameter factory and setter accept native shared config pointers;
 the helper factory accepts shared read-only parameters and creates its menu
 entries at construction. The native helper stores entry names, UI names,

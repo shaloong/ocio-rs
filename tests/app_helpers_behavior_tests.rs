@@ -240,6 +240,50 @@ fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     assert!(merged.color_space("new-space").is_some());
     let merged = copy.merge_color_space(&base, &space).unwrap();
     assert!(merged.color_space("new-space").is_some());
+    let base_params = ColorSpaceMenuParameters::create(&base).unwrap();
+    let input_params = ColorSpaceMenuParameters::create(&input).unwrap();
+    let shared_base = base_params.const_config().unwrap();
+    let shared_input = input_params.const_config().unwrap();
+    let shared_space = shared_input
+        .try_const_color_space(c"new-space")
+        .unwrap()
+        .unwrap();
+    drop((base_params, input_params));
+    for (base_ref, input_ref) in [
+        (
+            ocio_rs::ConfigRef::from(&base),
+            ocio_rs::ConfigRef::from(&shared_input),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ConfigRef::from(&input),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ConfigRef::from(&shared_input),
+        ),
+    ] {
+        let result = copy.merge_configs_ref(base_ref, input_ref).unwrap();
+        assert!(result.color_space("new-space").is_some());
+        assert_eq!(result.name().as_deref(), Some("merged"));
+    }
+    for (base_ref, space_ref) in [
+        (
+            ocio_rs::ConfigRef::from(&base),
+            ocio_rs::ColorSpaceRef::from(&shared_space),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ColorSpaceRef::from(&space),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ColorSpaceRef::from(&shared_space),
+        ),
+    ] {
+        let result = copy.merge_color_space_ref(base_ref, space_ref).unwrap();
+        assert!(result.color_space("new-space").is_some());
+    }
     assert!(base.color_space("new-space").is_none());
     assert_ne!(input.name().as_deref(), Some("merged"));
 }

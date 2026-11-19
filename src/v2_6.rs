@@ -2,35 +2,7 @@
 use std::ffi::{c_char, CStr};
 use std::ptr::NonNull;
 
-use crate::{ColorSpace, Config, Result};
-
-/// Borrowed editable or immutable configuration for 2.6 matching operations.
-#[derive(Clone, Copy)]
-pub enum ConfigRef<'a> {
-    /// A configuration with editable Rust access.
-    Editable(&'a Config),
-    /// A shared read-only configuration.
-    ReadOnly(&'a crate::ConstConfig),
-}
-
-impl<'a> From<&'a Config> for ConfigRef<'a> {
-    fn from(config: &'a Config) -> Self {
-        Self::Editable(config)
-    }
-}
-impl<'a> From<&'a crate::ConstConfig> for ConfigRef<'a> {
-    fn from(config: &'a crate::ConstConfig) -> Self {
-        Self::ReadOnly(config)
-    }
-}
-impl ConfigRef<'_> {
-    fn raw(self) -> (*mut std::ffi::c_void, bool) {
-        match self {
-            Self::Editable(config) => (config.handle.as_ptr(), false),
-            Self::ReadOnly(config) => (config.handle.as_ptr(), true),
-        }
-    }
-}
+use crate::{ColorSpace, Config, ConfigRef, Result};
 
 fn locate_builtin_color_space_refs(
     source: ConfigRef<'_>,
