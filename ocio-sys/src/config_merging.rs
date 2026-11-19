@@ -165,6 +165,33 @@ unsafe extern "C" {
     pub fn ocio_config_merger_params_shared(h: *mut c_void, index: i32) -> *mut c_void;
     pub fn ocio_config_merger_add_params(h: *mut c_void, params: *mut c_void);
     pub fn ocio_config_merger_merge_configs(h: *mut c_void) -> *mut c_void;
+    /// Returns an owned read-only merger handle; destroy it with
+    /// `ocio_const_config_merger_destroy`.
+    /// # Safety
+    /// `h` must be a live editable merger handle from this ABI.
+    pub fn ocio_config_merger_merge_configs_shared(h: *mut c_void) -> *mut c_void;
+    /// # Safety
+    /// `path` must be a valid C string. Destroy a non-null result using
+    /// `ocio_const_config_merger_destroy`.
+    pub fn ocio_const_config_merger_from_file(path: *const c_char) -> *mut c_void;
+    /// # Safety
+    /// `h` must be a live read-only merger handle from this ABI; a non-null
+    /// result is an owned read-only merger handle.
+    pub fn ocio_const_config_merger_merge_configs(h: *const c_void) -> *mut c_void;
+    /// # Safety
+    /// `h` must be null or an owned read-only merger handle, released once.
+    pub fn ocio_const_config_merger_destroy(h: *mut c_void);
+    /// # Safety
+    /// `h` must be a live read-only merger handle from this ABI.
+    pub fn ocio_const_config_merger_num_merged_configs(h: *const c_void) -> i32;
+    /// # Safety
+    /// `h` must be a live read-only merger handle. Destroy a non-null result
+    /// with `ocio_const_config_destroy`.
+    pub fn ocio_const_config_merger_merged_config(h: *const c_void, index: i32) -> *mut c_void;
+    /// # Safety
+    /// `h` must be a live read-only merger handle. Destroy a non-null result
+    /// with `ocio_config_merger_destroy`.
+    pub fn ocio_const_config_merger_editable_copy(h: *const c_void) -> *mut c_void;
     pub fn ocio_config_merger_num_merged_configs(h: *mut c_void) -> i32;
     pub fn ocio_config_merger_merged_config(h: *mut c_void, index: i32) -> *mut c_void;
     /// Retain a read-only result. Index `-1` selects the final result.

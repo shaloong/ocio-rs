@@ -52,8 +52,18 @@ fn ociom_controller_round_trip_and_execute() {
     std::fs::write(&temp, &serialized).unwrap();
     let path = std::ffi::CString::new(temp.to_str().unwrap()).unwrap();
     let parsed = ConfigMerger::from_file(&path).unwrap();
+    let parsed_shared = ocio_rs::ConstConfigMerger::from_file(&path).unwrap();
     std::fs::remove_file(&temp).unwrap();
     assert_eq!(parsed.num_params().unwrap(), 1);
+    assert_eq!(parsed_shared.num_merged_configs().unwrap(), 0);
+    assert_eq!(
+        parsed_shared
+            .create_editable_copy()
+            .unwrap()
+            .num_params()
+            .unwrap(),
+        1
+    );
     assert_eq!(
         parsed
             .params(0)
@@ -112,6 +122,25 @@ fn ociom_multi_step_preserves_intermediate_and_final_results() {
     merger.set_working_dir(&dir).unwrap();
     merger.add_params(&first).unwrap();
     merger.add_params(&second).unwrap();
+    let retained_result = merger.merge_configs_shared().unwrap();
+    assert_eq!(retained_result.num_merged_configs().unwrap(), 2);
+    let retained_first = retained_result.merged_const_config(0).unwrap().unwrap();
+    let retained_final = retained_result.merged_const_config(-1).unwrap().unwrap();
+    assert!(retained_result.merged_const_config(2).unwrap().is_none());
+    assert!(retained_result.merged_const_config(-2).unwrap().is_none());
+    let rerun = retained_result.merge_configs().unwrap();
+    assert!(rerun.num_merged_configs().unwrap() >= 2);
+    let editable = retained_result.create_editable_copy().unwrap();
+    assert_eq!(editable.num_merged_configs().unwrap(), 2);
+    drop(retained_result);
+    assert_eq!(
+        retained_first.name().unwrap().as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        retained_final.name().unwrap().as_deref(),
+        Some("second result")
+    );
     let result = merger.merge_configs().unwrap();
     assert_eq!(result.num_merged_configs().unwrap(), 2);
     assert_eq!(

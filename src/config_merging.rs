@@ -823,6 +823,17 @@ impl ConfigMerger {
         })
     }
 
+    /// Merge and retain OCIO's read-only merger result without copying the
+    /// returned merger or its completed configurations in the binding.
+    pub fn merge_configs_shared(&self) -> Result<ConstConfigMerger> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_config_merger_merge_configs_shared(self.handle.as_ptr()) };
+        Ok(ConstConfigMerger {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
     /// num merged configs using native OCIO.
     pub fn num_merged_configs(&self) -> Result<i32> {
         crate::clear_last_error();
@@ -887,5 +898,69 @@ impl ConfigMerger {
 impl Drop for ConfigMerger {
     fn drop(&mut self) {
         unsafe { ocio_sys::ocio_config_merger_destroy(self.handle.as_ptr()) }
+    }
+}
+
+/// A retained read-only merger returned by native OCIO.
+///
+/// Completed configurations can be retained without copying. Request an
+/// editable copy explicitly when mutation of the merger is needed.
+pub struct ConstConfigMerger {
+    handle: NonNull<c_void>,
+}
+
+impl ConstConfigMerger {
+    /// Load an OCIOM file without making an editable merger copy.
+    pub fn from_file(path: &CStr) -> Result<Self> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_const_config_merger_from_file(path.as_ptr()) };
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// Run the native merger and retain its read-only result.
+    pub fn merge_configs(&self) -> Result<Self> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_config_merger_merge_configs(self.handle.as_ptr()) };
+        Ok(Self {
+            handle: crate::handle_result(value)?,
+        })
+    }
+
+    /// Return the number of completed merge steps.
+    pub fn num_merged_configs(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_config_merger_num_merged_configs(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Retain a native result. Index `-1` selects the final result.
+    pub fn merged_const_config(&self, index: i32) -> Result<Option<ConstConfig>> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_const_config_merger_merged_config(self.handle.as_ptr(), index)
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(value).map(|handle| ConstConfig { handle }))
+    }
+
+    /// Create an editable copy using OCIO's native copy semantics.
+    pub fn create_editable_copy(&self) -> Result<ConfigMerger> {
+        crate::clear_last_error();
+        let value =
+            unsafe { ocio_sys::ocio_const_config_merger_editable_copy(self.handle.as_ptr()) };
+        Ok(ConfigMerger {
+            handle: crate::handle_result(value)?,
+        })
+    }
+}
+
+impl Drop for ConstConfigMerger {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_config_merger_destroy(self.handle.as_ptr()) }
     }
 }

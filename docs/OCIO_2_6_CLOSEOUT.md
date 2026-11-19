@@ -122,8 +122,9 @@ enumeration, curve constructors, and matrix operations are covered by the
 linked class audits. `MatrixTransform::Identity` writes directly to caller
 arrays through `ocio-sys`; the existing typed `identity` factory instead
 constructs a transform. `ConfigMerger::from_file` makes an editable native copy
-of the read-only result returned by OCIO; it is a configuration-time copy,
-not a zero-copy read-only merger handle. Constructors that are deleted,
+of the read-only result returned by OCIO; `ConstConfigMerger::from_file` and
+`ConfigMerger::merge_configs_shared` retain the native result without that
+binding-side copy. Constructors that are deleted,
 protected, or exposed only for native destruction are not callable factories.
 This static scan does not establish coverage of every instance signature or
 behavior.

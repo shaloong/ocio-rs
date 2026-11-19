@@ -103,7 +103,7 @@ mod config;
 #[cfg(feature = "v2_5")]
 mod config_merging;
 #[cfg(feature = "v2_5")]
-pub use config_merging::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
+pub use config_merging::{ConfigMerger, ConfigMergingParameters, ConstConfigMerger, MergeStrategy};
 mod config_io_proxy;
 mod const_config_item;
 mod const_rules;

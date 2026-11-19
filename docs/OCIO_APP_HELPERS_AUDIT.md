@@ -15,11 +15,14 @@ Namespace functions are tracked in the [closeout ledger](OCIO_2_6_CLOSEOUT.md).
 | `MixingColorSpaceManager` | Factory, both mix-space and encoding selections by name/index, counts, names, selected indices, perceptual query, refresh, processor and both slider overloads. Indices use `usize`; processor direction and selected config stay native. Construction and refresh accept a retained `ConstConfig` without copying its contents. |
 | `MixingSlider` | Native `float` min/max and bidirectional conversion. A manager-owned reference is an exclusive Rust borrow with no allocation or extra reference count. |
 | `ConfigMergingParameters` | Factory and editable copy, filenames/output name/prefixes, boolean controls, override strings, environment variables, replace/append search paths, default and per-section strategies. The six native strategy discriminants match the Rust enum; environment indices and count use `i32`. |
-| `ConfigMerger` | Factory, OCIOM loading/serialization, editable copy, search paths/working dir, parameters, merge and version. Native signed counts/indices and unsigned version fields are retained. The final result and indexed result share one Rust entry, with `-1` reserved for the final result and other invalid indices returning `None`. The result can be retained without copying or copied for editing. `params` returns an editable copy; `ocio-sys` exposes the original mutable shared handle for callers that can uphold aliasing requirements. `add_params` retains the native parameter object. |
+| `ConfigMerger` | Factory, OCIOM loading/serialization, editable copy, search paths/working dir, parameters, merge and version. Native signed counts/indices and unsigned version fields are retained. `merge_configs_shared` retains OCIO's read-only merger result; `ConstConfigMerger` can retain its completed configurations, re-run the merge, or explicitly make an editable copy. The older editable merge method still makes that native copy. The final result and indexed result share one Rust entry, with `-1` reserved for the final result and other invalid indices returning `None`. `params` returns an editable copy; `ocio-sys` exposes the original mutable shared handle for callers that can uphold aliasing requirements. `add_params` retains the native parameter object. |
 
 Native constructors are represented by their factories, destruction by
 handle release, and diagnostics by the existing stream-to-text functions.
-`ConfigMerger::serialize` emits OCIOM rather than diagnostic text. No
+`ConfigMerger::serialize` emits OCIOM rather than diagnostic text. A retained
+merger returned by `ConstConfigMerger::from_file` avoids the editable copy;
+inspection not exposed on the retained handle remains available after an
+explicit editable copy. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
 `ConfigMergingHelpers::MergeConfigs` accepts two native const configs and
@@ -72,3 +75,6 @@ individually on native 2.5.1, 2.5.2 and 2.6.0: updating one leaves the
 others unchanged, and an unspecified section inherits the default strategy.
 The multi-stage merger test also distinguishes the first result, second result,
 and final-result sentinel through editable and retained read-only config paths.
+It also checks the retained native merger path, explicit editable copying,
+invalid indices, repeated merging, and retained-config lifetime after dropping
+the read-only merger on native 2.5.2 and 2.6.0.
