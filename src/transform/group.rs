@@ -212,8 +212,11 @@ impl GroupTransform {
         unsafe { ocio_sys::ocio_group_transform_get_num_write_formats() }
     }
 
-    /// Return the writer format name at `index`.
+    /// Return the writer format name at `index`, or `None` for an invalid index.
     pub fn format_name_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_write_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_name_by_index(
                 index,
@@ -222,7 +225,11 @@ impl GroupTransform {
     }
 
     /// Return the writer format extension at `index`, without a leading dot.
+    /// Returns `None` for an invalid index.
     pub fn format_extension_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_write_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_extension_by_index(index))
         }

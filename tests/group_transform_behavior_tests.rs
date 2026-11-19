@@ -134,6 +134,40 @@ fn scale_matrix(scale: [f64; 4]) -> MatrixTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn format_registry_invalid_indices_are_absent() {
+    use ocio_rs::{transform::FileTransform, Baker};
+    let registries: [(i32, fn(i32) -> Option<String>, fn(i32) -> Option<String>); 3] = [
+        (
+            GroupTransform::num_write_formats(),
+            GroupTransform::format_name_by_index,
+            GroupTransform::format_extension_by_index,
+        ),
+        (
+            FileTransform::num_formats(),
+            FileTransform::format_name_by_index,
+            FileTransform::format_extension_by_index,
+        ),
+        (
+            Baker::num_formats(),
+            Baker::format_name_by_index,
+            Baker::format_extension_by_index,
+        ),
+    ];
+    for (count, name, extension) in registries {
+        assert!(count > 0);
+        for index in 0..count {
+            assert!(name(index).is_some());
+            assert!(extension(index).is_some());
+        }
+        for index in [-1, count, i32::MAX] {
+            assert_eq!(name(index), None);
+            assert_eq!(extension(index), None);
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn const_group_child_retains_the_native_transform() {
     let group = GroupTransform::create().unwrap();
     group

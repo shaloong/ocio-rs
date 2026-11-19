@@ -21,3 +21,11 @@ the native group interface. A wrapper must preserve shared ownership, metadata,
 editable-copy behavior, validation, writing, and 2.4--2.6 ABI compatibility;
 replacing the underlying object silently is not equivalent. The existing
 behavior is documented and tested until that design is resolved.
+
+The static Group writer, FileTransform reader and Baker format queries check
+their native registry counts before querying an index. Their Rust `Option`
+results return `None` for negative and out-of-range indices while preserving
+native strings (including empty strings) at valid indices. The raw FFI still
+exposes OCIO's own sentinel. The regression checks every valid index and three
+invalid boundaries on native 2.4.1, 2.5.2 and 2.6.0. The extra count query is
+per registry lookup, not per pixel or LUT element.

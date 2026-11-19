@@ -259,8 +259,11 @@ impl Baker {
         Self::num_formats()
     }
 
-    /// Get the format name at the given index.
+    /// Get the format name at the given index, or `None` if out of range.
     pub fn format_name_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_formats() {
+            return None;
+        }
         unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_name_by_index(index)) }
     }
 
@@ -269,8 +272,11 @@ impl Baker {
         Self::format_name_by_index(index)
     }
 
-    /// Get the file extension for the format at the given index.
+    /// Get the file extension for the format at the given index, or `None` if out of range.
     pub fn format_extension_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_formats() {
+            return None;
+        }
         unsafe { cstr_to_opt_string(ocio_sys::ocio_baker_get_format_extension_by_index(index)) }
     }
 
