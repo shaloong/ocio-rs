@@ -5879,6 +5879,34 @@ fn gpu_callback_panic_payload_drop_is_contained() {
     drop(desc);
     assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
 
+    let mut desc = GpuShaderDesc::create().unwrap();
+    let scalar_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let array_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    {
+        let mut creator = desc.try_borrow_creator().unwrap();
+        let called = scalar_called.clone();
+        assert!(creator
+            .add_uniform_f64_getter("scalar", move || {
+                called.store(true, std::sync::atomic::Ordering::SeqCst);
+                std::panic::panic_any(PanicOnDrop)
+            })
+            .unwrap());
+        let called = array_called.clone();
+        assert!(creator
+            .add_uniform_f32_array_getter("array", 1, move |_| {
+                called.store(true, std::sync::atomic::Ordering::SeqCst);
+                std::panic::panic_any(PanicOnDrop)
+            })
+            .unwrap());
+    }
+    let mut cache = desc.uniform_cache().unwrap();
+    assert!(cache.double(0).is_err());
+    assert!(cache.copy_f32_into(1, &mut [0.0]).is_err());
+    assert!(scalar_called.load(std::sync::atomic::Ordering::SeqCst));
+    assert!(array_called.load(std::sync::atomic::Ordering::SeqCst));
+    drop(cache);
+    drop(desc);
+
     struct Policy(std::sync::Arc<std::sync::atomic::AtomicBool>);
     impl ocio_rs::ShaderTexturePolicy for Policy {
         fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {

@@ -44,8 +44,9 @@ expose `DerefMut`, preventing the descriptor handle from being moved out.
 Rust GPU callbacks use a common unwind boundary that also catches a panic
 caused by dropping the original panic payload; it intentionally forgets the
 second payload if necessary to prevent unwinding through C. A subprocess
-regression covers a live uniform getter, its destructor, and a persistent
-texture policy. GPU descriptor and runtime-helper suites passed on Windows
+regression covers descriptor and creator live getters, creator array getters,
+getter destruction, and a persistent texture policy. GPU descriptor and
+runtime-helper suites passed on Windows
 with native 2.4.1 (66 and 13 tests), 2.5.2 (82 and 13), and 2.6.0 (82 and 13).
 This applies to unwinding panics, not `panic=abort`, and does not certify every
 third-party callback implementation.
