@@ -15,6 +15,22 @@ behavior across versions.
 | Packed channel ordering, channel count, channel stride | `NativeImageLayout::Packed` retains these separately from per-pixel and row strides. Native enum discriminants are reported without transmuting them. |
 | `operator<<(ostream&, const ImageDesc&)` | Diagnostic text uses the upstream operator and owns its result on the Rust side. It can contain buffer addresses and is not a serialization format. |
 
+The 2.6 declarations were checked individually. `ImageDesc` has four channel
+pointer getters, bit depth, `long` width/height, `ptrdiff_t` x/y strides,
+and packed/float predicates; `info` and `data_ptrs` expose those native
+results without constructing Rust references to the pixels. `PackedImageDesc`
+adds storage base, channel order, `long` channel count and channel stride.
+Its four public constructor shapes combine channel count or ordering with
+default or explicit bit depth/strides. The checked packed constructor uses
+the explicit ordering shape; RGB and RGBA express the supported three- and
+four-channel default shapes. `PlanarImageDesc` has two public constructor
+shapes with four channel pointers, dimensions and either default or explicit
+depth/strides; its accessors are the base getters. The checked planar path
+uses the explicit shape, with null alpha when absent. Widths and strides are
+range-checked before conversion to native `long` and `ptrdiff_t`. The unsafe
+provider and raw-native paths cover custom native descriptors; they retain
+their caller-enforced buffer, ABI and synchronization requirements.
+
 The safe owned descriptor methods require enough space for native pointer
 stepping. The existing slice-based CPU methods handle supported unpadded
 layouts separately; weakening descriptor validation is not a substitute.

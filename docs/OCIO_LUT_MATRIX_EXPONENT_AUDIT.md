@@ -32,6 +32,16 @@ bulk convenience copies to or from `f64` triplets in red-fastest order; native
 OCIO internally stores its array blue-fastest. It is not a borrowed native
 array, and the single-entry paths do not allocate that bulk snapshot.
 
+The remaining individual LUT controls are also mapped directly: both classes
+expose native file output bit depth and interpolation getters and setters;
+`Lut1DTransform` additionally exposes the boolean input-half-domain and
+output-raw-halfs controls and the `Lut1DHueAdjust` enum. The raw-halfs flag
+affects supported file output formatting, not the normalized float values
+returned by entry access. Setting the half-domain flag does not itself enforce
+the 65536-entry invariant; OCIO validates it when the transform is validated.
+The bridge forwards these controls to OCIO and checked Rust setters surface
+native errors. These signatures are present in all three pinned versions.
+
 The individual matrix and exponent signatures were checked against the 2.6
 header and bridge. Matrix get/set calls use 16 `double` values for the matrix
 and four for the offset; file bit-depths and the two metadata overloads remain

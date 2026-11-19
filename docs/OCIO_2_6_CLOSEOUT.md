@@ -86,8 +86,6 @@ wrapper for an equivalent operation or a CI job for each row.
 | `GpuShaderCreator`, `GpuShaderDesc` | Confirm individual resource, code-section and callback signatures and native-version gates against [GPU creator](OCIO_GPU_CREATOR_AUDIT.md). Existing native-subclass import remains the raw path; arbitrary new Rust C++ subclasses are not required. |
 | `CDLTransform`, `ExposureContrastTransform`, `FixedFunctionTransform`, `GradingPrimaryTransform`, `GradingToneTransform` | Confirm remaining field/getter/setter signatures, array widths and error paths against [core transforms](OCIO_TRANSFORM_CORE_AUDIT.md). |
 | `GradingRGBCurveTransform`, `GradingHueCurveTransform` | Confirm the transform-level style, value, slope and dynamic declarations against [grading curves](OCIO_GRADING_CURVE_AUDIT.md); the separate curve-value declarations are already listed there. |
-| `Lut1DTransform`, `Lut3DTransform` | Confirm remaining interpolation, file-depth and 1D-specific control signatures against [LUT audit](OCIO_LUT_MATRIX_EXPONENT_AUDIT.md); factory and entry shapes are already described. |
-| `ImageDesc`, `PackedImageDesc`, `PlanarImageDesc` | Confirm individual constructor and getter signatures against [image descriptors](OCIO_IMAGE_DESC_AUDIT.md), including native pointer/stride contracts. |
 
 The other exported classes and namespace-level APIs are accounted for by the
 individual or explicit signature records linked in the inventory above. This
