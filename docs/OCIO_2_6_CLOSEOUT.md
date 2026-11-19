@@ -35,6 +35,29 @@ and 13 excluded). This is a fixed review
 boundary, not a verified percentage or a new parity gate. Keep L1/L2/L3
 as cheap name checks, not signature or behavior claims.
 
+The 13 names excluded from the name-based scanner are not automatically
+excluded from the callable API requirement:
+
+| Excluded names | Separate review |
+| --- | --- |
+| `Transform` | [Base transform](OCIO_BASE_LOG_RANGE_AUDIT.md); shared and editable handles expose common operations. |
+| `ImageDesc`, `PackedImageDesc`, `PlanarImageDesc` | [Image descriptors](OCIO_IMAGE_DESC_AUDIT.md); native descriptors and their buffer/layout contracts. |
+| `DynamicProperty`, `DynamicPropertyDouble`, `DynamicPropertyGradingPrimary`, `DynamicPropertyGradingRGBCurve`, `DynamicPropertyGradingHueCurve`, `DynamicPropertyGradingTone` | [Dynamic properties](OCIO_DYNAMIC_PROPERTY_AUDIT.md); native casts and typed value access, with hue gated at 2.5+. |
+| `GpuShaderCreator` | [GPU creator](OCIO_GPU_CREATOR_AUDIT.md); native subclass interop, virtual calls and documented Rust hooks. |
+| `Exception`, `ExceptionMissingFile` | [Exception translation](OCIO_EXCEPTION_AUDIT.md); native errors are translated rather than unwound into Rust. |
+
+The table records the exact inventory boundary; it does not independently
+prove that every signature or external subclass behavior is covered.
+
+On the current branch, the name checker matches 1,585 bridge declarations
+and 1,383 checked wrapper names. Its selected-class method-name counts match
+865/865 against 2.4.1, 1,005/1,005 against 2.5.2, and 1,013/1,013 against
+2.6.0. These are lexical checks, not evidence for overload signatures,
+ownership, errors, behavior, or the 13 separately reviewed classes.
+The dynamic-property and processor behavior suites also passed locally against
+native 2.4.1 and 2.6.0, including the 2.6 hue-property paths; this is targeted
+runtime evidence, not a substitute for the other excluded-class reviews.
+
 ## Finite closeout checklist
 
 | Area | Evidence and disposition |
