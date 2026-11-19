@@ -47,7 +47,9 @@ abstraction, not a different implementation of these getters.
 The CPU behavior suite passed on Windows against all three versions (42 tests
 each). It covers packed BGR storage order, negative planar stride, irregular
 custom offsets, nullable pointers, diagnostics, and pixel processing. The
-Rust-provider regression exercises native in-place processing and conversion
+RGB/RGBA float batch tests also verify that integer and mixed input/output
+processor bit depths report a mismatch without modifying the pixel buffers.
+The Rust-provider regression exercises native in-place processing and conversion
 between two providers, recovery after a getter panics, and exactly-once
 destruction. Its stub case verifies cleanup when native construction fails. The
 manual C++ fixture additionally verified non-null alpha addresses, packed

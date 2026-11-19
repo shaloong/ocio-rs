@@ -519,6 +519,17 @@ fn rgba_fast_path_clears_stale_native_errors_and_validates_buffers() {
     let original_rgb = rgb_pixel;
     assert!(integer_cpu.try_apply_rgb(&mut rgb_pixel).is_err());
     assert_eq!(rgb_pixel, original_rgb);
+    let check_batch_mismatch = |processor: &ocio_rs::CPUProcessor| {
+        let mut rgba = [0.8, 0.5, 0.25, 1.0, 0.4, 0.3, 0.2, 1.0];
+        let mut rgb = [0.8, 0.5, 0.25, 0.4, 0.3, 0.2];
+        let expected_rgba = rgba;
+        let expected_rgb = rgb;
+        assert!(processor.try_apply_rgba_pixels(&mut rgba, 2, 4).is_err());
+        assert_eq!(rgba, expected_rgba);
+        assert!(processor.try_apply_rgb_pixels(&mut rgb, 2, 3).is_err());
+        assert_eq!(rgb, expected_rgb);
+    };
+    check_batch_mismatch(&integer_cpu);
     for (input, output) in [
         (BitDepth::Uint8, BitDepth::F32),
         (BitDepth::F32, BitDepth::Uint8),
@@ -531,6 +542,7 @@ fn rgba_fast_path_clears_stale_native_errors_and_validates_buffers() {
         assert_eq!(rgba_pixel, original_rgba);
         assert!(mixed_cpu.try_apply_rgb(&mut rgb_pixel).is_err());
         assert_eq!(rgb_pixel, original_rgb);
+        check_batch_mismatch(&mixed_cpu);
     }
     let explicit_f32 = scaled_processor([0.5, 1.0, 1.0, 1.0])
         .unwrap()
