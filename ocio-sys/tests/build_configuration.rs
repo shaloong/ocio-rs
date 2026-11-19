@@ -117,8 +117,12 @@ impl ProbeFixture {
     }
 
     fn with_features(features: &[&str]) -> Self {
+        Self::with_features_in(features, &std::env::temp_dir())
+    }
+
+    fn with_features_in(features: &[&str], temp_root: &Path) -> Self {
         let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
+        let root = temp_root.join(format!(
             "ocio-sys-build-configuration-{}-{id}",
             std::process::id()
         ));
@@ -141,7 +145,7 @@ impl ProbeFixture {
         fs::write(
             root.join("Cargo.toml"),
             format!(
-                "[package]\nname = 'ocio-sys-build-probe'\nversion = '0.0.0'\nedition = '2021'\n\n[dependencies]\n{dependency}\n"
+                "[package]\nname = 'ocio-sys-build-probe'\nversion = '0.0.0'\nedition = '2021'\n\n[workspace]\n\n[dependencies]\n{dependency}\n"
             ),
         )
         .unwrap();
@@ -218,6 +222,7 @@ impl ProbeFixture {
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_INCLUDE")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_LIB")
+            .env_remove("SYSTEM_DEPS_OPENCOLORIO_LINK")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_NO_PKG_CONFIG")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_SEARCH_NATIVE")
             .env_remove("OCIO_INSTALL_DIR")
@@ -233,6 +238,26 @@ impl Drop for ProbeFixture {
     fn drop(&mut self) {
         fs::remove_dir_all(&self.root).unwrap();
     }
+}
+
+#[test]
+fn nested_probe_is_an_independent_workspace() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let temp_root = workspace.parent().unwrap().join("target");
+    let fixture = ProbeFixture::with_features_in(&[], &temp_root);
+    let output = Command::new(env!("CARGO"))
+        .args([
+            "metadata",
+            "--offline",
+            "--no-deps",
+            "--format-version",
+            "1",
+        ])
+        .arg("--manifest-path")
+        .arg(&fixture.manifest)
+        .output()
+        .expect("nested cargo metadata should run");
+    assert!(output.status.success(), "{}", output_text(&output));
 }
 
 #[test]
