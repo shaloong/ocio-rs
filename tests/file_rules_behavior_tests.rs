@@ -214,6 +214,10 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
 
     config.set_file_rules(&rules).expect("attach file rules");
 
+    // File rules still select the default when strict parsing is enabled;
+    // callers can distinguish that case by the matched rule index.
+    config.try_set_strict_parsing_enabled(true).unwrap();
+
     assert_eq!(
         config
             .try_color_space_from_filepath_with_rule_index("plate_main.exr")
@@ -251,6 +255,18 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
             .as_deref(),
         Some("raw")
     );
+    assert_eq!(
+        config
+            .try_color_space_from_filepath_with_rule_index("fallback.unknown")
+            .unwrap(),
+        Some(("raw".to_owned(), 2))
+    );
+    assert!(!config
+        .try_filepath_only_matches_default_rule("plate_main.exr")
+        .unwrap());
+    assert!(config
+        .try_filepath_only_matches_default_rule("fallback.unknown")
+        .unwrap());
 }
 
 #[test]

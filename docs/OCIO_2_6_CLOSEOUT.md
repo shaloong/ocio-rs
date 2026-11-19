@@ -190,6 +190,10 @@ errors through the fallible APIs. On Windows i686, the file- and viewing-rule
 oversized-index tests passed with the stub backend, exercising the 32-bit Rust
 conversion guards without a native OCIO library. This does not establish
 32-bit native runtime behavior.
+The filepath overload returning a rule index and the default-only predicate
+were also checked with strict parsing enabled: an explicit pattern selects
+its index, and a nonmatching file selects the final default rule. File- and
+viewing-rule behavior suites passed on native 2.4.1, 2.5.2 and 2.6.0.
 
 A separate one-off Windows i686 C++/Rust executable comparison matched size,
 alignment and field offsets for 11 FFI structs. This is target-specific layout
