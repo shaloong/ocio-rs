@@ -225,6 +225,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             assert!(error.to_string().contains("grading fixture failure"));
         }
+        let space = config.try_color_space("fixture-exposure")?.unwrap();
+        let transform = space
+            .try_transform(ocio_rs::ColorSpaceDirection::ToReference)?
+            .unwrap();
+        let ocio_rs::transform::Transform::ExposureContrast(exposure) = transform else {
+            panic!("unexpected exposure transform");
+        };
+        for error in [
+            exposure.try_style().unwrap_err(),
+            exposure.try_exposure().unwrap_err(),
+            exposure.try_contrast().unwrap_err(),
+            exposure.try_gamma().unwrap_err(),
+            exposure.try_pivot().unwrap_err(),
+            exposure.try_log_exposure_step().unwrap_err(),
+            exposure.try_log_mid_gray().unwrap_err(),
+            exposure.try_is_exposure_dynamic().unwrap_err(),
+            exposure.try_is_contrast_dynamic().unwrap_err(),
+            exposure.try_is_gamma_dynamic().unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("exposure fixture failure"));
+        }
+        assert!(ExposureContrastTransform::create()?.try_exposure().is_ok());
     }
     {
         use std::ffi::CStr;

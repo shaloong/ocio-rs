@@ -11,6 +11,8 @@ contexts and configs.
 It also injects exceptions from C++ primary and tone transform value getters,
 checking bridge error propagation, unchanged buffers, subsequent recovery,
 and high-level Rust errors through a temporarily installed native config.
+The fixture similarly checks all exposure/contrast getters when a native
+subclass throws, followed by a successful query on a normal transform.
 The same fixture verifies CPU processing with C++-owned image descriptors:
 packed RGBA in place, separate packed input and planar output, and an
 independent `ImageDesc` subclass with irregular channel offsets.

@@ -55,10 +55,26 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     assert_close(transform.pivot(), 0.18, 1e-10);
     assert_close(transform.log_exposure_step(), 0.088, 1e-10);
     assert_close(transform.log_mid_gray(), 0.18, 1e-10);
+    assert_eq!(transform.try_style().unwrap(), transform.style());
+    assert_eq!(transform.try_exposure().unwrap(), transform.exposure());
+    assert_eq!(transform.try_contrast().unwrap(), transform.contrast());
+    assert_eq!(transform.try_gamma().unwrap(), transform.gamma());
+    assert_eq!(transform.try_pivot().unwrap(), transform.pivot());
+    assert_eq!(
+        transform.try_log_exposure_step().unwrap(),
+        transform.log_exposure_step()
+    );
+    assert_eq!(
+        transform.try_log_mid_gray().unwrap(),
+        transform.log_mid_gray()
+    );
 
     assert!(!transform.is_exposure_dynamic());
     assert!(!transform.is_contrast_dynamic());
     assert!(!transform.is_gamma_dynamic());
+    assert!(!transform.try_is_exposure_dynamic().unwrap());
+    assert!(!transform.try_is_contrast_dynamic().unwrap());
+    assert!(!transform.try_is_gamma_dynamic().unwrap());
 
     transform
         .try_make_exposure_dynamic()
@@ -72,6 +88,9 @@ fn exposure_contrast_parameter_and_dynamic_round_trip_behavior() {
     assert!(transform.is_exposure_dynamic());
     assert!(transform.is_contrast_dynamic());
     assert!(transform.is_gamma_dynamic());
+    assert!(transform.try_is_exposure_dynamic().unwrap());
+    assert!(transform.try_is_contrast_dynamic().unwrap());
+    assert!(transform.try_is_gamma_dynamic().unwrap());
 
     transform
         .try_make_exposure_non_dynamic()

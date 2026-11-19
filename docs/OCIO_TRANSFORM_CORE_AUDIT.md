@@ -31,6 +31,14 @@ a temporary native config, obtains editable Rust handles and verifies that
 both high-level `try_value` calls return the native error. It restores the
 process-global config after the check and does not test arbitrary subclasses.
 
+Exposure/contrast getters have matching `try_*` queries for style, all six
+scalar values and the three dynamic flags. They preserve native exceptions;
+legacy infallible getters retain their fallback behavior. A C++ subclass that
+throws from each getter was exercised through the high-level Rust methods on
+Windows with native 2.4.1, 2.5.2 and 2.6.0, and the normal round-trip suite
+passed on the same versions. Stub fallible queries report that native OCIO is
+unavailable. This does not establish behavior for every external subclass.
+
 ### Individual factory and buffer checks
 
 * `AllocationTransform` has one public factory, `Create()`. Its remaining

@@ -60,6 +60,39 @@ public:
     void makeDynamic() noexcept override { delegate->makeDynamic(); }
     void makeNonDynamic() noexcept override { delegate->makeNonDynamic(); }
 };
+class ThrowingExposureTransform final : public OCIO::ExposureContrastTransform {
+    OCIO::ExposureContrastTransformRcPtr delegate = OCIO::ExposureContrastTransform::Create();
+public:
+    OCIO::TransformRcPtr createEditableCopy() const override { return std::make_shared<ThrowingExposureTransform>(); }
+    OCIO::TransformDirection getDirection() const noexcept override { return delegate->getDirection(); }
+    void setDirection(OCIO::TransformDirection dir) noexcept override { delegate->setDirection(dir); }
+    const OCIO::FormatMetadata& getFormatMetadata() const noexcept override { return delegate->getFormatMetadata(); }
+    OCIO::FormatMetadata& getFormatMetadata() noexcept override { return delegate->getFormatMetadata(); }
+    bool equals(const OCIO::ExposureContrastTransform&) const noexcept override { return false; }
+    OCIO::ExposureContrastStyle getStyle() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setStyle(OCIO::ExposureContrastStyle style) override { delegate->setStyle(style); }
+    double getExposure() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setExposure(double value) override { delegate->setExposure(value); }
+    bool isExposureDynamic() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void makeExposureDynamic() override { delegate->makeExposureDynamic(); }
+    void makeExposureNonDynamic() override { delegate->makeExposureNonDynamic(); }
+    double getContrast() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setContrast(double value) override { delegate->setContrast(value); }
+    bool isContrastDynamic() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void makeContrastDynamic() override { delegate->makeContrastDynamic(); }
+    void makeContrastNonDynamic() override { delegate->makeContrastNonDynamic(); }
+    double getGamma() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setGamma(double value) override { delegate->setGamma(value); }
+    bool isGammaDynamic() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void makeGammaDynamic() override { delegate->makeGammaDynamic(); }
+    void makeGammaNonDynamic() override { delegate->makeGammaNonDynamic(); }
+    double getPivot() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setPivot(double value) override { delegate->setPivot(value); }
+    double getLogExposureStep() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setLogExposureStep(double value) override { delegate->setLogExposureStep(value); }
+    double getLogMidGray() const override { throw OCIO::Exception("exposure fixture failure"); }
+    void setLogMidGray(double value) override { delegate->setLogMidGray(value); }
+};
 extern "C" void* grading_fixture_create(bool tone, bool fail) {
     OCIO::ConstTransformRcPtr value;
     if (tone) {
@@ -90,6 +123,10 @@ extern "C" void* grading_fixture_install_config() {
         tone->setTransform(std::make_shared<ThrowingGradingTransform<OCIO::GradingToneTransform, OCIO::GradingTone>>(),
                            OCIO::COLORSPACE_DIR_TO_REFERENCE);
         config->addColorSpace(tone);
+        auto exposure = OCIO::ColorSpace::Create();
+        exposure->setName("fixture-exposure");
+        exposure->setTransform(std::make_shared<ThrowingExposureTransform>(), OCIO::COLORSPACE_DIR_TO_REFERENCE);
+        config->addColorSpace(exposure);
         OCIO::SetCurrentConfig(config);
         return saved.release();
     } catch (...) { return nullptr; }
