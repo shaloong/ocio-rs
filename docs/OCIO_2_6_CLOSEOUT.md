@@ -72,6 +72,29 @@ runtime evidence, not a substitute for the other excluded-class reviews.
 | Known native boundary | Unpatched external OCIO can reject some GPU LUT layouts; the vendored patch and opt-in checked path are documented. Group removal is a Rust convenience with replacement semantics, not a missing C++ operation. |
 | Runtime and packaging | The [complete native matrix](https://github.com/shaloong/ocio-rs/actions/runs/44604310056) passed on `3f3d275`, including bundled Linux/macOS/Windows, installed 2.6, exact 2.4.1/2.5.1 and the 2.5.0 boundary. The [offline release audit](https://github.com/shaloong/ocio-rs/actions/runs/44605923630) passed on `361eb23`; the intervening commit adds a test and documentation only. Fallible primary/tone grading value, exposure/contrast and CDL queries also received targeted Windows native tests on 2.4.1, 2.5.2 and 2.6.0. The hardware Vulkan validation passed on `dabd870` using an NVIDIA RTX 3050 Laptop GPU; the later production change affects merge-parameter string snapshots, not GPU processing. This covers the listed scenarios, not all drivers or hardware. These checks do not prove every signature or external-library behavior. |
 
+### Remaining signature-evidence queue
+
+This is a bounded queue of records that still group some declarations by
+family rather than documenting every argument and ownership path. It is not a
+list of confirmed missing APIs: first inspect the linked mapping and native
+declarations, and fix only a demonstrated gap or mismatch. Do not add a second
+wrapper for an equivalent operation or a CI job for each row.
+
+| Fixed area | Check still needed in the existing evidence |
+| --- | --- |
+| `Config` outside the already mapped processor, virtual-display and 2.6 additions | Confirm remaining creation, color-space/role, display/view, rules and active-list signatures against [Config surface](OCIO_CONFIG_SURFACE_AUDIT.md), including const ownership and signed selectors. |
+| `GpuShaderCreator`, `GpuShaderDesc` | Confirm individual resource, code-section and callback signatures and native-version gates against [GPU creator](OCIO_GPU_CREATOR_AUDIT.md). Existing native-subclass import remains the raw path; arbitrary new Rust C++ subclasses are not required. |
+| `CDLTransform`, `ExposureContrastTransform`, `FixedFunctionTransform`, `GradingPrimaryTransform`, `GradingToneTransform` | Confirm remaining field/getter/setter signatures, array widths and error paths against [core transforms](OCIO_TRANSFORM_CORE_AUDIT.md). |
+| `GradingRGBCurveTransform`, `GradingHueCurveTransform` | Confirm the transform-level style, value, slope and dynamic declarations against [grading curves](OCIO_GRADING_CURVE_AUDIT.md); the separate curve-value declarations are already listed there. |
+| `Lut1DTransform`, `Lut3DTransform` | Confirm remaining interpolation, file-depth and 1D-specific control signatures against [LUT audit](OCIO_LUT_MATRIX_EXPONENT_AUDIT.md); factory and entry shapes are already described. |
+| `ImageDesc`, `PackedImageDesc`, `PlanarImageDesc` | Confirm individual constructor and getter signatures against [image descriptors](OCIO_IMAGE_DESC_AUDIT.md), including native pointer/stride contracts. |
+
+The other exported classes and namespace-level APIs are accounted for by the
+individual or explicit signature records linked in the inventory above. This
+statement describes the review records, not proof of every input, external
+subclass, platform or numerical result. If new evidence reveals a real mismatch,
+record and fix it rather than silently removing it from the queue.
+
 A focused scan of public, same-name member declarations found 54 overload
 families in 2.4.1, 58 in 2.5.2, and 59 in 2.6.0. It is a review aid, not a
 compiler-level inventory. The 2.6 additions to these families are the alias-aware
