@@ -51,24 +51,23 @@ fn matrix_fit_static_values() {
         return;
     }
 
-    let result = MatrixTransform::fit(
-        &[0.0, 0.0, 0.0, 0.0],
-        &[2.0, 4.0, 8.0, 1.0],
+    let t = MatrixTransform::fit(
+        &[1.0, 2.0, 3.0, -1.0],
+        &[3.0, 6.0, 11.0, 1.0],
         &[10.0, 20.0, 30.0, 0.0],
         &[20.0, 40.0, 50.0, 1.0],
-    );
-    if let Ok(t) = result {
-        let matrix = t.matrix();
-        let offset = t.offset();
-        assert_close(matrix[0], 5.0, 1e-10);
-        assert_close(matrix[5], 5.0, 1e-10);
-        assert_close(matrix[10], 2.5, 1e-10);
-        assert_close(matrix[15], 1.0, 1e-10);
-        assert_close(offset[0], 10.0, 1e-10);
-        assert_close(offset[1], 20.0, 1e-10);
-        assert_close(offset[2], 30.0, 1e-10);
-        assert_close(offset[3], 0.0, 1e-10);
-    }
+    )
+    .expect("fit matrix");
+    let matrix = t.matrix();
+    let offset = t.offset();
+    assert_close(matrix[0], 5.0, 1e-10);
+    assert_close(matrix[5], 5.0, 1e-10);
+    assert_close(matrix[10], 2.5, 1e-10);
+    assert_close(matrix[15], 0.5, 1e-10);
+    assert_close(offset[0], 5.0, 1e-10);
+    assert_close(offset[1], 10.0, 1e-10);
+    assert_close(offset[2], 22.5, 1e-10);
+    assert_close(offset[3], 0.5, 1e-10);
 }
 
 #[test]

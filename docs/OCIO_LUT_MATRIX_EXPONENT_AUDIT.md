@@ -31,3 +31,22 @@ requiring OCIO's error for the same read can use the raw entry point. The 3D
 bulk convenience copies to or from `f64` triplets in red-fastest order; native
 OCIO internally stores its array blue-fastest. It is not a borrowed native
 array, and the single-entry paths do not allocate that bulk snapshot.
+
+The individual matrix and exponent signatures were checked against the 2.6
+header and bridge. Matrix get/set calls use 16 `double` values for the matrix
+and four for the offset; file bit-depths and the two metadata overloads remain
+separate. `Fit` takes four RGBA input arrays, `Sat` a scalar and three luma
+coefficients, `Scale` four channel factors, and `View` a mutable four-element
+integer channel mask plus three luma coefficients. The safe direct helpers
+write into caller arrays; the raw FFI supplies `Identity` without constructing
+a transform. OCIO may modify `Fit` outputs before reporting an error.
+
+The basic exponent uses a four-double value array, while exponent-with-linear
+uses separate four-double gamma and offset arrays. Both forward negative style,
+native equality, and editable/const metadata operations. The bridge copies each
+four-element buffer to a C++ array reference, preserving the native signature;
+it does not allocate. Existing behavior suites exercise native value round
+trips, invalid negative styles, copying, and processors. The strengthened matrix
+fit test now requires successful construction and checks nonzero, distinct input
+bounds against independently calculated output. Matrix and both exponent suites
+passed on Windows native 2.4.1, 2.5.2 and 2.6.0.
