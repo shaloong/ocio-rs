@@ -52,6 +52,17 @@ the common transform handle covers direction, validation, type and copying.
   not claim that those getters surface every native error. The four real-native
   2.6 behavior suites passed on Windows (13 tests total), covering representative
   processor, field, copy, dynamic and validation paths.
+  The four non-grading transform declarations were also checked individually:
+  `ColorSpaceTransform` declares source/destination and data-bypass pairs;
+  `DisplayViewTransform` declares source, display, view, looks-bypass and
+  data-bypass pairs; `FileTransform` declares source, CCC ID, CDL style and
+  interpolation pairs plus count, indexed name/extension and extension-support
+  static queries; `LookTransform` declares source/destination, looks and
+  skip-conversion pairs plus `GetLooksResultColorSpace(config, context, looks)`.
+  Each has a corresponding typed or raw call, in addition to the common
+  factory, copy, direction, type and validation paths. Their four behavior
+  suites passed on Windows against native 2.4.1 and 2.6.0. This checks declared
+  signatures and representative behavior, not every possible input or file.
 * `CDLTransform::Create`, `CreateFromFile(src, cccId)`, and
   `CreateGroupFromFile(src)` map to the three corresponding Rust factories.
   File selection and group loading have native behavior tests. Slope, offset,
