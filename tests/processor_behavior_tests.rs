@@ -175,7 +175,37 @@ fn static_cpu_processor_is_shareable_and_dynamic_processors_are_rejected() {
     }
     let config = ocio_rs::Config::raw().unwrap();
     let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.try_set_exposure(0.5).unwrap();
+    let static_exposure = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap()
+        .try_into_static()
+        .unwrap();
+    let kinds = [
+        ocio_rs::DynamicPropertyType::Exposure,
+        ocio_rs::DynamicPropertyType::Contrast,
+        ocio_rs::DynamicPropertyType::Gamma,
+        ocio_rs::DynamicPropertyType::GradingPrimary,
+        ocio_rs::DynamicPropertyType::GradingRgbCurve,
+        ocio_rs::DynamicPropertyType::GradingTone,
+    ];
+    for kind in kinds {
+        assert!(!static_exposure.try_has_dynamic_property_kind(kind).unwrap());
+        assert!(static_exposure.dynamic_property(kind).is_err());
+    }
+    #[cfg(feature = "v2_5")]
+    {
+        let kind = ocio_rs::DynamicPropertyType::GradingHueCurve;
+        assert!(!static_exposure.try_has_dynamic_property_kind(kind).unwrap());
+        assert!(static_exposure.dynamic_property(kind).is_err());
+    }
     exposure.make_exposure_dynamic();
+    assert!(!static_exposure.try_is_dynamic().unwrap());
+    assert!(static_exposure
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .is_err());
     let dynamic = config
         .processor_from_transform(&exposure, TransformDirection::Forward)
         .unwrap()

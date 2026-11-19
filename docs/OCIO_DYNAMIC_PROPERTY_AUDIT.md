@@ -24,6 +24,14 @@ separately reifying five Rust subtype handles would not add a callable native
 operation. Native aliases may share mutable properties; callers using raw
 interop must not access them concurrently with mutation.
 
+`StaticCPUProcessor` relies on the native non-dynamic CPU processor not
+exposing a mutable dynamic property. The existing concurrency regression now
+also checks all supported property kinds on a non-dynamic exposure processor,
+then makes the source transform dynamic and checks that the already-built CPU
+processor remains static and cannot expose the exposure property. It passed
+with native 2.4.1, 2.5.2 and 2.6.0 on Windows. This tests those representative
+processors, not arbitrary external native mutation or every possible pipeline.
+
 The 2.4.1, 2.5.0, 2.5.2 and 2.6.0 headers contain the double, primary,
 RGB-curve and tone conversions. Hue-curve conversion is absent in 2.4.1 and
 present in the other three; Rust exposes it with `v2_5` (whose supported
