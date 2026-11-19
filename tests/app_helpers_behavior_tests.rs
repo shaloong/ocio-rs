@@ -351,6 +351,32 @@ fn file_backed_display_helpers_author_process_and_remove() {
     retained.try_apply_rgba(&mut b).unwrap();
     assert_eq!(a, b);
     assert_ne!(a, output[0]);
+    let inverse = shared
+        .application_display_processor(
+            Some(&shared_context),
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Inverse,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    inverse.try_apply_rgba(&mut b).unwrap();
+    for (actual, original) in b.into_iter().zip([0.25, 0.5, 0.75, 1.0]) {
+        assert!((actual - original).abs() < 1e-5);
+    }
+    assert!(shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"missing display",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .is_err());
     let first = shared
         .application_display_processor(
             None,

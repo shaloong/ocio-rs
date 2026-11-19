@@ -40,8 +40,9 @@ safe `ConstConfig` processor builders, a dynamic result is rebuilt with an
 editable config copy to isolate mutable properties. The `ocio-sys` entry points
 also allow direct native cache semantics without this rebuild; callers choosing
 that mode must synchronize shared dynamic properties. Native 2.4.1, 2.5.2 and
-2.6.0 tests check both context choices, channel-matrix forwarding, pixel
-results, identity, and dynamic-property independence. This is not a claim that
+2.6.0 tests check both context choices, channel-matrix forwarding, forward and
+inverse pixel results, missing-display errors, identity, and dynamic-property
+independence. This is not a claim that
 the safe dynamic path avoids the native rebuild or config copy.
 
 The two `getSlider` signatures return the same manager-owned native object;
