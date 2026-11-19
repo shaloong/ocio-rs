@@ -3714,7 +3714,7 @@ impl Config {
         self.num_named_transforms()
     }
 
-    /// Return the named-transform name at a given index.
+    /// Return the active named-transform name at `index`, or `None` if absent.
     pub fn named_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_named_transform_name_by_index_v1(
@@ -3722,6 +3722,7 @@ impl Config {
                 index,
             ))
         }
+        .filter(|name| !name.is_empty())
     }
 
     #[doc(hidden)]
@@ -3821,7 +3822,7 @@ impl Config {
         }
     }
 
-    /// Return the view-transform name at a given index.
+    /// Return the view-transform name at `index`, or `None` if absent.
     pub fn view_transform_name_by_index(&self, index: i32) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_config_get_view_transform_name_by_index(
@@ -3829,6 +3830,7 @@ impl Config {
                 index,
             ))
         }
+        .filter(|name| !name.is_empty())
     }
 
     /// Look up an editable `ViewTransform` copy by name. Group transform

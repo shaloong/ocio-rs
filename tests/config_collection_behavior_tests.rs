@@ -112,6 +112,17 @@ fn config_collection_registration_and_usage_behavior() {
     assert_eq!(config.num_named_transforms(), initial_named_transforms + 1);
     assert_eq!(config.num_view_transforms(), initial_view_transforms + 1);
     assert_eq!(config.num_displays_all(), initial_displays + 1);
+    assert_eq!(
+        config
+            .view_transform_name_by_index(initial_view_transforms)
+            .as_deref(),
+        Some("UnitConfigViewTransform")
+    );
+    assert_eq!(config.view_transform_name_by_index(-1), None);
+    assert_eq!(
+        config.view_transform_name_by_index(config.num_view_transforms()),
+        None
+    );
 
     assert!(config
         .try_color_space("UnitConfigUsedColorSpace")
@@ -400,6 +411,12 @@ fn config_filtered_enumeration_retains_native_visibility_and_reference_space() {
     config
         .set_inactive_color_spaces("InactiveScene,InactiveNamed")
         .unwrap();
+    assert_eq!(
+        config.named_transform_name_by_index(0).as_deref(),
+        Some("ActiveNamed")
+    );
+    assert_eq!(config.named_transform_name_by_index(-1), None);
+    assert_eq!(config.named_transform_name_by_index(1), None);
 
     for (reference, visibility, expected) in [
         (

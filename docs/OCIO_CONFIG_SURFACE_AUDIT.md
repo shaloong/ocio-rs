@@ -68,6 +68,18 @@ Indexed lookups convert OCIO's empty out-of-range result to `None` and retain
 native errors separately. These paths do not construct a color-space set or
 copy native configuration objects.
 
+The unfiltered color-space and named-transform overloads enumerate active
+objects; the filtered forms pass the native reference-space/visibility enums
+and signed `int` index in header order. Both named-transform name paths map
+the native empty invalid-index sentinel to `None`, as does the separate
+view-transform name lookup. Color-space index lookups also map empty or null
+missing names to `None`. The role-color-space overloads take either a signed
+index or a role name and preserve native empty values, since an authored role
+may have an empty value. The two config search-path overloads take no argument
+or a signed index and copy the native text; empty path text is not discarded.
+The existing collection behavior suite checks active/inactive filters and the
+named/view-transform index boundaries on native 2.4.1, 2.5.2 and 2.6.0.
+
 A focused declaration-name scan of the 2.6 `Config` class found 172 distinct
 tokens, including its constructor and the `OCIO_DEPRECATED` macro token.
 The names without a straightforward `ocio_config_` snake-case spelling were

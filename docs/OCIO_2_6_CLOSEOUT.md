@@ -102,7 +102,7 @@ different names, not an overload family; both are in the named-transform audit.
 | --- | --- |
 | `Config::getProcessor`, `GetProcessorFromConfigs`, `getCacheID` | [Processor construction and cache overloads](OCIO_CONFIG_PROCESSOR_AUDIT.md). |
 | `Config::addDisplayView`, `addSharedView`, `getDefaultView`, `getNumViews`, `getView` | [Config views](OCIO_CONFIG_SURFACE_AUDIT.md); the alias-aware writers are also tested with distinct fields. |
-| `Config::getColorSpaceFromFilepath`, `getColorSpaceNameByIndex`, `getNumColorSpaces`, `getNamedTransformNameByIndex`, `getNumNamedTransforms`, `getRoleColorSpace`, `getSearchPath` | [Config families](OCIO_CONFIG_SURFACE_AUDIT.md) and rule notes below; check each selected argument shape where the family record is abbreviated. |
+| `Config::getColorSpaceFromFilepath`, `getColorSpaceNameByIndex`, `getNumColorSpaces`, `getNamedTransformNameByIndex`, `getNumNamedTransforms`, `getRoleColorSpace`, `getSearchPath` | [Config argument and sentinel mapping](OCIO_CONFIG_SURFACE_AUDIT.md) and file-rule notes below. |
 | `LegacyViewingPipeline::getProcessor`, `MixingColorSpaceManager::getSlider`, `ConfigMerger::getMergedConfig` | [App helpers](OCIO_APP_HELPERS_AUDIT.md). |
 | `FileRules::insertRule`, `ColorSpace::Create` | Rule notes below and [color-space audit](OCIO_COLOR_SPACE_AUDIT.md). |
 | `Processor::getOptimizedCPUProcessor`, `getOptimizedProcessor`; `CPUProcessor::apply`; `GPUProcessor::extractGpuShaderInfo`; `GpuShaderCreator::addUniform`, `getDynamicProperty` | Processor notes below, [image descriptors](OCIO_IMAGE_DESC_AUDIT.md), and [GPU creator](OCIO_GPU_CREATOR_AUDIT.md). |
