@@ -208,6 +208,13 @@ exact red and RGB texels across row boundaries), installed 2.4.1 (64 tests),
 and unmodified 2.6.0 source (80 tests). These checks do not execute the shader
 on a GPU.
 
+For separately supplied texture data, OCIO 2.4.1--2.6.0 also multiplies
+dimensions in `unsigned` before widening for allocation. The bridge now checks
+that product, including its forwarding-creator paths, and rejects incompatible
+3D dimensions before dispatch. See the [GPU creator audit](OCIO_GPU_CREATOR_AUDIT.md)
+for the conservative size limit and raw-native interop boundary. This check is
+per texture, not per pixel, and is separate from the LUT row-allocation issue.
+
 ## Remaining release gates
 
 1. Complete the bounded signature review; fix only confirmed missing

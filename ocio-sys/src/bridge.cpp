@@ -10366,6 +10366,12 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   uint64_t streamed_texture_count = 0;
   bool has_external_texture = false;
 #endif
+  static void validateTextureSize(unsigned w, unsigned h, unsigned d, TextureType channel) {
+    size_t count = 0;
+    const size_t channels = channel == TEXTURE_RED_CHANNEL ? 1 : 3;
+    if (!ocio_rs_texture_count(w, h, d, channels, count))
+      throw ocio::Exception("GPU texture payload size overflow");
+  }
   unsigned controlTexture(const char* n, const char* s, unsigned w, unsigned h, unsigned d,
                           TextureType channel, int dimensions, ocio::Interpolation interpolation,
                           const float* values, bool has_binding, unsigned proposed, bool& store) {
@@ -10565,6 +10571,7 @@ public:
   unsigned addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                       TextureDimensions d, ocio::Interpolation i, const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
+    validateTextureSize(w, h, 1, c);
     if (texture_control_callback) {
       const unsigned next = nextDefaultBinding();
       bool store = true;
@@ -10603,6 +10610,7 @@ public:
   unsigned add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                         const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
+    validateTextureSize(e, e, e, TEXTURE_RGB_CHANNEL);
     if (texture_control_callback) {
       const unsigned next = nextDefaultBinding();
       bool store = true;
@@ -10651,6 +10659,7 @@ public:
   void addTexture(const char* n, const char* s, unsigned w, unsigned h, TextureType c,
                   TextureDimensions d, ocio::Interpolation i, const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
+    validateTextureSize(w, h, 1, c);
     if (texture_control_callback) {
       bool store = true;
       controlTexture(n, s, w, h, 1, c, static_cast<int>(d), i, v, false, 0, store);
@@ -10667,6 +10676,7 @@ public:
   void add3DTexture(const char* n, const char* s, unsigned e, ocio::Interpolation i,
                     const float* v) override {
     if (policy_failed) throw ocio::Exception("Rust texture policy callback failed");
+    validateTextureSize(e, e, e, TEXTURE_RGB_CHANNEL);
     if (texture_control_callback) {
       bool store = true;
       controlTexture(n, s, e, e, e, TEXTURE_RGB_CHANNEL, 3, i, v, false, 0, store);
@@ -10957,6 +10967,10 @@ bool ocio_gpu_shader_creator_add_texture(void* handle, const char* name, const c
   try {
     if (!handle || !name || !*name || !sampler || !*sampler || !values || !width || !height || !depth)
       throw std::invalid_argument("invalid GPU texture arguments");
+    if (is_3d && (height != width || depth != width))
+      throw std::invalid_argument("3D GPU textures must have equal dimensions");
+    if (!is_3d && depth != 1)
+      throw std::invalid_argument("1D/2D GPU textures must have depth one");
     if (channel != 0 && channel != 1) throw std::invalid_argument("invalid GPU texture channel");
     if (!is_3d && dimensions != 1 && dimensions != 2) throw std::invalid_argument("invalid GPU texture dimensions");
     size_t expected = 0;
@@ -11777,7 +11791,12 @@ bool ocio_gpu_shader_desc_has_dynamic_property(void* handle, int type) {
 }
 
 static bool ocio_rs_texture_count(size_t a, size_t b, size_t c, size_t d, size_t& count) {
-  const size_t max_count = static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) / sizeof(float);
+  // OCIO 2.4--2.6 multiplies texture dimensions as unsigned before widening
+  // to size_t. A larger product would make its allocation smaller than the
+  // dimensions reported by the descriptor.
+  const size_t max_count = std::min(
+      static_cast<size_t>(std::numeric_limits<ptrdiff_t>::max()) / sizeof(float),
+      static_cast<size_t>(std::numeric_limits<unsigned>::max()));
   count = 1;
   for (const size_t factor : {a, b, c, d}) {
     if (factor != 0 && count > max_count / factor) return false;

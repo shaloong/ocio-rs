@@ -4770,6 +4770,132 @@ fn generic_descriptor_rejects_texture_binding_overflow_before_mutation() {
     assert_eq!(reverse.num_3d_textures(), 1);
 }
 
+#[test]
+#[cfg(target_pointer_width = "64")]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn generic_texture_storage_rejects_native_unsigned_overflow_before_reading() {
+    let _guard = gpu_shader_desc_test_lock();
+    unsafe {
+        use ocio_rs::ocio_sys;
+        let desc = ocio_sys::ocio_gpu_shader_desc_create();
+        assert!(!desc.is_null());
+        let value = 0.0f32;
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add_texture(
+            desc,
+            c"large".as_ptr(),
+            c"largeSampler".as_ptr(),
+            65_536,
+            65_536,
+            GpuTextureChannel::Red as i32,
+            GpuTextureDimensions::Texture2D as i32,
+            Interpolation::Linear as i32,
+            &value,
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ));
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        // 65_535 * 65_537 is exactly u32::MAX; the short buffer is
+        // rejected without treating that product itself as an overflow.
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add_texture(
+            desc,
+            c"boundary".as_ptr(),
+            c"boundarySampler".as_ptr(),
+            65_535,
+            65_537,
+            GpuTextureChannel::Red as i32,
+            GpuTextureDimensions::Texture2D as i32,
+            Interpolation::Linear as i32,
+            &value,
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ));
+        assert!(ocio_sys::ocio_error_get_last().is_null());
+        assert!(!ocio_sys::ocio_gpu_shader_desc_add3d_texture(
+            desc,
+            c"cube".as_ptr(),
+            c"cubeSampler".as_ptr(),
+            1_627,
+            Interpolation::Linear as i32,
+            &value,
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ));
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        assert_eq!(ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(desc), 0);
+        assert_eq!(
+            ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(desc),
+            0
+        );
+        ocio_sys::ocio_gpu_shader_desc_destroy(desc);
+        ocio_sys::ocio_error_clear_last();
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn creator_rejects_non_cubic_3d_dimensions_before_reading() {
+    let _guard = gpu_shader_desc_test_lock();
+    unsafe {
+        use ocio_rs::ocio_sys;
+        let desc = ocio_sys::ocio_gpu_shader_desc_create();
+        assert!(!desc.is_null());
+        let creator = ocio_sys::ocio_gpu_shader_creator_from_desc(desc);
+        assert!(!creator.is_null());
+        // Allocate a full cube so this regression is safe even before the fix;
+        // the declared length describes only a 2 x 1 x 1 payload.
+        let values = [0.0f32; 24];
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_gpu_shader_creator_add_texture(
+            creator,
+            c"cube".as_ptr(),
+            c"cubeSampler".as_ptr(),
+            2,
+            1,
+            1,
+            GpuTextureChannel::Rgb as i32,
+            GpuTextureDimensions::Texture2D as i32,
+            Interpolation::Linear as i32,
+            values.as_ptr(),
+            6,
+            true,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ));
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        assert_eq!(
+            ocio_sys::ocio_gpu_shader_desc_get_num3d_textures_u32(desc),
+            0
+        );
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_gpu_shader_creator_add_texture(
+            creator,
+            c"flat".as_ptr(),
+            c"flatSampler".as_ptr(),
+            2,
+            1,
+            2,
+            GpuTextureChannel::Rgb as i32,
+            GpuTextureDimensions::Texture2D as i32,
+            Interpolation::Linear as i32,
+            values.as_ptr(),
+            12,
+            false,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        ));
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        assert_eq!(ocio_sys::ocio_gpu_shader_desc_get_num_textures_u32(desc), 0);
+        ocio_sys::ocio_gpu_shader_creator_destroy(creator);
+        ocio_sys::ocio_gpu_shader_desc_destroy(desc);
+        ocio_sys::ocio_error_clear_last();
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
