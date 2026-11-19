@@ -89,6 +89,13 @@ fn view_type_selects_shared_and_display_defined_views() {
     config
         .add_shared_view("Shared", "TypedTransform", "raw", "", "", "")
         .unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        assert!(config.try_has_shared_view("Shared").unwrap());
+        assert!(!config.try_has_shared_view("Missing").unwrap());
+        assert!(!config.try_has_shared_view("").unwrap());
+        assert!(config.try_has_shared_view("bad\0view").is_err());
+    }
     config.add_display_shared_view(display, "Shared").unwrap();
     config
         .add_display_view_detailed(display, "Defined", "TypedTransform", "raw", "", "", "")

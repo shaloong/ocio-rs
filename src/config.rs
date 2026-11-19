@@ -1672,6 +1672,22 @@ impl Config {
         }
     }
 
+    /// Check a config-level shared view using OCIO's null-display query.
+    ///
+    /// This does not require the shared view to be attached to a display.
+    /// Invalid input and bridge failures are returned as errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_has_shared_view(&self, view: impl AsRef<str>) -> Result<bool> {
+        let view = cstring(view)?;
+        crate::clear_last_error();
+        let exists = unsafe {
+            ocio_sys::ocio_config_has_view(self.handle.as_ptr(), std::ptr::null(), view.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(exists)
+    }
+
     /// Return an editable copy of the default scene-to-display view transform.
     pub fn default_scene_to_display_view_transform(&self) -> Option<crate::ViewTransform> {
         self.try_default_scene_to_display_view_transform()

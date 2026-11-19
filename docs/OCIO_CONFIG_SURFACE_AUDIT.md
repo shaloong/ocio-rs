@@ -31,6 +31,12 @@ view even when no filtered view matched. A regression checks a zero filtered
 count, the fallback view, and the missing-color-space error on native 2.4.1,
 2.5.1, 2.5.2 and 2.6.0.
 
+The `hasView` null-display form queries config-level shared views without
+requiring attachment to a display. `try_has_shared_view` passes the native
+null pointer directly; `has_view` addresses the display-name form. This avoids
+depending on whether a future native implementation treats a non-null empty
+display string the same way as the documented null argument.
+
 The all-display and temporary-display indexed queries, as well as global
 shared-view lookup, check the native count before calling OCIO: the 2.4.1
 and 2.5.1 implementations use incorrect bounds conditions that can access

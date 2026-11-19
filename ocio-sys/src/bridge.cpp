@@ -3758,7 +3758,7 @@ bool ocio_config_has_view(void* handle, const char* dispName, const char* viewNa
 #else
   try {
     return ocio_rs_bridge::get_real_config(handle)->hasView(dispName, viewName);
-  } catch (...) { return false; }
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return false; }
 #endif
 }
 #endif  // OCIO_RS_INTERFACE_API_HEX >= 2.5
