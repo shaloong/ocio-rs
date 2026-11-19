@@ -178,6 +178,43 @@ fn rgb_curve_object_shares_curve_and_copies_to_transform() {
     assert!(GradingBSplineCurve::create_from_points(&[[1.0, 1.0], [0.0, 0.0]]).is_err());
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn rgb_curve_factories_preserve_constituent_order_and_copy() {
+    use ocio_rs::{GradingRGBCurve, GradingStyle, RGBCurveType};
+    let mut source = GradingRGBCurve::create(GradingStyle::Lin).unwrap();
+    let kinds = [
+        RGBCurveType::Red,
+        RGBCurveType::Green,
+        RGBCurveType::Blue,
+        RGBCurveType::Master,
+    ];
+    let slopes = [0.11, 0.22, 0.33, 0.44];
+    let mut curves: Vec<_> = kinds
+        .iter()
+        .map(|&kind| source.curve(kind).unwrap())
+        .collect();
+    for (curve, &slope) in curves.iter_mut().zip(&slopes) {
+        curve.set_slope(0, slope).unwrap();
+    }
+    let shared: Vec<_> = kinds
+        .iter()
+        .map(|&kind| source.curve_shared(kind).unwrap())
+        .collect();
+    let editable =
+        GradingRGBCurve::create_from_curves([&curves[0], &curves[1], &curves[2], &curves[3]])
+            .unwrap();
+    let retained = GradingRGBCurve::create_from_shared_curves([
+        &shared[0], &shared[1], &shared[2], &shared[3],
+    ])
+    .unwrap();
+    curves[0].set_slope(0, 0.77).unwrap();
+    for (&kind, &slope) in kinds.iter().zip(&slopes) {
+        assert_eq!(editable.curve_ref(kind).unwrap().slope(0).unwrap(), slope);
+        assert_eq!(retained.curve_ref(kind).unwrap().slope(0).unwrap(), slope);
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
@@ -240,7 +277,7 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
     assert_eq!(shared_child.view().slope(0).unwrap(), 0.37);
     drop(curve);
     assert_eq!(shared.view().slope(0).unwrap(), 0.37);
-    let curves: Vec<_> = [
+    let kinds = [
         HueCurveType::HueHue,
         HueCurveType::HueSat,
         HueCurveType::HueLum,
@@ -249,23 +286,19 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
         HueCurveType::LumLum,
         HueCurveType::SatLum,
         HueCurveType::HueFx,
-    ]
-    .into_iter()
-    .map(|kind| value.curve(kind).unwrap())
-    .collect();
-    let shared_curves: Vec<_> = [
-        HueCurveType::HueHue,
-        HueCurveType::HueSat,
-        HueCurveType::HueLum,
-        HueCurveType::LumSat,
-        HueCurveType::SatSat,
-        HueCurveType::LumLum,
-        HueCurveType::SatLum,
-        HueCurveType::HueFx,
-    ]
-    .into_iter()
-    .map(|kind| value.curve_shared(kind).unwrap())
-    .collect();
+    ];
+    let slopes = [0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.37];
+    let mut curves: Vec<_> = kinds
+        .iter()
+        .map(|&kind| value.curve(kind).unwrap())
+        .collect();
+    for (curve, &slope) in curves.iter_mut().zip(&slopes) {
+        curve.set_slope(0, slope).unwrap();
+    }
+    let shared_curves: Vec<_> = kinds
+        .iter()
+        .map(|&kind| value.curve_shared(kind).unwrap())
+        .collect();
     let shared_assembled = GradingHueCurve::create_from_shared_curves([
         &shared_curves[0],
         &shared_curves[1],
@@ -277,6 +310,12 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
         &shared_curves[7],
     ])
     .unwrap();
+    for (&kind, &slope) in kinds.iter().zip(&slopes) {
+        assert_eq!(
+            shared_assembled.curve_ref(kind).unwrap().slope(0).unwrap(),
+            slope
+        );
+    }
     assert_eq!(
         shared_assembled
             .curve_ref(HueCurveType::HueFx)
@@ -290,6 +329,9 @@ fn hue_curve_object_preserves_draw_mode_and_all_curve_types() {
         &curves[7],
     ])
     .unwrap();
+    for (&kind, &slope) in kinds.iter().zip(&slopes) {
+        assert_eq!(assembled.curve(kind).unwrap().slope(0).unwrap(), slope);
+    }
     assert_eq!(
         assembled
             .curve(HueCurveType::HueFx)

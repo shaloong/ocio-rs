@@ -35,3 +35,13 @@ editable and shared `set_transform` delegate native validation and copying
 without an extra bridge-side curve copy. Native callbacks,
 shared mutable aliases, and arbitrary external FFI users remain subject to the
 documented thread confinement and ownership requirements.
+
+The point-list bridge uses the size-based native factory and assigns each
+control point, matching the native initializer-list implementation; the
+unvalidated entry preserves its deferred validation behavior. RGB and Hue
+constituent factories were checked in native header order (four and eight
+curves respectively). Regressions use a different slope for every slot on
+both editable and retained-const inputs; the RGB test also checks that later
+source mutation does not change either constructed result. The suite passed
+on native 2.4.1 (RGB only), 2.5.2, and 2.6.0. These tests do not imply all
+spline shapes or external mutable aliases are covered.
