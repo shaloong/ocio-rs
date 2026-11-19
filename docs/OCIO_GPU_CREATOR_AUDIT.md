@@ -41,6 +41,14 @@ The descriptor declarations above were checked against 2.4.1, 2.5.2 and
 only when the underlying creator is a descriptor. Its scoped view does not
 expose `DerefMut`, preventing the descriptor handle from being moved out.
 
+The legacy raw texture query declarations now describe name and value outputs
+as pointer-to-pointer parameters, matching how the bridge has always written
+them. This corrects the source-level FFI contract without changing the binary
+calling convention. The old pointer-encoded index is checked before narrowing
+to native `unsigned`, including binding-index queries. Existing native tests
+exercise 1D/2D and 3D outputs and reject oversized indices on 64-bit targets;
+typed texture-info and borrowed-value paths remain preferable for new code.
+
 The five native uniform overload shapes are `(name, double getter)`,
 `(name, bool getter)`, `(name, float3 getter)`, `(name, size getter, float
 vector getter[, unsigned max size])`, and the corresponding integer vector

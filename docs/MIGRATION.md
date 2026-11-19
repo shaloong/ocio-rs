@@ -1,5 +1,17 @@
 # Migration Notes
 
+## Unreleased: legacy GPU texture output pointers
+
+The four low-level `ocio-sys` legacy GPU texture queries now type their name
+and value outputs as pointers to pointers, matching their existing binary ABI
+and actual behavior. Direct callers must pass `&mut *const c_char` or
+`&mut *const f32` as appropriate instead of a pointer cast to a byte/float
+buffer. This is a source-breaking correction for direct `ocio-sys` callers;
+the high-level Rust texture APIs are unchanged. Returned pointers borrow the
+descriptor's native storage and must not outlive or be invalidated by it. Prefer the
+typed texture-info and borrowed-value APIs for new code. Oversized
+pointer-encoded texture indices now report an error instead of narrowing.
+
 ## Unreleased: fallible enum queries and dynamic cache IDs
 
 `FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report

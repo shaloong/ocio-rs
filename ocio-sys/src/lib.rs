@@ -2583,21 +2583,36 @@ unsafe extern "C" {
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num_textures(handle: *mut c_void) -> *mut c_void;
+    /// Legacy texture query. `index` encodes an unsigned integer in the pointer
+    /// value; name outputs are addresses of pointers, not writable byte buffers.
+    /// Prefer `ocio_gpu_shader_desc_get_texture_info` for typed indices/outputs.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor. Non-null name slots must be writable.
+    /// Width and height must point to writable native `unsigned` values,
+    /// channel and interpolation to their native enum representations, and
+    /// dimensions to the native `TextureDimensions` (`u8`) representation.
+    /// Returned names borrow storage invalidated by descriptor mutation or drop.
     pub fn ocio_gpu_shader_desc_get_texture(
         handle: *mut c_void,
         index: *mut c_void,
-        textureName: *const i8,
-        samplerName: *const i8,
+        textureName: *mut *const i8,
+        samplerName: *mut *const i8,
         width: *mut c_void,
         height: *mut c_void,
         channel: *mut c_void,
         dimensions: *mut c_void,
         interpolation: *mut c_void,
     ) -> ();
+    /// Legacy query writing the borrowed values pointer to `values`.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor and a non-null `values` must be a
+    /// writable pointer slot. The result borrows descriptor storage.
     pub fn ocio_gpu_shader_desc_get_texture_values(
         handle: *mut c_void,
         index: *mut c_void,
-        values: *mut c_void,
+        values: *mut *const f32,
     ) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_texture_shader_binding_index(
@@ -2605,18 +2620,30 @@ unsafe extern "C" {
         index: *mut c_void,
     ) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num3d_textures(handle: *mut c_void) -> *mut c_void;
+    /// Legacy 3D query; name outputs are addresses of borrowed pointers.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor; non-null name slots must be
+    /// writable, `edgelen` must point to a native `unsigned`, and
+    /// `interpolation` to its native enum representation. Returned names
+    /// borrow storage invalidated by descriptor mutation or drop.
     pub fn ocio_gpu_shader_desc_get3d_texture(
         handle: *mut c_void,
         index: *mut c_void,
-        textureName: *const i8,
-        samplerName: *const i8,
+        textureName: *mut *const i8,
+        samplerName: *mut *const i8,
         edgelen: *mut c_void,
         interpolation: *mut c_void,
     ) -> ();
+    /// Legacy 3D query writing the borrowed values pointer to `values`.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor and a non-null `values` must be a
+    /// writable pointer slot. The result borrows descriptor storage.
     pub fn ocio_gpu_shader_desc_get3d_texture_values(
         handle: *mut c_void,
         index: *mut c_void,
-        values: *mut c_void,
+        values: *mut *const f32,
     ) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get3d_texture_shader_binding_index(

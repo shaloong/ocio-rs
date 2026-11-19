@@ -6227,8 +6227,8 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         ocio_sys::ocio_gpu_shader_desc_get_texture(
             desc,
             std::ptr::null_mut(),
-            (&mut raw_texture_name as *mut *const i8).cast(),
-            (&mut raw_sampler_name as *mut *const i8).cast(),
+            &mut raw_texture_name,
+            &mut raw_sampler_name,
             (&mut width as *mut u32).cast::<c_void>(),
             (&mut height as *mut u32).cast::<c_void>(),
             (&mut channel as *mut i32).cast::<c_void>(),
@@ -6260,7 +6260,7 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         ocio_sys::ocio_gpu_shader_desc_get_texture_values(
             desc,
             std::ptr::null_mut(),
-            (&mut raw_texture_values as *mut *const f32).cast::<c_void>(),
+            &mut raw_texture_values,
         );
         assert!(!raw_texture_values.is_null(), "legacy texture values ptr");
         assert_eq!(
@@ -6275,8 +6275,8 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         ocio_sys::ocio_gpu_shader_desc_get3d_texture(
             desc,
             std::ptr::null_mut(),
-            (&mut raw_texture3d_name as *mut *const i8).cast(),
-            (&mut raw_sampler3d_name as *mut *const i8).cast(),
+            &mut raw_texture3d_name,
+            &mut raw_sampler3d_name,
             (&mut edge_len as *mut u32).cast::<c_void>(),
             (&mut interpolation3d as *mut i32).cast::<c_void>(),
         );
@@ -6302,7 +6302,7 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
         ocio_sys::ocio_gpu_shader_desc_get3d_texture_values(
             desc,
             std::ptr::null_mut(),
-            (&mut raw_texture3d_values as *mut *const f32).cast::<c_void>(),
+            &mut raw_texture3d_values,
         );
         assert!(
             !raw_texture3d_values.is_null(),
@@ -6312,6 +6312,66 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             std::slice::from_raw_parts(raw_texture3d_values, texture3d_values.len()),
             texture3d_values
         );
+
+        #[cfg(target_pointer_width = "64")]
+        {
+            let invalid_index = (u32::MAX as usize + 1) as *mut c_void;
+            let old_name = raw_texture_name;
+            let old_values = raw_texture_values;
+            let old_3d_name = raw_texture3d_name;
+            let old_3d_values = raw_texture3d_values;
+            ocio_sys::ocio_error_clear_last();
+            ocio_sys::ocio_gpu_shader_desc_get_texture(
+                desc,
+                invalid_index,
+                &mut raw_texture_name,
+                &mut raw_sampler_name,
+                (&mut width as *mut u32).cast(),
+                (&mut height as *mut u32).cast(),
+                (&mut channel as *mut i32).cast(),
+                (&mut dimensions as *mut u8).cast(),
+                (&mut interpolation as *mut i32).cast(),
+            );
+            assert!(!ocio_sys::ocio_error_get_last().is_null());
+            assert_eq!(raw_texture_name, old_name);
+            ocio_sys::ocio_error_clear_last();
+            ocio_sys::ocio_gpu_shader_desc_get_texture_values(
+                desc,
+                invalid_index,
+                &mut raw_texture_values,
+            );
+            assert!(!ocio_sys::ocio_error_get_last().is_null());
+            assert_eq!(raw_texture_values, old_values);
+            ocio_sys::ocio_error_clear_last();
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture(
+                desc,
+                invalid_index,
+                &mut raw_texture3d_name,
+                &mut raw_sampler3d_name,
+                (&mut edge_len as *mut u32).cast(),
+                (&mut interpolation3d as *mut i32).cast(),
+            );
+            assert!(!ocio_sys::ocio_error_get_last().is_null());
+            assert_eq!(raw_texture3d_name, old_3d_name);
+            ocio_sys::ocio_error_clear_last();
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_values(
+                desc,
+                invalid_index,
+                &mut raw_texture3d_values,
+            );
+            assert!(!ocio_sys::ocio_error_get_last().is_null());
+            assert_eq!(raw_texture3d_values, old_3d_values);
+            #[cfg(feature = "v2_5")]
+            for query in [
+                ocio_sys::ocio_gpu_shader_desc_get_texture_shader_binding_index,
+                ocio_sys::ocio_gpu_shader_desc_get3d_texture_shader_binding_index,
+            ] {
+                ocio_sys::ocio_error_clear_last();
+                assert!(query(desc, invalid_index).is_null());
+                assert!(!ocio_sys::ocio_error_get_last().is_null());
+            }
+            ocio_sys::ocio_error_clear_last();
+        }
 
         ocio_sys::ocio_gpu_shader_desc_destroy(desc);
     }

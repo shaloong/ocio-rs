@@ -1009,12 +1009,15 @@ void* ocio_gpu_shader_desc_get_num_uniforms(void* handle);
 void* ocio_gpu_shader_desc_get_uniform(void* handle, void* index, void* data);
 void* ocio_gpu_shader_desc_get_uniform_buffer_size(void* handle);
 void* ocio_gpu_shader_desc_get_num_textures(void* handle);
-void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char* textureName, const char* samplerName, void* width, void* height, void* channel, void* dimensions, void* interpolation);
-void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const float* values);
+// Legacy queries encode an unsigned index in the pointer value. Name/value
+// outputs, when non-null, point to caller-owned pointer slots; returned data
+// is borrowed from the descriptor. Prefer the typed info/copy APIs above.
+void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char** textureName, const char** samplerName, void* width, void* height, void* channel, void* dimensions, void* interpolation);
+void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const float** values);
 void* ocio_gpu_shader_desc_get_texture_shader_binding_index(void* handle, void* index);
 void* ocio_gpu_shader_desc_get_num3d_textures(void* handle);
-void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* textureName, const char* samplerName, void* edgelen, void* interpolation);
-void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const float* values);
+void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char** textureName, const char** samplerName, void* edgelen, void* interpolation);
+void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const float** values);
 void* ocio_gpu_shader_desc_get3d_texture_shader_binding_index(void* handle, void* index);
 void* ocio_gpu_shader_desc_get_shader_text(void* handle);
 int ocio_gpu_shader_desc_get_language(void* handle);
