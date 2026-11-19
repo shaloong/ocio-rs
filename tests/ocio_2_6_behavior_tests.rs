@@ -634,6 +634,9 @@ fn interop_id_lookup_uses_names_and_aliases_not_attributes() {
 
     second.add_alias("vendor:shared").unwrap();
     config.try_add_color_space(&second).unwrap();
+    // ID lookup uses the full color-space set, not only active spaces.
+    config.set_inactive_color_spaces("Second Space").unwrap();
+    assert!(!config.try_color_spaces().unwrap().contains("Second Space"));
     let match_space = config
         .find_const_color_space_for_id(c"vendor:shared")
         .unwrap()

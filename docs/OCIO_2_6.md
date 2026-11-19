@@ -133,6 +133,8 @@ first copying the config; `ConstConfig::generate_local_id_for_color_space`
 also calls the native const method directly, returning the generated owned text.
 OCIO's ID lookup searches names and aliases, not the `interop_id` attribute
 itself; it applies its namespace and config-specific local-ID fallback rules.
+The 2.6 native regression also confirms that lookup finds an inactive color
+space by alias even though that space is absent from the active name list.
 Alias authoring materializes the vector required by the C++ API.
 Built-in matching also accepts a `ConfigRef` to editable or shared read-only
 configurations. The safe path copies each read-only input because OCIO's matching
