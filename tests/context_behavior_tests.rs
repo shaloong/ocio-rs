@@ -80,6 +80,64 @@ fn resolve_nested_variables_updates_used_context_on_cache_hit() {
     }
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn resolve_file_tracks_used_variables_for_editable_and_shared_contexts() {
+    let _guard = context_test_lock();
+    let root = path_str(Path::new(env!("CARGO_MANIFEST_DIR")));
+    let expected = Path::new(&root).join("Cargo.toml");
+    let context = Context::create().unwrap();
+    context.set_string_var("OCIO_RS_FILE_ROOT", &root).unwrap();
+    let config = ocio_rs::Config::create().unwrap();
+    config
+        .add_environment_var("OCIO_RS_FILE_ROOT", &root)
+        .unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        let result = context
+            .try_resolve_file_location_with_used_context(
+                "${OCIO_RS_FILE_ROOT}/Cargo.toml",
+                &mut used,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(PathBuf::from(result), expected);
+        assert_eq!(
+            used.try_string_var("OCIO_RS_FILE_ROOT").unwrap().as_deref(),
+            Some(root.as_str())
+        );
+
+        let mut used = Context::create().unwrap();
+        let result = shared
+            .resolve_file_location_with_used_context(c"${OCIO_RS_FILE_ROOT}/Cargo.toml", &mut used)
+            .unwrap()
+            .unwrap();
+        assert_eq!(PathBuf::from(result), expected);
+        assert_eq!(
+            used.try_string_var("OCIO_RS_FILE_ROOT").unwrap().as_deref(),
+            Some(root.as_str())
+        );
+    }
+
+    let mut used = Context::create().unwrap();
+    assert!(matches!(
+        context.try_resolve_file_location_with_used_context(
+            "${OCIO_RS_FILE_ROOT}/ocio-rs-missing-file",
+            &mut used
+        ),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    assert!(matches!(
+        shared.resolve_file_location_with_used_context(
+            c"${OCIO_RS_FILE_ROOT}/ocio-rs-missing-file",
+            &mut used
+        ),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+}
+
 fn unique_test_dir(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

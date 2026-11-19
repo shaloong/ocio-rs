@@ -23,3 +23,8 @@ job is needed.
 Nested string-variable resolution additionally checks that both editable and
 shared contexts populate the caller's used-context on a cache hit, including
 recursive variables and preservation of existing entries.
+The file-resolution overload was also exercised with an absolute path containing
+a context variable on editable and shared contexts, both before and after a
+cache hit. It reports the used variable and preserves missing-file errors on
+native 2.4.1, 2.5.2, and 2.6.0. Both overloads forward the caller's native
+context handle; they do not require a configuration or context copy.
