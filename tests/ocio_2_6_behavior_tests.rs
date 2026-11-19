@@ -34,6 +34,36 @@ fn builtin_matching_and_hdr_check_use_native_config() {
     let builtin_const = builtin_baker.const_config().unwrap().unwrap();
     let source_flags = source_const.processor_cache_flags().unwrap();
     let builtin_flags = builtin_const.processor_cache_flags().unwrap();
+    for (source_ref, builtin_ref) in [
+        (
+            ocio_rs::ConfigRef::from(&source),
+            ocio_rs::ConfigRef::from(&builtin_const),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&source_const),
+            ocio_rs::ConfigRef::from(&builtin),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&source_const),
+            ocio_rs::ConfigRef::from(&builtin_const),
+        ),
+    ] {
+        let (source_handle, source_const) = source_ref.as_raw_parts();
+        let (builtin_handle, builtin_const) = builtin_ref.as_raw_parts();
+        // These handles remain live and no other thread accesses either
+        // native config while the OCIO heuristic changes its cache flags.
+        let value = unsafe {
+            ocio_sys::ocio_config_locate_builtin_color_space_refs(
+                source_handle,
+                source_const,
+                c"ACEScg".as_ptr(),
+                builtin_handle,
+                builtin_const,
+            )
+        };
+        assert!(!value.is_null());
+        assert_eq!(unsafe { std::ffi::CStr::from_ptr(value) }, c"ACEScg");
+    }
     for result in [
         source.locate_builtin_color_space_ref(c"ACEScg", &builtin),
         source.locate_builtin_color_space_ref(c"ACEScg", &builtin_const),

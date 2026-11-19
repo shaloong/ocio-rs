@@ -95,12 +95,24 @@ impl ConfigRef<'_> {
             Self::ReadOnly(value) => value.create_editable_copy().map(Some),
         }
     }
-    #[cfg(feature = "v2_5")]
     pub(crate) fn raw(self) -> (*mut c_void, bool) {
         match self {
             Self::Editable(value) => (value.handle.as_ptr(), false),
             Self::ReadOnly(value) => (value.handle.as_ptr(), true),
         }
+    }
+
+    /// Borrow the binding's native handle and its read-only representation flag.
+    ///
+    /// This pair is accepted by `ocio-sys` functions that document a config
+    /// handle followed by its const flag. It is not an `OCIO::Config*`; the
+    /// handle must not be destroyed, retained past this borrow, or passed to a
+    /// function expecting the other handle representation. Calling native FFI
+    /// is unsafe: some OCIO const operations change mutable caches, so callers
+    /// must also obey the target function's aliasing and concurrency contract.
+    /// No configuration is copied or reference count incremented.
+    pub fn as_raw_parts(self) -> (*mut c_void, bool) {
+        self.raw()
     }
 }
 

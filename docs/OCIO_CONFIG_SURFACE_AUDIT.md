@@ -3,6 +3,12 @@
 Scope: the public `Config` declarations in OpenColorIO 2.4.1, 2.5.2,
 and 2.6.0. The table groups equivalent overloads and ownership choices.
 
+Both baseline static color-space identification calls also accept borrowed
+editable or retained read-only config handles through `ocio-sys` and
+`ConfigRef::as_raw_parts`, without binding-side config copies. These native
+heuristics temporarily change cache flags, so raw callers must synchronize all
+aliases. Safe convenience methods isolate retained read-only inputs.
+
 | Native family | Rust coverage |
 | --- | --- |
 | Creation, loading, copying, validation, version and identity | Native empty/raw, environment, file, YAML, built-in and I/O proxy loaders; editable copy, version query/update/upgrade, validation, name, family separator, and description. The separator only accepts native printable ASCII or NUL. |

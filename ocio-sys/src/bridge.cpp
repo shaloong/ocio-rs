@@ -3602,6 +3602,35 @@ void ocio_config_identify_interchange_space(void* handle, void* srcInterchangeNa
 #endif
 }
 
+const char* ocio_config_identify_builtin_color_space_refs(void* source, bool source_const, void* builtin, bool builtin_const, const char* name) {
+#ifdef OCIO_RS_STUB
+  (void)source; (void)source_const; (void)builtin; (void)builtin_const; (void)name;
+  ocio_rs_bridge::capture_error_message("Native config required"); return nullptr;
+#else
+  try {
+    if (!source || !builtin || !name) throw std::invalid_argument("invalid config identification arguments");
+    ocio::ConstConfigRcPtr src = source_const ? *static_cast<ocio::ConstConfigRcPtr*>(source) : ocio_rs_bridge::get_real_config(source);
+    ocio::ConstConfigRcPtr dst = builtin_const ? *static_cast<ocio::ConstConfigRcPtr*>(builtin) : ocio_rs_bridge::get_real_config(builtin);
+    return ocio::Config::IdentifyBuiltinColorSpace(src, dst, name);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+
+void ocio_config_identify_interchange_space_refs(const char** source_interchange, const char** builtin_interchange, void* source, bool source_const, const char* source_name, void* builtin, bool builtin_const, const char* builtin_name) {
+#ifdef OCIO_RS_STUB
+  (void)source_interchange; (void)builtin_interchange; (void)source; (void)source_const; (void)source_name; (void)builtin; (void)builtin_const; (void)builtin_name;
+  ocio_rs_bridge::capture_error_message("Native config required");
+#else
+  try {
+    if (!source_interchange || !builtin_interchange || !source || !builtin || !source_name || !builtin_name) throw std::invalid_argument("invalid interchange identification arguments");
+    *source_interchange = nullptr; *builtin_interchange = nullptr;
+    ocio::ConstConfigRcPtr src = source_const ? *static_cast<ocio::ConstConfigRcPtr*>(source) : ocio_rs_bridge::get_real_config(source);
+    ocio::ConstConfigRcPtr dst = builtin_const ? *static_cast<ocio::ConstConfigRcPtr*>(builtin) : ocio_rs_bridge::get_real_config(builtin);
+    ocio::Config::IdentifyInterchangeSpace(source_interchange, builtin_interchange, src, source_name, dst, builtin_name);
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
 void ocio_config_set_role(void* handle, const char* role, const char* colorSpaceName) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)role; (void)colorSpaceName;

@@ -873,6 +873,7 @@ fn config_static_color_space_identification_preserves_errors() {
     baker.set_config(&config).unwrap();
     let retained = baker.const_config().unwrap().unwrap();
     let flags = retained.processor_cache_flags().unwrap();
+    let native_name = std::ffi::CString::new(color_space.as_str()).unwrap();
     for (source, builtin) in [
         (
             ocio_rs::ConfigRef::from(&config),
@@ -898,8 +899,60 @@ fn config_static_color_space_identification_preserves_errors() {
                 .unwrap(),
             (src_interchange.clone(), builtin_interchange.clone())
         );
+        let (source_handle, source_const) = source.as_raw_parts();
+        let (builtin_handle, builtin_const) = builtin.as_raw_parts();
+        // The handles are live and no thread concurrently accesses either config.
+        unsafe {
+            ocio_sys::ocio_error_clear_last();
+            let name = ocio_sys::ocio_config_identify_builtin_color_space_refs(
+                source_handle,
+                source_const,
+                builtin_handle,
+                builtin_const,
+                native_name.as_ptr(),
+            );
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), native_name.as_c_str());
+            let mut src_name = std::ptr::null();
+            let mut dst_name = std::ptr::null();
+            ocio_sys::ocio_config_identify_interchange_space_refs(
+                &mut src_name,
+                &mut dst_name,
+                source_handle,
+                source_const,
+                native_name.as_ptr(),
+                builtin_handle,
+                builtin_const,
+                native_name.as_ptr(),
+            );
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+            assert!(!src_name.is_null() && !dst_name.is_null());
+            assert_eq!(
+                std::ffi::CStr::from_ptr(src_name).to_str().unwrap(),
+                src_interchange.as_deref().unwrap()
+            );
+            assert_eq!(
+                std::ffi::CStr::from_ptr(dst_name).to_str().unwrap(),
+                builtin_interchange.as_deref().unwrap()
+            );
+        }
     }
     assert_eq!(retained.processor_cache_flags().unwrap(), flags);
+    unsafe {
+        let (source, source_const) = ocio_rs::ConfigRef::from(&retained).as_raw_parts();
+        ocio_sys::ocio_error_clear_last();
+        let name = ocio_sys::ocio_config_identify_builtin_color_space_refs(
+            source,
+            source_const,
+            source,
+            source_const,
+            c"definitely_missing_color_space".as_ptr(),
+        );
+        assert!(name.is_null());
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+    }
 
     assert!(Config::try_identify_builtin_color_space(
         &config,

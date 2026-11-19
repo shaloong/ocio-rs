@@ -334,6 +334,8 @@ bool ocio_config_is_inactive_color_space(void* handle, const char* colorspace);
 bool ocio_config_is_color_space_linear(void* handle, const char* colorSpace, int referenceSpaceType);
 void* ocio_config_identify_builtin_color_space(void* handle, void* srcConfig, void* builtinConfig, const char* builtinColorSpaceName);
 void ocio_config_identify_interchange_space(void* handle, void* srcInterchangeName, void* builtinInterchangeName, void* srcConfig, const char* srcColorSpaceName, void* builtinConfig, const char* builtinColorSpaceName);
+const char* ocio_config_identify_builtin_color_space_refs(void* source, bool source_const, void* builtin, bool builtin_const, const char* name);
+void ocio_config_identify_interchange_space_refs(const char** source_interchange, const char** builtin_interchange, void* source, bool source_const, const char* source_name, void* builtin, bool builtin_const, const char* builtin_name);
 void ocio_config_set_role(void* handle, const char* role, const char* colorSpaceName);
 int ocio_config_get_num_roles(void* handle);
 bool ocio_config_has_role(void* handle, const char* role);

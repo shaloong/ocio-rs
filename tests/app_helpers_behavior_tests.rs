@@ -331,6 +331,29 @@ fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
     let shared_input = input_params.const_config().unwrap();
     let base_flags = shared_base.processor_cache_flags().unwrap();
     let input_flags = shared_input.processor_cache_flags().unwrap();
+    // Exercise the zero-copy raw merge using borrowed, tagged config handles.
+    // This thread is the only user of both native configs during the call.
+    unsafe {
+        let params = ocio_sys::ocio_config_merging_parameters_create();
+        assert!(!params.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_adjust_input_reference_space(params, false);
+        ocio_sys::ocio_config_merging_parameters_set_default_strategy(
+            params,
+            MergeStrategy::PreferBase as i32,
+        );
+        let (base_handle, base_const) = ocio_rs::ConfigRef::from(&shared_base).as_raw_parts();
+        let (input_handle, input_const) = ocio_rs::ConfigRef::from(&shared_input).as_raw_parts();
+        let result = ocio_sys::ocio_config_merging_parameters_merge_config_refs(
+            params,
+            base_handle,
+            base_const,
+            input_handle,
+            input_const,
+        );
+        assert!(!result.is_null());
+        ocio_sys::ocio_config_destroy(result);
+        ocio_sys::ocio_config_merging_parameters_destroy(params);
+    }
     let shared_space = shared_input
         .try_const_color_space(c"new-space")
         .unwrap()

@@ -777,6 +777,35 @@ unsafe extern "C" {
         builtinConfig: *mut c_void,
         builtinColorSpaceName: *const i8,
     ) -> *mut c_void;
+    /// # Safety
+    /// Handles must be live, match their const flags, and remain alive while
+    /// the returned borrowed string is used. `name` must be a valid C string.
+    /// Native heuristics can change cache flags on both configs; serialize all
+    /// access through every alias for the duration of this call.
+    /// Clear and check the bridge error slot to distinguish an error from no match.
+    pub fn ocio_config_identify_builtin_color_space_refs(
+        source: *mut c_void,
+        source_const: bool,
+        builtin: *mut c_void,
+        builtin_const: bool,
+        name: *const std::ffi::c_char,
+    ) -> *const std::ffi::c_char;
+    /// # Safety
+    /// Both output pointers and C strings must be valid, and config handles
+    /// must be live and match their flags. Output strings are borrowed from
+    /// the corresponding configs. Serialize access to both native configs
+    /// through all aliases during this call; heuristics may change cache flags.
+    /// Clear and check the bridge error slot before reading either output.
+    pub fn ocio_config_identify_interchange_space_refs(
+        source_interchange: *mut *const std::ffi::c_char,
+        builtin_interchange: *mut *const std::ffi::c_char,
+        source: *mut c_void,
+        source_const: bool,
+        source_name: *const std::ffi::c_char,
+        builtin: *mut c_void,
+        builtin_const: bool,
+        builtin_name: *const std::ffi::c_char,
+    );
     pub fn ocio_config_identify_interchange_space(
         handle: *mut c_void,
         srcInterchangeName: *mut c_void,
