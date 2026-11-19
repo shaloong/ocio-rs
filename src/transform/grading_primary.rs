@@ -55,9 +55,18 @@ impl GradingPrimaryTransform {
         crate::ocio_call_status()
     }
 
-    /// Return the current primary grading control values.
+    /// Return the current primary grading values, or style defaults on failure.
+    /// Use [`Self::try_value`] to distinguish an OCIO error from real values.
     pub fn value(&self) -> GradingPrimary {
+        self.try_value()
+            .unwrap_or_else(|_| GradingPrimary::new(self.style()))
+    }
+
+    /// Return the current primary grading values, preserving native errors.
+    /// The fixed-size value is copied into a stack buffer without allocation.
+    pub fn try_value(&self) -> Result<GradingPrimary> {
         let mut flat = [0.0f64; 34];
+        crate::clear_last_error();
         let copied = unsafe {
             ocio_sys::ocio_grading_primary_transform_copy_value(
                 self.handle.as_ptr(),
@@ -65,10 +74,13 @@ impl GradingPrimaryTransform {
                 flat.len(),
             )
         };
+        crate::ocio_call_status()?;
         if !copied {
-            return GradingPrimary::new(self.style());
+            return Err(OcioError::Ocio(
+                "failed to read primary grading value".into(),
+            ));
         }
-        GradingPrimary::from_flat_array(&flat)
+        Ok(GradingPrimary::from_flat_array(&flat))
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer value()")]
@@ -210,6 +222,14 @@ impl Drop for GradingPrimaryTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(ocio_stub)]
+    fn fallible_value_reports_missing_native_backend() {
+        let transform = GradingPrimaryTransform::create(GradingStyle::Lin).unwrap();
+        assert!(transform.try_value().is_err());
+        assert_eq!(transform.value(), GradingPrimary::new(transform.style()));
+    }
 
     #[test]
     fn create_grading_primary() {

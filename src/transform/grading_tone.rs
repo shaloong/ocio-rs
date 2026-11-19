@@ -55,9 +55,18 @@ impl GradingToneTransform {
         crate::ocio_call_status()
     }
 
-    /// Return the current tone grading control values.
+    /// Return the current tone grading values, or style defaults on failure.
+    /// Use [`Self::try_value`] to distinguish an OCIO error from real values.
     pub fn value(&self) -> GradingTone {
+        self.try_value()
+            .unwrap_or_else(|_| GradingTone::new(self.style()))
+    }
+
+    /// Return the current tone grading values, preserving native errors.
+    /// The fixed-size value is copied into a stack buffer without allocation.
+    pub fn try_value(&self) -> Result<GradingTone> {
         let mut flat = [0.0f64; 31];
+        crate::clear_last_error();
         let copied = unsafe {
             ocio_sys::ocio_grading_tone_transform_copy_value(
                 self.handle.as_ptr(),
@@ -65,10 +74,11 @@ impl GradingToneTransform {
                 flat.len(),
             )
         };
+        crate::ocio_call_status()?;
         if !copied {
-            return GradingTone::new(self.style());
+            return Err(OcioError::Ocio("failed to read tone grading value".into()));
         }
-        GradingTone::from_flat_array(&flat)
+        Ok(GradingTone::from_flat_array(&flat))
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer value()")]
@@ -207,6 +217,14 @@ impl Drop for GradingToneTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(ocio_stub)]
+    fn fallible_value_reports_missing_native_backend() {
+        let transform = GradingToneTransform::create(GradingStyle::Lin).unwrap();
+        assert!(transform.try_value().is_err());
+        assert_eq!(transform.value(), GradingTone::new(transform.style()));
+    }
 
     #[test]
     fn create_grading_tone() {

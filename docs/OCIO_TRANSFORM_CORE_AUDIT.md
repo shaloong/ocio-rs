@@ -19,6 +19,11 @@ the common transform handle covers direction, validation, type and copying.
 | GradingPrimaryTransform and GradingToneTransform | Native style/value, dynamic state/toggles, metadata and equality; values use the corresponding Rust value structures and native validation. |
 | LookTransform | Source/destination, look expression, bypass flag and static result-color-space resolution using the native context and look parsing. |
 
+For primary and tone transform value reads, `try_value` returns native bridge
+errors rather than silently substituting defaults. The existing `value`
+compatibility method retains its style-default fallback on failure. Both use a
+fixed-size stack buffer; the native getter may still perform its own work.
+
 ### Individual factory and buffer checks
 
 * `AllocationTransform` has one public factory, `Create()`. Its remaining

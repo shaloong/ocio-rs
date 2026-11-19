@@ -63,6 +63,7 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
 
     let transform = GradingToneTransform::create(GradingStyle::Lin).expect("grading tone create");
     let value = transform.value();
+    assert_eq!(transform.try_value().unwrap(), value);
 
     assert_eq!(transform.style(), GradingStyle::Lin);
     assert_eq!(transform.direction(), TransformDirection::Forward);
@@ -92,6 +93,7 @@ fn grading_tone_default_style_dynamic_and_copy_behavior() {
     copy_value.midtones.start = 1.25;
     copy_value.whites.master = 1.2;
     copy.set_value(&copy_value);
+    assert_eq!(copy.try_value().unwrap(), copy_value);
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.value().midtones.start, 1.25, 1e-10);

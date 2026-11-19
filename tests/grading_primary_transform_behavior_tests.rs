@@ -80,6 +80,7 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
     let transform =
         GradingPrimaryTransform::create(GradingStyle::Lin).expect("grading primary create");
     let value = transform.value();
+    assert_eq!(transform.try_value().unwrap(), value);
 
     assert_eq!(transform.style(), GradingStyle::Lin);
     assert_eq!(transform.direction(), TransformDirection::Forward);
@@ -118,6 +119,7 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
     copy_value.offset.blue = 0.25;
     copy.try_set_value(&copy_value)
         .expect("set copy primary grading value");
+    assert_eq!(copy.try_value().unwrap(), copy_value);
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.value().offset.blue, 0.25, 1e-10);
