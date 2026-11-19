@@ -9321,8 +9321,12 @@ impl GpuShaderDesc {
         self.try_uniform_value_count(index).unwrap_or(0)
     }
 
-    /// Return the current scalar count without allocating or copying the payload.
-    /// An invalid index or a native error is returned as an error.
+    /// Return the current scalar count without a Rust-owned payload copy.
+    ///
+    /// For a live array OCIO invokes its size getter. A registered Rust array
+    /// getter may fill its preallocated native snapshot and execute user code;
+    /// external getters may do their own work or allocation. An invalid index
+    /// or a native error is returned as an error.
     pub fn try_uniform_value_count(&self, index: u32) -> Result<usize> {
         crate::clear_last_error();
         let count = unsafe {
@@ -9385,9 +9389,9 @@ impl GpuShaderDesc {
     /// Returns `Ok(false)` if the uniform is not representable as floats or
     /// `values` is too short. Double uniforms are converted to `f32`, and bool
     /// uniforms are represented as 0.0 or 1.0, matching OCIO GPU conventions.
-    /// An invalid index or native failure is returned as an error. No Rust
-    /// allocation is performed; the native getter is called on every invocation
-    /// so updates to dynamic properties are observed.
+    /// An invalid index or native failure is returned as an error. The binding
+    /// does not allocate a Rust output buffer. The native getter is called on
+    /// every invocation and may itself allocate or execute a Rust callback.
     pub fn try_copy_uniform_f32_into(&self, index: u32, values: &mut [f32]) -> Result<bool> {
         crate::clear_last_error();
         // SAFETY: The bridge writes at most values.len() floats into the slice.
@@ -9420,9 +9424,10 @@ impl GpuShaderDesc {
         }
     }
 
-    /// Read an integer-vector uniform into caller-owned storage without a Rust
-    /// allocation. Returns `Ok(false)` for a different type or a short buffer;
-    /// invalid indices and native failures are returned as errors.
+    /// Read an integer-vector uniform into caller-owned storage without a
+    /// binding-side Rust output allocation. Native getters or user callbacks
+    /// may allocate. Returns `Ok(false)` for a different type or a short
+    /// buffer; invalid indices and native failures are returned as errors.
     pub fn try_copy_uniform_i32_into(&self, index: u32, values: &mut [i32]) -> Result<bool> {
         crate::clear_last_error();
         // SAFETY: The bridge writes at most values.len() integers into the slice.

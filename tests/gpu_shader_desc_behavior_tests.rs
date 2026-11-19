@@ -5628,9 +5628,22 @@ fn uniform_name_does_not_sample_live_value() {
         1.0
     })
     .unwrap();
+    let array_calls = Arc::new(AtomicUsize::new(0));
+    let captured_array = Arc::clone(&array_calls);
+    desc.add_uniform_f32_array_getter("liveArray", 4, move |out| {
+        captured_array.fetch_add(1, Ordering::SeqCst);
+        out[..2].copy_from_slice(&[0.25, 0.5]);
+        2
+    })
+    .unwrap();
     calls.store(0, Ordering::SeqCst);
+    array_calls.store(0, Ordering::SeqCst);
     assert_eq!(desc.uniform_name(0).as_deref(), Some("liveName"));
+    assert_eq!(desc.uniform_name(1).as_deref(), Some("liveArray"));
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert_eq!(array_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(desc.try_uniform_value_count(1).unwrap(), 2);
+    assert_eq!(array_calls.load(Ordering::SeqCst), 1);
     assert!(desc.uniform_name(99).is_none());
     assert!(desc.try_uniform(0).unwrap().is_some());
     assert!(calls.load(Ordering::SeqCst) > 0);

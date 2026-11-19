@@ -65,6 +65,10 @@ the value or allocating an array snapshot. The bridge creates the C++
 objects. Its returned raw name remains descriptor-owned. A live scalar getter
 regression verifies name lookup does not invoke the getter; the allocation
 regression also covers a large array uniform.
+In contrast, an array's current value count requires invoking OCIO's size
+getter. For Rust-provided live arrays this refreshes the preallocated native
+snapshot by calling user code; the binding does not create a Rust-owned array
+copy, but the callback or an external native getter may do additional work.
 
 The five native uniform overload shapes are `(name, double getter)`,
 `(name, bool getter)`, `(name, float3 getter)`, `(name, size getter, float
