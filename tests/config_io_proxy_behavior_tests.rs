@@ -625,11 +625,17 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
         .unwrap_err()
         .to_string()
         .contains("LUT backend unavailable"));
+    let mut destination = [42; 8];
     assert!(proxy
-        .try_copy_lut_data("test.clf", &mut [0; 8])
+        .try_copy_lut_data("test.clf", &mut destination)
         .unwrap_err()
         .to_string()
         .contains("LUT backend unavailable"));
+    assert_eq!(destination, [42; 8]);
+    assert_eq!(
+        proxy.read_fast_lut_file_hash_cstr(c"test.clf").unwrap(),
+        b"known"
+    );
     struct HashFailure;
     impl ConfigIOProvider for HashFailure {
         fn config_data(&self) -> ocio_rs::Result<Cow<'_, str>> {
@@ -656,11 +662,20 @@ fn custom_provider_errors_and_panics_do_not_cross_ffi() {
         .unwrap_err()
         .to_string()
         .contains("hash backend unavailable"));
+    let mut destination = [42; 8];
     assert!(proxy
-        .try_copy_lut_data("test.clf", &mut [0; 8])
+        .try_copy_lut_data("test.clf", &mut destination)
         .unwrap_err()
         .to_string()
         .contains("hash backend unavailable"));
+    assert_eq!(destination, [42; 8]);
+    assert_eq!(proxy.read_lut_data_cstr(c"test.clf").unwrap(), b"data");
+    assert_eq!(
+        proxy
+            .with_lut_data_cstr(c"test.clf", |data| Ok(data.len()))
+            .unwrap(),
+        4
+    );
 }
 
 #[test]

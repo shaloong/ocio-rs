@@ -53,3 +53,7 @@ The visitor lifetime also has a compile-fail documentation test. Real native
 tests are necessary: stub coverage does not exercise OCIO virtual dispatch.
 The complete suite passed against real 2.4.1, 2.5.2 and 2.6.0 builds on
 Windows during this audit; this does not replace cross-platform CI results.
+The provider-error regression checks that a failed hash lookup does not poison
+a subsequent direct or borrowed LUT read, a failed LUT read does not poison a
+subsequent direct hash read, and both failures leave the caller's copy buffer
+untouched. These are separate native operations; they are not an atomic snapshot.
