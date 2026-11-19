@@ -309,8 +309,8 @@ pub fn is_stub_build() -> bool {
 
 /// Returns the process-global current OCIO config, if one is installed.
 ///
-/// The returned config is an editable native copy; group-transform children may
-/// remain shared with the installed config. This compatibility helper
+/// The returned config is an editable native copy. OCIO's copy may retain
+/// group-transform children shared with the installed config. This helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
@@ -333,9 +333,30 @@ pub fn try_current_config() -> Result<Option<Config>> {
     Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
 }
 
-/// Share the native process-global current config without making an editable copy.
-/// The returned snapshot stays alive if another config is subsequently installed.
+/// Return a separate read-only snapshot of the process-global config.
+///
+/// This makes a native config copy: OCIO's copy operation reads mutable lazy
+/// caches, so exposing the global object itself to safe callers on multiple
+/// threads would make concurrent reads and copies unsound. Reuse the snapshot
+/// for repeated operations. OCIO may still share group children between config
+/// copies; safe global installation detaches them from caller-owned children.
+/// The snapshot remains alive when another config is installed.
 pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
+    clear_last_error();
+    let handle = unsafe { ocio_sys::ocio_get_isolated_const_current_config() };
+    ocio_call_status()?;
+    Ok(std::ptr::NonNull::new(handle).map(|handle| ConstConfig { handle }))
+}
+
+/// Retain the native global config without copying it.
+///
+/// # Safety
+/// The caller must serialize all access to the retained native config and its
+/// aliases with all other OCIO users of that config, including calls through
+/// safe global getters, for the lifetime of this handle and derived handles.
+/// OCIO may mutate lazy caches even for const operations; copying it while a
+/// different thread uses those caches can also race.
+pub unsafe fn try_const_current_config_shared() -> Result<Option<ConstConfig>> {
     clear_last_error();
     let handle = unsafe { ocio_sys::ocio_get_const_current_config() };
     ocio_call_status()?;
@@ -360,20 +381,23 @@ pub fn set_current_config(config: &Config) {
 }
 
 /// Try to install `config` as the process-global current OCIO config.
+///
+/// Group-transform graphs are detached from the input before installation so
+/// mutable input children cannot be shared with other threads via the global.
 pub fn try_set_current_config(config: &Config) -> Result<()> {
     clear_last_error();
-    unsafe { ocio_sys::ocio_set_current_config(config.handle.as_ptr()) };
+    unsafe { ocio_sys::ocio_set_isolated_current_config(config.handle.as_ptr(), false) };
     ocio_call_status()
 }
 
 /// Install a shared read-only config as the process-global current config.
 ///
-/// This passes the existing native handle directly; OCIO itself creates an
-/// editable copy when installing it, subject to native group-child sharing.
+/// Group-transform graphs are detached from the input before installation;
+/// OCIO then makes its own config copy.
 /// See [`current_config`] for the process-global threading considerations.
 pub fn try_set_const_current_config(config: &ConstConfig) -> Result<()> {
     clear_last_error();
-    unsafe { ocio_sys::ocio_set_const_current_config(config.handle.as_ptr()) };
+    unsafe { ocio_sys::ocio_set_isolated_current_config(config.handle.as_ptr(), true) };
     ocio_call_status()
 }
 

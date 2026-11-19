@@ -172,6 +172,7 @@ bool ocio_is_env_variable_present(const char* name);
 // --- Global config ---
 void* ocio_get_current_config(void);
 void* ocio_get_const_current_config(void);
+void* ocio_get_isolated_const_current_config(void);
 void* ocio_processor_get_const_metadata(void* handle);
 void* ocio_processor_get_const_format_metadata(void* handle, bool per_transform, int index);
 void ocio_const_format_metadata_destroy(void* handle);
@@ -210,6 +211,7 @@ void* ocio_const_config_get_builtin_processor(void* config, const char* local,
                                               const char* builtin, bool from_builtin);
 void ocio_set_current_config(void* config);
 void ocio_set_const_current_config(void* config);
+void ocio_set_isolated_current_config(void* config, bool is_const);
 void ocio_clear_all_caches(void);
 
 // --- BuiltinConfigRegistry ---

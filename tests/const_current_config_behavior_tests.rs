@@ -18,6 +18,50 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
     first.try_add_look(&look).unwrap();
     try_set_current_config(&first).unwrap();
     let shared = try_const_current_config().unwrap().unwrap();
+    let original_flags = shared.processor_cache_flags().unwrap();
+    let other_flags = if original_flags == ocio_rs::ProcessorCacheFlags::OFF {
+        ocio_rs::ProcessorCacheFlags::ENABLED
+    } else {
+        ocio_rs::ProcessorCacheFlags::OFF
+    };
+    // This snapshot is local to the test thread. Changing its flags must not
+    // affect the global config or a later independently acquired snapshot.
+    unsafe { shared.try_set_processor_cache_flags(other_flags).unwrap() };
+    assert_eq!(
+        try_const_current_config()
+            .unwrap()
+            .unwrap()
+            .processor_cache_flags()
+            .unwrap(),
+        original_flags
+    );
+    unsafe {
+        shared
+            .try_set_processor_cache_flags(original_flags)
+            .unwrap()
+    };
+    // The explicit raw-sharing entry preserves native aliasing for callers
+    // who can serialize all access to the global config.
+    let native_shared = unsafe { ocio_rs::try_const_current_config_shared().unwrap().unwrap() };
+    unsafe {
+        native_shared
+            .try_set_processor_cache_flags(other_flags)
+            .unwrap()
+    };
+    assert_eq!(
+        try_const_current_config()
+            .unwrap()
+            .unwrap()
+            .processor_cache_flags()
+            .unwrap(),
+        other_flags
+    );
+    unsafe {
+        native_shared
+            .try_set_processor_cache_flags(original_flags)
+            .unwrap()
+    };
+    drop(native_shared);
     let editable = try_current_config().unwrap().unwrap();
     editable.set_name("edited-copy").unwrap();
     assert_eq!(shared.name().unwrap().as_deref(), Some("first-global"));
@@ -407,7 +451,97 @@ fn current_config_is_readonly_snapshot_or_explicit_editable_copy() {
         .collect();
     assert_eq!(values, [1.0, 2.0]);
     check_cross_config_processors(&snapshot);
+    check_global_group_children_are_isolated();
+    let registry = ocio_rs::BuiltinConfigRegistry::get().unwrap();
+    let name = registry.config_name(0).unwrap();
+    let builtin = Config::create_from_builtin_config(&name).unwrap();
+    let before = builtin.serialize().unwrap();
+    try_set_current_config(&builtin).unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        before
+    );
     try_set_current_config(&previous).unwrap();
+}
+
+fn check_global_group_children_are_isolated() {
+    use ocio_rs::transform::{GroupTransform, MatrixTransform};
+    let config = Config::raw().unwrap();
+    config.try_set_processor_cache_flags(0).unwrap();
+    let reference = ocio_rs::ColorSpace::create().unwrap();
+    reference.set_name("group-reference").unwrap();
+    config.try_add_color_space(&reference).unwrap();
+    let group = GroupTransform::create().unwrap();
+    let nested = GroupTransform::create().unwrap();
+    let matrix = MatrixTransform::scale(&[2.0, 2.0, 2.0, 1.0]).unwrap();
+    nested.append_transform(&matrix).unwrap();
+    group.append_transform(&nested).unwrap();
+    let color = ocio_rs::ColorSpace::create().unwrap();
+    color.set_name("group-source").unwrap();
+    color
+        .try_set_transform(&group, ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap();
+    config.try_add_color_space(&color).unwrap();
+    let hidden = ocio_rs::ColorSpace::create().unwrap();
+    hidden.set_name("hidden-group").unwrap();
+    hidden
+        .try_set_transform(&group, ocio_rs::ColorSpaceDirection::FromReference)
+        .unwrap();
+    config.try_add_color_space(&hidden).unwrap();
+    let look = ocio_rs::Look::create().unwrap();
+    look.set_name("group-look").unwrap();
+    look.set_process_space("group-reference").unwrap();
+    look.try_set_transform(&group).unwrap();
+    look.try_set_inverse_transform(&group).unwrap();
+    config.try_add_look(&look).unwrap();
+    let named = ocio_rs::NamedTransform::create().unwrap();
+    named.set_name("group-named").unwrap();
+    for direction in [
+        ocio_rs::TransformDirection::Forward,
+        ocio_rs::TransformDirection::Inverse,
+    ] {
+        named.try_set_transform(&group, direction).unwrap();
+    }
+    config.try_add_named_transform(&named).unwrap();
+    config
+        .set_inactive_color_spaces("hidden-group,group-named")
+        .unwrap();
+    let view = ocio_rs::ViewTransform::create(ocio_rs::ReferenceSpaceType::Scene).unwrap();
+    view.set_name("group-view").unwrap();
+    for direction in [
+        ocio_rs::ViewTransformDirection::ToReference,
+        ocio_rs::ViewTransformDirection::FromReference,
+    ] {
+        view.try_set_transform(Some(&group), direction).unwrap();
+    }
+    config.try_add_view_transform(&view).unwrap();
+    let serialized = config.serialize().unwrap();
+    try_set_current_config(&config).unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized
+    );
+    matrix
+        .set_matrix(&[
+            3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ])
+        .unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized
+    );
+    let snapshot = try_const_current_config().unwrap().unwrap();
+    let cpu = snapshot
+        .processor(c"group-source", c"group-reference")
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut pixel = [0.1, 0.2, 0.3, 1.0];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert!(
+        (pixel[0] - 0.2).abs() < 1e-6,
+        "global config retained the caller's mutable group child: {pixel:?}"
+    );
 }
 
 fn check_cross_config_processors(dynamic: &ocio_rs::ConstConfig) {

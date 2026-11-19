@@ -212,7 +212,25 @@ unsafe extern "C" {
         kind: i32,
     ) -> *mut c_void;
     pub fn ocio_const_config_get_rules(handle: *mut c_void, kind: i32) -> *mut c_void;
+    /// Retain the native global config without making a copy.
+    ///
+    /// # Safety
+    /// Serialize access through this handle and all aliases with other users
+    /// of the same native config, including concurrent config copying. Const
+    /// OCIO operations may modify lazy caches.
     pub fn ocio_get_const_current_config() -> *mut c_void;
+    /// Return a read-only handle to an independent copy of the current config.
+    ///
+    /// # Safety
+    /// The caller must not concurrently mutate or access the native global
+    /// config through aliases outside this binding while it is being copied.
+    pub fn ocio_get_isolated_const_current_config() -> *mut c_void;
+    /// Install a config after detaching its native group-transform graph.
+    ///
+    /// # Safety
+    /// `config` must be a live handle of the kind selected by `is_const` and
+    /// must not be accessed concurrently while its graph is copied.
+    pub fn ocio_set_isolated_current_config(config: *mut c_void, is_const: bool);
     pub fn ocio_const_config_destroy(handle: *mut c_void);
     pub fn ocio_const_config_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_const_config_text(handle: *mut c_void, field: i32) -> *const i8;

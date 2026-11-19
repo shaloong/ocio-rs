@@ -247,9 +247,9 @@ impl ConstConfig {
     }
     /// Create a processor from native C-string color-space names.
     ///
-    /// Static pipelines use OCIO's native cache. Dynamic pipelines are built
-    /// from an independent configuration copy, so separate threads querying a
-    /// global config cannot concurrently mutate shared dynamic properties.
+    /// Static pipelines use this snapshot's native cache. Dynamic pipelines are
+    /// built from an independent configuration copy so separate processors do
+    /// not concurrently mutate shared dynamic properties.
     pub fn processor(&self, src: &std::ffi::CStr, dst: &std::ffi::CStr) -> Result<Processor> {
         crate::clear_last_error();
         let handle = unsafe {

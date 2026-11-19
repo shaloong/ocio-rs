@@ -1743,6 +1743,107 @@ static void* ocio_rs_const_config_processor(const ocio::ConstConfigRcPtr& config
   if (processor && processor->isDynamic()) processor = build(config->createEditableCopy());
   return ocio_rs_wrap_const_processor(processor);
 }
+
+// Config::createEditableCopy copies GroupTransform containers but retains their
+// mutable children. Detach group graphs before making a config process-global.
+static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr& root) {
+  auto group = std::dynamic_pointer_cast<const ocio::GroupTransform>(root);
+  if (!group) return {};
+  const auto make_group = [](const ocio::ConstGroupTransformRcPtr& source) {
+    auto copy = ocio::GroupTransform::Create();
+    copy->setDirection(source->getDirection());
+    copy->getFormatMetadata() = source->getFormatMetadata();
+    return copy;
+  };
+  auto result = make_group(group);
+  struct Frame { ocio::ConstGroupTransformRcPtr source; ocio::GroupTransformRcPtr copy; int next; };
+  std::vector<Frame> stack{{group, result, 0}};
+  std::unordered_map<const ocio::Transform*, ocio::TransformRcPtr> copies{{root.get(), result}};
+  std::unordered_set<const ocio::Transform*> active{root.get()};
+  while (!stack.empty()) {
+    auto& frame = stack.back();
+    if (frame.next == frame.source->getNumTransforms()) {
+      active.erase(frame.source.get()); stack.pop_back(); continue;
+    }
+    auto child = frame.source->getTransform(frame.next++);
+    if (!child || active.count(child.get())) throw std::invalid_argument("invalid group transform graph");
+    auto existing = copies.find(child.get());
+    if (existing != copies.end()) { frame.copy->appendTransform(existing->second); continue; }
+    auto nested = std::dynamic_pointer_cast<const ocio::GroupTransform>(child);
+    if (nested) {
+      auto copy = make_group(nested);
+      copies.emplace(child.get(), copy); frame.copy->appendTransform(copy);
+      active.insert(child.get()); stack.push_back({nested, copy, 0});
+    } else {
+      auto copy = child->createEditableCopy();
+      if (!copy || copy.get() == child.get()) throw std::invalid_argument("native transform did not provide an independent copy");
+      copies.emplace(child.get(), copy); frame.copy->appendTransform(copy);
+    }
+  }
+  return result;
+}
+
+static ocio::ConstConfigRcPtr ocio_rs_detach_global_config(const ocio::ConstConfigRcPtr& original) {
+  ocio::ConfigRcPtr cfg;
+  const auto writable = [&]() -> ocio::ConfigRcPtr {
+    if (!cfg) cfg = original->createEditableCopy();
+    return cfg;
+  };
+  std::vector<std::string> names;
+  const auto cs_count = original->getNumColorSpaces(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL);
+  for (int i = 0; i < cs_count; ++i) names.emplace_back(original->getColorSpaceNameByIndex(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL, i));
+  for (const auto& name : names) {
+    auto source = original->getColorSpace(name.c_str());
+    auto to = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_TO_REFERENCE));
+    auto from = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_FROM_REFERENCE));
+    if (to || from) {
+      auto cs = source->createEditableCopy();
+      if (to) cs->setTransform(to, ocio::COLORSPACE_DIR_TO_REFERENCE);
+      if (from) cs->setTransform(from, ocio::COLORSPACE_DIR_FROM_REFERENCE);
+      writable()->addColorSpace(cs);
+    }
+  }
+  names.clear();
+  for (int i = 0; i < original->getNumLooks(); ++i) names.emplace_back(original->getLookNameByIndex(i));
+  for (const auto& name : names) {
+    auto source = original->getLook(name.c_str());
+    auto forward = ocio_rs_detach_group(source->getTransform());
+    auto inverse = ocio_rs_detach_group(source->getInverseTransform());
+    if (forward || inverse) {
+      auto look = source->createEditableCopy();
+      if (forward) look->setTransform(forward);
+      if (inverse) look->setInverseTransform(inverse);
+      writable()->addLook(look);
+    }
+  }
+  names.clear();
+  for (int i = 0; i < original->getNumViewTransforms(); ++i) names.emplace_back(original->getViewTransformNameByIndex(i));
+  for (const auto& name : names) {
+    auto source = original->getViewTransform(name.c_str());
+    auto to = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_TO_REFERENCE));
+    auto from = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE));
+    if (to || from) {
+      auto view = source->createEditableCopy();
+      if (to) view->setTransform(to, ocio::VIEWTRANSFORM_DIR_TO_REFERENCE);
+      if (from) view->setTransform(from, ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE);
+      writable()->addViewTransform(view);
+    }
+  }
+  names.clear();
+  for (int i = 0; i < original->getNumNamedTransforms(ocio::NAMEDTRANSFORM_ALL); ++i) names.emplace_back(original->getNamedTransformNameByIndex(ocio::NAMEDTRANSFORM_ALL, i));
+  for (const auto& name : names) {
+    auto source = original->getNamedTransform(name.c_str());
+    auto forward = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_FORWARD));
+    auto inverse = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_INVERSE));
+    if (forward || inverse) {
+      auto named = source->createEditableCopy();
+      if (forward) named->setTransform(forward, ocio::TRANSFORM_DIR_FORWARD);
+      if (inverse) named->setTransform(inverse, ocio::TRANSFORM_DIR_INVERSE);
+      writable()->addNamedTransform(named);
+    }
+  }
+  return cfg ? ocio::ConstConfigRcPtr(cfg) : original;
+}
 #endif
 
 // =====================================================================
@@ -1931,6 +2032,18 @@ void* ocio_get_const_current_config(void) {
   try {
     auto cfg = ocio::GetCurrentConfig();
     return cfg ? new ocio::ConstConfigRcPtr(std::move(cfg)) : nullptr;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
+void* ocio_get_isolated_const_current_config(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  try {
+    auto cfg = ocio::GetCurrentConfig();
+    if (!cfg) return nullptr;
+    ocio::ConstConfigRcPtr copy = cfg->createEditableCopy();
+    return new ocio::ConstConfigRcPtr(std::move(copy));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
@@ -2260,6 +2373,19 @@ void ocio_set_const_current_config(void* config) {
   try {
     if (!config) throw std::invalid_argument("invalid const current config");
     ocio::SetCurrentConfig(*static_cast<ocio::ConstConfigRcPtr*>(config));
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
+#endif
+}
+
+void ocio_set_isolated_current_config(void* config, bool is_const) {
+#ifdef OCIO_RS_STUB
+  (void)config; (void)is_const;
+#else
+  try {
+    if (!config) throw std::invalid_argument("invalid current config");
+    ocio::ConstConfigRcPtr source = is_const ? *static_cast<ocio::ConstConfigRcPtr*>(config)
+                                              : ocio_rs_bridge::get_real_config(config);
+    ocio::SetCurrentConfig(ocio_rs_detach_global_config(source));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); }
 #endif
 }
@@ -16262,45 +16388,7 @@ void* ocio_group_transform_create_deep_copy(void* handle) {
     if (!handle) throw std::invalid_argument("null group transform");
     auto source = ocio_rs_bridge::get_real_group_transform(handle);
     if (!source) throw std::invalid_argument("null group transform");
-    const auto make_group = [](const ocio::GroupTransformRcPtr& original) {
-      auto copy = ocio::GroupTransform::Create();
-      copy->setDirection(original->getDirection());
-      copy->getFormatMetadata() = original->getFormatMetadata();
-      return copy;
-    };
-    auto result = make_group(source);
-    struct Frame { ocio::GroupTransformRcPtr source, copy; int next; };
-    std::vector<Frame> stack{{source, result, 0}};
-    std::unordered_map<const ocio::Transform*, ocio::TransformRcPtr> copies;
-    std::unordered_set<const ocio::Transform*> active;
-    copies.emplace(source.get(), result);
-    active.insert(source.get());
-    while (!stack.empty()) {
-      auto& frame = stack.back();
-      if (frame.next == frame.source->getNumTransforms()) {
-        active.erase(frame.source.get());
-        stack.pop_back();
-        continue;
-      }
-      auto child = frame.source->getTransform(frame.next++);
-      if (!child) throw std::invalid_argument("group contains a null transform");
-      if (active.find(child.get()) != active.end()) throw std::invalid_argument("group transform cycle");
-      auto existing = copies.find(child.get());
-      if (existing != copies.end()) { frame.copy->appendTransform(existing->second); continue; }
-      auto nested = std::dynamic_pointer_cast<ocio::GroupTransform>(child);
-      if (nested) {
-        auto nested_copy = make_group(nested);
-        copies.emplace(child.get(), nested_copy);
-        frame.copy->appendTransform(nested_copy);
-        active.insert(child.get());
-        stack.push_back(Frame{std::move(nested), std::move(nested_copy), 0});
-      } else {
-        auto copy = child->createEditableCopy();
-        if (!copy || copy.get() == child.get()) throw std::invalid_argument("native transform did not provide an independent copy");
-        copies.emplace(child.get(), copy);
-        frame.copy->appendTransform(copy);
-      }
-    }
+    auto result = ocio_rs_detach_group(source);
     return ocio_rs_bridge::wrap_editable_transform_copy(result);
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
