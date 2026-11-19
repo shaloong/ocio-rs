@@ -2,6 +2,7 @@
 #include <memory>
 #include <atomic>
 #include <cstring>
+#include <sstream>
 namespace OCIO = OCIO_NAMESPACE;
 static std::atomic<unsigned> destroyed{0};
 static unsigned calls[7] = {};
@@ -9,17 +10,27 @@ static bool sections_match = false;
 
 static std::atomic<unsigned> proxy_destroyed{0};
 class NativeProxy final : public OCIO::ConfigIOProxy {
+    bool valid_config;
 public:
+    explicit NativeProxy(bool valid = false) : valid_config(valid) {}
     ~NativeProxy() override { ++proxy_destroyed; }
     std::vector<uint8_t> getLutData(const char* path) const override {
         if (std::strcmp(path, "raise") == 0) throw OCIO::Exception("proxy fixture error");
         return {0, 1, 255};
     }
-    std::string getConfigData() const override { return std::string("cfg\0bytes", 9); }
+    std::string getConfigData() const override {
+        if (!valid_config) return std::string("cfg\0bytes", 9);
+        std::ostringstream stream;
+        OCIO::Config::CreateRaw()->serialize(stream);
+        return stream.str();
+    }
     std::string getFastLutFileHash(const char*) const override { return "native-hash"; }
 };
 extern "C" void* proxy_fixture_create() {
     return new OCIO::ConfigIOProxyRcPtr(std::make_shared<NativeProxy>());
+}
+extern "C" void* proxy_fixture_create_config() {
+    return new OCIO::ConfigIOProxyRcPtr(std::make_shared<NativeProxy>(true));
 }
 extern "C" void* proxy_fixture_empty() { return new OCIO::ConfigIOProxyRcPtr(); }
 extern "C" void proxy_fixture_destroy(void* ptr) {

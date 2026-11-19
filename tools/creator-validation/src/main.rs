@@ -26,6 +26,7 @@ extern "C" {
     fn creator_fixture_calls(index: u32) -> u32;
     fn creator_fixture_sections_match() -> bool;
     fn proxy_fixture_create() -> *mut c_void;
+    fn proxy_fixture_create_config() -> *mut c_void;
     fn proxy_fixture_empty() -> *mut c_void;
     fn proxy_fixture_destroy(ptr: *mut c_void);
     fn proxy_fixture_destroyed() -> u32;
@@ -185,6 +186,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(retained.read_fast_lut_file_hash_cstr(path)?, b"native-hash");
         drop(retained);
         assert_eq!(unsafe { proxy_fixture_destroyed() }, 1);
+
+        let native = unsafe { proxy_fixture_create_config() };
+        let proxy = unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(native) }?;
+        unsafe { proxy_fixture_destroy(native) };
+        let loaded = Config::from_config_io_proxy(&proxy)?;
+        drop(proxy);
+        assert_eq!(unsafe { proxy_fixture_destroyed() }, 1);
+        loaded.validate()?;
+        let retained = loaded.try_config_io_proxy_object()?.unwrap();
+        drop(loaded);
+        assert_eq!(retained.read_lut_data_cstr(path)?, [0, 1, 255]);
+        drop(retained);
+        assert_eq!(unsafe { proxy_fixture_destroyed() }, 2);
     }
     check_native_image_descriptors()?;
     {

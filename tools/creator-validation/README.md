@@ -6,7 +6,8 @@ base settings, dynamic property sharing, and representative GPU shader extractio
 compiled header and linked runtime versions match. It does not execute the
 generated shader or prove general subclass correctness.
 It also imports a C++ `ConfigIOProxy` subclass and checks virtual dispatch,
-binary payloads, exceptions and ownership retained by contexts and configs.
+binary payloads, exceptions, config loading and ownership retained by
+contexts and configs.
 The same fixture verifies CPU processing with C++-owned image descriptors:
 packed RGBA in place, separate packed input and planar output, and an
 independent `ImageDesc` subclass with irregular channel offsets.
