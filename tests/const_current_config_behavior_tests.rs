@@ -598,6 +598,7 @@ fn check_global_group_children_are_isolated() {
             let barrier = barrier.clone();
             let expected = serialized.clone();
             std::thread::spawn(move || {
+                barrier.wait();
                 let snapshot = try_current_config().unwrap().unwrap();
                 let space = snapshot.try_color_space("group-source").unwrap().unwrap();
                 let Some(ocio_rs::transform::Transform::Group(group)) = space
@@ -616,7 +617,6 @@ fn check_global_group_children_are_isolated() {
                 else {
                     panic!("matrix expected")
                 };
-                barrier.wait();
                 for _ in 0..8 {
                     leaf.set_offset(&[offset, 0.0, 0.0, 0.0]).unwrap();
                     let current = try_const_current_config().unwrap().unwrap();
