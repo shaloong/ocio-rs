@@ -31,6 +31,22 @@ Native strategy getters resolve `UNSPECIFIED` through the default, so recreating
 the object from getter values would not faithfully preserve later default
 changes. Raw FFI retains OCIO's native shared-copy semantics.
 
+The 2.6 `ConfigMerger` declarations were checked individually as well:
+
+| Native declarations | Callable path and ownership |
+| --- | --- |
+| `Create`, `CreateFromFile`, `createEditableCopy` | Editable factory and explicit copy; `ConstConfigMerger::from_file` retains the native const result. |
+| Search-path set, append, count and signed-index get; working-directory get/set | Corresponding editable methods and const queries; returned text is borrowed from the merger, and mutating the editable merger requires an exclusive borrow. |
+| `getParams(int)`, count, `addParams` | `params` copies the parameter object but retains OCIO's shared override storage; `add_params` retains the original parameter handle. Raw FFI also exposes the original mutable entry with caller-managed synchronization. |
+| `mergeConfigs() const` | `merge_configs_shared` and the const variant retain the native const result; the editable method explicitly copies it. |
+| Both `getMergedConfig` overloads and count | The const-result accessors use `-1` for the no-argument final-result overload and nonnegative indices for the indexed overload. Other invalid indices return `None`. Editable-result accessors explicitly copy. |
+| `serialize(std::ostream&)`, version set and major/minor get | OCIOM serialization and unsigned `u32` version operations. The native stream insertion operator forwards to the same serializer. |
+
+The native indexed overload also returns null for index `-1`; the binding uses
+that otherwise-invalid index to select the separate no-argument overload. No
+valid indexed result is lost. Native constructors and destruction remain
+represented by factory and shared-handle ownership.
+
 Native constructors are represented by their factories, destruction by
 handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. A retained
