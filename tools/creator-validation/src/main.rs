@@ -264,9 +264,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(ocio_rs::transform::CDLTransform::create()?
             .try_style()
             .is_ok());
+        let native_primary = config
+            .try_color_space("fixture-native-primary")?
+            .unwrap()
+            .try_transform(ocio_rs::ColorSpaceDirection::ToReference)?
+            .unwrap();
+        let ocio_rs::transform::Transform::GradingPrimary(native_primary) = native_primary else {
+            panic!("unexpected native primary transform");
+        };
+        let mut expected_primary =
+            ocio_rs::grading::GradingPrimary::new(ocio_rs::GradingStyle::Log);
+        use ocio_rs::grading::{GradingRGBM, GradingRGBMSW};
+        expected_primary.brightness = GradingRGBM::new(0.125, 0.13, 0.14, 0.15);
+        expected_primary.contrast = GradingRGBM::new(1.11, 1.12, 1.13, 1.15);
+        expected_primary.gamma = GradingRGBM::new(1.21, 1.22, 1.23, 1.24);
+        expected_primary.offset = GradingRGBM::new(0.01, 0.0, 0.03, 0.04);
+        expected_primary.exposure = GradingRGBM::new(0.05, 0.06, 0.07, 0.08);
+        expected_primary.lift = GradingRGBM::new(0.09, 0.10, 0.11, 0.12);
+        expected_primary.gain = GradingRGBM::new(1.21, 1.22, 1.25, 1.24);
+        expected_primary.saturation = 0.9;
+        expected_primary.pivot = -0.1;
+        expected_primary.pivot_black = 0.01;
+        expected_primary.pivot_white = 0.95;
+        expected_primary.clamp_black = -2.0;
+        expected_primary.clamp_white = 2.0;
+        assert_eq!(native_primary.try_value()?, expected_primary);
+        let native_tone = config
+            .try_color_space("fixture-native-tone")?
+            .unwrap()
+            .try_transform(ocio_rs::ColorSpaceDirection::ToReference)?
+            .unwrap();
+        let ocio_rs::transform::Transform::GradingTone(native_tone) = native_tone else {
+            panic!("unexpected native tone transform");
+        };
+        let mut expected_tone = ocio_rs::grading::GradingTone::new(ocio_rs::GradingStyle::Log);
+        expected_tone.blacks = GradingRGBMSW::new(0.95, 0.96, 0.97, 0.98, 0.1, 0.2);
+        expected_tone.shadows = GradingRGBMSW::new(0.81, 0.82, 0.83, 0.84, 0.5, 0.3);
+        expected_tone.midtones = GradingRGBMSW::new(1.01, 1.02, 1.03, 1.1, 0.3, 0.4);
+        expected_tone.highlights = GradingRGBMSW::new(1.11, 1.12, 1.13, 1.14, 0.4, 0.8);
+        expected_tone.whites = GradingRGBMSW::new(1.21, 1.22, 1.23, 1.24, 0.4, 0.6);
+        expected_tone.scontrast = 1.2;
+        assert_eq!(native_tone.try_value()?, expected_tone);
     }
     {
-        use std::ffi::CStr;
         assert!(
             unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(std::ptr::null()) }.is_err()
         );
@@ -276,11 +316,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let native = unsafe { proxy_fixture_create() };
         let proxy = unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(native) }?;
         unsafe { proxy_fixture_destroy(native) };
-        let path = CStr::from_bytes_with_nul(b"asset.lut\0")?;
+        let path = c"asset.lut";
         assert_eq!(proxy.try_config_data_bytes()?.unwrap(), b"cfg\0bytes");
         assert_eq!(proxy.read_lut_data_cstr(path)?, [0, 1, 255]);
         assert_eq!(proxy.read_fast_lut_file_hash_cstr(path)?, b"native-hash");
-        let failing_path = CStr::from_bytes_with_nul(b"raise\0")?;
+        let failing_path = c"raise";
         assert!(proxy.read_lut_data_cstr(failing_path).is_err());
         assert_eq!(proxy.read_lut_data_cstr(path)?, [0, 1, 255]);
         let context = ocio_rs::Context::create()?;

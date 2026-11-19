@@ -16,6 +16,8 @@ subclass throws, followed by a successful query on a normal transform.
 The same fixture verifies CPU processing with C++-owned image descriptors:
 packed RGBA in place, separate packed input and planar output, and an
 independent `ImageDesc` subclass with irregular channel offsets.
+The fixture also checks native-authored primary and tone grading fields against
+the complete Rust values, independently of Rust-side setter round trips.
 It also verifies that an external image getter throwing either native OCIO
 exception with an empty diagnostic stays an error and leaves pixels untouched.
 The fixture injects malformed RGB and, with `v2_5`, hue dynamic properties with null

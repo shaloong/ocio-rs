@@ -30,6 +30,11 @@ boundary. The same standalone fixture also installs the custom transforms in
 a temporary native config, obtains editable Rust handles and verifies that
 both high-level `try_value` calls return the native error. It restores the
 process-global config after the check and does not test arbitrary subclasses.
+The same fixture constructs primary and tone values in native C++ with
+individually selected fields, installs them in a temporary config, and compares
+all 34 and 31 Rust fields against independent expected values. It passed on
+Windows with native 2.4.1, 2.5.2 and 2.6.0. This checks native-to-Rust field
+mapping independently of a binding-side write/read round trip.
 
 Exposure/contrast getters have matching `try_*` queries for style, all six
 scalar values and the three dynamic flags. They preserve native exceptions;
