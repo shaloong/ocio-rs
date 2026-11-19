@@ -589,6 +589,49 @@ fn check_global_group_children_are_isolated() {
         serialized,
         "editing a copy of a read-only snapshot changed the global config"
     );
+    // Each thread acquires its own global snapshot. Mutating shared group
+    // children within one snapshot must not affect concurrent acquisitions.
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let workers: Vec<_> = [0.25, 0.75]
+        .into_iter()
+        .map(|offset| {
+            let barrier = barrier.clone();
+            let expected = serialized.clone();
+            std::thread::spawn(move || {
+                let snapshot = try_current_config().unwrap().unwrap();
+                let space = snapshot.try_color_space("group-source").unwrap().unwrap();
+                let Some(ocio_rs::transform::Transform::Group(group)) = space
+                    .try_transform(ocio_rs::ColorSpaceDirection::ToReference)
+                    .unwrap()
+                else {
+                    panic!("group expected")
+                };
+                let Some(ocio_rs::transform::Transform::Group(nested)) =
+                    group.try_transform(0).unwrap()
+                else {
+                    panic!("nested group expected")
+                };
+                let Some(ocio_rs::transform::Transform::Matrix(leaf)) =
+                    nested.try_transform(0).unwrap()
+                else {
+                    panic!("matrix expected")
+                };
+                barrier.wait();
+                for _ in 0..8 {
+                    leaf.set_offset(&[offset, 0.0, 0.0, 0.0]).unwrap();
+                    let current = try_const_current_config().unwrap().unwrap();
+                    assert!(current.cache_id().unwrap().is_some());
+                    assert_eq!(
+                        current.create_editable_copy().unwrap().serialize().unwrap(),
+                        expected
+                    );
+                }
+            })
+        })
+        .collect();
+    for worker in workers {
+        worker.join().unwrap();
+    }
     matrix
         .set_matrix(&[
             3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0,
