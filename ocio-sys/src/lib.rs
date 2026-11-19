@@ -2575,6 +2575,15 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_uniforms(handle: *mut c_void) -> *mut c_void;
+    /// Legacy native uniform query. Prefer the typed uniform-info and cache
+    /// APIs, which do not expose C++ function objects to Rust.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor. `index` encodes an unsigned native
+    /// index in the pointer value and must fit `u32`. `data` must point to an
+    /// initialized `OCIO::GpuShaderDesc::UniformData` from the matching native
+    /// C++ ABI; a Rust byte buffer is not a valid substitute. The returned name
+    /// is borrowed and may be invalidated by descriptor mutation or destruction.
     pub fn ocio_gpu_shader_desc_get_uniform(
         handle: *mut c_void,
         index: *mut c_void,
