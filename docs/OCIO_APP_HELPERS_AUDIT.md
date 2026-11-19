@@ -27,6 +27,19 @@ selected parameters; `ocio-sys` also exposes the original mutable shared
 handle to callers who coordinate aliases. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
+The 2.6 menu declarations were also checked individually against the bridge:
+`ColorSpaceMenuParameters` exposes `Create`, config, role, search-reference
+type, include-color-space/named-transform/role flags, no-category behavior,
+app/user categories, encodings, and the add/count/index/clear color-space
+operations. `ColorSpaceMenuHelper` exposes `Create`, count, indexed name,
+UI name, description and family, both name-to-index queries, hierarchy count
+and indexed level, and both name/UI-name translations. Both classes pass native
+`size_t` indices and counts through `usize` bridge declarations. Missing
+name-to-index results use the native `size_t(-1)` sentinel; indexed text
+retains native empty-string behavior. The parameters and helper retain their
+native shared ownership; text borrowed from a helper must not outlive it.
+This declaration check does not independently verify every native menu input.
+
 `ConfigMergingHelpers::MergeConfigs` accepts two native const configs and
 `MergeColorSpace` accepts a const config and const color space. The
 `merge_configs_ref` and `merge_color_space_ref` methods accept any mix of
