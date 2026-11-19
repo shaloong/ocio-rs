@@ -24,6 +24,16 @@ separately reifying five Rust subtype handles would not add a callable native
 operation. Native aliases may share mutable properties; callers using raw
 interop must not access them concurrently with mutation.
 
+The individual 2.6 declarations comprise the base `getType`, five namespace
+casts, and `getValue`/`setValue` on each typed interface. Double values retain
+`double`; primary and tone references are copied as their fixed-size value
+fields; RGB and hue reference-returned shared pointers have retained read-only
+paths and direct shared-pointer setters. The hue cast and interface require
+`v2_5`. Protected construction, deleted copy operations and virtual
+destruction are represented by native shared-handle ownership, not additional
+Rust constructors. This signature mapping does not guarantee every external
+subclass's implementation or synchronize external aliases.
+
 `StaticCPUProcessor` relies on the native non-dynamic CPU processor not
 exposing a mutable dynamic property. The existing concurrency regression now
 also checks all supported property kinds on a non-dynamic exposure processor,

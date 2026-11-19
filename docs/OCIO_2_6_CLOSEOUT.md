@@ -188,11 +188,30 @@ so successful calls do not make extra native bit-depth queries. On Windows
 with native 2.6.0, one diagnostic release benchmark measured 10.56 ns per Rust
 single-pixel call versus 7.55 ns for a C ABI trampoline, and 1.02x for the
 1024-pixel batch. These are machine-specific observations, not guarantees.
-GPU exposes the three status/identity queries in its header and both shader
+GPU exposes the three status/cache queries in its header and both shader
 extraction overloads via the descriptor and creator paths, including raw
 interop as described in the [GPU creator audit](OCIO_GPU_CREATOR_AUDIT.md).
 Windows processor, CPU, and dynamic-property suites passed with native
 2.4.1 (57 tests), 2.5.2 (62), and 2.6.0 (62).
+
+The 2.6 processor declarations were checked individually against the bridge:
+
+| Native declarations | Callable path |
+| --- | --- |
+| `Processor::isNoOp`, `hasChannelCrosstalk`, `getCacheID` | Native-backed status and cache-ID queries. |
+| `getProcessorMetadata`, `getFormatMetadata`, `getNumTransforms`, `getTransformFormatMetadata(int)`, `createGroupTransform` | Retained metadata and group handles, with signed transform indices; editable results are explicit copies. |
+| `getDynamicProperty(type)`, `hasDynamicProperty(type)`, `isDynamic` | Typed property handle and native predicates; dynamic values are not automatically shared across processor kinds. |
+| Both `getOptimizedProcessor` overloads | The flags-only path and the separate input-depth/output-depth/flags path. |
+| Default, optimized and legacy optimized GPU processors | Separate native factory paths, including the legacy unsigned edge length. |
+| Default and both optimized CPU processors | Separate default, flags-only and input-depth/output-depth/flags factory paths. |
+| CPU no-op, identity, crosstalk, cache ID, both bit depths and the three dynamic-property queries | Native-backed CPU status and property paths; identity is distinct from no-op when bit depths differ. |
+| CPU `apply(ImageDesc)`, `apply(src, dst)`, `applyRGB`, `applyRGBA` | Native descriptor calls and fixed-size single-pixel calls; checked slice/batch helpers are additional paths. |
+| GPU no-op, crosstalk, cache ID, and both `extractGpuShaderInfo` overloads | Native queries and separate descriptor/creator extraction paths. |
+
+Native processors have private constructors and native-owned destruction;
+they are obtained from processor factories and released through their handles.
+The mapping is signature evidence, not a claim that all optimization flags,
+external descriptor implementations or hardware have been exhaustively tested.
 
 File rules call OCIO for factory/copy, both insertion overloads, built-in
 path-search insertion, pattern/extension/regex/space fields, custom keys,
