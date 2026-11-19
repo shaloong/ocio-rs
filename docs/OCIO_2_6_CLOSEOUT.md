@@ -49,8 +49,8 @@ excluded from the callable API requirement:
 The table records the exact inventory boundary; it does not independently
 prove that every signature or external subclass behavior is covered.
 
-On the current branch, the name checker matches 1,585 bridge declarations
-and 1,383 checked wrapper names. Its selected-class method-name counts match
+On the current branch, the name checker matches 1,606 bridge declarations
+and 1,389 checked wrapper names. Its selected-class method-name counts match
 865/865 against 2.4.1, 1,005/1,005 against 2.5.2, and 1,013/1,013 against
 2.6.0. These are lexical checks, not evidence for overload signatures,
 ownership, errors, behavior, or the 13 separately reviewed classes.
@@ -66,7 +66,7 @@ runtime evidence, not a substitute for the other excluded-class reviews.
 | Existing signatures | The selected classes have signature-family records in this ledger or its linked audits. Confirm individual overload arguments and ownership where the records describe only a family; neither L3 nor the existence of a family record proves each signature. |
 | Not separate binding requirements | Deleted or protected constructors, explicit native destruction, equivalent diagnostic formatting and duplicate Rust ownership spellings. Native subclass instances must remain callable where the public OCIO contract accepts them; reimplementing C++ virtual tables in Rust is not required. |
 | Known native boundary | Unpatched external OCIO can reject some GPU LUT layouts; the vendored patch and opt-in checked path are documented. Group removal is a Rust convenience with replacement semantics, not a missing C++ operation. |
-| Runtime and packaging | The [complete native matrix](https://github.com/shaloong/ocio-rs/actions/runs/44480092629) and [offline release audit](https://github.com/shaloong/ocio-rs/actions/runs/44480100316) passed on `9520ba6`, including bundled Linux/macOS/Windows, installed 2.6, exact 2.4.1/2.5.1 and the 2.5.0 boundary. Windows native 2.6 workspace and targeted Vulkan hardware checks also passed on that commit. Recheck any subsequent code changes on the final candidate. |
+| Runtime and packaging | The [complete native matrix](https://github.com/shaloong/ocio-rs/actions/runs/44539569520) passed on `782c844`, including bundled Linux/macOS/Windows, installed 2.6, exact 2.4.1/2.5.1 and the 2.5.0 boundary. The subsequent runtime change `ef3fedc` adds a native-copy wrapper; its targeted tests passed locally against native 2.4.1, 2.5.2 and 2.6.0, its [PR checks](https://github.com/shaloong/ocio-rs/actions/runs/44548258947) passed, and its [offline release audit](https://github.com/shaloong/ocio-rs/actions/runs/44548513830) passed. Earlier targeted Vulkan hardware checks passed on `9520ba6`; they were not repeated on `ef3fedc`. These checks do not prove every signature or external-library behavior. |
 
 A focused scan of public, same-name member declarations found 54 overload
 families in 2.4.1, 58 in 2.5.2, and 59 in 2.6.0. It is a review aid, not a
