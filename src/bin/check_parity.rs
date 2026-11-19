@@ -715,6 +715,7 @@ fn l2_overrides() -> HashMap<&'static str, &'static str> {
         ("apply_packed_image", "try_apply_packed_image"),
         ("convert_packed_image", "try_convert_packed_image"),
         ("operation", "union"),
+        ("copy_native_shared", "from_native_shared_ptr"),
         ("equal", "try_equals"),
         ("get_const_color_space", "try_const_color_space"),
         ("set_const_transform", "try_set_const_transform"),

@@ -2570,6 +2570,22 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
 }
 
 // --- ConfigIOProxy ---
+void* ocio_config_io_proxy_copy_native_shared(const void* proxy) {
+#ifdef OCIO_RS_STUB
+  (void)proxy;
+  ocio_rs_bridge::capture_error_message("Native config IO proxy required"); return nullptr;
+#else
+  try {
+    if (!proxy) throw std::invalid_argument("null shared config IO proxy pointer");
+    const auto& shared = *static_cast<const ocio::ConfigIOProxyRcPtr*>(proxy);
+    if (!shared) throw std::invalid_argument("empty shared config IO proxy");
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigIOProxyHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfigIOProxy>(
+      ocio_rs_bridge::RealConfigIOProxy{shared, nullptr});
+    return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 void* ocio_config_io_proxy_create(void) {
 #ifdef OCIO_RS_STUB
   return nullptr;

@@ -90,6 +90,29 @@ pub struct ConfigIOProxy {
 }
 
 impl ConfigIOProxy {
+    /// Share an existing native `OCIO::ConfigIOProxyRcPtr` without copying its data.
+    ///
+    /// The shared-pointer object need only remain alive for this call; OCIO may
+    /// retain the proxy after the returned Rust handle is dropped.
+    ///
+    /// # Safety
+    /// A null `shared_ptr` is reported as an error. Otherwise, it must point to
+    /// an initialized `OCIO::ConfigIOProxyRcPtr` built with the same OCIO version,
+    /// C++ standard library, ABI and runtime as this binding. The proxy and all
+    /// state used by its virtual methods must
+    /// remain valid and safe for every access until the last native or Rust owner,
+    /// including configs and derived contexts retaining it, is destroyed. OCIO
+    /// may invoke the proxy from native threads, so callers must ensure all such
+    /// access and any external mutation are synchronized. Virtual methods must
+    /// obey their C++ exception specifications and must not unwind through C.
+    pub unsafe fn from_native_shared_ptr(shared_ptr: *const c_void) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe { ocio_sys::ocio_config_io_proxy_copy_native_shared(shared_ptr) };
+        Ok(Self {
+            handle: crate::handle_result(handle)?,
+        })
+    }
+
     /// Create an on-demand provider whose lifetime is retained by OCIO.
     /// Provider errors and unwinding panics become OCIO errors without unwinding
     /// across the native boundary. A `panic=abort` build cannot catch panics.
@@ -559,6 +582,11 @@ impl Drop for ConfigIOProxy {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn native_shared_proxy_rejects_null() {
+        assert!(unsafe { ConfigIOProxy::from_native_shared_ptr(std::ptr::null()) }.is_err());
+    }
 
     #[test]
     fn owned_payload_callback_rejects_invalid_buffer_without_mutation() {

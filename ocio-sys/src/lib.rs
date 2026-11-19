@@ -622,6 +622,7 @@ unsafe extern "C" {
         index: usize,
     ) -> *const i8;
     pub fn ocio_config_io_proxy_create() -> *mut c_void;
+    pub fn ocio_config_io_proxy_copy_native_shared(proxy: *const c_void) -> *mut c_void;
     pub fn ocio_config_io_proxy_create_with_callback(
         context: *mut c_void,
         read: unsafe extern "C" fn(

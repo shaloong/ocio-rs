@@ -25,6 +25,10 @@ extern "C" {
     fn creator_fixture_reset_destroyed();
     fn creator_fixture_calls(index: u32) -> u32;
     fn creator_fixture_sections_match() -> bool;
+    fn proxy_fixture_create() -> *mut c_void;
+    fn proxy_fixture_empty() -> *mut c_void;
+    fn proxy_fixture_destroy(ptr: *mut c_void);
+    fn proxy_fixture_destroyed() -> u32;
     fn image_fixture_rgba(data: *mut f32) -> *mut c_void;
     fn image_fixture_planar(data: *mut f32) -> *mut c_void;
     fn image_fixture_custom(data: *mut f32) -> *mut c_void;
@@ -147,6 +151,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ocio_rs::version_hex(),
         "headers and runtime must match"
     );
+    {
+        use std::ffi::CStr;
+        assert!(
+            unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(std::ptr::null()) }.is_err()
+        );
+        let empty = unsafe { proxy_fixture_empty() };
+        assert!(unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(empty) }.is_err());
+        unsafe { proxy_fixture_destroy(empty) };
+        let native = unsafe { proxy_fixture_create() };
+        let proxy = unsafe { ocio_rs::ConfigIOProxy::from_native_shared_ptr(native) }?;
+        unsafe { proxy_fixture_destroy(native) };
+        let path = CStr::from_bytes_with_nul(b"asset.lut\0")?;
+        assert_eq!(proxy.try_config_data_bytes()?.unwrap(), b"cfg\0bytes");
+        assert_eq!(proxy.read_lut_data_cstr(path)?, [0, 1, 255]);
+        assert_eq!(proxy.read_fast_lut_file_hash_cstr(path)?, b"native-hash");
+        let failing_path = CStr::from_bytes_with_nul(b"raise\0")?;
+        assert!(proxy.read_lut_data_cstr(failing_path).is_err());
+        assert_eq!(proxy.read_lut_data_cstr(path)?, [0, 1, 255]);
+        let context = ocio_rs::Context::create()?;
+        context.set_config_io_proxy_object(&proxy)?;
+        let config = Config::raw()?;
+        config.set_config_io_proxy_object(&proxy)?;
+        drop(proxy);
+        assert_eq!(unsafe { proxy_fixture_destroyed() }, 0);
+        let retained = context.try_config_io_proxy_object()?.unwrap();
+        drop(context);
+        assert_eq!(retained.read_lut_data_cstr(path)?, [0, 1, 255]);
+        drop(retained);
+        assert_eq!(unsafe { proxy_fixture_destroyed() }, 0);
+        let retained = config.try_config_io_proxy_object()?.unwrap();
+        drop(config);
+        assert_eq!(retained.read_fast_lut_file_hash_cstr(path)?, b"native-hash");
+        drop(retained);
+        assert_eq!(unsafe { proxy_fixture_destroyed() }, 1);
+    }
     check_native_image_descriptors()?;
     {
         let native = unsafe { creator_fixture_unknown_property() };

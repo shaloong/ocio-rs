@@ -7,6 +7,26 @@ static std::atomic<unsigned> destroyed{0};
 static unsigned calls[7] = {};
 static bool sections_match = false;
 
+static std::atomic<unsigned> proxy_destroyed{0};
+class NativeProxy final : public OCIO::ConfigIOProxy {
+public:
+    ~NativeProxy() override { ++proxy_destroyed; }
+    std::vector<uint8_t> getLutData(const char* path) const override {
+        if (std::strcmp(path, "raise") == 0) throw OCIO::Exception("proxy fixture error");
+        return {0, 1, 255};
+    }
+    std::string getConfigData() const override { return std::string("cfg\0bytes", 9); }
+    std::string getFastLutFileHash(const char*) const override { return "native-hash"; }
+};
+extern "C" void* proxy_fixture_create() {
+    return new OCIO::ConfigIOProxyRcPtr(std::make_shared<NativeProxy>());
+}
+extern "C" void* proxy_fixture_empty() { return new OCIO::ConfigIOProxyRcPtr(); }
+extern "C" void proxy_fixture_destroy(void* ptr) {
+    delete static_cast<OCIO::ConfigIOProxyRcPtr*>(ptr);
+}
+extern "C" unsigned proxy_fixture_destroyed() { return proxy_destroyed.load(); }
+
 // Deliberately not a GpuShaderDesc. It delegates storage to an OCIO descriptor
 // solely to keep this test fixture small; its creator virtuals are independent.
 class Creator final : public OCIO::GpuShaderCreator, public std::enable_shared_from_this<Creator> {

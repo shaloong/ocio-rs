@@ -49,8 +49,8 @@ excluded from the callable API requirement:
 The table records the exact inventory boundary; it does not independently
 prove that every signature or external subclass behavior is covered.
 
-On the current branch, the name checker matches 1,607 bridge declarations
-and 1,389 checked wrapper names. Its selected-class method-name counts match
+On the current branch, the name checker matches 1,608 bridge declarations
+and 1,390 checked wrapper names. Its selected-class method-name counts match
 865/865 against 2.4.1, 1,005/1,005 against 2.5.2, and 1,013/1,013 against
 2.6.0. These are lexical checks, not evidence for overload signatures,
 ownership, errors, behavior, or the 13 separately reviewed classes.

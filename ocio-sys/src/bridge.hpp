@@ -234,6 +234,8 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
 
 // --- ConfigIOProxy ---
 void* ocio_config_io_proxy_create(void);
+// Copies an OCIO::ConfigIOProxyRcPtr supplied by a matching native runtime.
+void* ocio_config_io_proxy_copy_native_shared(const void* proxy);
 typedef bool (*ocio_proxy_write_callback)(void* destination, const unsigned char* data, size_t len);
 bool ocio_config_archive_to_writer(void* handle, void* context, ocio_proxy_write_callback write);
 typedef bool (*ocio_proxy_read_callback)(void* context, int kind, const char* path,

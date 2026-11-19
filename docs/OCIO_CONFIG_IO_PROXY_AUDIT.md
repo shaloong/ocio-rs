@@ -27,6 +27,15 @@ The bridge rejects a null nonempty payload or a length beyond `ptrdiff_t`
 before pointer arithmetic and records failure even if a raw native provider
 ignores the write callback's return value.
 
+`unsafe ConfigIOProxy::from_native_shared_ptr` also accepts an existing C++
+`ConfigIOProxyRcPtr` compiled against the matching native ABI. It copies the
+shared pointer rather than the proxy or data. The caller must ensure the proxy
+and any externally owned state remain valid and safe for native concurrent use
+until all retaining configs, contexts and other owners have released it. The
+manual native interop fixture checks a C++ subclass, null/empty shared pointers,
+binary payloads, exception propagation and retained ownership on Windows with
+native 2.4.1, 2.5.2 and 2.6.0; this is not a proof for arbitrary subclasses.
+
 The `try_lut_data_cstr` convenience uses the native fast hash as an availability
 check for custom providers, whereas the direct `read_*` / `with_*` methods
 invoke each virtual operation independently. The built-in in-memory proxy
