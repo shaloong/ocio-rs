@@ -521,6 +521,74 @@ fn check_global_group_children_are_isolated() {
         try_current_config().unwrap().unwrap().serialize().unwrap(),
         serialized
     );
+    let editable_snapshot = try_current_config().unwrap().unwrap();
+    let space = editable_snapshot
+        .try_color_space("group-source")
+        .unwrap()
+        .unwrap();
+    let Some(ocio_rs::transform::Transform::Group(group_copy)) = space
+        .try_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+    else {
+        panic!("group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Group(nested_copy)) =
+        group_copy.try_transform(0).unwrap()
+    else {
+        panic!("nested group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Matrix(snapshot_leaf)) =
+        nested_copy.try_transform(0).unwrap()
+    else {
+        panic!("matrix expected")
+    };
+    snapshot_leaf.set_offset(&[0.5, 0.0, 0.0, 0.0]).unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized,
+        "editing a snapshot changed the global config"
+    );
+    let look = editable_snapshot.try_look("group-look").unwrap().unwrap();
+    let Some(ocio_rs::transform::Transform::Group(look_group)) = look.try_transform().unwrap()
+    else {
+        panic!("look group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Group(look_nested)) =
+        look_group.try_transform(0).unwrap()
+    else {
+        panic!("look nested group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Matrix(look_leaf)) =
+        look_nested.try_transform(0).unwrap()
+    else {
+        panic!("look matrix expected")
+    };
+    assert_eq!(
+        look_leaf.offset()[0],
+        0.5,
+        "snapshot lost native sharing between group roots"
+    );
+    let readonly = try_const_current_config().unwrap().unwrap();
+    let editable = readonly.create_editable_copy().unwrap();
+    let space = editable.try_color_space("group-source").unwrap().unwrap();
+    let Some(ocio_rs::transform::Transform::Group(group)) = space
+        .try_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+    else {
+        panic!("group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Group(nested)) = group.try_transform(0).unwrap() else {
+        panic!("nested group expected")
+    };
+    let Some(ocio_rs::transform::Transform::Matrix(leaf)) = nested.try_transform(0).unwrap() else {
+        panic!("matrix expected")
+    };
+    leaf.set_offset(&[0.75, 0.0, 0.0, 0.0]).unwrap();
+    assert_eq!(
+        try_current_config().unwrap().unwrap().serialize().unwrap(),
+        serialized,
+        "editing a copy of a read-only snapshot changed the global config"
+    );
     matrix
         .set_matrix(&[
             3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0,

@@ -171,6 +171,7 @@ bool ocio_is_env_variable_present(const char* name);
 
 // --- Global config ---
 void* ocio_get_current_config(void);
+void* ocio_get_isolated_current_config(void);
 void* ocio_get_const_current_config(void);
 void* ocio_get_isolated_const_current_config(void);
 void* ocio_processor_get_const_metadata(void* handle);

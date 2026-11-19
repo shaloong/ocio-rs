@@ -23,7 +23,7 @@ copy. Changes to shared children can affect both configs; coordinate mutation
 and clear affected processor caches before rebuilding processors. Use
 `GroupTransform::create_deep_copy` for an independent built-in transform graph.
 As a safety exception, the safe global-config setters detach group graphs
-before installation, and the safe read-only global getter creates a config
+before installation, and safe global getters detach them from each config
 snapshot. The explicit unsafe shared-global getter and raw FFI preserve native
 aliasing for callers able to synchronize all native access.
 Already-created processors do not automatically adopt later changes to a

@@ -309,8 +309,8 @@ pub fn is_stub_build() -> bool {
 
 /// Returns the process-global current OCIO config, if one is installed.
 ///
-/// The returned config is an editable native copy. OCIO's copy may retain
-/// group-transform children shared with the installed config. This helper
+/// The returned config is an editable snapshot with group-transform children
+/// detached from the installed config. This helper
 /// returns `None` both when no config is installed and when OCIO reports an
 /// error. Use [`try_current_config`] when those cases must be distinguished.
 ///
@@ -328,7 +328,7 @@ pub fn current_config() -> Option<Config> {
 /// errors separately.
 pub fn try_current_config() -> Result<Option<Config>> {
     clear_last_error();
-    let handle = unsafe { ocio_sys::ocio_get_current_config() };
+    let handle = unsafe { ocio_sys::ocio_get_isolated_current_config() };
     ocio_call_status()?;
     Ok(std::ptr::NonNull::new(handle).map(|handle| Config { handle }))
 }
@@ -338,8 +338,8 @@ pub fn try_current_config() -> Result<Option<Config>> {
 /// This makes a native config copy: OCIO's copy operation reads mutable lazy
 /// caches, so exposing the global object itself to safe callers on multiple
 /// threads would make concurrent reads and copies unsound. Reuse the snapshot
-/// for repeated operations. OCIO may still share group children between config
-/// copies; safe global installation detaches them from caller-owned children.
+/// for repeated operations. Group children are detached from the global config;
+/// further ordinary OCIO copies may share their own group children.
 /// The snapshot remains alive when another config is installed.
 pub fn try_const_current_config() -> Result<Option<ConstConfig>> {
     clear_last_error();

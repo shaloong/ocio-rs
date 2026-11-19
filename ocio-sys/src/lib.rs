@@ -219,6 +219,12 @@ unsafe extern "C" {
     /// of the same native config, including concurrent config copying. Const
     /// OCIO operations may modify lazy caches.
     pub fn ocio_get_const_current_config() -> *mut c_void;
+    /// Return an editable config snapshot with detached group children.
+    ///
+    /// # Safety
+    /// The native global config must not be accessed concurrently through
+    /// external aliases while the snapshot is being constructed.
+    pub fn ocio_get_isolated_current_config() -> *mut c_void;
     /// Return a read-only handle to an independent copy of the current config.
     ///
     /// # Safety

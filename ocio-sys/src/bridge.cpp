@@ -1746,9 +1746,13 @@ static void* ocio_rs_const_config_processor(const ocio::ConstConfigRcPtr& config
 
 // Config::createEditableCopy copies GroupTransform containers but retains their
 // mutable children. Detach group graphs before making a config process-global.
-static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr& root) {
+using ocio_rs_transform_copies = std::unordered_map<const ocio::Transform*, ocio::TransformRcPtr>;
+static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr& root,
+                                                  ocio_rs_transform_copies& copies) {
   auto group = std::dynamic_pointer_cast<const ocio::GroupTransform>(root);
   if (!group) return {};
+  auto existing_root = copies.find(root.get());
+  if (existing_root != copies.end()) return existing_root->second;
   const auto make_group = [](const ocio::ConstGroupTransformRcPtr& source) {
     auto copy = ocio::GroupTransform::Create();
     copy->setDirection(source->getDirection());
@@ -1758,7 +1762,7 @@ static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr
   auto result = make_group(group);
   struct Frame { ocio::ConstGroupTransformRcPtr source; ocio::GroupTransformRcPtr copy; int next; };
   std::vector<Frame> stack{{group, result, 0}};
-  std::unordered_map<const ocio::Transform*, ocio::TransformRcPtr> copies{{root.get(), result}};
+  copies.emplace(root.get(), result);
   std::unordered_set<const ocio::Transform*> active{root.get()};
   while (!stack.empty()) {
     auto& frame = stack.back();
@@ -1783,19 +1787,25 @@ static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr
   return result;
 }
 
+static ocio::TransformRcPtr ocio_rs_detach_group(const ocio::ConstTransformRcPtr& root) {
+  ocio_rs_transform_copies copies;
+  return ocio_rs_detach_group(root, copies);
+}
+
 static ocio::ConstConfigRcPtr ocio_rs_detach_global_config(const ocio::ConstConfigRcPtr& original) {
   ocio::ConfigRcPtr cfg;
   const auto writable = [&]() -> ocio::ConfigRcPtr {
     if (!cfg) cfg = original->createEditableCopy();
     return cfg;
   };
+  ocio_rs_transform_copies copies;
   std::vector<std::string> names;
   const auto cs_count = original->getNumColorSpaces(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL);
   for (int i = 0; i < cs_count; ++i) names.emplace_back(original->getColorSpaceNameByIndex(ocio::SEARCH_REFERENCE_SPACE_ALL, ocio::COLORSPACE_ALL, i));
   for (const auto& name : names) {
     auto source = original->getColorSpace(name.c_str());
-    auto to = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_TO_REFERENCE));
-    auto from = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_FROM_REFERENCE));
+    auto to = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_TO_REFERENCE), copies);
+    auto from = ocio_rs_detach_group(source->getTransform(ocio::COLORSPACE_DIR_FROM_REFERENCE), copies);
     if (to || from) {
       auto cs = source->createEditableCopy();
       if (to) cs->setTransform(to, ocio::COLORSPACE_DIR_TO_REFERENCE);
@@ -1807,8 +1817,8 @@ static ocio::ConstConfigRcPtr ocio_rs_detach_global_config(const ocio::ConstConf
   for (int i = 0; i < original->getNumLooks(); ++i) names.emplace_back(original->getLookNameByIndex(i));
   for (const auto& name : names) {
     auto source = original->getLook(name.c_str());
-    auto forward = ocio_rs_detach_group(source->getTransform());
-    auto inverse = ocio_rs_detach_group(source->getInverseTransform());
+    auto forward = ocio_rs_detach_group(source->getTransform(), copies);
+    auto inverse = ocio_rs_detach_group(source->getInverseTransform(), copies);
     if (forward || inverse) {
       auto look = source->createEditableCopy();
       if (forward) look->setTransform(forward);
@@ -1820,8 +1830,8 @@ static ocio::ConstConfigRcPtr ocio_rs_detach_global_config(const ocio::ConstConf
   for (int i = 0; i < original->getNumViewTransforms(); ++i) names.emplace_back(original->getViewTransformNameByIndex(i));
   for (const auto& name : names) {
     auto source = original->getViewTransform(name.c_str());
-    auto to = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_TO_REFERENCE));
-    auto from = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE));
+    auto to = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_TO_REFERENCE), copies);
+    auto from = ocio_rs_detach_group(source->getTransform(ocio::VIEWTRANSFORM_DIR_FROM_REFERENCE), copies);
     if (to || from) {
       auto view = source->createEditableCopy();
       if (to) view->setTransform(to, ocio::VIEWTRANSFORM_DIR_TO_REFERENCE);
@@ -1833,8 +1843,8 @@ static ocio::ConstConfigRcPtr ocio_rs_detach_global_config(const ocio::ConstConf
   for (int i = 0; i < original->getNumNamedTransforms(ocio::NAMEDTRANSFORM_ALL); ++i) names.emplace_back(original->getNamedTransformNameByIndex(ocio::NAMEDTRANSFORM_ALL, i));
   for (const auto& name : names) {
     auto source = original->getNamedTransform(name.c_str());
-    auto forward = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_FORWARD));
-    auto inverse = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_INVERSE));
+    auto forward = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_FORWARD), copies);
+    auto inverse = ocio_rs_detach_group(source->getTransform(ocio::TRANSFORM_DIR_INVERSE), copies);
     if (forward || inverse) {
       auto named = source->createEditableCopy();
       if (forward) named->setTransform(forward, ocio::TRANSFORM_DIR_FORWARD);
@@ -2035,6 +2045,23 @@ void* ocio_get_const_current_config(void) {
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
 }
+void* ocio_get_isolated_current_config(void) {
+#ifdef OCIO_RS_STUB
+  return nullptr;
+#else
+  try {
+    auto cfg = ocio::GetCurrentConfig();
+    if (!cfg) return nullptr;
+    auto detached = ocio_rs_detach_global_config(cfg);
+    auto snapshot = detached.get() == cfg.get()
+        ? cfg->createEditableCopy() : std::const_pointer_cast<ocio::Config>(detached);
+    auto handle = std::make_unique<ocio_rs_bridge::ConfigHandle>();
+    handle->inner = std::make_shared<ocio_rs_bridge::RealConfig>(
+        ocio_rs_bridge::RealConfig{std::move(snapshot)});
+    return handle.release();
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
+#endif
+}
 void* ocio_get_isolated_const_current_config(void) {
 #ifdef OCIO_RS_STUB
   return nullptr;
@@ -2042,7 +2069,9 @@ void* ocio_get_isolated_const_current_config(void) {
   try {
     auto cfg = ocio::GetCurrentConfig();
     if (!cfg) return nullptr;
-    ocio::ConstConfigRcPtr copy = cfg->createEditableCopy();
+    auto detached = ocio_rs_detach_global_config(cfg);
+    ocio::ConstConfigRcPtr copy = detached.get() == cfg.get()
+        ? ocio::ConstConfigRcPtr(cfg->createEditableCopy()) : std::move(detached);
     return new ocio::ConstConfigRcPtr(std::move(copy));
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
 #endif
