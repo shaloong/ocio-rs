@@ -51,11 +51,18 @@ impl GroupTransform {
     }
 
     /// Return the child transform at `index`, if present.
+    ///
+    /// The returned handle shares the native child rather than copying it.
+    /// Mutating it affects every group retaining that child. Replacing the
+    /// group's slot does not retarget an already returned handle.
     pub fn transform(&self, index: i32) -> Option<Transform> {
         self.try_transform(index).ok().flatten()
     }
 
-    /// Return the child transform at `index` while preserving OCIO query failures.
+    /// Return the shared native child while preserving OCIO query failures.
+    ///
+    /// This has the same sharing and mutation semantics as [`Self::transform`];
+    /// it does not copy the child transform.
     pub fn try_transform(&self, index: i32) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle =

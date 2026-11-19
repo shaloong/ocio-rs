@@ -16,6 +16,15 @@ ownership and editing semantics, not every transform subclass.
 | Metadata, direction and write formats | Corresponding group methods | Metadata handles retain their owner; external native mutation requires coordination. |
 | Write with editable or retained const config | `write_to_string`, `write_to_string_with_const_config`; native ostream through `ocio-sys` | Both pass the native config directly. The shared-config path retains the existing native `ConstConfig` and makes no editable config copy; string output is owned by Rust. |
 
+The 2.6 declarations were also checked individually: `Create`, both metadata
+overloads, const and mutable `getTransform(int)`, `getNumTransforms`,
+`appendTransform`, `prependTransform`, `write`, and the three static writer
+format queries are represented by the paths above. The mutable native child
+reference is wrapped as a retained shared child, not copied; `set_transform`
+replaces the native slot. Inherited base operations remain on `TransformHandle`.
+The Windows native 2.6 group suite passed 14 tests, including child retention,
+replacement, DAG sharing, cycle rejection and metadata ownership.
+
 Supporting in-place removal for every native group would require either an
 upstream public mutation API or a carefully validated custom implementation of
 the native group interface. A wrapper must preserve shared ownership, metadata,
