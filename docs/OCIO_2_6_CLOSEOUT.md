@@ -90,6 +90,31 @@ This scan groups declarations by spelling, not ABI signature; it may miss
 constructors, inline declarations, operators or parser-unrecognized forms. It
 is not a claim that all instance signatures or native behaviors are proven.
 
+For a finite review queue, a separate case-sensitive declaration scan of the
+installed 2.6 headers identified the following named families. The links are
+family-level evidence; entries whose audit only summarizes a family still need
+individual argument/ownership confirmation. This scan is not a compiler AST:
+constructors, inline bodies, macros and complicated declarations may be missed.
+In particular, `NamedTransform::getTransform` and static `GetTransform` are
+different names, not an overload family; both are in the named-transform audit.
+
+| Recognized overload names | Evidence |
+| --- | --- |
+| `Config::getProcessor`, `GetProcessorFromConfigs`, `getCacheID` | [Processor construction and cache overloads](OCIO_CONFIG_PROCESSOR_AUDIT.md). |
+| `Config::addDisplayView`, `addSharedView`, `getDefaultView`, `getNumViews`, `getView` | [Config views](OCIO_CONFIG_SURFACE_AUDIT.md); the alias-aware writers are also tested with distinct fields. |
+| `Config::getColorSpaceFromFilepath`, `getColorSpaceNameByIndex`, `getNumColorSpaces`, `getNamedTransformNameByIndex`, `getNumNamedTransforms`, `getRoleColorSpace`, `getSearchPath` | [Config families](OCIO_CONFIG_SURFACE_AUDIT.md) and rule notes below; check each selected argument shape where the family record is abbreviated. |
+| `LegacyViewingPipeline::getProcessor`, `MixingColorSpaceManager::getSlider`, `ConfigMerger::getMergedConfig` | [App helpers](OCIO_APP_HELPERS_AUDIT.md). |
+| `FileRules::insertRule`, `ColorSpace::Create` | Rule notes below and [color-space audit](OCIO_COLOR_SPACE_AUDIT.md). |
+| `Processor::getOptimizedCPUProcessor`, `getOptimizedProcessor`; `CPUProcessor::apply`; `GPUProcessor::extractGpuShaderInfo`; `GpuShaderCreator::addUniform`, `getDynamicProperty` | Processor notes below, [image descriptors](OCIO_IMAGE_DESC_AUDIT.md), and [GPU creator](OCIO_GPU_CREATOR_AUDIT.md). |
+| `Context::getSearchPath`, `resolveFileLocation`, `resolveStringVar`; `FormatMetadata::getAttributeValue`, `getChildElement` | [Context](OCIO_CONTEXT_AUDIT.md) and [metadata](OCIO_FORMAT_METADATA_AUDIT.md). |
+| `GradingBSplineCurve::Create`, `getControlPoint`; `GradingRGBCurve::Create`, `getCurve`; `GradingHueCurve::Create`, `getCurve` | [Grading curves](OCIO_GRADING_CURVE_AUDIT.md). |
+| `FixedFunctionTransform::Create`, `Lut1DTransform::Create`, `Lut3DTransform::Create`, `GroupTransform::getTransform` | [Core transforms](OCIO_TRANSFORM_CORE_AUDIT.md), [LUT](OCIO_LUT_MATRIX_EXPONENT_AUDIT.md), and [group ownership](OCIO_GROUP_TRANSFORM_AUDIT.md). |
+| Const/editable `getFormatMetadata` on `Baker`, `CDLTransform`, `ExponentTransform`, `ExponentWithLinearTransform`, `ExposureContrastTransform`, `FixedFunctionTransform`, all four grading transforms, `GroupTransform`, the three log transforms, both LUT transforms, `MatrixTransform`, and `RangeTransform` | [Metadata](OCIO_FORMAT_METADATA_AUDIT.md), [group ownership](OCIO_GROUP_TRANSFORM_AUDIT.md), and [Baker](OCIO_BAKER_PROCESSOR_METADATA_AUDIT.md). |
+
+The exact queue above supplements the independently counted 59-family review
+aid; the two scans use different parsers and are not equivalent inventories.
+Neither accounts for constructors or proves every callable instance signature.
+
 The public static entry points in the 2.6 `Config`, transform, and application
 helper class declarations were also inventoried separately. Their factories,
 registries, processor construction, CDL file loading, look resolution, format
