@@ -22,6 +22,16 @@ handle release, and diagnostics by the existing stream-to-text functions.
 `ConfigMerger::serialize` emits OCIOM rather than diagnostic text. No
 Rust-defined subclasses or duplicate overload spellings are required.
 
+The two `getSlider` signatures return the same manager-owned native object;
+the two-argument form first sets its mixing-space edge values. Rust's
+`slider_with_edges` and `slider` borrow that object exclusively, rather than
+copying it. The slider getters may report perceptual-space edges, so the
+regression verifies mixing-space endpoints and retained state rather than
+assuming the getters always equal the supplied values. This regression passed
+on Windows with native 2.4.1, 2.5.1, 2.5.2 and 2.6.0.
+The current app-helper behavior suite also passed on native 2.4.1 (9 tests),
+2.5.2 (14) and 2.6.0 (14).
+
 Windows native behavior suites passed on 2.4.1 (7 tests), 2.5.2 (10), and
 2.6.0 (10), including copy/retain semantics, lifetime after dropping parent
 handles, mutation through the shared low-level handle, and invalid indices.

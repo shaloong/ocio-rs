@@ -534,6 +534,18 @@ fn mixing_manager_retains_config_and_slider_round_trips() {
     assert!((slider.slider_to_mixing(1.0) - 0.9).abs() < 1e-5);
     let value = 0.35;
     assert!((slider.mixing_to_slider(slider.slider_to_mixing(value)) - value).abs() < 1e-5);
+
+    // Both native overloads borrow the same manager-owned slider.
+    let edges = (slider.slider_min_edge(), slider.slider_max_edge());
+    let mut slider = manager.slider();
+    assert_eq!((slider.slider_min_edge(), slider.slider_max_edge()), edges);
+    slider.set_slider_min_edge(0.2);
+    slider.set_slider_max_edge(0.8);
+    assert!((slider.slider_to_mixing(0.0) - 0.2).abs() < 1e-5);
+    assert!((slider.slider_to_mixing(1.0) - 0.8).abs() < 1e-5);
+    let edges = (slider.slider_min_edge(), slider.slider_max_edge());
+    let slider = manager.slider();
+    assert_eq!((slider.slider_min_edge(), slider.slider_max_edge()), edges);
 }
 
 #[test]
