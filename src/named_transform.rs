@@ -11,6 +11,26 @@ pub struct NamedTransform {
 }
 
 impl NamedTransform {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// It may contain sensitive paths from transforms.
+    pub fn serialize(&self) -> Result<String> {
+        crate::const_config_item::serialize_named_item(self.handle, 1, false)
+    }
+    /// Resolve a native transform, synthesizing it from the opposite direction if needed.
+    /// Returns an error if neither direction is defined.
+    pub fn resolve_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 11, direction as i32)
+    }
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: TransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 4, direction as i32)
+    }
     /// Create a new default named transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -18,7 +38,8 @@ impl NamedTransform {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an editable copy of this named transform.
+    /// Create an editable copy. Native group-transform copies may retain
+    /// children shared with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -101,19 +122,43 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
-    /// Get the number of aliases for this named transform.
+    /// Get the number of aliases, or zero on error or overflow.
     pub fn num_aliases(&self) -> i32 {
-        unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) as i32 }
+        self.try_num_aliases()
+            .ok()
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or(0)
     }
 
-    /// Get the alias at the given index.
-    pub fn alias(&self, index: i32) -> Option<String> {
-        unsafe {
+    /// Get the full native alias count, preserving bridge failures.
+    pub fn try_num_aliases(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_named_transform_get_num_aliases(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Get an alias by native index, returning `None` when out of range.
+    pub fn try_alias_at(&self, index: usize) -> Result<Option<String>> {
+        if index >= self.try_num_aliases()? {
+            return Ok(None);
+        }
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_alias(
                 self.handle.as_ptr(),
-                index as usize,
+                index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Get the alias at the given index, or `None` if it is out of range.
+    pub fn alias(&self, index: i32) -> Option<String> {
+        self.try_alias_at(usize::try_from(index).ok()?)
+            .ok()
+            .flatten()
     }
 
     /// Add an alias for this named transform.
@@ -138,11 +183,22 @@ impl NamedTransform {
 
     /// Returns whether this named transform has the given alias.
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
-        let a = match cstring(alias) {
-            Ok(a) => a,
-            Err(_) => return false,
+        self.try_has_alias(alias).unwrap_or(false)
+    }
+
+    /// Check an alias while preserving invalid input and bridge errors.
+    pub fn try_has_alias(&self, alias: impl AsRef<str>) -> Result<bool> {
+        self.try_has_alias_cstr(&cstring(alias)?)
+    }
+
+    /// Check an alias without allocating a C string.
+    pub fn try_has_alias_cstr(&self, alias: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_named_transform_has_alias(self.handle.as_ptr(), alias.as_ptr().cast())
         };
-        unsafe { ocio_sys::ocio_named_transform_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Clear all aliases, panicking on error.
@@ -162,28 +218,62 @@ impl NamedTransform {
 
     /// Get the number of categories for this named transform.
     pub fn num_categories(&self) -> i32 {
-        unsafe { ocio_sys::ocio_named_transform_get_num_categories(self.handle.as_ptr()) }
+        self.try_num_categories().unwrap_or(0)
+    }
+
+    /// Get the native category count, preserving bridge errors.
+    pub fn try_num_categories(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count =
+            unsafe { ocio_sys::ocio_named_transform_get_num_categories(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if count < 0 {
+            return Err(OcioError::ValidationFailed(
+                "negative native category count".into(),
+            ));
+        }
+        Ok(count)
     }
 
     /// Get the category at the given index.
     pub fn category(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_category(index).ok().flatten()
+    }
+
+    /// Get a category, preserving bridge errors; invalid indices return `None`.
+    pub fn try_category(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_named_transform_get_category(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Returns whether this named transform has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
-        let c = match cstring(category) {
-            Ok(c) => c,
-            Err(_) => return false,
+        self.try_has_category(category).unwrap_or(false)
+    }
+
+    /// Check a category while preserving invalid input and bridge errors.
+    pub fn try_has_category(&self, category: impl AsRef<str>) -> Result<bool> {
+        self.try_has_category_cstr(&cstring(category)?)
+    }
+
+    /// Check a category without allocating a C string.
+    pub fn try_has_category_cstr(&self, category: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_named_transform_has_category(
+                self.handle.as_ptr(),
+                category.as_ptr().cast(),
+            )
         };
-        unsafe {
-            ocio_sys::ocio_named_transform_has_category(self.handle.as_ptr(), c.as_ptr().cast())
-        }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Add a category to this named transform.
@@ -219,12 +309,13 @@ impl NamedTransform {
         crate::ocio_call_status()
     }
 
-    /// Get the transform for the given direction.
+    /// Get an editable copy for the given direction. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: TransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: TransformDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -254,6 +345,25 @@ impl NamedTransform {
                 direction as i32,
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Set a shared read-only transform or clear the selected direction.
+    /// OCIO stores an editable copy. A copied group still shares its children.
+    pub fn try_set_const_transform(
+        &self,
+        transform: Option<&crate::transform::ConstTransform>,
+        direction: TransformDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                3,
+                transform.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                direction as i32,
+            )
+        };
         crate::ocio_call_status()
     }
 }

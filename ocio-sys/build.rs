@@ -150,6 +150,9 @@ fn main() {
         println!("cargo:rustc-cfg=ocio_stub");
         println!("cargo:stub=1");
     }
+    if cfg!(feature = "v2_6") {
+        build.define("OCIO_RS_FEATURE_V2_6", None);
+    }
     if cfg!(feature = "v2_5") {
         build.define("OCIO_RS_FEATURE_V2_5", None);
     }
@@ -337,6 +340,19 @@ fn build_ocio_from_source(
         )
     })?;
     let source_version = ocio_source_version(&ocio_source)?;
+    let vendored = ocio_source
+        == PathBuf::from(
+            env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is always set by Cargo"),
+        )
+        .join("vendor/OpenColorIO");
+    if vendored {
+        println!(
+            "cargo:rerun-if-changed={}",
+            ocio_source
+                .join("src/OpenColorIO/ops/lut1d/Lut1DOpGPU.cpp")
+                .display()
+        );
+    }
 
     let dst = std::panic::catch_unwind(|| {
         let mut config = cmake::Config::new(&ocio_source);
@@ -450,6 +466,10 @@ fn build_ocio_from_source(
             .unwrap_or("unknown error");
         BuildInternalClosureError::failed(&format!("OpenColorIO bundled build failed: {msg}"))
     })?;
+
+    if vendored {
+        println!("cargo:vendored_lut_rows_fixed=1");
+    }
 
     // The source build already owns the install prefix, so describe it directly
     // instead of invoking an external pkg-config executable to rediscover it.

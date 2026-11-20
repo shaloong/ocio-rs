@@ -8,6 +8,9 @@ use crate::{
 use ocio_sys;
 
 /// ASC CDL slope/offset/power and saturation transform.
+///
+/// Fallible getters preserve native errors; compatibility getters retain their
+/// fallback values when a native query fails.
 pub struct CDLTransform {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -207,12 +210,29 @@ impl CDLTransform {
         self.try_sat_luma_coefs().unwrap_or([0.0, 0.0, 0.0])
     }
 
-    /// Return the current CDL style.
+    /// Return the current CDL style, or `Asc` if the query fails.
     pub fn style(&self) -> CDLStyle {
         let s = unsafe { ocio_sys::ocio_cdl_transform_get_style(self.handle.as_ptr()) };
         match s {
             1 => CDLStyle::NoClamp,
             _ => CDLStyle::Asc,
+        }
+    }
+
+    /// Return the current CDL style, preserving native query errors.
+    pub fn try_style(&self) -> Result<CDLStyle> {
+        if cfg!(ocio_stub) {
+            return Err(OcioError::Ocio(
+                "CDL query requires native OpenColorIO".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_cdl_transform_get_style(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        match value {
+            0 => Ok(CDLStyle::Asc),
+            1 => Ok(CDLStyle::NoClamp),
+            _ => Err(OcioError::Ocio(format!("unknown CDL style {value}"))),
         }
     }
 
@@ -228,9 +248,22 @@ impl CDLTransform {
         crate::ocio_call_status()
     }
 
-    /// Return the CDL transform id.
+    /// Return the CDL transform id, or `None` if the query fails.
     pub fn id(&self) -> Option<String> {
         unsafe { cstr_from_mut(ocio_sys::ocio_cdl_transform_get_id(self.handle.as_ptr())) }
+    }
+
+    /// Return the CDL id, preserving native query errors.
+    pub fn try_id(&self) -> Result<Option<String>> {
+        if cfg!(ocio_stub) {
+            return Err(OcioError::Ocio(
+                "CDL query requires native OpenColorIO".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_cdl_transform_get_id(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { cstr_from_mut(ptr) })
     }
 
     /// Set the CDL transform id.
@@ -298,13 +331,27 @@ impl CDLTransform {
         crate::ocio_call_status()
     }
 
-    /// Return the first SOP description.
+    /// Return the first SOP description, or `None` if the query fails.
     pub fn first_sop_description(&self) -> Option<String> {
         unsafe {
             cstr_from_mut(ocio_sys::ocio_cdl_transform_get_first_sop_description(
                 self.handle.as_ptr(),
             ))
         }
+    }
+
+    /// Return the first SOP description, preserving native query errors.
+    pub fn try_first_sop_description(&self) -> Result<Option<String>> {
+        if cfg!(ocio_stub) {
+            return Err(OcioError::Ocio(
+                "CDL query requires native OpenColorIO".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_cdl_transform_get_first_sop_description(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(unsafe { cstr_from_mut(ptr) })
     }
 
     /// Set the first SOP description.
@@ -358,6 +405,15 @@ impl Drop for CDLTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(ocio_stub)]
+    fn fallible_metadata_queries_require_native_backend() {
+        let cdl = CDLTransform::create().unwrap();
+        assert!(cdl.try_style().is_err());
+        assert!(cdl.try_id().is_err());
+        assert!(cdl.try_first_sop_description().is_err());
+    }
 
     #[test]
     fn create_cdl() {

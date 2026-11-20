@@ -11,11 +11,98 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::ViewingRules;
 
+#[test]
+#[cfg(target_pointer_width = "32")]
+fn oversized_indices_are_rejected_before_native_narrowing() {
+    let rules = ViewingRules::create().unwrap();
+    let oversized = u64::from(u32::MAX) + 1;
+    assert!(matches!(
+        rules.try_remove_rule(oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_color_space(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_encoding(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_remove_color_space(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_remove_encoding(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_custom_key_name(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn stub_rule_lookup_reports_unavailable() {
+    let rules = ViewingRules::create().expect("viewing rules create");
+    assert!(rules.try_index_for_rule("anything").is_err());
+    assert_eq!(rules.rule_index("anything"), None);
+}
+
 fn viewing_rules_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn invalid_indices_preserve_existing_rules_and_selectors() {
+    let rules = ViewingRules::create().unwrap();
+    rules.insert_rule(0, "Spaces").unwrap();
+    rules.add_color_space(0, "raw").unwrap();
+    rules.insert_rule(1, "Encodings").unwrap();
+    rules.add_encoding(1, "scene-linear").unwrap();
+    assert!(rules.try_remove_rule(2).is_err());
+    assert!(rules.try_remove_color_space(0, 1).is_err());
+    assert!(rules.try_remove_encoding(1, 1).is_err());
+    assert_eq!(rules.num_entries(), 2);
+    assert_eq!(rules.try_num_color_spaces(0).unwrap(), 1);
+    assert_eq!(rules.try_num_encodings(1).unwrap(), 1);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn oversized_indices_do_not_alias_existing_rules_or_selectors() {
+    let rules = ViewingRules::create().unwrap();
+    rules.insert_rule(0, "Spaces").unwrap();
+    rules.add_color_space(0, "raw").unwrap();
+    rules.insert_rule(1, "Encodings").unwrap();
+    rules.add_encoding(1, "scene-linear").unwrap();
+    rules.set_custom_key(0, "key", "value").unwrap();
+    let oversized = u64::from(u32::MAX) + 1;
+
+    assert!(rules.try_remove_rule(oversized).is_err());
+    assert!(rules.try_color_space(0, oversized).is_err());
+    assert!(rules.try_encoding(1, oversized).is_err());
+    assert!(rules.try_remove_color_space(0, oversized).is_err());
+    assert!(rules.try_remove_encoding(1, oversized).is_err());
+    assert!(rules.try_custom_key_name(0, oversized).is_err());
+    assert_eq!(rules.num_entries(), 2);
+    assert_eq!(rules.try_num_color_spaces(0).unwrap(), 1);
+    assert_eq!(rules.try_num_encodings(1).unwrap(), 1);
+    assert_eq!(rules.try_num_custom_keys(0).unwrap(), 1);
+
+    let config = ocio_rs::Config::raw().unwrap();
+    config.set_viewing_rules_object(&rules).unwrap();
+    let shared = config.try_const_viewing_rules().unwrap().unwrap();
+    let too_large_for_native_token = usize::try_from(oversized).unwrap_or(i32::MAX as usize + 1);
+    assert!(shared.color_space(0, too_large_for_native_token).is_err());
+    assert!(shared.encoding(1, too_large_for_native_token).is_err());
+    assert_eq!(shared.color_space(0, 0).unwrap(), Some(c"raw"));
+    assert_eq!(shared.encoding(1, 0).unwrap(), Some(c"scene-linear"));
 }
 
 #[test]
@@ -39,6 +126,7 @@ fn viewing_rules_round_trip_and_copy_behavior() {
         0
     );
     assert_eq!(rules.rule_index("SceneRule"), Some(0));
+    assert_eq!(rules.rule_index("scenerule"), Some(0));
     assert!(matches!(
         rules.try_index_for_rule("DefinitelyMissingRule"),
         Err(ocio_rs::OcioError::Ocio(_))

@@ -158,8 +158,11 @@ impl FileTransform {
         unsafe { ocio_sys::ocio_file_transform_get_num_formats() }
     }
 
-    /// Return the reader format name at `index`.
+    /// Return the reader format name at `index`, or `None` for an invalid index.
     pub fn format_name_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_file_transform_get_format_name_by_index(
                 index,
@@ -168,7 +171,11 @@ impl FileTransform {
     }
 
     /// Return the reader format extension at `index`, without a leading dot.
+    /// Returns `None` for an invalid index.
     pub fn format_extension_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_file_transform_get_format_extension_by_index(
                 index,

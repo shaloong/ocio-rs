@@ -12,15 +12,32 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::transform::MatrixTransform;
-#[cfg(feature = "v2_5")]
-use ocio_rs::SearchReferenceSpaceType;
-use ocio_rs::{ReferenceSpaceType, ViewTransform, ViewTransformDirection};
+use ocio_rs::{
+    ReferenceSpaceType, SearchReferenceSpaceType, ViewTransform, ViewTransformDirection, ViewType,
+};
 
 fn config_display_management_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn legacy_display_symbol_links_in_stub() {
+    unsafe {
+        let config = ocio_sys::ocio_config_create_raw();
+        assert!(!config.is_null());
+        ocio_sys::ocio_config_add_display(
+            config,
+            c"display".as_ptr(),
+            c"view".as_ptr(),
+            c"raw".as_ptr(),
+            c"".as_ptr(),
+        );
+        ocio_sys::ocio_config_destroy(config);
+    }
 }
 
 fn identity_view_transform(name: &str) -> ViewTransform {
@@ -31,6 +48,203 @@ fn identity_view_transform(name: &str) -> ViewTransform {
     view_transform.set_transform(Some(&identity), ViewTransformDirection::ToReference);
     view_transform.set_transform(Some(&identity), ViewTransformDirection::FromReference);
     view_transform
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn basic_display_view_arguments_are_color_space_and_looks() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    config
+        .add_display("BasicDisplay", "BasicView", "raw", "+film")
+        .unwrap();
+    let display_index = config.try_display_all_index("BasicDisplay").unwrap();
+    assert!(display_index >= 0);
+    assert_eq!(
+        config.try_display_all(display_index).unwrap().as_deref(),
+        Some("BasicDisplay")
+    );
+    assert_eq!(config.try_display_all(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(i32::MAX).unwrap(), None);
+    assert!(!config.is_display_temporary(-1));
+    assert!(!config.is_display_temporary(i32::MAX));
+    #[cfg(feature = "v2_5")]
+    {
+        config.set_display_temporary(-1, true).unwrap();
+        config.set_display_temporary(i32::MAX, true).unwrap();
+        assert!(!config.is_display_temporary(display_index));
+        config.set_display_temporary(display_index, true).unwrap();
+        assert!(config.is_display_temporary(display_index));
+        config.set_display_temporary(display_index, false).unwrap();
+    }
+    assert_eq!(
+        config.try_display_all(config.num_displays_all()).unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .display_view_color_space_name("BasicDisplay", "BasicView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .display_view_looks("BasicDisplay", "BasicView")
+            .as_deref(),
+        Some("+film")
+    );
+    // Exercise the legacy exported symbol directly, including its argument order.
+    let (raw, is_const) = ocio_rs::ConfigRef::from(&config).as_raw_parts();
+    assert!(!is_const);
+    unsafe {
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_config_add_display(
+            raw,
+            c"LegacyDisplay".as_ptr(),
+            c"LegacyView".as_ptr(),
+            c"raw".as_ptr(),
+            c"-film".as_ptr(),
+        );
+        assert!(ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(
+        config
+            .display_view_color_space_name("LegacyDisplay", "LegacyView")
+            .as_deref(),
+        Some("raw")
+    );
+    assert_eq!(
+        config
+            .display_view_looks("LegacyDisplay", "LegacyView")
+            .as_deref(),
+        Some("-film")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn view_type_selects_shared_and_display_defined_views() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    let display = "TypedDisplay";
+    let transform = identity_view_transform("TypedTransform");
+    config.try_add_view_transform(&transform).unwrap();
+    config
+        .add_shared_view("Shared", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        assert!(config.try_has_shared_view("Shared").unwrap());
+        assert!(!config.try_has_shared_view("Missing").unwrap());
+        assert!(!config.try_has_shared_view("").unwrap());
+        assert!(config.try_has_shared_view("bad\0view").is_err());
+    }
+    config.add_display_shared_view(display, "Shared").unwrap();
+    config
+        .add_display_view_detailed(display, "Defined", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+    config.add_virtual_display_shared_view("Shared").unwrap();
+    assert_eq!(
+        config.try_view_by_type(ViewType::Shared, "", -1).unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ViewType::Shared, "", i32::MAX)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ViewType::Shared, "", 0)
+            .unwrap()
+            .as_deref(),
+        Some("Shared")
+    );
+    config
+        .add_virtual_display_view("Defined", "TypedTransform", "raw", "", "", "")
+        .unwrap();
+
+    for (view_type, expected) in [
+        (ViewType::Shared, "Shared"),
+        (ViewType::DisplayDefined, "Defined"),
+    ] {
+        assert_eq!(config.try_num_views_by_type(view_type, display).unwrap(), 1);
+        assert_eq!(
+            config
+                .try_view_by_type(view_type, display, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+        assert_eq!(
+            config
+                .try_virtual_display_num_views_by_type(view_type)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            config
+                .try_virtual_display_view_by_type(view_type, 0)
+                .unwrap()
+                .as_deref(),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        config
+            .try_num_views_by_reference_space(SearchReferenceSpaceType::All, "")
+            .unwrap(),
+        1
+    );
+    assert!(config
+        .try_num_views_by_reference_space(SearchReferenceSpaceType::All, display)
+        .is_err());
+    assert!(config
+        .try_virtual_display_num_views(SearchReferenceSpaceType::All)
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn filtered_views_preserve_native_fallback_when_no_rule_matches() {
+    let _guard = config_display_management_test_lock();
+    let config = create_test_config().unwrap();
+    let transform = identity_view_transform("FilteredTransform");
+    config.try_add_view_transform(&transform).unwrap();
+
+    let rules = ocio_rs::ViewingRules::create().unwrap();
+    rules.insert_rule(0, "OtherSpaceOnly").unwrap();
+    rules.add_color_space(0, "other-space").unwrap();
+    config.set_viewing_rules_object(&rules).unwrap();
+    config
+        .add_display_view_detailed(
+            "FilteredDisplay",
+            "Fallback",
+            "FilteredTransform",
+            "raw",
+            "",
+            "OtherSpaceOnly",
+            "",
+        )
+        .unwrap();
+
+    assert_eq!(
+        config
+            .try_num_views_with_color_space("FilteredDisplay", "raw")
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        config
+            .try_view_with_color_space("FilteredDisplay", "raw", 0)
+            .unwrap()
+            .as_deref(),
+        Some("Fallback")
+    );
+    assert!(config
+        .try_view_with_color_space("FilteredDisplay", "missing-space", 0)
+        .is_err());
 }
 
 #[cfg(feature = "v2_5")]

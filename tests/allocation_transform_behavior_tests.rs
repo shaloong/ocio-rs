@@ -42,6 +42,12 @@ fn allocation_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.allocation(), Allocation::Lg2);
     assert_eq!(transform.num_vars(), 3);
     assert_f32_vec_close(&transform.vars(), &[-1.0, 1.0, 0.0], 1e-6);
+    let mut output = [0.0; 3];
+    transform.try_vars_into(&mut output).unwrap();
+    assert_f32_vec_close(&output, &[-1.0, 1.0, 0.0], 1e-6);
+    let mut short = [42.0; 2];
+    assert!(transform.try_vars_into(&mut short).is_err());
+    assert_eq!(short, [42.0; 2]);
     assert_eq!(transform.direction(), TransformDirection::Forward);
 
     let copy = transform
@@ -63,6 +69,12 @@ fn allocation_transform_value_copy_and_direction_behavior() {
     assert_eq!(transform.num_vars(), 3);
     assert_f32_vec_close(&transform.vars(), &[-1.0, 1.0, 0.0], 1e-6);
     assert_eq!(transform.direction(), TransformDirection::Forward);
+
+    copy.set_vars(&[]).expect("clear allocation copy variables");
+    assert_eq!(copy.try_num_vars().unwrap(), 0);
+    assert!(copy.try_vars().unwrap().is_empty());
+    copy.try_vars_into(&mut []).unwrap();
+    assert_eq!(transform.num_vars(), 3);
 }
 
 #[test]

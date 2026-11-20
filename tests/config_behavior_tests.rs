@@ -54,6 +54,391 @@ fn config_processor_from_configs_with_interchange_rejects_empty_interchange_beha
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cross_config_processors_apply_explicit_interchange_and_contexts() {
+    use ocio_rs::transform::MatrixTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, Config};
+    let _guard = config_test_lock();
+    let src = Config::create().unwrap();
+    let dst = Config::create().unwrap();
+    for (config, reference_name, color_name, factor, direction) in [
+        (
+            &src,
+            "src_reference",
+            "input",
+            2.0,
+            ColorSpaceDirection::ToReference,
+        ),
+        (
+            &dst,
+            "dst_reference",
+            "output",
+            3.0,
+            ColorSpaceDirection::FromReference,
+        ),
+    ] {
+        let reference = ColorSpace::create().unwrap();
+        reference.set_name(reference_name).unwrap();
+        config.try_add_color_space(&reference).unwrap();
+        config.set_role("aces_interchange", reference_name).unwrap();
+        let color = ColorSpace::create().unwrap();
+        color.set_name(color_name).unwrap();
+        color
+            .try_set_transform(
+                &MatrixTransform::scale(&[factor, factor, factor, 1.0]).unwrap(),
+                direction,
+            )
+            .unwrap();
+        config.try_add_color_space(&color).unwrap();
+    }
+    let src_ctx = src.current_context().unwrap();
+    let dst_ctx = dst.current_context().unwrap();
+    let processors = [
+        Config::processor_from_configs(&src, "input", &dst, "output").unwrap(),
+        src.processor_from_configs_with_contexts(&src_ctx, &src, "input", &dst_ctx, &dst, "output")
+            .unwrap(),
+        src.processor_from_configs_with_interchange(
+            &src,
+            "input",
+            "src_reference",
+            &dst,
+            "output",
+            "dst_reference",
+        )
+        .unwrap(),
+        src.processor_from_configs_with_contexts_and_interchange(
+            &src_ctx,
+            &src,
+            "input",
+            "src_reference",
+            &dst_ctx,
+            &dst,
+            "output",
+            "dst_reference",
+        )
+        .unwrap(),
+    ];
+    for processor in processors {
+        let mut pixel = [0.1, 0.2, 0.3, 1.0];
+        processor
+            .optimized_cpu_processor(0)
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        for (actual, expected) in pixel.into_iter().zip([0.6, 1.2, 1.8, 1.0]) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+    }
+    dst.add_display("Screen", "View", "output", "").unwrap();
+    for direction in [
+        ocio_rs::TransformDirection::Forward,
+        ocio_rs::TransformDirection::Inverse,
+    ] {
+        let processors = [
+            src.processor_from_configs_to_display(&src, "input", &dst, "Screen", "View", direction)
+                .unwrap(),
+            src.processor_from_configs_to_display_with_contexts(
+                &src_ctx, &src, "input", &dst_ctx, &dst, "Screen", "View", direction,
+            )
+            .unwrap(),
+            src.processor_from_configs_to_display_with_interchange(
+                &src,
+                "input",
+                "src_reference",
+                &dst,
+                "Screen",
+                "View",
+                "dst_reference",
+                direction,
+            )
+            .unwrap(),
+            src.processor_from_configs_to_display_with_contexts_and_interchange(
+                &src_ctx,
+                &src,
+                "input",
+                "src_reference",
+                &dst_ctx,
+                &dst,
+                "Screen",
+                "View",
+                "dst_reference",
+                direction,
+            )
+            .unwrap(),
+        ];
+        for processor in processors {
+            let mut pixel = if direction == ocio_rs::TransformDirection::Forward {
+                [0.1, 0.2, 0.3, 1.0]
+            } else {
+                [0.6, 1.2, 1.8, 1.0]
+            };
+            let expected = if direction == ocio_rs::TransformDirection::Forward {
+                [0.6, 1.2, 1.8, 1.0]
+            } else {
+                [0.1, 0.2, 0.3, 1.0]
+            };
+            processor
+                .optimized_cpu_processor(0)
+                .unwrap()
+                .try_apply_rgba(&mut pixel)
+                .unwrap();
+            for (actual, expected) in pixel.into_iter().zip(expected) {
+                assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+            }
+        }
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn cross_config_processors_use_their_respective_contexts_for_luts() {
+    use ocio_rs::transform::FileTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, Config, Context};
+    let _guard = config_test_lock();
+    let source = Config::create().unwrap();
+    let destination = Config::create().unwrap();
+    for (config, reference, name, path, direction) in [
+        (
+            &source,
+            "src_ref",
+            "input",
+            "${SRC_LUT_DIR}/lut1.clf",
+            ColorSpaceDirection::ToReference,
+        ),
+        (
+            &destination,
+            "dst_ref",
+            "output",
+            "${DST_LUT_DIR}/lut1.clf",
+            ColorSpaceDirection::FromReference,
+        ),
+    ] {
+        let reference_space = ColorSpace::create().unwrap();
+        reference_space.set_name(reference).unwrap();
+        config.try_add_color_space(&reference_space).unwrap();
+        config.set_role("aces_interchange", reference).unwrap();
+        let file = FileTransform::create().unwrap();
+        file.set_src(path).unwrap();
+        let space = ColorSpace::create().unwrap();
+        space.set_name(name).unwrap();
+        space.try_set_transform(&file, direction).unwrap();
+        config.try_add_color_space(&space).unwrap();
+    }
+    let working_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/configs/context_test1");
+    let src_context = Context::create().unwrap();
+    let dst_context = Context::create().unwrap();
+    src_context
+        .set_working_dir(working_dir.to_str().unwrap())
+        .unwrap();
+    dst_context
+        .set_working_dir(working_dir.to_str().unwrap())
+        .unwrap();
+    src_context.set_string_var("SRC_LUT_DIR", "shot1").unwrap();
+    dst_context.set_string_var("DST_LUT_DIR", "shot4").unwrap();
+    destination
+        .add_display("Screen", "View", "output", "")
+        .unwrap();
+    let processors = [
+        source
+            .processor_from_configs_with_contexts(
+                &src_context,
+                &source,
+                "input",
+                &dst_context,
+                &destination,
+                "output",
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_with_contexts_and_interchange(
+                &src_context,
+                &source,
+                "input",
+                "src_ref",
+                &dst_context,
+                &destination,
+                "output",
+                "dst_ref",
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_to_display_with_contexts(
+                &src_context,
+                &source,
+                "input",
+                &dst_context,
+                &destination,
+                "Screen",
+                "View",
+                ocio_rs::TransformDirection::Forward,
+            )
+            .unwrap(),
+        source
+            .processor_from_configs_to_display_with_contexts_and_interchange(
+                &src_context,
+                &source,
+                "input",
+                "src_ref",
+                &dst_context,
+                &destination,
+                "Screen",
+                "View",
+                "dst_ref",
+                ocio_rs::TransformDirection::Forward,
+            )
+            .unwrap(),
+    ];
+    for processor in processors {
+        let mut pixel = [0.001, 0.002, 0.003, 1.0];
+        processor
+            .optimized_cpu_processor(0)
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+    }
+    assert!(source
+        .processor_from_configs_with_contexts(
+            &dst_context,
+            &source,
+            "input",
+            &src_context,
+            &destination,
+            "output"
+        )
+        .is_err());
+
+    // Distinct context-owned variables make a source/destination swap observable
+    // on the read-only cross-config overloads as well.
+    let src_context_config = Config::create().unwrap();
+    let dst_context_config = Config::create().unwrap();
+    for config in [&src_context_config, &dst_context_config] {
+        config
+            .set_working_dir(working_dir.to_str().unwrap())
+            .unwrap();
+    }
+    src_context_config
+        .add_environment_var("SRC_LUT_DIR", "shot1")
+        .unwrap();
+    dst_context_config
+        .add_environment_var("DST_LUT_DIR", "shot4")
+        .unwrap();
+    let src_const_context = src_context_config
+        .try_const_current_context()
+        .unwrap()
+        .unwrap();
+    let dst_const_context = dst_context_config
+        .try_const_current_context()
+        .unwrap()
+        .unwrap();
+    let src_const = ocio_rs::ColorSpaceMenuParameters::create(&source)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let dst_const = ocio_rs::ColorSpaceMenuParameters::create(&destination)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    use ocio_rs::ConfigProcessorTarget as Target;
+    for target in [
+        Target::ColorSpace(c"output"),
+        Target::DisplayView {
+            display: c"Screen",
+            view: c"View",
+            direction: ocio_rs::TransformDirection::Forward,
+        },
+    ] {
+        for interchange in [None, Some((c"src_ref", c"dst_ref"))] {
+            let processor = src_const
+                .processor_to_config(
+                    c"input",
+                    &dst_const,
+                    target,
+                    Some((&src_const_context, &dst_const_context)),
+                    interchange,
+                )
+                .unwrap();
+            let mut pixel = [0.001, 0.002, 0.003, 1.0];
+            processor
+                .optimized_cpu_processor(0)
+                .unwrap()
+                .try_apply_rgba(&mut pixel)
+                .unwrap();
+            for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+                assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+            }
+        }
+    }
+    assert!(src_const
+        .processor_to_config(
+            c"input",
+            &dst_const,
+            Target::ColorSpace(c"output"),
+            Some((&dst_const_context, &src_const_context)),
+            None,
+        )
+        .is_err());
+
+    // Dynamic processor isolation rebuilds against editable config copies; it
+    // must still use the caller-supplied source and destination contexts.
+    let dynamic_source = source.create_editable_copy().unwrap();
+    let dynamic_space = dynamic_source.try_color_space("input").unwrap().unwrap();
+    let file = FileTransform::create().unwrap();
+    file.set_src("${SRC_LUT_DIR}/lut1.clf").unwrap();
+    let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.try_make_exposure_dynamic().unwrap();
+    let group = ocio_rs::transform::GroupTransform::create().unwrap();
+    group.append_transform(&exposure).unwrap();
+    group.append_transform(&file).unwrap();
+    dynamic_space
+        .try_set_transform(&group, ColorSpaceDirection::ToReference)
+        .unwrap();
+    dynamic_source.try_add_color_space(&dynamic_space).unwrap();
+    let dynamic_const = ocio_rs::ColorSpaceMenuParameters::create(&dynamic_source)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let build = || {
+        dynamic_const
+            .processor_to_config(
+                c"input",
+                &dst_const,
+                Target::ColorSpace(c"output"),
+                Some((&src_const_context, &dst_const_context)),
+                Some((c"src_ref", c"dst_ref")),
+            )
+            .unwrap()
+    };
+    let first = build();
+    let second = build();
+    let mut pixel = [0.001, 0.002, 0.003, 1.0];
+    second
+        .optimized_cpu_processor(0)
+        .unwrap()
+        .try_apply_rgba(&mut pixel)
+        .unwrap();
+    for (actual, expected) in pixel.into_iter().zip([0.4, 0.8, 1.2, 1.0]) {
+        assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+    }
+    first
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(1.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_processor_from_configs_with_contexts_and_interchange_rejects_empty_interchange_behavior()
 {
     let _guard = config_test_lock();
@@ -335,6 +720,16 @@ fn config_virtual_display_shared_view_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn family_separator_rejects_unicode_without_truncating() {
+    let _guard = config_test_lock();
+    let config = create_test_config().unwrap();
+    config.try_set_family_separator('/').unwrap();
+    assert!(config.try_set_family_separator('\u{013a}').is_err());
+    assert_eq!(config.family_separator(), '/');
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_role_mutation_errors_surface_behavior() {
     let _guard = config_test_lock();
     if is_stub() {
@@ -349,6 +744,25 @@ fn config_role_mutation_errors_surface_behavior() {
         matches!(err, ocio_rs::OcioError::Ocio(_)),
         "unexpected error variant: {err:?}"
     );
+
+    let before = config.num_roles();
+    config.set_role("UnitEmptyRole", "").unwrap();
+    assert_eq!(
+        config
+            .try_role_color_space("UnitEmptyRole")
+            .unwrap()
+            .as_deref(),
+        Some("")
+    );
+    config.remove_role("UnitEmptyRole").unwrap();
+    config.set_role("UnitRemovableRole", "raw").unwrap();
+    assert!(config.has_role("UnitRemovableRole"));
+    assert_eq!(config.num_roles(), before + 1);
+    config.remove_role("UNITREMOVABLEROLE").unwrap();
+    assert!(!config.has_role("UnitRemovableRole"));
+    assert_eq!(config.num_roles(), before);
+    config.remove_role("UnitRemovableRole").unwrap();
+    assert!(config.remove_role("").is_err());
 }
 
 #[test]
@@ -455,6 +869,90 @@ fn config_static_color_space_identification_preserves_errors() {
             .expect("identify interchange spaces");
     assert!(src_interchange.is_some());
     assert!(builtin_interchange.is_some());
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    let retained = baker.const_config().unwrap().unwrap();
+    let flags = retained.processor_cache_flags().unwrap();
+    let native_name = std::ffi::CString::new(color_space.as_str()).unwrap();
+    for (source, builtin) in [
+        (
+            ocio_rs::ConfigRef::from(&config),
+            ocio_rs::ConfigRef::from(&retained),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&retained),
+            ocio_rs::ConfigRef::from(&config),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&retained),
+            ocio_rs::ConfigRef::from(&retained),
+        ),
+    ] {
+        assert_eq!(
+            Config::try_identify_builtin_color_space_ref(source, builtin, &color_space)
+                .unwrap()
+                .as_deref(),
+            Some(color_space.as_str())
+        );
+        assert_eq!(
+            Config::try_identify_interchange_space_ref(source, &color_space, builtin, &color_space)
+                .unwrap(),
+            (src_interchange.clone(), builtin_interchange.clone())
+        );
+        let (source_handle, source_const) = source.as_raw_parts();
+        let (builtin_handle, builtin_const) = builtin.as_raw_parts();
+        // The handles are live and no thread concurrently accesses either config.
+        unsafe {
+            ocio_sys::ocio_error_clear_last();
+            let name = ocio_sys::ocio_config_identify_builtin_color_space_refs(
+                source_handle,
+                source_const,
+                builtin_handle,
+                builtin_const,
+                native_name.as_ptr(),
+            );
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), native_name.as_c_str());
+            let mut src_name = std::ptr::null();
+            let mut dst_name = std::ptr::null();
+            ocio_sys::ocio_config_identify_interchange_space_refs(
+                &mut src_name,
+                &mut dst_name,
+                source_handle,
+                source_const,
+                native_name.as_ptr(),
+                builtin_handle,
+                builtin_const,
+                native_name.as_ptr(),
+            );
+            assert!(ocio_sys::ocio_error_get_last().is_null());
+            assert!(!src_name.is_null() && !dst_name.is_null());
+            assert_eq!(
+                std::ffi::CStr::from_ptr(src_name).to_str().unwrap(),
+                src_interchange.as_deref().unwrap()
+            );
+            assert_eq!(
+                std::ffi::CStr::from_ptr(dst_name).to_str().unwrap(),
+                builtin_interchange.as_deref().unwrap()
+            );
+        }
+    }
+    assert_eq!(retained.processor_cache_flags().unwrap(), flags);
+    unsafe {
+        let (source, source_const) = ocio_rs::ConfigRef::from(&retained).as_raw_parts();
+        ocio_sys::ocio_error_clear_last();
+        let name = ocio_sys::ocio_config_identify_builtin_color_space_refs(
+            source,
+            source_const,
+            source,
+            source_const,
+            c"definitely_missing_color_space".as_ptr(),
+        );
+        assert!(name.is_null());
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+    }
 
     assert!(Config::try_identify_builtin_color_space(
         &config,
@@ -462,4 +960,31 @@ fn config_static_color_space_identification_preserves_errors() {
         "definitely_missing_color_space",
     )
     .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_interchange_identification_preserves_source_and_destination() {
+    use ocio_rs::ColorSpace;
+    let _guard = config_test_lock();
+    let source = Config::create().unwrap();
+    let builtin = Config::create().unwrap();
+    for (config, name) in [
+        (&source, "source_interchange"),
+        (&builtin, "builtin_interchange"),
+    ] {
+        let space = ColorSpace::create().unwrap();
+        space.set_name(name).unwrap();
+        config.try_add_color_space(&space).unwrap();
+        config.set_role("aces_interchange", name).unwrap();
+    }
+    let (src, dst) = Config::try_identify_interchange_space(
+        &source,
+        "source_interchange",
+        &builtin,
+        "builtin_interchange",
+    )
+    .unwrap();
+    assert_eq!(src.as_deref(), Some("source_interchange"));
+    assert_eq!(dst.as_deref(), Some("builtin_interchange"));
 }

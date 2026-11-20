@@ -37,11 +37,26 @@ impl FixedFunctionTransform {
     }
 
     /// Return the current fixed-function style.
+    ///
+    /// For compatibility, unknown styles fall back to `AcesRedMod03`.
+    /// Use [`Self::try_style`] to detect a style unavailable at this feature level.
     pub fn style(&self) -> FixedFunctionStyle {
+        self.try_style().unwrap_or(FixedFunctionStyle::AcesRedMod03)
+    }
+
+    /// Return the current style, reporting unknown styles and native errors.
+    ///
+    /// A config may contain a style supported by the native library but not by
+    /// the enabled Rust interface feature. Enable the corresponding feature
+    /// to represent that style as a [`FixedFunctionStyle`].
+    pub fn try_style(&self) -> Result<FixedFunctionStyle> {
+        crate::clear_last_error();
         let s = unsafe {
             ocio_sys::ocio_fixed_function_transform_get_style(self.handle.as_ptr() as *mut c_void)
         };
-        match s {
+        crate::ocio_call_status()?;
+        let style = match s {
+            0 => FixedFunctionStyle::AcesRedMod03,
             1 => FixedFunctionStyle::AcesRedMod10,
             2 => FixedFunctionStyle::AcesGlow03,
             3 => FixedFunctionStyle::AcesGlow10,
@@ -67,8 +82,15 @@ impl FixedFunctionTransform {
             21 => FixedFunctionStyle::RgbToHsyLog,
             #[cfg(feature = "v2_5")]
             22 => FixedFunctionStyle::RgbToHsyVid,
-            _ => FixedFunctionStyle::AcesRedMod03,
-        }
+            #[cfg(feature = "v2_6")]
+            23 => FixedFunctionStyle::AcesRgbToHmj20,
+            _ => {
+                return Err(OcioError::ValidationFailed(format!(
+                    "fixed-function style {s} is unavailable at the enabled interface level"
+                )))
+            }
+        };
+        Ok(style)
     }
 
     /// Set the fixed-function style, panicking on validation error.
@@ -88,10 +110,16 @@ impl FixedFunctionTransform {
 
     /// Return the number of parameters required by the current style.
     pub fn try_num_params(&self) -> Result<i32> {
+        i32::try_from(self.try_num_params_usize()?).map_err(|_| {
+            OcioError::ValidationFailed("fixed-function parameter count exceeds i32::MAX".into())
+        })
+    }
+
+    /// Return the full native parameter count without narrowing it to `i32`.
+    pub fn try_num_params_usize(&self) -> Result<usize> {
         crate::clear_last_error();
-        let v = unsafe {
-            ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) as i32
-        };
+        let v =
+            unsafe { ocio_sys::ocio_fixed_function_transform_get_num_params(self.handle.as_ptr()) };
         crate::ocio_call_status()?;
         Ok(v)
     }
@@ -103,20 +131,40 @@ impl FixedFunctionTransform {
 
     /// Return the style-specific parameter values.
     pub fn try_params(&self) -> Result<Vec<f64>> {
-        let n = self.try_num_params()?;
-        if n <= 0 {
+        let n = self.try_num_params_usize()?;
+        if n == 0 {
             return Ok(Vec::new());
         }
-        let mut params = vec![0.0f64; n as usize];
+        let mut params = super::reserve_native_items(n, "FixedFunctionTransform::try_params")?;
+        params.resize(n, 0.0f64);
+        self.read_params(&mut params)?;
+        Ok(params)
+    }
+
+    /// Copy parameters into an exactly sized buffer without allocating.
+    /// A length mismatch leaves the buffer unchanged.
+    pub fn try_params_into(&self, output: &mut [f64]) -> Result<()> {
+        let count = self.try_num_params_usize()?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "fixed-function parameter buffer length mismatch".into(),
+            ));
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        self.read_params(output)
+    }
+
+    fn read_params(&self, output: &mut [f64]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_fixed_function_transform_get_params(
                 self.handle.as_ptr(),
-                params.as_mut_ptr() as *mut c_void,
+                output.as_mut_ptr() as *mut c_void,
             );
         }
-        crate::ocio_call_status()?;
-        Ok(params)
+        crate::ocio_call_status()
     }
 
     /// Return the style-specific parameter values.
@@ -126,8 +174,8 @@ impl FixedFunctionTransform {
 
     /// Set the style-specific parameters for this transform.
     ///
-    /// OCIO validates the parameter count for the current style. Invalid
-    /// parameter lists are returned as [`OcioError::Ocio`].
+    /// OCIO may defer style-specific validation until the transform is
+    /// validated or used to construct a processor.
     pub fn set_params(&self, params: &[f64]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -228,8 +276,55 @@ mod tests {
     #[test]
     fn style_no_crash() {
         let ft = FixedFunctionTransform::create(FixedFunctionStyle::AcesRedMod03).unwrap();
-        let _ = ft.style();
+        assert_eq!(ft.try_style().unwrap(), FixedFunctionStyle::AcesRedMod03);
         ft.try_set_style(FixedFunctionStyle::RgbToHsv).unwrap();
+    }
+
+    #[test]
+    #[cfg(not(feature = "v2_5"))]
+    #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.5 or later")]
+    fn newer_native_style_is_not_misreported_by_fallible_query() {
+        if crate::version_hex() < 0x0205_0000 {
+            return;
+        }
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_fixed_function_transform_create_with_params(20, std::ptr::null(), 0)
+        };
+        let ft = FixedFunctionTransform {
+            handle: crate::handle_result(handle).unwrap(),
+        };
+        assert!(matches!(
+            ft.try_style(),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        assert_eq!(ft.style(), FixedFunctionStyle::AcesRedMod03);
+    }
+
+    #[test]
+    #[cfg(not(feature = "v2_6"))]
+    #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO 2.6 or later")]
+    fn native_26_hmj_is_not_misreported_at_older_interface_levels() {
+        if crate::version_hex() < 0x0206_0000 {
+            return;
+        }
+        let params = [0.7347, 0.2653, 0.0, 1.0, 0.0001, -0.0770, 0.32168, 0.33767];
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_fixed_function_transform_create_with_params(
+                23,
+                params.as_ptr(),
+                params.len(),
+            )
+        };
+        let ft = FixedFunctionTransform {
+            handle: crate::handle_result(handle).unwrap(),
+        };
+        assert!(matches!(
+            ft.try_style(),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        assert_eq!(ft.style(), FixedFunctionStyle::AcesRedMod03);
     }
 
     #[test]

@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main, develop]
   pull_request:
   schedule:
     - cron: "0 3 * * 1"
@@ -55,12 +56,12 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
+        run: cargo clippy --workspace --all-targets --no-default-features --features v2_6 -- -D warnings
 
       - name: Docs
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --no-deps --no-default-features --features v2_5
+        run: cargo doc --workspace --no-deps --no-default-features --features v2_6
 
       - name: Parity
         run: cargo run --bin check_parity --quiet -- --check-l3
@@ -106,7 +107,9 @@ jobs:
   minimum-ocio:
     name: Minimum OpenColorIO (${{ matrix.ocio }})
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    # Keep legacy upstream dependency builds on a stable toolchain baseline.
+    # Other jobs continue to exercise the latest runner.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
@@ -137,6 +140,21 @@ jobs:
       - name: Test exact minimum
         run: cargo test --workspace --no-default-features --features "${{ matrix.features }}" -- --test-threads=1
 
+      - name: Test OpenColorIO 2.5.0 ABI boundary
+        if: matrix.ocio == '2.5.1'
+        # 2.5.0 is supported by the baseline, but differs from both 2.4.1
+        # and 2.5.1 in GPU bindings and enum values. Keep this targeted and
+        # scheduled/manual rather than adding another PR job or matrix entry.
+        run: |
+          git clone --depth 1 --branch v2.5.0 \
+            https://github.com/AcademySoftwareFoundation/OpenColorIO.git "$RUNNER_TEMP/ocio-2.5.0"
+          export OCIO_SOURCE_DIR="$RUNNER_TEMP/ocio-2.5.0"
+          export OCIO_RS_TEST_VERSION=2.5.0
+          cargo test --locked --no-default-features --features bundled \
+            --test gpu_shader_desc_behavior_tests --test enum_text_behavior_tests \
+            --test const_config_item_behavior_tests --test runtime_helpers_behavior_tests \
+            -- --test-threads=1
+
   bundled:
     name: Bundled (${{ matrix.os }})
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
@@ -161,6 +179,68 @@ jobs:
         # The real-OCIO bundled suite exercises process-global config/env/cache
         # paths, so run it serially for deterministic CI behavior.
         run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+
+  ocio-2-6:
+    name: OpenColorIO 2.6.0 compatibility
+    # Changes to the bridge must be tested against the newest supported native
+    # API before merging, not only in the scheduled/dispatch matrix.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OCIO_SOURCE_DIR: ${{ github.workspace }}/third_party/OpenColorIO
+      OCIO_RS_TEST_VERSION: 2.6.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install native dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ cmake ninja-build
+      - name: Select OpenColorIO 2.6.0
+        run: |
+          git -C third_party/OpenColorIO fetch --depth=1 origin tag v2.6.0
+          git -C third_party/OpenColorIO checkout --detach v2.6.0
+      - name: Test representative 2.6 behavior
+        if: github.event_name == 'pull_request'
+        run: |
+          cargo test --locked --no-default-features --features bundled,v2_6 \
+            --test ocio_2_6_behavior_tests --test gpu_shader_desc_behavior_tests --test gpu_texture_metadata_alloc_tests \
+            --test app_helpers_behavior_tests --test const_current_config_behavior_tests \
+            --test const_config_item_behavior_tests \
+            --test config_behavior_tests --test config_core_behavior_tests --test context_behavior_tests --test format_metadata_behavior_tests \
+            --test group_transform_behavior_tests \
+            --test matrix_op_tests \
+            --test config_io_proxy_behavior_tests --test baker_behavior_tests \
+            --test grading_bspline_behavior_tests \
+            --test grading_rgb_curve_transform_behavior_tests \
+            --test grading_hue_curve_transform_behavior_tests \
+            --test dynamic_property_behavior_tests \
+            --test processor_behavior_tests --test cpu_processor_behavior_tests \
+            -- --test-threads=1
+      - name: Test all interface levels
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        run: |
+          cargo run --locked --bin check_parity -- --check-l3
+          cargo test --workspace --no-default-features --features bundled -- --test-threads=1
+          cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+          cargo test --workspace --no-default-features --features bundled,v2_6 -- --test-threads=1
+      - name: Verify installed-library discovery and runtime
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        run: |
+          prefix="$RUNNER_TEMP/ocio-2.6-install"
+          build="$RUNNER_TEMP/ocio-2.6-build"
+          cmake -S "$OCIO_SOURCE_DIR" -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" \
+            -DBUILD_SHARED_LIBS=ON -DOCIO_INSTALL_EXT_PACKAGES=ALL \
+            -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_PYTHON=OFF -DOCIO_BUILD_TESTS=OFF
+          cmake --build "$build" --target install --parallel 2
+          export OCIO_INSTALL_DIR="$prefix"
+          export OCIO_RS_LINK=dynamic
+          export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib64:$build/ext/dist/lib:$build/ext/dist/lib64"
+          cargo test --locked --no-default-features --features system,v2_6 \
+            --test app_helpers_behavior_tests --test ocio_2_6_behavior_tests \
+            --test runtime_helpers_behavior_tests -- --test-threads=1
 
   bundled-zlib-ng:
     name: Bundled with system zlib-ng (Arch Linux)

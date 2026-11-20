@@ -22,9 +22,95 @@
 
 extern "C" {
 
+typedef bool (*ocio_attribute_visitor)(void* context, const char* name, size_t name_len,
+                                       const char* value, size_t value_len);
+
 // --- Error state ---
 const char* ocio_error_get_last(void);
+// 0: ordinary error or no error; 1: OCIO ExceptionMissingFile.
+int ocio_error_get_last_kind(void);
 void ocio_error_clear_last(void);
+void* ocio_config_get_const_color_space(void* config, const char* name);
+void* ocio_config_get_const_current_context(void* config);
+void* ocio_config_get_const_rules(void* config, int kind);
+void ocio_const_rules_destroy(void* handle, int kind);
+void* ocio_const_rules_editable_copy(void* handle, int kind);
+size_t ocio_const_rules_number(void* handle, int kind, int field, size_t rule, const char* name);
+const char* ocio_const_rules_text(void* handle, int kind, int field, size_t rule, size_t index);
+void* ocio_config_get_const_named_item(void* config, const char* name, int kind);
+void ocio_const_named_item_destroy(void* handle, int kind);
+const char* ocio_named_item_serialize_text(void* handle, int kind, bool is_const);
+const char* ocio_const_named_item_name(void* handle, int kind);
+const char* ocio_const_named_item_text(void* handle, int kind, int field, size_t index, const char* argument);
+size_t ocio_const_named_item_number(void* handle, int kind, int field);
+bool ocio_const_named_item_contains(void* handle, int kind, int field, const char* value);
+void* ocio_const_named_item_editable_copy(void* handle, int kind);
+void* ocio_config_get_processor_from_const_named_transform(void* config, void* context, void* named, int direction);
+void ocio_const_context_destroy(void* handle);
+void* ocio_const_context_create_editable_copy(void* handle);
+const char* ocio_const_context_get_text(void* handle, int field, const char* argument);
+int ocio_const_context_get_int(void* handle, int field);
+const char* ocio_const_context_get_indexed_text(void* handle, int field, int index);
+void* ocio_const_context_get_config_io_proxy(void* handle);
+const char* ocio_const_context_resolve_with_used(void* handle, int field, const char* input, void* used);
+void ocio_context_add_string_vars_from_const(void* handle, void* source);
+const char* ocio_context_serialize_text(void* handle, bool is_const);
+void* ocio_config_get_processor_with_const_context(void* config, void* context, const char* source, const char* destination);
+void* ocio_config_get_processor_const_transform_with_const_context(void* config, void* context, void* transform, int direction);
+void* ocio_config_get_processor_from_color_space_refs(void* config, void* context,
+    void* source, bool source_const, void* destination, bool destination_const);
+void* ocio_color_space_set_get_const_color_space(void* set, const char* name);
+void ocio_const_color_space_destroy(void* handle);
+const char* ocio_const_color_space_get_name(void* handle);
+const char* ocio_const_color_space_get_description(void* handle);
+const char* ocio_const_color_space_text(void* handle, int field, size_t index);
+int64_t ocio_const_color_space_number(void* handle, int field);
+size_t ocio_const_color_space_alias_count(void* handle);
+bool ocio_const_color_space_contains(void* handle, int field, const char* value);
+#ifdef OCIO_RS_FEATURE_V2_5
+const char* ocio_const_color_space_interchange_attribute(void* handle, const char* name);
+#endif
+void ocio_const_color_space_allocation_vars(void* handle, float* out, size_t count);
+void* ocio_const_color_space_create_editable_copy(void* handle);
+void* ocio_const_color_space_copy_transform(void* handle, int direction);
+void* ocio_get_const_child_transform(void* parent, int parent_kind, int direction);
+int ocio_const_transform_group_child_count(void* handle);
+void ocio_const_transform_destroy(void* handle);
+int ocio_const_transform_get_type(void* handle);
+int ocio_const_transform_get_direction(void* handle);
+void ocio_const_transform_validate(void* handle);
+const char* ocio_transform_diagnostic_text(void* handle, bool is_const);
+void* ocio_const_transform_create_editable_copy(void* handle);
+// Creates an owned typed handle to the same native transform. The caller must
+// use it only for native const operations and destroy it with ocio_transform_destroy.
+void* ocio_const_transform_create_readonly_handle(void* handle);
+// Returns a retained const metadata handle, or null if this transform type
+// has no metadata. Mutable aliases must not be accessed while it is in use.
+void* ocio_const_transform_get_const_metadata(void* handle);
+void* ocio_config_get_processor_from_const_transform(void* config, void* context, void* transform, int direction);
+
+typedef struct OcioImageDescInfo {
+  int64_t width, height, x_stride, y_stride, channel_stride, num_channels;
+  int32_t bit_depth, channel_order;
+  bool has_alpha, is_rgba_packed, is_float, is_packed, is_planar;
+} OcioImageDescInfo;
+void ocio_image_desc_info(const void* image, OcioImageDescInfo* out);
+typedef struct OcioImageDescPointers {
+  void *red, *green, *blue, *alpha, *packed;
+} OcioImageDescPointers;
+void ocio_image_desc_pointers(const void* image, OcioImageDescPointers* out);
+const char* ocio_image_desc_diagnostic_text(const void* image);
+
+typedef struct OcioPackedBuffer {
+  void* data;
+  int64_t width, height, channel_stride, x_stride, y_stride;
+  int bit_depth, channel_order;
+} OcioPackedBuffer;
+void* ocio_image_desc_create_packed(const OcioPackedBuffer* image);
+void ocio_image_desc_destroy(void* image);
+void ocio_cpu_processor_apply_packed_image(void* handle, const OcioPackedBuffer* image);
+void ocio_cpu_processor_convert_packed_image(void* handle, const OcioPackedBuffer* source,
+                                             const OcioPackedBuffer* destination);
 
 typedef struct OcioGpuTexture2DInfo {
   const char* texture_name;
@@ -57,6 +143,10 @@ typedef struct OcioGpuUniformInfo {
 
 // --- Runtime ---
 bool ocio_runtime_is_stub(void);
+const char* ocio_enum_to_string(int kind, int value);
+int ocio_enum_from_string(int kind, const char* text);
+int ocio_bit_depth_utility(int depth, bool as_integer);
+int ocio_direction_utility(int first, int second, bool combine);
 
 // --- Global utility functions ---
 const char* ocio_get_version(void);
@@ -67,6 +157,8 @@ void ocio_log_message(int level, const char* message);
 typedef void (*OcioLogCallback)(const char* message);
 void ocio_set_logging_callback(OcioLogCallback callback);
 void ocio_reset_logging_callback(void);
+// Output must remain valid until the bridge copies it immediately after the
+// callback returns. A null output is accepted only when output_len is zero.
 typedef bool (*OcioComputeHashCallback)(const uint8_t* input, size_t input_len, const uint8_t** output, size_t* output_len);
 void ocio_set_compute_hash_callback(OcioComputeHashCallback callback);
 void ocio_reset_compute_hash_callback(void);
@@ -79,7 +171,48 @@ bool ocio_is_env_variable_present(const char* name);
 
 // --- Global config ---
 void* ocio_get_current_config(void);
+void* ocio_get_isolated_current_config(void);
+void* ocio_get_const_current_config(void);
+void* ocio_get_isolated_const_current_config(void);
+void* ocio_processor_get_const_metadata(void* handle);
+void* ocio_processor_get_const_format_metadata(void* handle, bool per_transform, int index);
+void ocio_const_format_metadata_destroy(void* handle);
+const char* ocio_const_format_metadata_text(void* handle, int field, int index, const char* name);
+int ocio_const_format_metadata_count(void* handle, bool children);
+void* ocio_const_format_metadata_child(void* handle, int index);
+void* ocio_const_format_metadata_copy(void* handle);
+const char* ocio_format_metadata_stream(void* handle, bool is_const);
+void ocio_const_processor_metadata_destroy(void* handle);
+int ocio_const_processor_metadata_count(void* handle, bool looks);
+const char* ocio_const_processor_metadata_entry(void* handle, bool looks, int index);
+void* ocio_const_processor_metadata_copy(void* handle);
+void ocio_const_config_destroy(void* handle);
+void* ocio_const_config_editable_copy(void* handle);
+const char* ocio_const_config_text(void* handle, int field);
+int ocio_const_config_environment_mode(void* handle);
+const char* ocio_config_get_cache_id_explicit(void* config, bool read_only, const void* context);
+int32_t ocio_const_config_get_processor_cache_flags(void* config);
+void ocio_const_config_set_processor_cache_flags(void* config, int32_t flags);
+void* ocio_const_config_get_color_space(void* handle, const char* name);
+void* ocio_const_config_get_context(void* handle);
+void* ocio_const_config_get_named_item(void* handle, const char* name, int kind);
+void* ocio_const_config_get_rules(void* handle, int kind);
+void* ocio_const_config_get_processor(void* handle, const char* source, const char* destination);
+void* ocio_const_config_get_processor_with_context(void* handle, void* context, const char* source, const char* destination);
+void* ocio_const_config_get_processor_from_transform(void* handle, void* context, void* transform, int direction);
+void* ocio_const_config_get_processor_display(void* handle, void* context, const char* source, const char* display, const char* view, int direction);
+void* ocio_const_config_get_processor_named(void* handle, void* context, const char* name, int direction);
+void* ocio_const_config_get_processor_spaces(void* handle, void* context, void* source, void* destination);
+void* ocio_const_config_get_processor_named_object(void* handle, void* context, void* named, int direction);
+void* ocio_const_configs_get_processor(void* source, const char* source_name,
+                                       void* destination, const char* target, const char* view,
+                                       int32_t direction, void* source_context, void* destination_context,
+                                       const char* source_interchange, const char* destination_interchange);
+void* ocio_const_config_get_builtin_processor(void* config, const char* local,
+                                              const char* builtin, bool from_builtin);
 void ocio_set_current_config(void* config);
+void ocio_set_const_current_config(void* config);
+void ocio_set_isolated_current_config(void* config, bool is_const);
 void ocio_clear_all_caches(void);
 
 // --- BuiltinConfigRegistry ---
@@ -101,15 +234,34 @@ const char* ocio_builtin_transform_registry_get_builtin_description(void* handle
 
 // --- ConfigIOProxy ---
 void* ocio_config_io_proxy_create(void);
+// Copies an OCIO::ConfigIOProxyRcPtr supplied by a matching native runtime.
+void* ocio_config_io_proxy_copy_native_shared(const void* proxy);
+typedef bool (*ocio_proxy_write_callback)(void* destination, const unsigned char* data, size_t len);
+bool ocio_config_archive_to_writer(void* handle, void* context, ocio_proxy_write_callback write);
+typedef bool (*ocio_proxy_read_callback)(void* context, int kind, const char* path,
+                                        void* destination, ocio_proxy_write_callback write);
+// Takes ownership of context on all return paths.
+void* ocio_config_io_proxy_create_with_callback(void* context, ocio_proxy_read_callback read,
+                                                 void (*release)(void*));
+bool ocio_config_io_proxy_visit_lut_data(void* handle, const char* path, void* destination,
+                                        ocio_proxy_write_callback write);
+bool ocio_config_io_proxy_read_native(void* handle, const char* path, bool hash,
+                                      void* destination, ocio_proxy_write_callback write);
 void ocio_config_io_proxy_destroy(void* handle);
 void ocio_config_io_proxy_set_config_data(void* handle, const char* data);
 const char* ocio_config_io_proxy_get_config_data(void* handle);
+bool ocio_config_io_proxy_set_config_data_bytes(void* handle, const unsigned char* data, size_t len);
+bool ocio_config_io_proxy_visit_config_data(void* handle, void* destination, ocio_proxy_write_callback write);
 bool ocio_config_io_proxy_set_lut_data(
   void* handle,
   const char* filepath,
   const unsigned char* data,
   size_t len,
   const char* fastHash);
+bool ocio_config_io_proxy_set_lut_data_bytes(void* handle, const char* filepath,
+    const unsigned char* data, size_t len, const unsigned char* hash, size_t hash_len);
+bool ocio_config_io_proxy_visit_fast_lut_file_hash(void* handle, const char* filepath,
+    void* destination, ocio_proxy_write_callback write);
 size_t ocio_config_io_proxy_get_lut_data_size(void* handle, const char* filepath);
 bool ocio_config_io_proxy_has_lut_data(void* handle, const char* filepath);
 bool ocio_config_io_proxy_copy_lut_data(
@@ -123,6 +275,7 @@ const char* ocio_config_io_proxy_get_fast_lut_file_hash(void* handle, const char
 void* ocio_config_raw(void);
 void* ocio_config_from_file(const char* path);
 void* ocio_config_create_raw(void);
+void* ocio_config_create_empty(void);
 void* ocio_config_create_from_file(const char* path);
 void* ocio_config_create_from_builtin_config(const char* configName);
 void* ocio_config_create_from_env(void);
@@ -183,6 +336,8 @@ bool ocio_config_is_inactive_color_space(void* handle, const char* colorspace);
 bool ocio_config_is_color_space_linear(void* handle, const char* colorSpace, int referenceSpaceType);
 void* ocio_config_identify_builtin_color_space(void* handle, void* srcConfig, void* builtinConfig, const char* builtinColorSpaceName);
 void ocio_config_identify_interchange_space(void* handle, void* srcInterchangeName, void* builtinInterchangeName, void* srcConfig, const char* srcColorSpaceName, void* builtinConfig, const char* builtinColorSpaceName);
+const char* ocio_config_identify_builtin_color_space_refs(void* source, bool source_const, void* builtin, bool builtin_const, const char* name);
+void ocio_config_identify_interchange_space_refs(const char** source_interchange, const char** builtin_interchange, void* source, bool source_const, const char* source_name, void* builtin, bool builtin_const, const char* builtin_name);
 void ocio_config_set_role(void* handle, const char* role, const char* colorSpaceName);
 int ocio_config_get_num_roles(void* handle);
 bool ocio_config_has_role(void* handle, const char* role);
@@ -211,7 +366,8 @@ void* ocio_config_get_display_view_looks(void* handle, const char* display, cons
 void* ocio_config_get_display_view_rule(void* handle, const char* display, const char* view);
 void* ocio_config_get_display_view_description(void* handle, const char* display, const char* view);
 bool ocio_config_has_view(void* handle, const char* dispName, const char* viewName);
-void ocio_config_add_display(void* handle, const char* display, const char* view, const char* transformName, const char* rule);
+// Legacy alias for the four-argument native addDisplayView overload.
+void ocio_config_add_display(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks);
 void ocio_config_add_display_view_v1(void* handle, const char* display, const char* view, const char* colorSpaceName, const char* looks);
 void ocio_config_add_display_view_v2(void* handle, const char* display, const char* view, const char* viewTransformName, const char* colorSpaceName, const char* looks, const char* ruleName, const char* description);
 void ocio_config_add_display_shared_view(void* handle, const char* display, const char* sharedView);
@@ -375,6 +531,7 @@ void ocio_viewing_rules_remove_rule(void* handle, size_t ruleIndex);
 
 // --- ColorSpace ---
 void* ocio_color_space_create(void);
+void* ocio_color_space_create_with_reference_space(int reference_space);
 void* ocio_color_space_create_editable_copy(void* handle);
 void ocio_color_space_destroy(void* handle);
 
@@ -419,9 +576,26 @@ void ocio_color_space_get_allocation_vars(void* handle, void* vars);
 void ocio_color_space_set_allocation_vars(void* handle, int numvars, const float* vars);
 void* ocio_color_space_get_transform(void* handle, int dir);
 void ocio_color_space_set_transform(void* handle, void* transform, int dir);
+bool ocio_color_space_visit_interchange_attributes(void* handle, bool is_const, ocio_attribute_visitor visitor, void* context);
+bool ocio_named_item_visit_interchange_attributes(void* handle, int kind, bool is_const, ocio_attribute_visitor visitor, void* context);
+void ocio_named_item_set_const_transform(void* handle, int kind, void* transform, int direction);
+void ocio_color_space_set_const_transform(void* handle, void* transform, int dir);
 
 // --- ColorSpaceSet ---
 void* ocio_color_space_set_create(void);
+// A read-only set result owns an OCIO ConstColorSpaceSetRcPtr.
+void* ocio_color_space_set_operation(void* left, bool left_const, void* right, bool right_const, int operation);
+bool ocio_color_space_set_equal(void* left, bool left_const, void* right, bool right_const);
+void ocio_const_color_space_set_destroy(void* handle);
+int ocio_const_color_space_set_get_num_color_spaces(void* handle);
+const char* ocio_const_color_space_set_get_color_space_name_by_index(void* handle, int index);
+void* ocio_const_color_space_set_copy_color_space(void* handle, const char* name);
+void* ocio_color_space_set_ref_get_const_color_space(void* handle, bool is_const, const char* name);
+void* ocio_color_space_set_ref_get_const_color_space_by_index(void* handle, bool is_const, int index);
+int ocio_color_space_set_ref_get_color_space_index(void* handle, bool is_const, const char* name);
+bool ocio_color_space_set_ref_has_color_space(void* handle, bool is_const, const char* name);
+void* ocio_const_color_space_set_copy_color_space_by_index(void* handle, int index);
+void* ocio_const_color_space_set_create_editable_copy(void* handle);
 void* ocio_color_space_set_create_editable_copy(void* handle);
 void ocio_color_space_set_destroy(void* handle);
 
@@ -432,6 +606,9 @@ void* ocio_color_space_set_get_color_space(void* handle, const char* name);
 int ocio_color_space_set_get_color_space_index(void* handle, const char* name);
 bool ocio_color_space_set_has_color_space(void* handle, const char* name);
 void ocio_color_space_set_add_color_space(void* handle, void* cs);
+void ocio_color_space_set_add_color_space_ref(void* handle, void* cs, bool cs_const);
+void ocio_color_space_set_add_color_spaces_ref(void* handle, void* cs, bool cs_const);
+void ocio_color_space_set_remove_color_spaces_ref(void* handle, void* cs, bool cs_const);
 void ocio_color_space_set_add_color_spaces(void* handle, void* cs);
 void ocio_color_space_set_remove_color_space(void* handle, const char* name);
 void ocio_color_space_set_remove_color_spaces(void* handle, void* cs);
@@ -517,6 +694,9 @@ void ocio_view_transform_set_transform(void* handle, void* transform, int dir);
 void* ocio_transform_create_editable_copy(void* handle);
 void ocio_transform_destroy(void* handle);
 int ocio_transform_get_transform_type(void* handle);
+int ocio_transform_get_direction(void* handle);
+void ocio_transform_set_direction(void* handle, int direction);
+void ocio_transform_validate(void* handle);
 
 // --- Processor ---
 void ocio_processor_destroy(void* handle);
@@ -568,8 +748,43 @@ void ocio_cpu_processor_apply_v1(void* handle, void* imgDesc);
 void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDesc);
 void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
+bool ocio_cpu_processor_try_apply_rgba(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
+bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride);
+void ocio_cpu_processor_apply_planar_f32(void* handle, float* red, float* green, float* blue, float* alpha, int64_t width, int64_t height);
+void ocio_cpu_processor_apply_planar_strided_f32(void* handle, float* red, float* green, float* blue, float* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride);
+void ocio_cpu_processor_apply_planar_bytes(void* handle, void* red, void* green, void* blue, void* alpha, int64_t width, int64_t height, int64_t x_stride, int64_t y_stride, int bit_depth);
+void ocio_cpu_processor_apply_packed_convert(void* handle, const void* src, void* dst, int64_t count, int channels, int input_depth, int output_depth, int64_t input_stride, int64_t output_stride);
+typedef struct ocio_planar_buffer {
+    void* red;
+    void* green;
+    void* blue;
+    void* alpha;
+    int64_t width;
+    int64_t height;
+    int64_t x_stride;
+    int64_t y_stride;
+    int bit_depth;
+} ocio_planar_buffer;
+void* ocio_image_desc_create_planar(const ocio_planar_buffer* image);
+void* ocio_image_desc_create_custom(const ocio_planar_buffer* image);
+typedef struct OcioImageDescValue {
+  void* pointer;
+  int64_t scalar;
+} OcioImageDescValue;
+enum OcioImageDescQuery {
+  OCIO_IMAGE_RED, OCIO_IMAGE_GREEN, OCIO_IMAGE_BLUE, OCIO_IMAGE_ALPHA,
+  OCIO_IMAGE_BIT_DEPTH, OCIO_IMAGE_WIDTH, OCIO_IMAGE_HEIGHT,
+  OCIO_IMAGE_X_STRIDE, OCIO_IMAGE_Y_STRIDE, OCIO_IMAGE_PACKED, OCIO_IMAGE_FLOAT
+};
+typedef bool (*ocio_image_desc_query_fn)(const void*, int32_t, OcioImageDescValue*);
+typedef void (*ocio_image_desc_release_fn)(void*);
+void* ocio_image_desc_create_callback(void*, ocio_image_desc_query_fn, ocio_image_desc_release_fn);
+void ocio_cpu_processor_apply_planar_convert(void* handle, const ocio_planar_buffer* source, const ocio_planar_buffer* destination);
+void ocio_cpu_processor_convert_mixed_image(void* handle, const OcioPackedBuffer* packed,
+    const ocio_planar_buffer* planar, bool packed_is_source);
+void* ocio_processor_get_optimized_cpu_processor_bit_depth(void* handle, int input_depth, int output_depth, uint32_t flags);
 void ocio_cpu_processor_apply_rgba_packed(void* handle, void* rgba, int bitDepth, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_packed(void* handle, void* rgb, int bitDepth, int64_t numPixels, int64_t stride);
 
@@ -582,6 +797,127 @@ void* ocio_gpu_processor_get_cache_id(void* handle);
 void ocio_gpu_processor_extract_gpu_shader_info(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v1(void* handle, void* shaderDesc);
 void ocio_gpu_processor_extract_gpu_shader_info_v2(void* handle, void* shaderCreator);
+void* ocio_gpu_shader_creator_from_desc(void* shaderDesc);
+void* ocio_gpu_shader_creator_clone(void* creator);
+void* ocio_gpu_shader_creator_borrow_desc(void* creator);
+const char* ocio_gpu_shader_creator_get_cache_id(void* creator);
+void* ocio_gpu_shader_creator_copy_native_shared(const void* creator);
+const char* ocio_gpu_shader_creator_get_text(void* creator, int field);
+void ocio_gpu_shader_creator_set_text(void* creator, int field, const char* value);
+int ocio_gpu_shader_creator_get_language(void* creator);
+void ocio_gpu_shader_creator_set_language(void* creator, int language);
+uint32_t ocio_gpu_shader_creator_next_resource_index(void* creator);
+void ocio_gpu_shader_creator_add_dynamic_property(void* creator, void* property);
+uint32_t ocio_gpu_shader_creator_num_dynamic_properties(void* creator);
+bool ocio_gpu_shader_creator_has_dynamic_property(void* creator, int type);
+void* ocio_gpu_shader_creator_dynamic_property(void* creator, uint32_t value, bool by_index);
+bool ocio_gpu_shader_creator_add_uniform(void* creator, const char* name, int kind, double scalar, const void* values, size_t len, uint32_t max_size, int property_type);
+bool ocio_gpu_shader_creator_add_scalar_getter(void* creator, const char* name, int kind, void* context, bool (*getter)(void*, void*), void (*release)(void*));
+bool ocio_gpu_shader_creator_add_float_array_getter(void* creator, const char* name, uint32_t max_size, void* context, bool (*getter)(void*, float*, size_t, size_t*), void (*release)(void*));
+bool ocio_gpu_shader_creator_add_int_array_getter(void* creator, const char* name, uint32_t max_size, void* context, bool (*getter)(void*, int*, size_t, size_t*), void (*release)(void*));
+void ocio_gpu_shader_creator_lifecycle(void* creator, int operation, const char* uid);
+void ocio_gpu_shader_creator_add_code(void* creator, int section, const char* code);
+void ocio_gpu_shader_creator_create_text(void* creator, const char* parameters, const char* textures, const char* helpers, const char* header, const char* body, const char* footer);
+bool ocio_gpu_shader_creator_add_texture(void* creator, const char* name, const char* sampler, uint32_t width, uint32_t height, uint32_t depth, int channel, int dimensions, int interpolation, const float* values, size_t len, bool is_3d, bool* has_binding, uint32_t* binding);
+uint32_t ocio_gpu_shader_creator_get_texture_max_width(void* creator);
+void ocio_gpu_shader_creator_set_texture_max_width(void* creator, uint32_t width);
+bool ocio_gpu_shader_creator_get_allow_texture_1d(void* creator);
+void ocio_gpu_shader_creator_set_allow_texture_1d(void* creator, bool allow);
+void ocio_gpu_shader_creator_destroy(void* creator);
+void ocio_gpu_processor_extract_owned_creator(void* processor, void* creator);
+void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);
+typedef bool (*ocio_shader_assemble_callback)(void* context, const char* parameters,
+    const char* textures, const char* helpers, const char* header, const char* body, const char* footer,
+    const char** output);
+void ocio_gpu_shader_creator_set_persistent_assembler(void* creator, ocio_shader_assemble_callback assembler);
+typedef struct ocio_shader_texture_event {
+    const char* texture_name;
+    const char* sampler_name;
+    uint32_t width, height, depth;
+    int channel, dimensions, interpolation;
+    const float* values;
+    size_t value_count;
+    bool has_binding;
+    uint32_t binding;
+} ocio_shader_texture_event;
+typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_texture_event* event,
+    bool* override_binding, uint32_t* binding);
+typedef bool (*ocio_shader_texture_control_callback)(void* context, const ocio_shader_texture_event* event,
+    bool* store, bool* override_binding, uint32_t* binding);
+typedef bool (*ocio_shader_finalize_callback)(void* context, const char** shader_text);
+void ocio_gpu_shader_creator_set_persistent_finalizer(void* creator, ocio_shader_finalize_callback finalizer);
+// Kinds 0/1 query maximum width/allow-1D; kinds 2/3 notify their setters.
+// For setter events `value` contains the requested input (allow-1D is 0 or 1).
+typedef bool (*ocio_shader_texture_policy_callback)(void* context, int kind, uint32_t* value);
+// The caller owns context and must keep it alive until callbacks have been
+// detached. Detach before releasing context, including when native objects are
+// retained by caches or other shared pointers. Callbacks must not unwind.
+void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, const char* cache_id, ocio_shader_texture_policy_callback policy, void* context);
+void ocio_gpu_shader_creator_set_persistent_texture_control(void* creator, ocio_shader_texture_control_callback texture);
+void ocio_gpu_shader_creator_detach_persistent_policy(void* creator);
+void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* creator);
+void ocio_gpu_shader_creator_begin_manual(void* creator, const char* uid);
+// The callback is used only during extraction and must not unwind. Its result
+// remains valid until the next callback invocation or extraction returns.
+typedef bool (*ocio_shader_cache_id_callback)(void* context, const char** cache_id);
+typedef void* (*ocio_shader_clone_callback)(void* context);
+void* ocio_gpu_shader_creator_clone_with_policy(void* creator, ocio_shader_clone_callback clone);
+void ocio_gpu_shader_creator_extract_with_cache_policy(void* processor, void* creator, ocio_shader_cache_id_callback cache_id);
+const char* ocio_gpu_shader_creator_query_cache_policy(void* creator, ocio_shader_cache_id_callback cache_id);
+typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
+    uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
+typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
+typedef bool (*ocio_shader_code_callback)(void* context, int section, const char* code, const char** replacement);
+void ocio_gpu_shader_creator_set_persistent_hooks(void* creator, ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code);
+// Ownership of getter transfers to the callback. It must be destroyed with
+// ocio_gpu_uniform_cache_destroy, even if the callback reports failure.
+typedef bool (*ocio_shader_uniform_registration_callback)(void* context, const char* name,
+    int type, bool has_max_size, uint32_t max_size, void* getter, int* action);
+void ocio_gpu_shader_creator_set_persistent_uniform_control(void* creator, ocio_shader_uniform_registration_callback uniform);
+void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
+    ocio_shader_assemble_callback callback, void* context);
+void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture, void* context);
+void* ocio_gpu_processor_extract_with_resource_callbacks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, void* context);
+void* ocio_gpu_processor_extract_with_lifecycle_callbacks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle, void* context);
+void* ocio_gpu_processor_extract_with_hooks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, void* context);
+void* ocio_gpu_processor_extract_with_streamed_texture_hooks(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, void* context);
+void* ocio_gpu_processor_extract_with_uniform_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    bool stream_textures, void* context);
+void* ocio_gpu_processor_extract_with_creator_options(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    bool stream_textures, const char* cache_id_override, void* context);
+void* ocio_gpu_processor_extract_with_texture_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    const char* cache_id_override, void* context);
+void* ocio_gpu_processor_extract_with_finalize_control(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    ocio_shader_finalize_callback finalize, const char* cache_id_override, void* context);
+void* ocio_gpu_processor_extract_with_texture_policy(void* handle, void* template_desc,
+    ocio_shader_assemble_callback assembler, ocio_shader_texture_control_callback texture,
+    ocio_shader_uniform_callback uniform, ocio_shader_lifecycle_callback lifecycle,
+    ocio_shader_code_callback code, ocio_shader_uniform_registration_callback registration,
+    ocio_shader_finalize_callback finalize, ocio_shader_texture_policy_callback policy,
+    const char* cache_id_override, void* context);
 
 // --- GpuShaderDesc ---
 void* ocio_gpu_shader_desc_create_shader_desc(void);
@@ -590,12 +926,33 @@ void ocio_gpu_shader_desc_destroy(void* handle);
 
 void* ocio_gpu_shader_desc_clone(void* handle);
 unsigned ocio_gpu_shader_desc_get_num_uniforms_u32(void* handle);
+const char* ocio_gpu_shader_desc_get_uniform_name(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_get_uniform_info(void* handle, unsigned index, OcioGpuUniformInfo* out);
+void* ocio_gpu_uniform_cache_create(void* handle);
+void ocio_gpu_uniform_cache_destroy(void* handle);
+int ocio_gpu_uniform_cache_copy_f32(void* handle, unsigned index, float* values, size_t len, size_t* actual);
+int ocio_gpu_uniform_cache_copy_i32(void* handle, unsigned index, int* values, size_t len, size_t* actual);
+int ocio_gpu_uniform_cache_double(void* handle, unsigned index, double* value);
 size_t ocio_gpu_shader_desc_get_uniform_value_count(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_copy_uniform_f32_values(void* handle, unsigned index, float* values, size_t len);
 bool ocio_gpu_shader_desc_copy_uniform_i32_values(void* handle, unsigned index, int* values, size_t len);
+bool ocio_gpu_shader_desc_get_uniform_double_value(void* handle, unsigned index, double* value);
+bool ocio_gpu_shader_desc_get_uniform_bool_value(void* handle, unsigned index, bool* value);
+bool ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(void* handle, unsigned index, float* values, size_t len, size_t* actual);
+bool ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(void* handle, unsigned index, int* values, size_t len, size_t* actual);
 size_t ocio_gpu_shader_desc_get_uniform_buffer_size_bytes(void* handle);
 bool ocio_gpu_shader_desc_add_uniform_double(void* handle, const char* name, double value);
+// Takes ownership of context on every return path; release must not unwind.
+bool ocio_gpu_shader_desc_add_uniform_double_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, double*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_bool_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, bool*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_float3_getter(void* handle, const char* name, void* context,
+    bool (*getter)(void*, float*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_vector_float_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, float*, size_t, size_t*), void (*release)(void*));
+bool ocio_gpu_shader_desc_add_uniform_vector_int_getter(void* handle, const char* name, uint32_t maxSize,
+    void* context, bool (*getter)(void*, int*, size_t, size_t*), void (*release)(void*));
 bool ocio_gpu_shader_desc_add_uniform_bool(void* handle, const char* name, bool value);
 bool ocio_gpu_shader_desc_add_uniform_float3(void* handle, const char* name, float x, float y, float z);
 bool ocio_gpu_shader_desc_add_uniform_vector_float(
@@ -610,6 +967,8 @@ bool ocio_gpu_shader_desc_add_uniform_vector_int(
     const int* values,
     size_t len,
     uint32_t maxSize);
+void ocio_gpu_shader_desc_add_dynamic_property(void* handle, void* property);
+bool ocio_gpu_shader_desc_add_uniform_dynamic_double(void* handle, const char* name, int property_type);
 unsigned ocio_gpu_shader_desc_get_num_dynamic_properties_u32(void* handle);
 void* ocio_gpu_shader_desc_get_dynamic_property_by_index(void* handle, unsigned index);
 void* ocio_gpu_shader_desc_get_dynamic_property(void* handle, int type);
@@ -631,6 +990,8 @@ unsigned ocio_gpu_shader_desc_get_num_textures_u32(void* handle);
 bool ocio_gpu_shader_desc_get_texture_info(void* handle, unsigned index, OcioGpuTexture2DInfo* out);
 size_t ocio_gpu_shader_desc_get_texture_value_count(void* handle, unsigned index);
 bool ocio_gpu_shader_desc_copy_texture_values(void* handle, unsigned index, float* values, size_t len);
+// Borrowed until the descriptor is mutated or destroyed; caller must synchronize access.
+const float* ocio_gpu_shader_desc_borrow_texture_values(void* handle, unsigned index, bool is3d, size_t* len);
 bool ocio_gpu_shader_desc_add3d_texture(
     void* handle,
     const char* textureName,
@@ -649,12 +1010,15 @@ void* ocio_gpu_shader_desc_get_num_uniforms(void* handle);
 void* ocio_gpu_shader_desc_get_uniform(void* handle, void* index, void* data);
 void* ocio_gpu_shader_desc_get_uniform_buffer_size(void* handle);
 void* ocio_gpu_shader_desc_get_num_textures(void* handle);
-void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char* textureName, const char* samplerName, void* width, void* height, void* channel, void* dimensions, void* interpolation);
-void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const float* values);
+// Legacy queries encode an unsigned index in the pointer value. Name/value
+// outputs, when non-null, point to caller-owned pointer slots; returned data
+// is borrowed from the descriptor. Prefer the typed info/copy APIs above.
+void ocio_gpu_shader_desc_get_texture(void* handle, void* index, const char** textureName, const char** samplerName, void* width, void* height, void* channel, void* dimensions, void* interpolation);
+void ocio_gpu_shader_desc_get_texture_values(void* handle, void* index, const float** values);
 void* ocio_gpu_shader_desc_get_texture_shader_binding_index(void* handle, void* index);
 void* ocio_gpu_shader_desc_get_num3d_textures(void* handle);
-void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char* textureName, const char* samplerName, void* edgelen, void* interpolation);
-void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const float* values);
+void ocio_gpu_shader_desc_get3d_texture(void* handle, void* index, const char** textureName, const char** samplerName, void* edgelen, void* interpolation);
+void ocio_gpu_shader_desc_get3d_texture_values(void* handle, void* index, const float** values);
 void* ocio_gpu_shader_desc_get3d_texture_shader_binding_index(void* handle, void* index);
 void* ocio_gpu_shader_desc_get_shader_text(void* handle);
 int ocio_gpu_shader_desc_get_language(void* handle);
@@ -668,15 +1032,19 @@ void ocio_gpu_shader_desc_set_unique_id(void* handle, const char* uid);
 const char* ocio_gpu_shader_desc_get_resource_prefix(void* handle);
 void ocio_gpu_shader_desc_set_resource_prefix(void* handle, const char* prefix);
 void ocio_gpu_shader_desc_set_descriptor_set_index(void* handle, uint32_t index, uint32_t textureBindingStart);
+void ocio_gpu_shader_creator_set_descriptor_set_index(void* creator, uint32_t index, uint32_t start);
+uint32_t ocio_gpu_shader_creator_get_descriptor_set_index(void* creator, bool binding_start);
 uint32_t ocio_gpu_shader_desc_get_descriptor_set_index(void* handle);
 uint32_t ocio_gpu_shader_desc_get_texture_binding_start(void* handle);
 void ocio_gpu_shader_desc_set_texture_max_width_u32(void* handle, uint32_t maxWidth);
 void ocio_gpu_shader_desc_set_allow_texture_1d(void* handle, bool allowed);
 bool ocio_gpu_shader_desc_get_allow_texture_1d(void* handle);
 const char* ocio_gpu_shader_desc_get_cache_id(void* handle);
+bool ocio_gpu_shader_desc_set_custom_cache_id(void* handle, const char* value);
 void ocio_gpu_shader_desc_begin(void* handle, const char* uid);
 void ocio_gpu_shader_desc_end(void* handle);
 uint32_t ocio_gpu_shader_desc_get_next_resource_index(void* handle);
+void ocio_gpu_shader_desc_add_to_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_texture_declare_shader_code(void* handle, const char* shaderCode);
 void ocio_gpu_shader_desc_add_to_helper_shader_code(void* handle, const char* shaderCode);
@@ -710,6 +1078,8 @@ void ocio_format_metadata_add_attribute(void* metadata, const char* name, const 
 int ocio_format_metadata_get_num_children_elements(void* metadata);
 void ocio_format_metadata_add_child_element(void* metadata, const char* name, const char* value);
 void ocio_format_metadata_clear(void* metadata);
+void ocio_format_metadata_assign(void* destination, void* source);
+void ocio_format_metadata_assign_const(void* destination, void* source);
 const char* ocio_format_metadata_get_name(void* metadata);
 void ocio_format_metadata_set_name(void* metadata, const char* name);
 const char* ocio_format_metadata_get_id(void* metadata);
@@ -721,6 +1091,8 @@ void* ocio_baker_create_editable_copy(void* handle);
 void ocio_baker_destroy(void* handle);
 
 void* ocio_baker_get_config(void* handle);
+void* ocio_baker_get_const_config(void* handle);
+void ocio_baker_set_const_config(void* handle, void* config);
 void ocio_baker_set_config(void* handle, void* config);
 void* ocio_baker_get_format(void* handle);
 void ocio_baker_set_format(void* handle, const char* formatName);
@@ -743,6 +1115,8 @@ int ocio_baker_get_cube_size(void* handle);
 void ocio_baker_set_cube_size(void* handle, int cubesize);
 void ocio_baker_bake(void* handle, void* os);
 void* ocio_baker_bake_to_string(void* handle);
+/* Writes synchronously in bounded chunks; callback and context are not retained. */
+bool ocio_baker_bake_to_writer(void* handle, void* context, ocio_proxy_write_callback write);
 int ocio_baker_get_num_formats(void);
 const char* ocio_baker_get_format_name_by_index(int index);
 const char* ocio_baker_get_format_extension_by_index(int index);
@@ -992,6 +1366,7 @@ void ocio_grading_primary_transform_set_value(void* handle, void* values);
 void ocio_grading_primary_value_destroy(void* handle);
 bool ocio_grading_primary_transform_copy_value(void* handle, double* values, size_t len);
 bool ocio_grading_primary_transform_set_value_from_f64(void* handle, const double* values, size_t len);
+void ocio_grading_primary_value_validate(int style, const double* values, size_t len);
 bool ocio_grading_primary_transform_is_dynamic(void* handle);
 void ocio_grading_primary_transform_make_dynamic(void* handle);
 void ocio_grading_primary_transform_make_non_dynamic(void* handle);
@@ -1011,6 +1386,8 @@ int ocio_grading_rgb_curve_transform_get_style(void* handle);
 void ocio_grading_rgb_curve_transform_set_style(void* handle, int style);
 void* ocio_grading_rgb_curve_transform_get_value(void* handle);
 void ocio_grading_rgb_curve_transform_set_value(void* handle, void* values);
+typedef struct ocio_rgb_curve_point { float x; float y; float slope; } ocio_rgb_curve_point;
+void ocio_grading_rgb_curve_transform_set_checked(void* handle, const ocio_rgb_curve_point* const* curves, const size_t* counts);
 void ocio_grading_rgb_curve_destroy(void* handle);
 int ocio_grading_rgb_curve_transform_get_num_control_points(void* handle, int c);
 void ocio_grading_rgb_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y);
@@ -1041,6 +1418,7 @@ int ocio_grading_hue_curve_transform_get_style(void* handle);
 void ocio_grading_hue_curve_transform_set_style(void* handle, int style);
 void* ocio_grading_hue_curve_transform_get_value(void* handle);
 void ocio_grading_hue_curve_transform_set_value(void* handle, void* value);
+void ocio_grading_hue_curve_transform_set_checked(void* handle, const ocio_rgb_curve_point* const* curves, const size_t* counts);
 void ocio_grading_hue_curve_destroy(void* handle);
 int ocio_grading_hue_curve_transform_get_num_control_points(void* handle, int c);
 void ocio_grading_hue_curve_transform_get_control_point(void* handle, int c, int index, float* x, float* y);
@@ -1074,12 +1452,14 @@ void ocio_grading_tone_transform_set_value(void* handle, void* values);
 void ocio_grading_tone_value_destroy(void* handle);
 bool ocio_grading_tone_transform_copy_value(void* handle, double* values, size_t len);
 bool ocio_grading_tone_transform_set_value_from_f64(void* handle, const double* values, size_t len);
+void ocio_grading_tone_value_validate(const double* values, size_t len);
 bool ocio_grading_tone_transform_is_dynamic(void* handle);
 void ocio_grading_tone_transform_make_dynamic(void* handle);
 void ocio_grading_tone_transform_make_non_dynamic(void* handle);
 
 // --- GroupTransform ---
 void* ocio_group_transform_create(void);
+void* ocio_group_transform_create_deep_copy(void* handle);
 void ocio_group_transform_destroy(void* handle);
 
 void* ocio_group_transform_get_format_metadata(void* handle);
@@ -1089,6 +1469,7 @@ int ocio_group_transform_get_direction(void* handle);
 void ocio_group_transform_set_direction(void* handle, int dir);
 void* ocio_group_transform_get_transform(void* handle, int index);
 void* ocio_group_transform_get_transform_v1(void* handle, int index);
+void ocio_group_transform_set_transform(void* handle, int index, void* transform);
 int ocio_group_transform_get_num_transforms(void* handle);
 void ocio_group_transform_append_transform(void* handle, void* transform);
 void ocio_group_transform_prepend_transform(void* handle, void* transform);
@@ -1096,6 +1477,8 @@ void ocio_group_transform_remove_transform(void* handle, uint64_t index);
 void ocio_group_transform_clear_transforms(void* handle);
 void ocio_group_transform_write(void* handle, void* config, const char* formatName, void* os);
 void* ocio_group_transform_write_to_string(void* handle, void* config, const char* formatName);
+void ocio_group_transform_write_const(void* handle, const void* config, const char* formatName, void* os);
+void* ocio_group_transform_write_to_string_const(void* handle, const void* config, const char* formatName);
 int ocio_group_transform_get_num_write_formats(void);
 const char* ocio_group_transform_get_format_name_by_index(int index);
 const char* ocio_group_transform_get_format_extension_by_index(int index);
@@ -1174,12 +1557,14 @@ void ocio_look_transform_set_src(void* handle, const char* src);
 void* ocio_look_transform_get_dst(void* handle);
 void ocio_look_transform_set_dst(void* handle, const char* dst);
 void* ocio_look_transform_get_looks(void* handle);
+const char* ocio_look_transform_get_result_color_space(void* config, const void* context, const char* looks);
 void ocio_look_transform_set_looks(void* handle, const char* looks);
 bool ocio_look_transform_get_skip_color_space_conversion(void* handle);
 void ocio_look_transform_set_skip_color_space_conversion(void* handle, bool skip);
 
 // --- Lut1DTransform ---
 void* ocio_lut1d_transform_create(void);
+void* ocio_lut1d_transform_create_with_length(uint64_t length, bool half_domain);
 void ocio_lut1d_transform_destroy(void* handle);
 
 int ocio_lut1d_transform_get_file_output_bit_depth(void* handle);
@@ -1209,6 +1594,7 @@ void ocio_lut1d_transform_set_values(void* handle, const double* data);
 
 // --- Lut3DTransform ---
 void* ocio_lut3d_transform_create(void);
+void* ocio_lut3d_transform_create_with_grid_size(uint64_t grid_size);
 void ocio_lut3d_transform_destroy(void* handle);
 
 int ocio_lut3d_transform_get_file_output_bit_depth(void* handle);
@@ -1237,6 +1623,10 @@ void ocio_matrix_transform_destroy(void* handle);
 void* ocio_matrix_transform_create_fit(const double* oldMin4, const double* oldMax4, const double* newMin4, const double* newMax4);
 void* ocio_matrix_transform_create_identity(void);
 void ocio_matrix_transform_identity(double* m44, double* offset4);
+void ocio_matrix_transform_fit_into(double* m44, double* offset4, const double* oldMin4, const double* oldMax4, const double* newMin4, const double* newMax4);
+void ocio_matrix_transform_sat_into(double* m44, double* offset4, double sat, const double* luma);
+void ocio_matrix_transform_scale_into(double* m44, double* offset4, const double* scale);
+void ocio_matrix_transform_view_into(double* m44, double* offset4, int* channels, const double* luma);
 void* ocio_matrix_transform_create_sat(double sat, const double* luma);
 void* ocio_matrix_transform_create_scale(const double* scale);
 void* ocio_matrix_transform_create_view(int* channels, const double* luma);
@@ -1305,6 +1695,8 @@ bool ocio_dynamic_property_grading_rgb_curve_slopes_are_default(void* handle, in
 int ocio_dynamic_property_grading_hue_curve_get_num_control_points(void* handle, int curve);
 void ocio_dynamic_property_grading_hue_curve_get_control_point(void* handle, int curve, int index, float* x, float* y);
 void ocio_dynamic_property_grading_hue_curve_set_num_control_points(void* handle, int curve, int num);
+typedef struct ocio_grading_curve_point { float x; float y; float slope; } ocio_grading_curve_point;
+void ocio_dynamic_property_grading_hue_curve_set_complete(void* handle, const ocio_grading_curve_point* const* curves, const size_t* counts);
 void ocio_dynamic_property_grading_hue_curve_set_control_point(void* handle, int curve, int index, float x, float y);
 float ocio_dynamic_property_grading_hue_curve_get_slope(void* handle, int curve, int index);
 void ocio_dynamic_property_grading_hue_curve_set_slope(void* handle, int curve, int index, float slope);
@@ -1315,5 +1707,314 @@ void ocio_dynamic_property_grading_tone_set_value(void* handle, const double* va
 // --- Shared transform helpers ---
 void* ocio_transform_get_format_metadata(void* transform);
 bool ocio_color_space_is_transform_defined(void* handle, int direction);
+
+const char* ocio_config_canonical_display_name(void* handle, const char* display);
+const char* ocio_const_config_v26_display_text(void* handle, int field, const char* display, const char* view, int index);
+int ocio_const_config_v26_display_number(void* handle, int field, const char* display, const char* view, const char* alias);
+const char* ocio_config_canonical_view_name(void* handle, const char* display, const char* view);
+const char* ocio_config_resolved_display_view_color_space_name(void* handle, const char* display, const char* view);
+const char* ocio_config_display_description(void* handle, const char* display);
+const char* ocio_config_display_view_alias(void* handle, const char* display, const char* view, int index);
+const char* ocio_config_generate_local_id_for_color_space(void* handle, const char* name);
+const char* ocio_const_config_generate_local_id_for_color_space(void* handle, const char* name);
+const char* ocio_config_locate_builtin_color_space(void* handle, const char* name, void* builtin);
+const char* ocio_config_locate_builtin_color_space_refs(void* source, bool source_const, const char* name, void* builtin, bool builtin_const);
+int ocio_config_num_display_view_aliases(void* handle, const char* display, const char* view);
+bool ocio_config_has_display_view_alias(void* handle, const char* display, const char* view, const char* alias);
+bool ocio_config_use_display_aliases(void* handle);
+void ocio_config_set_use_display_aliases(void* handle, bool enabled);
+bool ocio_config_check_hdr_display_compatibility(void* handle);
+void* ocio_config_find_color_space_for_id(void* handle, const char* id);
+void* ocio_config_find_const_color_space_for_id(void* handle, const char* id);
+void* ocio_const_config_find_color_space_for_id(void* handle, const char* id);
+void ocio_config_add_shared_view_with_aliases(void* handle, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count);
+void ocio_config_add_display_view_with_aliases(void* handle, const char* display, const char* view, const char* view_transform, const char* color_space, const char* looks, const char* rule, const char* description, const char* const* aliases, size_t count);
+const char* ocio_metadata_id_element(void);
+
+void* ocio_color_space_menu_parameters_create(void* config);
+void* ocio_color_space_menu_parameters_create_from_const(void* config);
+/* kind: 0 menu parameters, 1 menu, 2 mixing manager, 3 slider,
+ * 4 legacy viewing pipeline, 5 merging parameters (2.5+). The returned
+ * thread-local string is invalidated by the next call on the same thread. */
+const char* ocio_app_helper_serialize(void* handle, int kind);
+void ocio_color_space_menu_parameters_destroy(void* handle);
+void ocio_color_space_menu_parameters_set_config(void* handle, void* config);
+void ocio_color_space_menu_parameters_set_const_config(void* handle, void* config);
+void* ocio_color_space_menu_parameters_get_config(void* handle);
+void* ocio_color_space_menu_parameters_get_const_config(void* handle);
+const char* ocio_color_space_menu_parameters_get_role(void* handle);
+void ocio_color_space_menu_parameters_set_role(void* handle, const char* value);
+bool ocio_color_space_menu_parameters_get_include_color_spaces(void* handle);
+void ocio_color_space_menu_parameters_set_include_color_spaces(void* handle, bool value);
+bool ocio_color_space_menu_parameters_get_include_named_transforms(void* handle);
+void ocio_color_space_menu_parameters_set_include_named_transforms(void* handle, bool value);
+bool ocio_color_space_menu_parameters_get_treat_no_category_as_any(void* handle);
+void ocio_color_space_menu_parameters_set_treat_no_category_as_any(void* handle, bool value);
+const char* ocio_color_space_menu_parameters_get_app_categories(void* handle);
+void ocio_color_space_menu_parameters_set_app_categories(void* handle, const char* value);
+const char* ocio_color_space_menu_parameters_get_encodings(void* handle);
+void ocio_color_space_menu_parameters_set_encodings(void* handle, const char* value);
+const char* ocio_color_space_menu_parameters_get_user_categories(void* handle);
+void ocio_color_space_menu_parameters_set_user_categories(void* handle, const char* value);
+bool ocio_color_space_menu_parameters_get_include_roles(void* handle);
+void ocio_color_space_menu_parameters_set_include_roles(void* handle, bool value);
+int ocio_color_space_menu_parameters_get_search_reference_space_type(void* handle);
+void ocio_color_space_menu_parameters_set_search_reference_space_type(void* handle, int value);
+void ocio_color_space_menu_parameters_add_color_space(void* handle, const char* name);
+size_t ocio_color_space_menu_parameters_get_num_added_color_spaces(void* handle);
+const char* ocio_color_space_menu_parameters_get_added_color_space(void* handle, size_t index);
+void ocio_color_space_menu_parameters_clear_added_color_spaces(void* handle);
+void* ocio_color_space_menu_helper_create(void* parameters);
+void ocio_color_space_menu_helper_destroy(void* handle);
+size_t ocio_color_space_menu_helper_get_num_color_spaces(void* handle);
+const char* ocio_color_space_menu_helper_get_name(void* handle, size_t index);
+const char* ocio_color_space_menu_helper_get_ui_name(void* handle, size_t index);
+size_t ocio_color_space_menu_helper_get_index_from_name(void* handle, const char* name);
+size_t ocio_color_space_menu_helper_get_index_from_ui_name(void* handle, const char* name);
+const char* ocio_color_space_menu_helper_get_description(void* handle, size_t index);
+const char* ocio_color_space_menu_helper_get_family(void* handle, size_t index);
+size_t ocio_color_space_menu_helper_get_num_hierarchy_levels(void* handle, size_t index);
+const char* ocio_color_space_menu_helper_get_hierarchy_level(void* handle, size_t index, size_t level);
+const char* ocio_color_space_menu_helper_get_name_from_ui_name(void* handle, const char* name);
+const char* ocio_color_space_menu_helper_get_ui_name_from_name(void* handle, const char* name);
+
+void* ocio_mixing_color_space_manager_create(void* config);
+void* ocio_mixing_color_space_manager_create_from_const(void* config);
+void ocio_mixing_color_space_manager_destroy(void* handle);
+size_t ocio_mixing_color_space_manager_get_num_mixing_spaces(void* handle);
+const char* ocio_mixing_color_space_manager_get_mixing_space_ui_name(void* handle, size_t index);
+size_t ocio_mixing_color_space_manager_get_selected_mixing_space_idx(void* handle);
+void ocio_mixing_color_space_manager_set_selected_mixing_space_idx(void* handle, size_t index);
+void ocio_mixing_color_space_manager_set_selected_mixing_space(void* handle, const char* name);
+bool ocio_mixing_color_space_manager_is_perceptually_uniform(void* handle);
+size_t ocio_mixing_color_space_manager_get_num_mixing_encodings(void* handle);
+const char* ocio_mixing_color_space_manager_get_mixing_encoding_name(void* handle, size_t index);
+size_t ocio_mixing_color_space_manager_get_selected_mixing_encoding_idx(void* handle);
+void ocio_mixing_color_space_manager_set_selected_mixing_encoding_idx(void* handle, size_t index);
+void ocio_mixing_color_space_manager_set_selected_mixing_encoding(void* handle, const char* name);
+void ocio_mixing_color_space_manager_refresh(void* handle, void* config);
+void ocio_mixing_color_space_manager_refresh_from_const(void* handle, void* config);
+void* ocio_mixing_color_space_manager_get_processor(void* handle, const char* working, const char* display, const char* view, int direction);
+void* ocio_mixing_color_space_manager_get_slider(void* handle);
+void* ocio_mixing_color_space_manager_get_slider_with_edges(void* handle, float min, float max);
+void ocio_mixing_slider_set_slider_min_edge(void* handle, float value);
+void ocio_mixing_slider_set_slider_max_edge(void* handle, float value);
+float ocio_mixing_slider_get_slider_min_edge(void* handle);
+float ocio_mixing_slider_get_slider_max_edge(void* handle);
+float ocio_mixing_slider_slider_to_mixing(void* handle, float value);
+float ocio_mixing_slider_mixing_to_slider(void* handle, float value);
+
+void* ocio_legacy_viewing_pipeline_create(void);
+void ocio_legacy_viewing_pipeline_destroy(void* handle);
+void* ocio_legacy_viewing_pipeline_get_const_stage(void* handle, int stage);
+void ocio_legacy_viewing_pipeline_set_const_stage(void* handle, int stage, const void* transform);
+void* ocio_legacy_viewing_pipeline_get_display_view_transform(void* handle);
+void ocio_legacy_viewing_pipeline_set_display_view_transform(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_linear_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_linear_cc(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_color_timing_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_color_timing_cc(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_channel_view(void* handle);
+void ocio_legacy_viewing_pipeline_set_channel_view(void* handle, void* transform);
+void* ocio_legacy_viewing_pipeline_get_display_cc(void* handle);
+void ocio_legacy_viewing_pipeline_set_display_cc(void* handle, void* transform);
+const char* ocio_legacy_viewing_pipeline_get_looks_override(void* handle);
+void ocio_legacy_viewing_pipeline_set_looks_override(void* handle, const char* looks);
+bool ocio_legacy_viewing_pipeline_get_looks_override_enabled(void* handle);
+void ocio_legacy_viewing_pipeline_set_looks_override_enabled(void* handle, bool enabled);
+void* ocio_legacy_viewing_pipeline_get_processor(void* handle, void* config);
+void* ocio_legacy_viewing_pipeline_get_processor_with_context(void* handle, void* config, void* context);
+void* ocio_legacy_viewing_pipeline_get_processor_with_const_config(void* handle, const void* config, const void* context);
+
+void* ocio_config_get_display_view_helper_identity_processor(void* handle);
+
+void* ocio_config_get_application_display_processor(void* handle, void* context, const char* working, const char* display, const char* view, void* channel, int direction);
+// Const handles are from this ABI. Without dynamic isolation, callers must
+// coordinate any native cache aliases and mutable dynamic properties.
+void* ocio_const_config_application_display_processor(const void* config, const void* context, const char* working, const char* display, const char* view, void* channel, int direction, bool isolate_dynamic);
+void* ocio_const_config_display_view_identity_processor(const void* config, bool isolate_dynamic);
+void ocio_config_add_display_view_from_file(void* handle, const char* display, const char* view, const char* looks, const char* space, const char* family, const char* description, const char* categories, const char* file, const char* connection);
+void ocio_config_remove_display_view_and_unused_color_space(void* handle, const char* display, const char* view);
+void ocio_config_add_color_space_from_file(void* handle, const char* name, const char* file, const char* categories, const char* connection);
+
+void* ocio_config_merging_parameters_create(void);
+void ocio_config_merging_parameters_destroy(void* handle);
+void* ocio_config_merging_parameters_create_editable_copy(void* handle);
+const char* ocio_config_merging_parameters_get_base_config_name(void* handle);
+void ocio_config_merging_parameters_set_base_config_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_input_config_name(void* handle);
+void ocio_config_merging_parameters_set_input_config_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_output_name(void* handle);
+void ocio_config_merging_parameters_set_output_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_input_family_prefix(void* handle);
+void ocio_config_merging_parameters_set_input_family_prefix(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_base_family_prefix(void* handle);
+void ocio_config_merging_parameters_set_base_family_prefix(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_name(void* handle);
+void ocio_config_merging_parameters_set_name(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_description(void* handle);
+void ocio_config_merging_parameters_set_description(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_search_path(void* handle);
+void ocio_config_merging_parameters_set_search_path(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_active_displays(void* handle);
+void ocio_config_merging_parameters_set_active_displays(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_active_views(void* handle);
+void ocio_config_merging_parameters_set_active_views(void* handle, const char* value);
+const char* ocio_config_merging_parameters_get_inactive_color_spaces(void* handle);
+void ocio_config_merging_parameters_set_inactive_color_spaces(void* handle, const char* value);
+bool ocio_config_merging_parameters_is_input_first(void* handle);
+void ocio_config_merging_parameters_set_input_first(void* handle, bool value);
+bool ocio_config_merging_parameters_is_error_on_conflict(void* handle);
+void ocio_config_merging_parameters_set_error_on_conflict(void* handle, bool value);
+bool ocio_config_merging_parameters_is_avoid_duplicates(void* handle);
+void ocio_config_merging_parameters_set_avoid_duplicates(void* handle, bool value);
+bool ocio_config_merging_parameters_is_adjust_input_reference_space(void* handle);
+void ocio_config_merging_parameters_set_adjust_input_reference_space(void* handle, bool value);
+int ocio_config_merging_parameters_get_default_strategy(void* handle);
+void ocio_config_merging_parameters_set_default_strategy(void* handle, int value);
+int ocio_config_merging_parameters_get_roles(void* handle);
+void ocio_config_merging_parameters_set_roles(void* handle, int value);
+int ocio_config_merging_parameters_get_file_rules(void* handle);
+void ocio_config_merging_parameters_set_file_rules(void* handle, int value);
+int ocio_config_merging_parameters_get_display_views(void* handle);
+void ocio_config_merging_parameters_set_display_views(void* handle, int value);
+int ocio_config_merging_parameters_get_view_transforms(void* handle);
+void ocio_config_merging_parameters_set_view_transforms(void* handle, int value);
+int ocio_config_merging_parameters_get_looks(void* handle);
+void ocio_config_merging_parameters_set_looks(void* handle, int value);
+int ocio_config_merging_parameters_get_color_spaces(void* handle);
+void ocio_config_merging_parameters_set_color_spaces(void* handle, int value);
+int ocio_config_merging_parameters_get_named_transforms(void* handle);
+void ocio_config_merging_parameters_set_named_transforms(void* handle, int value);
+void ocio_config_merging_parameters_add_search_path(void* handle, const char* value);
+void ocio_config_merging_parameters_add_environment_var(void* handle, const char* name, const char* value);
+int ocio_config_merging_parameters_get_num_environment_vars(void* handle);
+const char* ocio_config_merging_parameters_get_environment_var(void* handle, int index);
+const char* ocio_config_merging_parameters_get_environment_var_value(void* handle, int index);
+void* ocio_config_merging_parameters_merge_configs(void* handle, void* base, void* input);
+void* ocio_config_merging_parameters_merge_color_space(void* handle, void* base, void* input);
+void* ocio_config_merging_parameters_merge_config_refs(void* handle, void* base, bool base_const, void* input, bool input_const);
+void* ocio_config_merging_parameters_merge_color_space_refs(void* handle, void* base, bool base_const, void* input, bool input_const);
+
+void* ocio_config_merger_create(void);
+void* ocio_config_merger_from_file(const char* path);
+void* ocio_config_merger_create_editable_copy(void* h);
+void ocio_config_merger_destroy(void* h);
+void ocio_config_merger_set_search_path(void* h, const char* v);
+void ocio_config_merger_add_search_path(void* h, const char* v);
+int ocio_config_merger_num_search_paths(void* h);
+const char* ocio_config_merger_search_path(void* h, int index);
+void ocio_config_merger_set_working_dir(void* h, const char* v);
+const char* ocio_config_merger_working_dir(void* h);
+int ocio_config_merger_num_params(void* h);
+void* ocio_config_merger_params(void* h, int index);
+void* ocio_config_merger_params_shared(void* h, int index);
+void ocio_config_merger_add_params(void* h, void* params);
+void* ocio_config_merger_merge_configs(void* h);
+void* ocio_config_merger_merge_configs_shared(void* h);
+void* ocio_const_config_merger_from_file(const char* path);
+void* ocio_const_config_merger_merge_configs(const void* h);
+void ocio_const_config_merger_destroy(void* h);
+int ocio_const_config_merger_num_merged_configs(const void* h);
+void* ocio_const_config_merger_merged_config(const void* h, int index);
+void* ocio_const_config_merger_editable_copy(const void* h);
+int64_t ocio_const_config_merger_number(const void* h, int field);
+const char* ocio_const_config_merger_text(const void* h, int field, int index);
+void* ocio_const_config_merger_params(const void* h, int index, bool shared);
+int ocio_config_merger_num_merged_configs(void* h);
+void* ocio_config_merger_merged_config(void* h, int index);
+void* ocio_config_merger_merged_const_config(void* h, int index);
+const char* ocio_config_merger_serialize(void* h);
+void ocio_config_merger_set_version(void* h, unsigned int major, unsigned int minor);
+unsigned int ocio_config_merger_major_version(void* h);
+unsigned int ocio_config_merger_minor_version(void* h);
+
+void* ocio_system_monitors_get(void);
+void ocio_system_monitors_destroy(void* h);
+bool ocio_system_monitors_is_supported(void* h);
+size_t ocio_system_monitors_get_num_monitors(void* h);
+const char* ocio_system_monitors_get_monitor_name(void* h, size_t index);
+const char* ocio_system_monitors_get_profile_filepath(void* h, size_t index);
+
+void* ocio_grading_bspline_curve_create(size_t count);
+void* ocio_grading_bspline_curve_create_from_points(const float (*xy)[2], size_t count, int kind, int mode);
+void* ocio_grading_bspline_curve_create_from_points_unvalidated(const float (*xy)[2], size_t count, int kind, int mode);
+void* ocio_grading_bspline_curve_create_with_spline_type(size_t count, int kind);
+void* ocio_grading_bspline_curve_create_with_hue_type(size_t count, int kind);
+void ocio_grading_bspline_curve_destroy(void* h);
+void* ocio_grading_bspline_curve_create_editable_copy(void* h);
+size_t ocio_grading_bspline_curve_get_num_control_points(void* h);
+void ocio_grading_bspline_curve_set_num_control_points(void* h, size_t count);
+void ocio_grading_bspline_curve_get_control_point(void* h, size_t index, float* x, float* y);
+void ocio_grading_bspline_curve_set_control_point(void* h, size_t index, float x, float y);
+float ocio_grading_bspline_curve_get_slope(void* h, size_t index);
+void ocio_grading_bspline_curve_set_slope(void* h, size_t index, float slope);
+bool ocio_grading_bspline_curve_slopes_are_default(void* h);
+void ocio_grading_bspline_curve_validate(void* h);
+int ocio_grading_bspline_curve_get_spline_type(void* h);
+void ocio_grading_bspline_curve_set_spline_type(void* h, int kind);
+bool ocio_grading_bspline_curve_equals(void* h, void* other);
+
+void* ocio_grading_rgb_curve_object_create(int style);
+void ocio_grading_rgb_curve_object_destroy(void* h);
+void* ocio_grading_rgb_curve_object_create_editable_copy(void* h);
+void ocio_grading_rgb_curve_object_validate(void* h);
+bool ocio_grading_rgb_curve_object_is_identity(void* h);
+void* ocio_grading_rgb_curve_object_get_curve(void* h, int kind);
+/* Borrowed const curve is valid only while its parent remains alive. */
+const void* ocio_grading_curve_const_view(void* h, int kind, bool hue);
+void* ocio_grading_curve_const_shared(void* h, int kind, bool hue);
+const void* ocio_grading_spline_shared_data(const void* h);
+void ocio_grading_spline_shared_destroy(void* h);
+size_t ocio_grading_spline_const_count(const void* h);
+bool ocio_grading_spline_const_equals(const void* left, const void* right);
+void ocio_grading_spline_const_point(const void* h, size_t index, float* x, float* y);
+float ocio_grading_spline_const_slope(const void* h, size_t index);
+bool ocio_grading_spline_const_slopes_default(const void* h);
+void ocio_grading_spline_const_validate(const void* h);
+void* ocio_grading_spline_const_copy(const void* h);
+#if OCIO_RS_INTERFACE_API_HEX >= 0x02050100
+int ocio_grading_spline_const_type(const void* h);
+#endif
+bool ocio_grading_rgb_curve_object_equals(void* h, void* other);
+void* ocio_grading_hue_curve_object_create(int style);
+void ocio_grading_hue_curve_object_destroy(void* h);
+void* ocio_grading_hue_curve_object_create_editable_copy(void* h);
+void ocio_grading_hue_curve_object_validate(void* h);
+bool ocio_grading_hue_curve_object_is_identity(void* h);
+void* ocio_grading_hue_curve_object_get_curve(void* h, int kind);
+bool ocio_grading_hue_curve_object_equals(void* h, void* other);
+bool ocio_grading_hue_curve_object_get_draw_curve_only(void* h);
+void ocio_grading_hue_curve_object_set_draw_curve_only(void* h, bool value);
+
+void* ocio_grading_rgb_curve_object_from_transform(void* transform);
+void ocio_grading_rgb_curve_object_set_transform(void* h, void* transform);
+void* ocio_grading_hue_curve_object_from_transform(void* transform);
+void ocio_grading_hue_curve_object_set_transform(void* h, void* transform);
+
+int ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(int kind);
+void* ocio_grading_rgb_curve_object_create_from_curves(void* const* curves);
+void* ocio_grading_hue_curve_object_create_from_curves(void* const* curves);
+void* ocio_grading_rgb_curve_object_create_from_shared_curves(void* const* curves);
+void* ocio_grading_hue_curve_object_create_from_shared_curves(void* const* curves);
+const char* ocio_grading_curve_serialize(const void* handle, int kind);
+void* ocio_grading_curve_value_shared(void* source, int kind);
+void ocio_grading_curve_value_shared_set_dynamic_property(const void* value, bool hue, void* property);
+void ocio_grading_curve_value_shared_set_transform(const void* value, bool hue, void* transform);
+void ocio_grading_curve_value_shared_destroy(void* value, bool hue);
+void* ocio_grading_curve_value_shared_spline(void* value, int kind, bool hue);
+const void* ocio_grading_curve_value_shared_spline_view(void* value, int kind, bool hue);
+void ocio_grading_spline_copy_points(const void* value, bool borrowed, size_t start, float (*points)[3], size_t count);
+void* ocio_grading_curve_value_shared_copy(void* value, bool hue);
+bool ocio_grading_curve_value_shared_identity(void* value, bool hue);
+void ocio_grading_curve_value_shared_validate(void* value, bool hue);
+bool ocio_grading_curve_value_shared_equals(void* lhs, void* rhs, bool hue);
+float ocio_grading_curve_value_shared_slope(void* value, int kind, size_t index, bool hue);
+bool ocio_grading_hue_curve_value_shared_draw_only(void* value);
+
+void* ocio_dynamic_property_grading_rgb_curve_object_get(void* h);
+void ocio_dynamic_property_grading_rgb_curve_object_set(void* h, void* value);
+void* ocio_dynamic_property_grading_hue_curve_object_get(void* h);
+void ocio_dynamic_property_grading_hue_curve_object_set(void* h, void* value);
 
 }  // extern "C"

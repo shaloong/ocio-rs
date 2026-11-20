@@ -1,0 +1,5 @@
+ocio_profile_version: 2
+roles: {default: linear}
+colorspaces:
+  - !<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}
+  - !<ColorSpace> {name: extra, bitdepth: 32f, isdata: false}

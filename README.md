@@ -7,8 +7,8 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-Version 0.3 supports OpenColorIO `>= 2.4.1, < 2.6` (API introduced in OCIO
-2.5.1 is opt-in via the `v2_5` Cargo feature; see Compatibility below).
+Version 0.4 supports OpenColorIO `>= 2.4.1, < 2.7` (newer APIs are
+opt-in via the `v2_5` and `v2_6` Cargo features; see Compatibility below).
 The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
 across the exposed API surface, and broad safe-wrapper coverage. The remaining
@@ -33,9 +33,11 @@ several high-use runtime paths, including:
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 
+For a system OpenColorIO installation:
+
 ```toml
 [dependencies]
-ocio-rs = { version = "0.3", features = ["system"] }
+ocio-rs = { version = "0.4", features = ["system"] }
 ```
 
 This configuration uses an installed OpenColorIO. Distribution packages and
@@ -43,7 +45,8 @@ plugins such as GStreamer should normally use this backend. For shared-library
 linking, set `OCIO_RS_LINK=dynamic` in the build environment and install the
 OpenColorIO development package plus `pkg-config`. For a source build instead,
 use `features = ["bundled"]`. Add `"v2_5"` only when your code needs 2.5 APIs.
-See the [0.3 migration notes](docs/MIGRATION.md#030) when upgrading from 0.2.
+The 0.4 interface and breaking changes are described in the
+[migration notes](docs/MIGRATION.md#040); 0.3 supports OCIO versions below 2.6.
 
 ## Build
 
@@ -88,8 +91,8 @@ OCIO_RS_ENABLE_REAL=0 cargo build
 `OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
 it by itself does not enable real OCIO mode.
 
-Installed mode accepts OpenColorIO `>= 2.4.1, < 2.6`, raised to
-`>= 2.5.1, < 2.6` by the `v2_5` feature. It first probes
+Installed mode accepts OpenColorIO `>= 2.4.1, < 2.7`, raised to
+`>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. It first probes
 `opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
 the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
 directories; for older installations without a `.pc` file, the conventional
@@ -149,7 +152,7 @@ ocio-rs/
 
 ## Compatibility
 
-The baseline API works with OpenColorIO `>= 2.4.1, < 2.6`. API added in newer OCIO
+The baseline API works with OpenColorIO `>= 2.4.1, < 2.7`. API added in newer OCIO
 versions is opt-in through additive `vX_Y` cargo features; enabling one raises
 the version requirement checked against the OpenColorIO resolved at build
 time, failing with a clear error on mismatch.
@@ -158,11 +161,30 @@ time, failing with a clear error on mismatch.
 | ------- | -------------- | ------------------------------------------------------------ |
 | (none)  | 2.4.1          | everything else                                               |
 | `v2_5`  | 2.5.1          | hue-curve grading, interchange attributes, view/display list management, GPU uniform buffers and shader binding indexes |
+| `v2_6`  | 2.6.0          | display/view aliases, color interop lookup, HDR compatibility, HMJ fixed function and CLF ID metadata |
+
+`v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
+`bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
+The vendored 2.5.2 source remains the default for builds without `v2_6`.
+With native 2.5.0, the baseline interface remains available, but texture
+insertion does not report a shader binding index: upstream returns a per-kind
+texture index and does not provide the binding-query virtual methods added in
+2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
+
+The vendored 2.5.2 source includes a fix for an upstream multi-row GPU LUT
+packing error; installed libraries and external source overrides do not
+inherit it. For an unpatched external build with unknown LUT lengths, use
+`GPUProcessor::try_extract_shader_info_checked` or
+`validate_shader_texture_layout` before custom extraction. These conservative
+checks generate shader resources twice, may reject non-LUT textures, and
+require resource-generating state to remain unchanged between the probe and
+extraction. Ordinary extraction retains native behavior.
 
 Vendored OCIO per release:
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.4.0   | v2.5.2 |
 | 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |

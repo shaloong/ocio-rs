@@ -66,19 +66,58 @@ fn view_transform_metadata_category_and_interchange_behavior() {
         return;
     }
 
-    let vt = scaled_view_transform();
+    let mut vt = scaled_view_transform();
 
     assert_eq!(vt.name().as_deref(), Some("UnitViewTransform"));
+    assert_eq!(vt.name_ref().unwrap(), Some(c"UnitViewTransform"));
+    assert_eq!(vt.family_ref().unwrap(), Some(c"Unit/ViewTransforms"));
+    assert_eq!(
+        vt.description_ref().unwrap(),
+        Some(c"view transform behavior test")
+    );
     assert_eq!(vt.family().as_deref(), Some("Unit/ViewTransforms"));
+    assert_eq!(vt.try_name().unwrap(), vt.name());
+    assert_eq!(vt.try_family().unwrap(), vt.family());
+    assert_eq!(vt.try_description().unwrap(), vt.description());
+    let mut empty = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    assert_eq!(empty.try_name().unwrap().as_deref(), Some(""));
+    assert_eq!(empty.try_family().unwrap().as_deref(), Some(""));
+    assert_eq!(empty.try_description().unwrap().as_deref(), Some(""));
+    assert_eq!(empty.name_ref().unwrap(), Some(c""));
+    assert_eq!(empty.family_ref().unwrap(), Some(c""));
+    assert_eq!(empty.description_ref().unwrap(), Some(c""));
+    empty.set_name("changed").unwrap();
+    assert_eq!(empty.name_ref().unwrap(), Some(c"changed"));
     assert_eq!(
         vt.description().as_deref(),
         Some("view transform behavior test")
     );
     assert_eq!(vt.reference_space_type(), ReferenceSpaceType::Scene);
+    assert_eq!(
+        vt.try_reference_space_type().unwrap(),
+        ReferenceSpaceType::Scene
+    );
+    let display = ViewTransform::create(ReferenceSpaceType::Display).unwrap();
+    assert_eq!(
+        display.try_reference_space_type().unwrap(),
+        ReferenceSpaceType::Display
+    );
 
     assert_eq!(vt.num_categories(), 1);
+    assert_eq!(vt.try_num_categories().unwrap(), 1);
+    assert_eq!(vt.try_category(-1).unwrap(), None);
+    assert_eq!(vt.try_category(1).unwrap(), None);
     assert_eq!(vt.category(0).as_deref(), Some("unit_category"));
+    assert_eq!(
+        vt.try_category(0).unwrap().as_deref(),
+        Some("unit_category")
+    );
     assert!(vt.has_category("unit_category"));
+    assert!(vt.try_has_category("unit_category").unwrap());
+    assert!(vt.try_has_category_cstr(c"unit_category").unwrap());
+    assert!(!vt.try_has_category_cstr(c"absent").unwrap());
+    assert!(vt.try_has_category("invalid\0category").is_err());
+    assert!(!vt.has_category("invalid\0category"));
 
     #[cfg(feature = "v2_5")]
     {

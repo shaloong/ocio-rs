@@ -1,0 +1,17 @@
+[package]
+name = "ocio-creator-validation"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+v2_5 = ["ocio-rs/v2_5"]
+
+[dependencies]
+ocio-rs = { path = "../..", default-features = false, features = ["system"] }
+ocio-sys = { path = "../../ocio-sys", default-features = false, features = ["system"] }
+
+[build-dependencies]
+cc = "1"

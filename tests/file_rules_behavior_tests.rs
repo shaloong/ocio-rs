@@ -11,9 +11,51 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::FileRules;
 
+#[test]
+#[cfg(ocio_stub)]
+fn stub_rule_lookup_reports_unavailable() {
+    let rules = FileRules::create().expect("file_rules create");
+    assert!(rules.try_index_for_rule("anything").is_err());
+    assert_eq!(rules.rule_index("anything"), None);
+}
+
 fn file_rules_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn custom_key_count_preserves_invalid_rule_errors() {
+    let rules = FileRules::create().unwrap();
+    assert_eq!(rules.try_num_custom_keys(0).unwrap(), 0);
+    assert!(matches!(
+        rules.try_num_custom_keys(rules.num_entries()),
+        Err(ocio_rs::OcioError::Ocio(_))
+    ));
+    assert_eq!(rules.num_custom_keys(rules.num_entries()), 0);
+    assert_eq!(rules.try_num_custom_keys(0).unwrap(), 0);
+}
+
+#[test]
+#[cfg(target_pointer_width = "32")]
+fn oversized_indices_do_not_alias_existing_rules() {
+    let rules = FileRules::create().unwrap();
+    let oversized = u64::from(u32::MAX) + 1;
+    let entries = rules.num_entries();
+    assert!(matches!(
+        rules.try_remove_rule(oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_num_custom_keys(oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        rules.try_custom_key_name(0, oversized),
+        Err(ocio_rs::OcioError::InvalidInput(_))
+    ));
+    assert_eq!(rules.num_entries(), entries);
 }
 
 #[test]
@@ -62,6 +104,7 @@ fn file_rules_insert_rule_round_trip_behavior() {
         0
     );
     assert_eq!(rules.rule_index("UnitRule"), Some(0));
+    assert_eq!(rules.rule_index("unitrule"), Some(0));
     assert!(matches!(
         rules.try_index_for_rule("DefinitelyMissingRule"),
         Err(ocio_rs::OcioError::Ocio(_))
@@ -117,6 +160,8 @@ fn file_rules_regex_and_custom_keys_round_trip_behavior() {
             .as_deref(),
         Some("A001")
     );
+    rules.set_custom_key(0, "camera", "").unwrap();
+    assert_eq!(rules.try_num_custom_keys(0).unwrap(), 0);
 }
 
 #[test]
@@ -169,6 +214,10 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
 
     config.set_file_rules(&rules).expect("attach file rules");
 
+    // File rules still select the default when strict parsing is enabled;
+    // callers can distinguish that case by the matched rule index.
+    config.try_set_strict_parsing_enabled(true).unwrap();
+
     assert_eq!(
         config
             .try_color_space_from_filepath_with_rule_index("plate_main.exr")
@@ -206,6 +255,64 @@ fn config_file_rules_drive_filepath_resolution_behavior() {
             .as_deref(),
         Some("raw")
     );
+    assert_eq!(
+        config
+            .try_color_space_from_filepath_with_rule_index("fallback.unknown")
+            .unwrap(),
+        Some(("raw".to_owned(), 2))
+    );
+    assert!(!config
+        .try_filepath_only_matches_default_rule("plate_main.exr")
+        .unwrap());
+    assert!(config
+        .try_filepath_only_matches_default_rule("fallback.unknown")
+        .unwrap());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn file_rule_order_and_native_reserved_names() {
+    let config = create_test_config().unwrap();
+    let rules = FileRules::create().unwrap();
+    assert_eq!(rules.rule_index(FileRules::DEFAULT_RULE_NAME), Some(0));
+    rules
+        .insert_rule(0, "Pattern", "raw", "plate_*", "exr")
+        .unwrap();
+    rules
+        .insert_rule_regex(1, "Regex", "raw", ".*\\.exr")
+        .unwrap();
+    rules.try_insert_path_search_rule(2).unwrap();
+    assert_eq!(
+        rules.rule_index(FileRules::FILE_PATH_SEARCH_RULE_NAME),
+        Some(2)
+    );
+    assert_eq!(rules.rule_index(FileRules::DEFAULT_RULE_NAME), Some(3));
+
+    let matching_name = || {
+        let (_, index) = config
+            .try_color_space_from_filepath_with_rule_index("plate_a.exr")
+            .unwrap()
+            .unwrap();
+        config
+            .try_const_file_rules()
+            .unwrap()
+            .unwrap()
+            .name(index)
+            .unwrap()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    };
+    config.set_file_rules(&rules).unwrap();
+    assert_eq!(matching_name(), "Pattern");
+    rules.try_increase_rule_priority(1).unwrap();
+    // Config::setFileRules installs an independent copy.
+    assert_eq!(matching_name(), "Pattern");
+    config.set_file_rules(&rules).unwrap();
+    assert_eq!(matching_name(), "Regex");
+    rules.try_decrease_rule_priority(0).unwrap();
+    config.set_file_rules(&rules).unwrap();
+    assert_eq!(matching_name(), "Pattern");
 }
 
 #[test]

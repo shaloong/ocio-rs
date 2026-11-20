@@ -44,6 +44,233 @@ fn extract_shader_text(
 }
 
 #[test]
+#[allow(deprecated)]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn optimization_flags_reject_truncation_and_preserve_the_native_mask() {
+    let _guard = processor_behavior_test_lock();
+    let processor = scaled_matrix_processor().unwrap();
+    let oversize = 1_u64 << 32;
+    let f32_depth = ocio_rs::BitDepth::F32 as i32;
+    assert!(matches!(
+        processor.optimized_cpu_processor(oversize),
+        Err(OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        processor.optimized_gpu_processor(oversize),
+        Err(OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        processor.optimized_processor_bitdepth(f32_depth, f32_depth, oversize),
+        Err(OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        processor.optimized_processor_v1(oversize),
+        Err(OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        processor.optimized_processor(oversize),
+        Err(OcioError::InvalidInput(_))
+    ));
+    assert!(matches!(
+        processor.optimized_legacy_gpu_processor(oversize, 32),
+        Err(OcioError::InvalidInput(_))
+    ));
+    let all = u64::from(ocio_rs::OptimizationFlags::ALL.0);
+    let gpu = processor.optimized_gpu_processor(all).unwrap();
+    // A signed int -> unsigned long conversion would produce u64::MAX on LP64.
+    let native_key = gpu.try_cache_id().unwrap().unwrap();
+    if std::env::var_os(ocio_rs::constants::OCIO_OPTIMIZATION_FLAGS_ENVVAR).is_none() {
+        assert!(
+            native_key.starts_with("GPU Processor: oFlags 4294967295 ops : "),
+            "{native_key}"
+        );
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn processor_explicit_depth_rejects_undefined_bit_depths() {
+    let _guard = processor_behavior_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    let processor = config.processor("raw", "raw").unwrap();
+    let f32_depth = ocio_rs::BitDepth::F32 as i32;
+    for undefined_depth in [-1, f32_depth + 1, i32::MAX] {
+        assert!(processor
+            .optimized_processor_bitdepth(undefined_depth, f32_depth, 0)
+            .is_err());
+        assert!(processor
+            .optimized_processor_bitdepth(f32_depth, undefined_depth, 0)
+            .is_err());
+    }
+    assert!(processor
+        .optimized_processor_bitdepth(f32_depth, f32_depth, 0)
+        .is_ok());
+    assert!(processor.optimized_processor(0).unwrap().is_no_op());
+
+    unsafe {
+        let raw_config = ocio_sys::ocio_config_create_raw();
+        assert!(!raw_config.is_null());
+        let raw = ocio_sys::ocio_config_get_processor_v2(
+            raw_config,
+            c"raw".as_ptr().cast(),
+            c"raw".as_ptr().cast(),
+        );
+        assert!(!raw.is_null());
+        let cpu = ocio_sys::ocio_processor_get_default_cpu_processor(raw);
+        assert!(!cpu.is_null());
+        ocio_sys::ocio_error_clear_last();
+        assert!(
+            ocio_sys::ocio_processor_get_optimized_cpu_processor_bit_depth(
+                raw,
+                i32::MAX,
+                f32_depth,
+                0,
+            )
+            .is_null()
+        );
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        assert!(!ocio_sys::ocio_processor_has_dynamic_property(raw, -1));
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        assert!(ocio_sys::ocio_cpu_processor_get_dynamic_property(cpu, i32::MAX).is_null());
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_cpu_processor_destroy(cpu);
+        ocio_sys::ocio_processor_destroy(raw);
+        ocio_sys::ocio_config_destroy(raw_config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn static_cpu_processor_is_shareable_and_dynamic_processors_are_rejected() {
+    fn require_send_sync<T: Send + Sync>() {}
+    require_send_sync::<ocio_rs::StaticCPUProcessor>();
+    let _guard = processor_behavior_test_lock();
+    let cpu = scaled_matrix_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let shared = std::sync::Arc::new(cpu.try_into_static().unwrap());
+    let workers: Vec<_> = (0..8)
+        .map(|_| {
+            let processor = shared.clone();
+            std::thread::spawn(move || {
+                let mut pixels = [[0.5, 0.25, 0.75, 1.0]; 256];
+                for pixel in &mut pixels {
+                    processor.try_apply_rgba(pixel).unwrap();
+                }
+                pixels
+            })
+        })
+        .collect();
+    for worker in workers {
+        for pixel in worker.join().unwrap() {
+            assert!((pixel[0] - 0.55).abs() < 1e-5);
+            assert!((pixel[1] - 0.225).abs() < 1e-5);
+            assert!((pixel[2] - 0.9).abs() < 1e-5);
+            assert_eq!(pixel[3], 1.0);
+        }
+    }
+    let config = ocio_rs::Config::raw().unwrap();
+    let exposure = ocio_rs::transform::ExposureContrastTransform::create().unwrap();
+    exposure.try_set_exposure(0.5).unwrap();
+    let static_exposure = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap()
+        .try_into_static()
+        .unwrap();
+    let kinds = [
+        ocio_rs::DynamicPropertyType::Exposure,
+        ocio_rs::DynamicPropertyType::Contrast,
+        ocio_rs::DynamicPropertyType::Gamma,
+        ocio_rs::DynamicPropertyType::GradingPrimary,
+        ocio_rs::DynamicPropertyType::GradingRgbCurve,
+        ocio_rs::DynamicPropertyType::GradingTone,
+    ];
+    for kind in kinds {
+        assert!(!static_exposure.try_has_dynamic_property_kind(kind).unwrap());
+        assert!(static_exposure.dynamic_property(kind).is_err());
+    }
+    #[cfg(feature = "v2_5")]
+    {
+        let kind = ocio_rs::DynamicPropertyType::GradingHueCurve;
+        assert!(!static_exposure.try_has_dynamic_property_kind(kind).unwrap());
+        assert!(static_exposure.dynamic_property(kind).is_err());
+    }
+    exposure.make_exposure_dynamic();
+    assert!(!static_exposure.try_is_dynamic().unwrap());
+    assert!(static_exposure
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .is_err());
+    let dynamic = config
+        .processor_from_transform(&exposure, TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    assert!(dynamic.try_is_dynamic().unwrap());
+    assert!(dynamic.try_into_static().is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn static_cpu_rejects_each_dynamic_property_kind() {
+    use ocio_rs::transform::{
+        ExposureContrastTransform, GradingPrimaryTransform, GradingRGBCurveTransform,
+        GradingToneTransform, TransformHandle,
+    };
+    use ocio_rs::{Config, DynamicPropertyType as Kind, GradingStyle};
+
+    fn check(config: &Config, transform: &impl TransformHandle, kind: Kind) {
+        let cpu = config
+            .processor_from_transform(transform, TransformDirection::Forward)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        assert!(cpu.try_is_dynamic().unwrap(), "{kind:?}");
+        assert!(cpu.try_has_dynamic_property_kind(kind).unwrap(), "{kind:?}");
+        assert!(cpu.dynamic_property(kind).is_ok(), "{kind:?}");
+        assert!(cpu.try_into_static().is_err(), "{kind:?}");
+    }
+
+    let _guard = processor_behavior_test_lock();
+    let config = Config::raw().unwrap();
+    for (kind, make_dynamic) in [
+        (
+            Kind::Exposure,
+            ExposureContrastTransform::make_exposure_dynamic as fn(&ExposureContrastTransform),
+        ),
+        (
+            Kind::Contrast,
+            ExposureContrastTransform::make_contrast_dynamic,
+        ),
+        (Kind::Gamma, ExposureContrastTransform::make_gamma_dynamic),
+    ] {
+        let transform = ExposureContrastTransform::create().unwrap();
+        make_dynamic(&transform);
+        check(&config, &transform, kind);
+    }
+    let primary = GradingPrimaryTransform::create(GradingStyle::Log).unwrap();
+    primary.make_dynamic();
+    check(&config, &primary, Kind::GradingPrimary);
+    let rgb = GradingRGBCurveTransform::create(GradingStyle::Log).unwrap();
+    rgb.make_dynamic();
+    check(&config, &rgb, Kind::GradingRgbCurve);
+    let tone = GradingToneTransform::create(GradingStyle::Log).unwrap();
+    tone.make_dynamic();
+    check(&config, &tone, Kind::GradingTone);
+    #[cfg(feature = "v2_5")]
+    {
+        let hue = ocio_rs::transform::GradingHueCurveTransform::create(GradingStyle::Log).unwrap();
+        hue.make_dynamic();
+        check(&config, &hue, Kind::GradingHueCurve);
+    }
+}
+
+#[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn processor_group_transform_and_metadata_behavior() {
     let _guard = processor_behavior_test_lock();

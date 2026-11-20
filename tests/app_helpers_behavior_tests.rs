@@ -1,0 +1,1101 @@
+use ocio_rs::{ColorSpace, ColorSpaceMenuHelper, ColorSpaceMenuParameters, Config};
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn merging_parameter_override_snapshots_survive_native_shared_mutation() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters, MergeStrategy};
+
+    let mut original = ConfigMergingParameters::create().unwrap();
+    original.set_search_path(c"original").unwrap();
+    original.set_active_views(c"first").unwrap();
+    original.set_active_displays(c"display").unwrap();
+    original.set_inactive_color_spaces(c"space").unwrap();
+    original.add_environment_var(c"VAR", c"original").unwrap();
+
+    let mut copy = original.create_editable_copy().unwrap();
+    copy.set_default_strategy(MergeStrategy::PreferBase)
+        .unwrap();
+    assert_eq!(copy.roles().unwrap(), MergeStrategy::PreferBase);
+    assert_eq!(original.roles().unwrap(), MergeStrategy::PreferInput);
+    let path = original.search_path().unwrap();
+    let views = original.active_views().unwrap();
+    let displays = original.active_displays().unwrap();
+    let spaces = original.inactive_color_spaces().unwrap();
+    let var = original.environment_var(0).unwrap();
+    let value = original.environment_var_value(0).unwrap();
+    copy.set_search_path(c"copy").unwrap();
+    copy.set_active_views(c"second").unwrap();
+    copy.set_active_displays(c"other display").unwrap();
+    copy.set_inactive_color_spaces(c"other space").unwrap();
+    copy.add_environment_var(c"VAR", c"copy").unwrap();
+    assert_eq!(path.as_c_str(), c"original");
+    assert_eq!(views.as_c_str(), c"first");
+    assert_eq!(displays.as_c_str(), c"display");
+    assert_eq!(spaces.as_c_str(), c"space");
+    assert_eq!(var.as_c_str(), c"VAR");
+    assert_eq!(value.as_c_str(), c"original");
+    assert_eq!(original.search_path().unwrap().as_c_str(), c"copy");
+    assert_eq!(original.active_views().unwrap().as_c_str(), c"second");
+    assert_eq!(
+        original.environment_var_value(0).unwrap().as_c_str(),
+        c"copy"
+    );
+
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.add_params(&original).unwrap();
+    let mut from_merger = merger.params(0).unwrap().unwrap();
+    let prior = original.search_path().unwrap();
+    from_merger.set_search_path(c"merger copy").unwrap();
+    assert_eq!(prior.as_c_str(), c"copy");
+    assert_eq!(original.search_path().unwrap().as_c_str(), c"merger copy");
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn system_monitors_checks_bounds_and_keeps_snapshot() {
+    let monitors = ocio_rs::SystemMonitors::get().unwrap();
+    let count = monitors.num_monitors();
+    assert!(monitors.monitor_name(count).is_err());
+    assert!(monitors.profile_filepath(count).is_err());
+    assert!(monitors.monitor_name(usize::MAX).is_err());
+    assert!(monitors.profile_filepath(usize::MAX).is_err());
+    if count > 0 {
+        assert!(!monitors.monitor_name(0).unwrap().is_empty());
+        let _ = monitors.profile_filepath(0).unwrap();
+    }
+    #[cfg(target_os = "linux")]
+    assert!(!monitors.is_supported());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_controller_round_trip_and_execute() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters};
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/ociom");
+    let dir = std::ffi::CString::new(fixture.to_str().unwrap()).unwrap();
+    let mut params = ConfigMergingParameters::create().unwrap();
+    params.set_base_config_name(c"base.ocio").unwrap();
+    params.set_input_config_name(c"input.ocio").unwrap();
+    let params_text = params.serialize().unwrap();
+    assert!(params_text.contains("base.ocio"));
+    assert!(params_text.contains("input.ocio"));
+    params.set_adjust_input_reference_space(false).unwrap();
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.set_working_dir(&dir).unwrap();
+    merger.set_search_path(c".").unwrap();
+    merger.add_params(&params).unwrap();
+    assert_eq!(merger.num_params().unwrap(), 1);
+    assert!(merger.params(1).unwrap().is_none());
+    assert_eq!(
+        merger
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .base_config_name()
+            .unwrap(),
+        c"base.ocio"
+    );
+    let serialized = merger.serialize().unwrap();
+    assert!(serialized.contains("base.ocio"));
+    let temp = std::env::temp_dir().join(format!("ocio-rs-ociom-{}.ociom", std::process::id()));
+    std::fs::write(&temp, &serialized).unwrap();
+    let path = std::ffi::CString::new(temp.to_str().unwrap()).unwrap();
+    let parsed = ConfigMerger::from_file(&path).unwrap();
+    let parsed_shared = ocio_rs::ConstConfigMerger::from_file(&path).unwrap();
+    unsafe {
+        let native = ocio_sys::ocio_const_config_merger_from_file(path.as_ptr());
+        assert!(!native.is_null());
+        let shared = ocio_sys::ocio_const_config_merger_params(native, 0, true);
+        assert!(!shared.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_name(shared, c"native shared".as_ptr());
+        let copy = ocio_sys::ocio_const_config_merger_params(native, 0, false);
+        assert!(!copy.is_null());
+        ocio_sys::ocio_const_config_merger_destroy(native);
+        for handle in [shared, copy] {
+            let name = ocio_sys::ocio_config_merging_parameters_get_name(handle);
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), c"native shared");
+            ocio_sys::ocio_config_merging_parameters_destroy(handle);
+        }
+    }
+    std::fs::remove_file(&temp).unwrap();
+    assert_eq!(parsed.num_params().unwrap(), 1);
+    assert_eq!(parsed_shared.num_merged_configs().unwrap(), 0);
+    assert_eq!(
+        parsed_shared.num_params().unwrap(),
+        parsed.num_params().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.num_search_paths().unwrap(),
+        parsed.num_search_paths().unwrap()
+    );
+    for index in -1..=parsed.num_search_paths().unwrap() {
+        assert_eq!(
+            parsed_shared.search_path(index).unwrap(),
+            parsed.search_path(index).unwrap()
+        );
+    }
+    assert_eq!(
+        parsed_shared.working_dir().unwrap(),
+        parsed.working_dir().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.major_version().unwrap(),
+        parsed.major_version().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.minor_version().unwrap(),
+        parsed.minor_version().unwrap()
+    );
+    assert_eq!(
+        parsed_shared.serialize().unwrap(),
+        parsed.serialize().unwrap()
+    );
+    assert!(parsed_shared.params(-1).unwrap().is_none());
+    assert_eq!(
+        parsed_shared
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .input_config_name()
+            .unwrap(),
+        c"input.ocio"
+    );
+    assert_eq!(
+        parsed_shared
+            .create_editable_copy()
+            .unwrap()
+            .num_params()
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        parsed
+            .params(0)
+            .unwrap()
+            .unwrap()
+            .input_config_name()
+            .unwrap(),
+        c"input.ocio"
+    );
+    assert!(merger.merged_config(-1).unwrap().is_none());
+    let output = merger.merge_configs().unwrap();
+    assert_eq!(output.num_merged_configs().unwrap(), 1);
+    let merged = output.merged_config(-1).unwrap().unwrap();
+    let retained = output.merged_const_config(-1).unwrap().unwrap();
+    assert!(merged.color_space("extra").is_some());
+    assert!(output.merged_config(2).unwrap().is_none());
+    assert!(output.merged_config(-2).unwrap().is_none());
+    assert!(output.merged_config(i32::MIN).unwrap().is_none());
+    assert!(output.merged_const_config(-2).unwrap().is_none());
+    assert!(output.merged_const_config(1).unwrap().is_none());
+    assert_eq!(
+        retained.cache_id().unwrap(),
+        output
+            .merged_const_config(0)
+            .unwrap()
+            .unwrap()
+            .cache_id()
+            .unwrap()
+    );
+    drop(output);
+    assert!(merged.color_space("extra").is_some());
+    assert!(retained.try_const_color_space(c"extra").unwrap().is_some());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_multi_step_preserves_intermediate_and_final_results() {
+    use ocio_rs::{ConfigMerger, ConfigMergingParameters};
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/ociom");
+    let dir = std::ffi::CString::new(fixture.to_str().unwrap()).unwrap();
+    let mut first = ConfigMergingParameters::create().unwrap();
+    first.set_base_config_name(c"base.ocio").unwrap();
+    first.set_input_config_name(c"input.ocio").unwrap();
+    first.set_output_name(c"stage-one").unwrap();
+    first.set_name(c"first result").unwrap();
+    first.set_adjust_input_reference_space(false).unwrap();
+    first.set_avoid_duplicates(false).unwrap();
+    let mut second = ConfigMergingParameters::create().unwrap();
+    second.set_base_config_name(c"stage-one").unwrap();
+    second.set_input_config_name(c"input.ocio").unwrap();
+    second.set_name(c"second result").unwrap();
+    second.set_adjust_input_reference_space(false).unwrap();
+    second.set_avoid_duplicates(false).unwrap();
+    let mut merger = ConfigMerger::create().unwrap();
+    merger.set_working_dir(&dir).unwrap();
+    merger.add_params(&first).unwrap();
+    merger.add_params(&second).unwrap();
+    let retained_result = merger.merge_configs_shared().unwrap();
+    assert_eq!(retained_result.num_merged_configs().unwrap(), 2);
+    let retained_first = retained_result.merged_const_config(0).unwrap().unwrap();
+    let retained_final = retained_result.merged_const_config(-1).unwrap().unwrap();
+    assert!(retained_result.merged_const_config(2).unwrap().is_none());
+    assert!(retained_result.merged_const_config(-2).unwrap().is_none());
+    let rerun = retained_result.merge_configs().unwrap();
+    assert!(rerun.num_merged_configs().unwrap() >= 2);
+    let editable = retained_result.create_editable_copy().unwrap();
+    assert_eq!(editable.num_merged_configs().unwrap(), 2);
+    drop(retained_result);
+    assert_eq!(
+        retained_first.name().unwrap().as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        retained_final.name().unwrap().as_deref(),
+        Some("second result")
+    );
+    let result = merger.merge_configs().unwrap();
+    assert_eq!(result.num_merged_configs().unwrap(), 2);
+    assert_eq!(
+        result.merged_config(0).unwrap().unwrap().name().as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        result.merged_config(1).unwrap().unwrap().name().as_deref(),
+        Some("second result")
+    );
+    assert_eq!(
+        result.merged_config(-1).unwrap().unwrap().name().as_deref(),
+        Some("second result")
+    );
+    assert_eq!(
+        result
+            .merged_const_config(0)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first result")
+    );
+    assert_eq!(
+        result
+            .merged_const_config(-1)
+            .unwrap()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("second result")
+    );
+    assert!(result.merged_config(2).unwrap().is_none());
+    assert!(result.merged_config(-2).unwrap().is_none());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn ociom_raw_shared_parameters_update_the_merger() {
+    unsafe {
+        let merger = ocio_sys::ocio_config_merger_create();
+        let original = ocio_sys::ocio_config_merging_parameters_create();
+        assert!(!merger.is_null() && !original.is_null());
+        ocio_sys::ocio_config_merger_add_params(merger, original);
+        assert!(ocio_sys::ocio_config_merger_params_shared(merger, -1).is_null());
+        let shared = ocio_sys::ocio_config_merger_params_shared(merger, 0);
+        assert!(!shared.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_name(shared, c"shared edit".as_ptr());
+        let copied = ocio_sys::ocio_config_merger_params(merger, 0);
+        assert!(!copied.is_null());
+        ocio_sys::ocio_config_merging_parameters_destroy(original);
+        ocio_sys::ocio_config_merger_destroy(merger);
+        for handle in [shared, copied] {
+            let name = ocio_sys::ocio_config_merging_parameters_get_name(handle);
+            assert!(!name.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(name), c"shared edit");
+            ocio_sys::ocio_config_merging_parameters_destroy(handle);
+        }
+    }
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn config_merging_section_strategies_are_independent_and_inherit_default() {
+    use ocio_rs::{ConfigMergingParameters as Params, MergeStrategy as Strategy};
+    type Setter = fn(&mut Params, Strategy) -> ocio_rs::Result<()>;
+    type Getter = fn(&Params) -> ocio_rs::Result<Strategy>;
+    let fields: [(Setter, Getter); 7] = [
+        (Params::set_roles, Params::roles),
+        (Params::set_file_rules, Params::file_rules),
+        (Params::set_display_views, Params::display_views),
+        (Params::set_view_transforms, Params::view_transforms),
+        (Params::set_looks, Params::looks),
+        (Params::set_color_spaces, Params::color_spaces),
+        (Params::set_named_transforms, Params::named_transforms),
+    ];
+    let mut options = Params::create().unwrap();
+    options.set_default_strategy(Strategy::PreferBase).unwrap();
+    for (index, (setter, getter)) in fields.iter().enumerate() {
+        setter(&mut options, Strategy::Remove).unwrap();
+        for (other_index, (_, other_getter)) in fields.iter().enumerate() {
+            let expected = if index == other_index {
+                Strategy::Remove
+            } else {
+                Strategy::PreferBase
+            };
+            assert_eq!(other_getter(&options).unwrap(), expected);
+        }
+        setter(&mut options, Strategy::Unspecified).unwrap();
+        assert_eq!(getter(&options).unwrap(), Strategy::PreferBase);
+    }
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn config_merging_preserves_inputs_and_applies_native_conflict_policy() {
+    use ocio_rs::{ConfigMergingParameters, MergeStrategy};
+    let base = Config::raw().unwrap().create_editable_copy().unwrap();
+    let input = base.create_editable_copy().unwrap();
+    let space = ColorSpace::create().unwrap();
+    space.set_name("new-space").unwrap();
+    input.try_add_color_space(&space).unwrap();
+    let mut options = ConfigMergingParameters::create().unwrap();
+    options.set_name(c"merged").unwrap();
+    options.set_adjust_input_reference_space(false).unwrap();
+    options
+        .set_default_strategy(MergeStrategy::PreferBase)
+        .unwrap();
+    options
+        .set_color_spaces(MergeStrategy::PreferInput)
+        .unwrap();
+    options
+        .add_environment_var(c"MERGE_TEST", c"default")
+        .unwrap();
+    let copy = options.create_editable_copy().unwrap();
+    assert_eq!(copy.color_spaces().unwrap(), MergeStrategy::PreferInput);
+    assert_eq!(copy.environment_var(0).unwrap().as_c_str(), c"MERGE_TEST");
+    assert_eq!(
+        copy.environment_var_value(0).unwrap().as_c_str(),
+        c"default"
+    );
+    let merged = copy.merge_configs(&base, &input).unwrap();
+    assert_eq!(merged.name().as_deref(), Some("merged"));
+    assert!(merged.color_space("new-space").is_some());
+    let merged = copy.merge_color_space(&base, &space).unwrap();
+    assert!(merged.color_space("new-space").is_some());
+    let base_params = ColorSpaceMenuParameters::create(&base).unwrap();
+    let input_params = ColorSpaceMenuParameters::create(&input).unwrap();
+    let shared_base = base_params.const_config().unwrap();
+    let shared_input = input_params.const_config().unwrap();
+    let base_flags = shared_base.processor_cache_flags().unwrap();
+    let input_flags = shared_input.processor_cache_flags().unwrap();
+    // Exercise the zero-copy raw merge using borrowed, tagged config handles.
+    // This thread is the only user of both native configs during the call.
+    unsafe {
+        let params = ocio_sys::ocio_config_merging_parameters_create();
+        assert!(!params.is_null());
+        ocio_sys::ocio_config_merging_parameters_set_adjust_input_reference_space(params, false);
+        ocio_sys::ocio_config_merging_parameters_set_default_strategy(
+            params,
+            MergeStrategy::PreferBase as i32,
+        );
+        let (base_handle, base_const) = ocio_rs::ConfigRef::from(&shared_base).as_raw_parts();
+        let (input_handle, input_const) = ocio_rs::ConfigRef::from(&shared_input).as_raw_parts();
+        let result = ocio_sys::ocio_config_merging_parameters_merge_config_refs(
+            params,
+            base_handle,
+            base_const,
+            input_handle,
+            input_const,
+        );
+        assert!(!result.is_null());
+        ocio_sys::ocio_config_destroy(result);
+        ocio_sys::ocio_config_merging_parameters_destroy(params);
+    }
+    let shared_space = shared_input
+        .try_const_color_space(c"new-space")
+        .unwrap()
+        .unwrap();
+    drop((base_params, input_params));
+    for (base_ref, input_ref) in [
+        (
+            ocio_rs::ConfigRef::from(&base),
+            ocio_rs::ConfigRef::from(&shared_input),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ConfigRef::from(&input),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ConfigRef::from(&shared_input),
+        ),
+    ] {
+        let result = copy.merge_configs_ref(base_ref, input_ref).unwrap();
+        assert!(result.color_space("new-space").is_some());
+        assert_eq!(result.name().as_deref(), Some("merged"));
+    }
+    for (base_ref, space_ref) in [
+        (
+            ocio_rs::ConfigRef::from(&base),
+            ocio_rs::ColorSpaceRef::from(&shared_space),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ColorSpaceRef::from(&space),
+        ),
+        (
+            ocio_rs::ConfigRef::from(&shared_base),
+            ocio_rs::ColorSpaceRef::from(&shared_space),
+        ),
+    ] {
+        let result = copy.merge_color_space_ref(base_ref, space_ref).unwrap();
+        assert!(result.color_space("new-space").is_some());
+    }
+    assert!(base.color_space("new-space").is_none());
+    assert_ne!(input.name().as_deref(), Some("merged"));
+    assert_eq!(shared_base.processor_cache_flags().unwrap(), base_flags);
+    assert_eq!(shared_input.processor_cache_flags().unwrap(), input_flags);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn file_backed_display_helpers_author_process_and_remove() {
+    use ocio_rs::{Context, DisplayViewFromFile, DynamicPropertyType, TransformDirection};
+    let mut config = Config::from_stream(
+        "ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\n\
+         displays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\n\
+         colorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n",
+    )
+    .unwrap();
+    let file = std::ffi::CString::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/clf/matrix_3x4_example.clf"
+    ))
+    .unwrap();
+    assert!(config
+        .add_color_space_from_file(c"Invalid", &file, c"", c"missing")
+        .is_err());
+    config
+        .add_color_space_from_file(c"File Input", &file, c"", c"linear")
+        .unwrap();
+    assert!(config.color_space("File Input").is_some());
+    config
+        .add_display_view_from_file(DisplayViewFromFile {
+            display: c"Extra",
+            view: c"File View",
+            looks: c"",
+            color_space: c"File Display",
+            family: c"Output",
+            description: c"Test output",
+            categories: c"",
+            file: &file,
+            connection_space: c"linear",
+        })
+        .unwrap();
+    assert!(config.color_space("File Display").is_some());
+    let context = Context::create().unwrap();
+    let mut output = [[0.25, 0.5, 0.75, 1.0]; 2];
+    for (rgba, ctx) in output.iter_mut().zip([None, Some(&context)]) {
+        let cpu = config
+            .application_display_processor(
+                ctx,
+                c"linear",
+                c"Extra",
+                c"File View",
+                None,
+                TransformDirection::Forward,
+            )
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        assert!(cpu.has_dynamic_property_kind(DynamicPropertyType::Exposure));
+        cpu.try_apply_rgba(rgba).unwrap();
+    }
+    assert_eq!(output[0], output[1]);
+    assert_ne!(output[0], [0.25, 0.5, 0.75, 1.0]);
+    let params = ocio_rs::ColorSpaceMenuParameters::create(&config).unwrap();
+    let shared = params.const_config().unwrap();
+    let shared_context = shared.try_const_current_context().unwrap().unwrap();
+    for ctx in [None, Some(&shared_context)] {
+        let cpu = shared
+            .application_display_processor(
+                ctx,
+                c"linear",
+                c"Extra",
+                c"File View",
+                None,
+                TransformDirection::Forward,
+            )
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        let mut rgba = [0.25, 0.5, 0.75, 1.0];
+        cpu.try_apply_rgba(&mut rgba).unwrap();
+        assert_eq!(rgba, output[0]);
+    }
+    let channel = ocio_rs::transform::MatrixTransform::scale(&[0.5, 1.0, 1.0, 1.0]).unwrap();
+    let editable = config
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let retained = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Forward,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut a = [0.25, 0.5, 0.75, 1.0];
+    let mut b = a;
+    editable.try_apply_rgba(&mut a).unwrap();
+    retained.try_apply_rgba(&mut b).unwrap();
+    assert_eq!(a, b);
+    assert_ne!(a, output[0]);
+    let inverse = shared
+        .application_display_processor(
+            Some(&shared_context),
+            c"linear",
+            c"Extra",
+            c"File View",
+            Some(&channel),
+            TransformDirection::Inverse,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    inverse.try_apply_rgba(&mut b).unwrap();
+    for (actual, original) in b.into_iter().zip([0.25, 0.5, 0.75, 1.0]) {
+        assert!((actual - original).abs() < 1e-5);
+    }
+    assert!(shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"missing display",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .is_err());
+    let first = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    let second = shared
+        .application_display_processor(
+            None,
+            c"linear",
+            c"Extra",
+            c"File View",
+            None,
+            TransformDirection::Forward,
+        )
+        .unwrap();
+    first
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
+    config
+        .remove_display_view_and_unused_color_space(c"Extra", c"File View")
+        .unwrap();
+    assert!(config.color_space("File Display").is_none());
+    assert!(config.color_space("File Input").is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn identity_viewing_helper_preserves_pixels_with_dynamic_adjustments() {
+    let cpu = Config::raw()
+        .unwrap()
+        .display_view_helper_identity_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Exposure));
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Contrast));
+    assert!(cpu.has_dynamic_property_kind(ocio_rs::DynamicPropertyType::Gamma));
+    let mut rgba = [0.25, 0.5, 0.75, 0.5];
+    cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.25, 0.5, 0.75, 0.5]);
+    let config = Config::raw().unwrap();
+    let params = ocio_rs::ColorSpaceMenuParameters::create(&config).unwrap();
+    let shared = params.const_config().unwrap();
+    let shared_cpu = shared
+        .display_view_helper_identity_processor()
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut rgba = [0.25, 0.5, 0.75, 0.5];
+    shared_cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.25, 0.5, 0.75, 0.5]);
+    let another = shared.display_view_helper_identity_processor().unwrap();
+    let first = shared.display_view_helper_identity_processor().unwrap();
+    first
+        .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        another
+            .dynamic_property(ocio_rs::DynamicPropertyType::Exposure)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.0
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn raw_const_identity_helper_allows_native_cache_semantics() {
+    unsafe {
+        let config = ocio_sys::ocio_get_const_current_config();
+        assert!(!config.is_null());
+        let processor = ocio_sys::ocio_const_config_display_view_identity_processor(config, false);
+        assert!(!processor.is_null());
+        ocio_sys::ocio_processor_destroy(processor);
+        ocio_sys::ocio_const_config_destroy(config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn raw_const_display_helper_allows_native_cache_semantics() {
+    unsafe {
+        let config = ocio_sys::ocio_config_create_from_stream(c"ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\ndisplays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\ncolorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n".as_ptr());
+        assert!(!config.is_null());
+        let params = ocio_sys::ocio_color_space_menu_parameters_create(config);
+        assert!(!params.is_null());
+        let shared = ocio_sys::ocio_color_space_menu_parameters_get_const_config(params);
+        assert!(!shared.is_null());
+        let processor = ocio_sys::ocio_const_config_application_display_processor(
+            shared,
+            std::ptr::null(),
+            c"linear".as_ptr(),
+            c"Monitor".as_ptr(),
+            c"Raw".as_ptr(),
+            std::ptr::null_mut(),
+            ocio_rs::TransformDirection::Forward as i32,
+            false,
+        );
+        assert!(!processor.is_null());
+        ocio_sys::ocio_processor_destroy(processor);
+        ocio_sys::ocio_const_config_destroy(shared);
+        ocio_sys::ocio_color_space_menu_parameters_destroy(params);
+        ocio_sys::ocio_config_destroy(config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn legacy_viewing_pipeline_copies_stages_and_processes_pixels() {
+    use ocio_rs::transform::{
+        DisplayViewTransform, ExposureContrastTransform, MatrixTransform, Transform,
+    };
+    use ocio_rs::LegacyViewingStage;
+    use ocio_rs::{Context, LegacyViewingPipeline};
+    let config = Config::from_stream(
+        "ocio_profile_version: 2\nroles: {default: linear, scene_linear: linear}\n\
+         displays: {Monitor: [!<View> {name: Raw, colorspace: linear}]}\n\
+         colorspaces: [!<ColorSpace> {name: linear, bitdepth: 32f, isdata: false}]\n",
+    )
+    .unwrap();
+    let mut pipeline = LegacyViewingPipeline::create().unwrap();
+    assert!(pipeline.display_view_transform().unwrap().is_none());
+    assert!(pipeline.processor(&config).is_err());
+    let display = DisplayViewTransform::create().unwrap();
+    display.set_src("linear").unwrap();
+    display.set_display("Monitor").unwrap();
+    display.set_view("Raw").unwrap();
+    pipeline.set_display_view_transform(Some(&display));
+    let retained_display = pipeline
+        .const_stage(LegacyViewingStage::DisplayView)
+        .unwrap()
+        .unwrap();
+    assert!(pipeline
+        .serialize()
+        .unwrap()
+        .contains("DisplayViewTransform"));
+    display.set_display("changed").unwrap();
+    assert_eq!(
+        pipeline
+            .display_view_transform()
+            .unwrap()
+            .unwrap()
+            .display()
+            .as_deref(),
+        Some("Monitor")
+    );
+    let stage = Transform::Matrix(MatrixTransform::scale(&[2.0, 1.0, 0.5, 1.0]).unwrap());
+    pipeline.set_display_cc(Some(&stage));
+    pipeline.set_linear_cc(Some(&stage));
+    pipeline.set_color_timing_cc(Some(&stage));
+    pipeline.set_channel_view(Some(&stage));
+    let retained_correction = pipeline
+        .const_stage(LegacyViewingStage::DisplayCorrection)
+        .unwrap()
+        .unwrap();
+    assert!(pipeline
+        .set_const_stage(LegacyViewingStage::DisplayView, Some(&retained_correction))
+        .is_err());
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::DisplayView)
+        .unwrap()
+        .is_some());
+    drop(stage);
+    assert!(matches!(
+        pipeline.display_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.linear_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.color_timing_cc().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    assert!(matches!(
+        pipeline.channel_view().unwrap(),
+        Some(Transform::Matrix(_))
+    ));
+    pipeline.set_linear_cc(None);
+    pipeline.set_color_timing_cc(None);
+    pipeline.set_channel_view(None);
+    assert!(pipeline.linear_cc().unwrap().is_none());
+    assert!(pipeline.color_timing_cc().unwrap().is_none());
+    assert!(pipeline.channel_view().unwrap().is_none());
+    pipeline.set_looks_override(c"").unwrap();
+    pipeline.set_looks_override_enabled(true).unwrap();
+    assert!(pipeline.looks_override_enabled().unwrap());
+    assert_eq!(pipeline.looks_override().unwrap(), c"");
+    let const_config = ocio_rs::ColorSpaceMenuParameters::create(&config)
+        .unwrap()
+        .const_config()
+        .unwrap();
+    let const_context = const_config.try_const_current_context().unwrap().unwrap();
+    for processor in [
+        pipeline.processor(&config).unwrap(),
+        pipeline
+            .processor_with_context(&config, &Context::create().unwrap())
+            .unwrap(),
+        pipeline
+            .processor_with_const_config(&const_config, None)
+            .unwrap(),
+        pipeline
+            .processor_with_const_config(&const_config, Some(&const_context))
+            .unwrap(),
+    ] {
+        let mut rgba = [0.25, 0.5, 0.75, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut rgba)
+            .unwrap();
+        assert_eq!(rgba, [0.5, 0.5, 0.375, 1.0]);
+    }
+    drop(pipeline);
+
+    let mut pipeline = LegacyViewingPipeline::create().unwrap();
+    pipeline
+        .set_const_stage(LegacyViewingStage::DisplayView, Some(&retained_display))
+        .unwrap();
+    pipeline
+        .set_const_stage(
+            LegacyViewingStage::DisplayCorrection,
+            Some(&retained_correction),
+        )
+        .unwrap();
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::LinearCorrection)
+        .unwrap()
+        .is_none());
+    let mut rgba = [0.25, 0.5, 0.75, 1.0];
+    pipeline
+        .processor(&config)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap()
+        .try_apply_rgba(&mut rgba)
+        .unwrap();
+    assert_eq!(rgba, [0.5, 0.5, 0.375, 1.0]);
+    pipeline
+        .set_const_stage(LegacyViewingStage::DisplayCorrection, None)
+        .unwrap();
+    assert!(pipeline
+        .const_stage(LegacyViewingStage::DisplayCorrection)
+        .unwrap()
+        .is_none());
+    retained_correction.validate().unwrap();
+
+    let exposure = ExposureContrastTransform::create().unwrap();
+    exposure.try_set_exposure(0.5).unwrap();
+    exposure.try_make_exposure_dynamic().unwrap();
+    pipeline.set_linear_cc(Some(&Transform::ExposureContrast(exposure)));
+    let first = pipeline
+        .processor_with_const_config(&const_config, None)
+        .unwrap();
+    let second = pipeline
+        .processor_with_const_config(&const_config, Some(&const_context))
+        .unwrap();
+    let kind = ocio_rs::DynamicPropertyType::Exposure;
+    first
+        .dynamic_property(kind)
+        .unwrap()
+        .set_double_value(2.0)
+        .unwrap();
+    assert_eq!(
+        second
+            .dynamic_property(kind)
+            .unwrap()
+            .double_value()
+            .unwrap(),
+        0.5
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn mixing_manager_retains_config_and_slider_round_trips() {
+    let config = Config::raw().unwrap();
+    let mut manager = ocio_rs::MixingColorSpaceManager::create(&config).unwrap();
+    manager.refresh(&config).unwrap();
+    drop(config);
+    let manager_text = manager.serialize().unwrap();
+    assert!(manager_text.contains("slider"));
+    assert!(manager.num_mixing_spaces() > 0);
+    assert!(manager.num_mixing_encodings() > 0);
+    assert!(manager.set_selected_mixing_space_idx(usize::MAX).is_err());
+    assert!(manager
+        .set_selected_mixing_encoding_idx(usize::MAX)
+        .is_err());
+    let space = manager.mixing_space_ui_name(0).unwrap().to_owned();
+    manager.set_selected_mixing_space(&space).unwrap();
+    assert_eq!(manager.selected_mixing_space_idx(), 0);
+    let encoding = manager.mixing_encoding_name(0).unwrap().to_owned();
+    manager.set_selected_mixing_encoding(&encoding).unwrap();
+    assert_eq!(manager.selected_mixing_encoding_idx(), 0);
+    manager.set_selected_mixing_encoding_idx(1).unwrap();
+    let cpu = manager
+        .processor(c"raw", c"", c"", ocio_rs::TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut red = [1.0, 0.0, 0.0, 0.5];
+    cpu.try_apply_rgba(&mut red).unwrap();
+    assert_eq!(red, [0.0, 1.0, 1.0, 0.5]);
+    manager.set_selected_mixing_encoding_idx(0).unwrap();
+
+    let slider = manager.slider_with_edges(0.1, 0.9);
+    let slider_text = slider.serialize().unwrap();
+    assert!(slider_text.contains("minEdge"));
+    assert!(slider_text.contains("maxEdge"));
+    assert!(manager_text.contains("slider"));
+    // Native getters report perceptual edges for non-uniform spaces.
+    assert!((slider.slider_to_mixing(0.0) - 0.1).abs() < 1e-5);
+    assert!((slider.slider_to_mixing(1.0) - 0.9).abs() < 1e-5);
+    let value = 0.35;
+    assert!((slider.mixing_to_slider(slider.slider_to_mixing(value)) - value).abs() < 1e-5);
+
+    // Both native overloads borrow the same manager-owned slider.
+    let edges = (slider.slider_min_edge(), slider.slider_max_edge());
+    let mut slider = manager.slider();
+    assert_eq!((slider.slider_min_edge(), slider.slider_max_edge()), edges);
+    slider.set_slider_min_edge(0.2);
+    slider.set_slider_max_edge(0.8);
+    assert!((slider.slider_to_mixing(0.0) - 0.2).abs() < 1e-5);
+    assert!((slider.slider_to_mixing(1.0) - 0.8).abs() < 1e-5);
+    let edges = (slider.slider_min_edge(), slider.slider_max_edge());
+    let slider = manager.slider();
+    assert_eq!((slider.slider_min_edge(), slider.slider_max_edge()), edges);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn mixing_manager_uses_retained_const_config_without_copying() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    let parameters = ColorSpaceMenuParameters::create(&config).unwrap();
+    let retained = parameters.const_config().unwrap();
+
+    // A mutation after obtaining the shared handle must be visible at creation.
+    config.set_role("color_picking", "raw").unwrap();
+    let mut manager = ocio_rs::MixingColorSpaceManager::create_from_const(&retained).unwrap();
+    assert_eq!(manager.num_mixing_spaces(), 1);
+    let name = manager.mixing_space_ui_name(0).unwrap();
+    assert!(name.to_bytes().ends_with(b"(raw)"));
+
+    // The borrowed name belongs to the manager, not the mutable source config.
+    config.remove_role("color_picking").unwrap();
+    assert!(name.to_bytes().ends_with(b"(raw)"));
+    // Refresh must use the same native config, not an editable snapshot.
+    manager.refresh_from_const(&retained).unwrap();
+    assert_eq!(manager.num_mixing_spaces(), 2);
+    drop(retained);
+    drop(parameters);
+    drop(config);
+
+    let cpu = manager
+        .processor(c"raw", c"", c"", ocio_rs::TransformDirection::Forward)
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut rgba = [0.1, 0.2, 0.3, 0.4];
+    cpu.try_apply_rgba(&mut rgba).unwrap();
+    assert_eq!(rgba, [0.1, 0.2, 0.3, 0.4]);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn native_menu_filters_and_borrows_immutable_entries() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    let space = ColorSpace::create().unwrap();
+    space.set_name("Menu Input").unwrap();
+    space.set_family("Input/Camera").unwrap();
+    space.set_description("Camera input space").unwrap();
+    space.add_category("ocio_rs_camera_test").unwrap();
+    config.try_add_color_space(&space).unwrap();
+
+    let mut parameters = ColorSpaceMenuParameters::create(&config).unwrap();
+    parameters.set_app_categories(c"ocio_rs_camera_test");
+    let parameters_text = parameters.serialize().unwrap();
+    assert!(parameters_text.contains("ocio_rs_camera_test"));
+    assert_eq!(parameters.app_categories(), c"ocio_rs_camera_test");
+    #[cfg(feature = "v2_5")]
+    {
+        parameters.set_treat_no_category_as_any(false);
+        assert!(!parameters.treat_no_category_as_any());
+    }
+    parameters.add_color_space(c"raw");
+    assert_eq!(parameters.num_added_color_spaces(), 1);
+    assert_eq!(parameters.added_color_space(0), c"raw");
+    let menu = ColorSpaceMenuHelper::create(&parameters).unwrap();
+    let menu_text = menu.serialize().unwrap();
+    assert!(menu_text.contains("Menu Input"));
+    assert!(parameters_text.contains("ocio_rs_camera_test"));
+    let index = menu.index_from_name(c"Menu Input").unwrap();
+    let retained_name = menu.name(index);
+    let retained_ui_name = {
+        let input = std::ffi::CString::new("Menu Input").unwrap();
+        menu.ui_name_from_name(&input)
+    };
+    config.remove_color_space("Menu Input").unwrap();
+    assert_eq!(retained_name, c"Menu Input");
+    assert_eq!(retained_ui_name, c"Menu Input");
+    parameters.clear_added_color_spaces();
+    drop(parameters);
+    drop(config);
+
+    assert_eq!(menu.index_from_name(c"Menu Input"), Some(index));
+    assert_eq!(menu.name(index), c"Menu Input");
+    assert_eq!(menu.description(index), c"Camera input space");
+    assert_eq!(menu.family(index), c"Input/Camera");
+    assert_eq!(menu.num_hierarchy_levels(index), 2);
+    assert_eq!(menu.hierarchy_level(index, 1), c"Camera");
+    assert_eq!(menu.index_from_ui_name(menu.ui_name(index)), Some(index));
+    assert_eq!(
+        menu.name_from_ui_name(menu.ui_name(index)),
+        menu.name(index)
+    );
+    assert_eq!(
+        menu.ui_name_from_name(menu.name(index)),
+        menu.ui_name(index)
+    );
+    assert!(menu.index_from_name(c"raw").is_some());
+    assert_eq!(menu.index_from_name(c"absent"), None);
+    assert_eq!(menu.name(menu.num_color_spaces()), c"");
+    assert_eq!(menu.name(index).as_ptr(), menu.name(index).as_ptr());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn menu_parameters_retain_const_configs_without_copying() {
+    let first = Config::raw().unwrap().create_editable_copy().unwrap();
+    let first_source = ColorSpaceMenuParameters::create(&first).unwrap();
+    let first_const = first_source.const_config().unwrap();
+    first.set_name("first shared config").unwrap();
+
+    let mut parameters = ColorSpaceMenuParameters::create_from_const(&first_const).unwrap();
+    assert_eq!(
+        parameters
+            .const_config()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("first shared config")
+    );
+
+    let second = Config::raw().unwrap().create_editable_copy().unwrap();
+    let second_source = ColorSpaceMenuParameters::create(&second).unwrap();
+    let second_const = second_source.const_config().unwrap();
+    parameters.set_const_config(&second_const);
+    second.set_name("second shared config").unwrap();
+    drop(second_const);
+    drop(second_source);
+    drop(second);
+    assert_eq!(
+        parameters
+            .const_config()
+            .unwrap()
+            .name()
+            .unwrap()
+            .as_deref(),
+        Some("second shared config")
+    );
+    assert!(
+        ColorSpaceMenuHelper::create(&parameters)
+            .unwrap()
+            .num_color_spaces()
+            > 0
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn menu_configuration_is_an_editable_copy_and_invalid_entries_error() {
+    let config = Config::raw().unwrap().create_editable_copy().unwrap();
+    config.set_name("menu source").unwrap();
+    let mut parameters = ColorSpaceMenuParameters::create(&config).unwrap();
+    let copy = parameters.config().unwrap();
+    let retained = parameters.const_config().unwrap();
+    copy.set_name("changed copy").unwrap();
+    assert_eq!(config.name().as_deref(), Some("menu source"));
+    config.set_name("same native config").unwrap();
+    assert_eq!(
+        retained.name().unwrap().as_deref(),
+        Some("same native config")
+    );
+    parameters.add_color_space(c"nonexistent-menu-space");
+    assert!(ColorSpaceMenuHelper::create(&parameters).is_err());
+    drop(parameters);
+    drop(config);
+    assert_eq!(
+        retained.name().unwrap().as_deref(),
+        Some("same native config")
+    );
+}

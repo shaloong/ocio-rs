@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
 use ocio_sys;
@@ -35,6 +35,59 @@ pub struct ViewTransform {
 }
 
 impl ViewTransform {
+    fn borrow_text(
+        &mut self,
+        getter: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    ) -> Result<Option<&CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe { getter(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { CStr::from_ptr(ptr.cast()) })
+        })
+    }
+
+    /// Borrow the native name without copying. External native aliases must not
+    /// mutate this object during the borrow.
+    ///
+    /// ```compile_fail
+    /// # use ocio_rs::ViewTransform;
+    /// # fn example(mut view: ViewTransform) -> ocio_rs::Result<()> {
+    /// let name = view.name_ref()?;
+    /// view.set_name("changed")?;
+    /// println!("{:?}", name);
+    /// # Ok(()) }
+    /// ```
+    pub fn name_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_view_transform_get_name)
+    }
+
+    /// Borrow the native family without copying; the aliasing rule of
+    /// [`Self::name_ref`] also applies.
+    pub fn family_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_view_transform_get_family)
+    }
+
+    /// Borrow the native description without copying; the aliasing rule of
+    /// [`Self::name_ref`] also applies.
+    pub fn description_ref(&mut self) -> Result<Option<&CStr>> {
+        self.borrow_text(ocio_sys::ocio_view_transform_get_description)
+    }
+
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// It may contain sensitive paths from transforms.
+    pub fn serialize(&self) -> Result<String> {
+        crate::const_config_item::serialize_named_item(self.handle, 2, false)
+    }
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ViewTransformDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 5, direction as i32)
+    }
     /// Create a new view transform with the given reference space (alias for [`Self::create`]).
     pub fn create_with_reference_space(reference_space: ReferenceSpaceType) -> Result<Self> {
         Self::create(reference_space)
@@ -51,7 +104,16 @@ impl ViewTransform {
 
     /// Get the name of this view transform.
     pub fn name(&self) -> Option<String> {
-        unsafe { cstr_from_mut(ocio_sys::ocio_view_transform_get_name(self.handle.as_ptr())) }
+        self.try_name().ok().flatten()
+    }
+
+    /// Get the name while preserving bridge errors.
+    pub fn try_name(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value =
+            unsafe { cstr_from_mut(ocio_sys::ocio_view_transform_get_name(self.handle.as_ptr())) };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the name of this view transform.
@@ -64,11 +126,19 @@ impl ViewTransform {
 
     /// Get the family of this view transform.
     pub fn family(&self) -> Option<String> {
-        unsafe {
+        self.try_family().ok().flatten()
+    }
+
+    /// Get the family while preserving bridge errors.
+    pub fn try_family(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_view_transform_get_family(
                 self.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the family of this view transform.
@@ -83,11 +153,19 @@ impl ViewTransform {
 
     /// Get the description of this view transform.
     pub fn description(&self) -> Option<String> {
-        unsafe {
+        self.try_description().ok().flatten()
+    }
+
+    /// Get the description while preserving bridge errors.
+    pub fn try_description(&self) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_view_transform_get_description(
                 self.handle.as_ptr(),
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the description of this view transform.
@@ -148,46 +226,37 @@ impl ViewTransform {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
-        let mut attrs = BTreeMap::new();
-        let count = unsafe {
-            ocio_sys::ocio_view_transform_get_num_interchange_attributes(self.handle.as_ptr())
-        };
-        for index in 0..count {
-            let name = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_view_transform_get_interchange_attribute_name_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            let value = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_view_transform_get_interchange_attribute_value_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            if let (Some(name), Some(value)) = (name, value) {
-                attrs.insert(name, value);
-            }
-        }
-        attrs
+        self.try_interchange_attributes().unwrap_or_default()
+    }
+
+    /// Return a snapshot of all interchange attributes, preserving errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        crate::colorspace::interchange_attributes_snapshot(self.handle.as_ptr(), false, Some(2))
     }
 
     /// Check whether this view transform has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
-        let category = match cstring(category) {
-            Ok(category) => category,
-            Err(_) => return false,
-        };
-        unsafe {
+        self.try_has_category(category).unwrap_or(false)
+    }
+
+    /// Check membership while preserving invalid-input and native errors.
+    pub fn try_has_category(&self, category: impl AsRef<str>) -> Result<bool> {
+        self.try_has_category_cstr(&cstring(category)?)
+    }
+
+    /// Check membership without allocating an intermediate C string.
+    pub fn try_has_category_cstr(&self, category: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let present = unsafe {
             ocio_sys::ocio_view_transform_has_category(
                 self.handle.as_ptr(),
                 category.as_ptr().cast(),
             )
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(present)
     }
 
     /// Add a category to this view transform.
@@ -212,17 +281,34 @@ impl ViewTransform {
 
     /// Get the number of categories on this view transform.
     pub fn num_categories(&self) -> i32 {
-        unsafe { ocio_sys::ocio_view_transform_get_num_categories(self.handle.as_ptr()) }
+        self.try_num_categories().unwrap_or(0)
+    }
+
+    /// Get the category count while preserving native errors.
+    pub fn try_num_categories(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count =
+            unsafe { ocio_sys::ocio_view_transform_get_num_categories(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Get the category name at the given index.
     pub fn category(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_category(index).ok().flatten()
+    }
+
+    /// Get a category by index while preserving native errors.
+    pub fn try_category(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_view_transform_get_category(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Clear all categories (panics on error; use [`Self::try_clear_categories`] for fallible version).
@@ -240,20 +326,32 @@ impl ViewTransform {
 
     /// Get the reference space type for this view transform.
     pub fn reference_space_type(&self) -> ReferenceSpaceType {
-        let r =
+        self.try_reference_space_type()
+            .unwrap_or(ReferenceSpaceType::Scene)
+    }
+
+    /// Query the reference space without silently accepting unknown native values.
+    pub fn try_reference_space_type(&self) -> Result<ReferenceSpaceType> {
+        crate::clear_last_error();
+        let value =
             unsafe { ocio_sys::ocio_view_transform_get_reference_space_type(self.handle.as_ptr()) };
-        match r {
-            1 => ReferenceSpaceType::Display,
-            _ => ReferenceSpaceType::Scene,
+        crate::ocio_call_status()?;
+        match value {
+            0 => Ok(ReferenceSpaceType::Scene),
+            1 => Ok(ReferenceSpaceType::Display),
+            _ => Err(crate::OcioError::Ocio(format!(
+                "unknown reference space type {value}"
+            ))),
         }
     }
 
-    /// Get the transform for the given direction (scene-to-display or display-to-scene).
+    /// Get an editable copy for the given direction. A copied group still
+    /// shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: ViewTransformDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: ViewTransformDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -291,7 +389,27 @@ impl ViewTransform {
         crate::ocio_call_status()
     }
 
-    /// Create an editable deep copy of this view transform.
+    /// Set a shared read-only transform or clear the selected direction.
+    /// OCIO copies a supplied transform into this view transform.
+    pub fn try_set_const_transform(
+        &self,
+        transform: Option<&crate::transform::ConstTransform>,
+        direction: ViewTransformDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_named_item_set_const_transform(
+                self.handle.as_ptr(),
+                2,
+                transform.map_or(std::ptr::null_mut(), |value| value.handle.as_ptr()),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Create an editable copy using OCIO's native copy semantics. A group
+    /// transform in the copy may still share its children with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =

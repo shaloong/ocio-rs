@@ -1,5 +1,77 @@
 # 迁移说明
 
+## 0.4.0
+
+### 合并参数快照和 GPU 原始指针
+
+`ConfigMergingParameters` 的 `search_path`、`active_displays`、`active_views`、
+`inactive_color_spaces`、`environment_var` 和 `environment_var_value` 现在返回
+拥有所有权的 `CString`，需要借用时使用 `.as_c_str()`。这避免共享的原生参数被
+修改后借用指针失效；原生共享修改语义不变。
+
+四个旧版 `ocio-sys` GPU 纹理查询的名称和值输出类型修正为指针的指针。直接调用者
+应分别传入 `&mut *const c_char` 或 `&mut *const f32`；返回指针仍借用 descriptor
+的存储。高层纹理接口不受影响。
+
+### 线程与全局配置
+
+`Processor`、`CPUProcessor`、`GPUProcessor` 和 `GpuShaderDesc` 不再实现 `Send`。
+请在使用它们的线程中创建；不含动态属性的 CPU processor 可用 `try_into_static()`
+转换为可跨线程共享的 `StaticCPUProcessor`。
+
+全局配置快照 getter 和全局 processor 缓存标志接口现在要求 `unsafe`：调用期间
+必须协调所有可能访问当前配置或其持有对象的原生代码。快照及其派生对象若保留外部
+IO proxy 或自定义变换状态，调用者还必须在其整个生命周期保证并发访问安全。
+共享全局配置及原生浅拷贝接口有更强的别名和同步要求，详见英文
+[迁移说明](MIGRATION.md)。
+
+### 可失败枚举查询与动态缓存 ID
+
+`FixedFunctionTransform::try_style` 和 `GpuShaderDesc::try_language` 会报告当前
+接口级别无法表示的原生值；已有的非可失败方法保留兼容回退。持久 GPU creator
+可通过 `ShaderCacheIdPolicy` 为单次提取提供动态缓存 ID；调用方仍需保证缓存
+身份正确，并负责外部资源的清理。
+
+### packed 图像指针步进填充
+
+packed 原位、packed 到 packed 及 packed/平面混合转换通过仅拆分受影响区域
+支持无填充尾部，每次最多复制一个像素；紧密正向 RGBA 保留原生快速路径。
+后续区域发生错误时，较早的输出可能已被修改。
+
+### 极大 RGBA 步长
+
+RGBA 字节步长超过原生 C++ `int` 最大值时一般会被拒绝，避免 OCIO 的紧密布局
+优化因整数截窄将极大步长误判为紧密像素。要解除这一保守限制，后续需要单独的
+安全处理路径。单像素浮点及 packed 字节接口会将有效的极大步长规范化，
+因为不存在第二个像素。
+
+### 平面图像尾部填充
+
+正步长平面转换和原位接口通过拆分必要的尾部区域支持无尾部填充，不复制图像
+数据。后续区域发生错误时，较早的目标区域可能已被修改。有符号步长的原位处理、
+平面到平面及 packed/平面混合转换也支持无填充。
+
+### 变换句柄安全
+
+`TransformHandle` 现在是封闭 trait：外部安全实现可以伪造会被原生桥接层
+解引用的指针。泛型约束和本库提供的变换类型不受影响；自定义实现请改用
+本库的具体封装或 `Transform` 枚举。原生互操作仍可通过明确标注为 unsafe 的
+底层接口进行。
+
+### 日志回调同步
+
+安全的日志回调安装和重置要求原生 OpenColorIO 2.5.2 或更新版本。更早的版本
+没有将回调替换与并发日志同步，因此安全接口会返回错误且不会更改回调。能够排除
+所有并发 OCIO 日志（包括本 crate 之外的原生代码）的应用，可改用对应的
+`unsafe` `_unchecked` 接口，并遵守其安全要求。
+
+### OpenColorIO 2.6
+
+支持的原生库范围扩展至 `>= 2.4.1, < 2.7`。使用 `v2_6` 启用 2.6 API；
+该 feature 同时启用 `v2_5`，并要求 OpenColorIO 2.6.0 或更新版本。
+安装 2.6 不会自动启用 Cargo feature。后端选择及外部 GPU LUT 限制见 README。
+下方 0.3.0 章节描述该版本发布时的兼容范围。
+
 ## 0.3.0
 
 `0.3.0` 相对 `0.2.1` 包含破坏性变更，`ocio-rs` 和 `ocio-sys` 同步升级。
@@ -99,8 +171,10 @@ processor 提取元数据的行为。
 
 `Config::processor`、`Config::processor_with_context`、`Config::processor_from_configs` 现在调用真实 OCIO processor API。
 
-`Config::serialize()` 和 `Config::archive()` 现在返回 `Result<Option<String>>`。
-在 real OCIO build 中返回真实 OCIO 文本，在 stub 模式下返回 `Ok(None)`；OCIO 无法序列化或归档时返回 `Err`。
+`Config::serialize()` 返回 `Result<Option<String>>`，内容为 OCIO YAML。
+OCIOZ 归档是二进制数据，应使用 `Config::archive_to_bytes()` 或
+`Config::archive_to_writer()`。已弃用的文本归档接口现在会对二进制数据报错，
+而不是静默截断。返回自有数据的接口在 stub 模式下返回 `Ok(None)`，并传播原生错误。
 
 `color_space_from_filepath_by_ref_type` 替换为：
 

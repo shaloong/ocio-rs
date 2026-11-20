@@ -9,7 +9,179 @@ pub struct Context {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Shared, read-only OCIO context. Queries return owned text because a config
+/// may update its current context while this handle remains alive.
+pub struct ConstContext {
+    pub(crate) handle: NonNull<c_void>,
+}
+
+pub(crate) fn environment_mode_from_raw(mode: i32) -> Result<EnvironmentMode> {
+    match mode {
+        0 => Ok(EnvironmentMode::Unknown),
+        1 => Ok(EnvironmentMode::LoadPredefined),
+        2 => Ok(EnvironmentMode::LoadAll),
+        _ => Err(OcioError::ValidationFailed(format!(
+            "unknown OCIO environment mode {mode}"
+        ))),
+    }
+}
+fn serialize_context(handle: NonNull<c_void>, is_const: bool) -> Result<String> {
+    crate::clear_last_error();
+    let text = unsafe {
+        crate::cstr_to_opt_string(ocio_sys::ocio_context_serialize_text(
+            handle.as_ptr(),
+            is_const,
+        ))
+    };
+    crate::ocio_call_status()?;
+    text.ok_or_else(|| OcioError::Ocio("OCIO returned a null context representation".into()))
+}
+impl ConstContext {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// The output may include context-variable values and other sensitive data.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_context(self.handle, true)
+    }
+    fn integer(&self, field: i32) -> Result<i32> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_const_context_get_int(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn indexed_text(&self, field: i32, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_get_indexed_text(self.handle.as_ptr(), field, index)
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Number of native search path entries.
+    pub fn num_search_paths(&self) -> Result<i32> {
+        self.integer(0)
+    }
+    /// Search path by index, using native out-of-range semantics.
+    pub fn search_path_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(0, index)
+    }
+    /// Number of native context variables.
+    pub fn num_string_vars(&self) -> Result<i32> {
+        self.integer(1)
+    }
+    /// Context variable name by index, using native out-of-range semantics.
+    pub fn string_var_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(1, index)
+    }
+    /// Context variable value by index, using native out-of-range semantics.
+    pub fn string_var_by_index(&self, index: i32) -> Result<Option<String>> {
+        self.indexed_text(2, index)
+    }
+    /// Native environment-loading mode.
+    pub fn environment_mode(&self) -> Result<EnvironmentMode> {
+        environment_mode_from_raw(self.integer(2)?)
+    }
+    /// Retain the attached native proxy, if present, without copying its data.
+    /// The returned handle remains valid after this context is dropped.
+    pub fn config_io_proxy(&self) -> Result<Option<ConfigIOProxy>> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_context_get_config_io_proxy(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ConfigIOProxy { handle }))
+    }
+    fn text(&self, field: i32, argument: Option<&std::ffi::CStr>) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_get_text(
+                self.handle.as_ptr(),
+                field,
+                argument.map_or(std::ptr::null(), |s| s.as_ptr()),
+            )
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Get the working directory as owned text.
+    pub fn working_dir(&self) -> Result<Option<String>> {
+        self.text(0, None)
+    }
+    /// Get the concatenated search path as owned text.
+    pub fn search_path(&self) -> Result<Option<String>> {
+        self.text(1, None)
+    }
+    /// Get a variable's value as owned text.
+    pub fn string_var(&self, name: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(2, Some(name))
+    }
+    /// Get the current native context cache ID.
+    pub fn cache_id(&self) -> Result<Option<String>> {
+        self.text(3, None)
+    }
+    /// Resolve context variables into owned text.
+    pub fn resolve_string_var(&self, value: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(4, Some(value))
+    }
+    /// Resolve a file location, preserving OCIO missing-file errors.
+    pub fn resolve_file_location(&self, value: &std::ffi::CStr) -> Result<Option<String>> {
+        self.text(5, Some(value))
+    }
+    fn resolve_with_used(
+        &self,
+        field: i32,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_context_resolve_with_used(
+                self.handle.as_ptr(),
+                field,
+                value.as_ptr(),
+                used.handle.as_ptr(),
+            )
+        };
+        let text = unsafe { crate::cstr_to_opt_string(ptr) };
+        crate::ocio_call_status()?;
+        Ok(text)
+    }
+    /// Resolve variables and update `used` with the context variables OCIO used.
+    pub fn resolve_string_var_with_used_context(
+        &self,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        self.resolve_with_used(0, value, used)
+    }
+    /// Resolve a file and update `used` with the context variables OCIO used.
+    pub fn resolve_file_location_with_used_context(
+        &self,
+        value: &std::ffi::CStr,
+        used: &mut Context,
+    ) -> Result<Option<String>> {
+        self.resolve_with_used(1, value, used)
+    }
+    /// Create an independently editable context.
+    pub fn create_editable_copy(&self) -> Result<Context> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_context_create_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Context { handle })
+    }
+}
+impl Drop for ConstContext {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_context_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl Context {
+    /// Return OCIO's diagnostic stream output, not a stable interchange format.
+    /// The output may include context-variable values and other sensitive data.
+    pub fn serialize(&self) -> Result<String> {
+        serialize_context(self.handle, false)
+    }
     /// Create a new OCIO context with default search-path and environment behavior.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -176,6 +348,21 @@ impl Context {
                 v.as_ptr().cast(),
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Remove one context variable. Removing an absent name is a native no-op.
+    /// This differs from setting the variable to an empty string.
+    pub fn remove_string_var(&self, name: impl AsRef<str>) -> Result<()> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_set_string_var(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+                std::ptr::null(),
+            )
+        };
         crate::ocio_call_status()
     }
 
@@ -365,7 +552,8 @@ impl Context {
         let _ = self.try_clear_string_vars();
     }
 
-    /// Try to remove every string variable from this context.
+    /// Remove every string variable and invalidate cached resolutions and cache ID.
+    /// This works around the missing invalidation in OCIO 2.4 through 2.6.
     pub fn try_clear_string_vars(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_context_clear_string_vars(self.handle.as_ptr()) };
@@ -389,6 +577,18 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Merge variables directly from a shared read-only context without copying it.
+    pub fn try_add_string_vars_from_const(&self, other: &ConstContext) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_add_string_vars_from_const(
+                self.handle.as_ptr(),
+                other.handle.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Select whether OCIO imports only declared variables or the full process environment.
     pub fn set_environment_mode(&self, mode: EnvironmentMode) -> Result<()> {
         crate::clear_last_error();
@@ -398,12 +598,19 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Return the native environment mode, falling back to `Unknown` on error.
     pub fn environment_mode(&self) -> EnvironmentMode {
-        let m = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
-        match m {
-            1 => EnvironmentMode::LoadAll,
-            _ => EnvironmentMode::LoadPredefined,
-        }
+        self.try_environment_mode()
+            .unwrap_or(EnvironmentMode::Unknown)
+    }
+
+    /// Return the native environment mode, reporting bridge errors or an
+    /// unrecognized future native value instead of conflating it with `Unknown`.
+    pub fn try_environment_mode(&self) -> Result<EnvironmentMode> {
+        crate::clear_last_error();
+        let mode = unsafe { ocio_sys::ocio_context_get_environment_mode(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        environment_mode_from_raw(mode)
     }
 
     /// Refresh this context's string variables from the process environment.
@@ -413,10 +620,25 @@ impl Context {
         crate::ocio_call_status()
     }
 
+    /// Attach a proxy and invalidate this context's cached path resolutions.
+    /// OCIO also caches file hashes process-wide by path, not by proxy. If the
+    /// meaning of an existing path changes, coordinate with other OCIO users
+    /// and call [`crate::try_clear_all_caches`]; it is never called implicitly.
     pub fn set_config_io_proxy_object(&self, proxy: &ConfigIOProxy) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), proxy.handle.as_ptr())
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Detach the IO proxy. Other retained proxy handles remain valid.
+    /// The process-global file hash cache is not cleared; see
+    /// [`Self::set_config_io_proxy_object`].
+    pub fn clear_config_io_proxy(&self) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_context_set_config_io_proxy(self.handle.as_ptr(), std::ptr::null_mut())
         };
         crate::ocio_call_status()
     }
@@ -478,6 +700,24 @@ impl Drop for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn environment_mode_preserves_unknown_and_rejects_unrecognized_values() {
+        assert_eq!(
+            environment_mode_from_raw(0).unwrap(),
+            EnvironmentMode::Unknown
+        );
+        assert_eq!(
+            environment_mode_from_raw(1).unwrap(),
+            EnvironmentMode::LoadPredefined
+        );
+        assert_eq!(
+            environment_mode_from_raw(2).unwrap(),
+            EnvironmentMode::LoadAll
+        );
+        assert!(environment_mode_from_raw(-1).is_err());
+        assert!(environment_mode_from_raw(3).is_err());
+    }
 
     #[test]
     fn create_context() {

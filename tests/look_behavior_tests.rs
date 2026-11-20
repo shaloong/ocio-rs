@@ -95,11 +95,43 @@ fn look_metadata_transform_and_copy_behavior() {
         return;
     }
 
-    let look = scaling_look("UnitLook", "UnitLookInput");
+    let mut look = scaling_look("UnitLook", "UnitLookInput");
 
     assert_eq!(look.name().as_deref(), Some("UnitLook"));
     assert_eq!(look.process_space().as_deref(), Some("UnitLookInput"));
     assert_eq!(look.description().as_deref(), Some("look behavior test"));
+    assert_eq!(look.name_ref().unwrap(), Some(c"UnitLook"));
+    assert_eq!(look.process_space_ref().unwrap(), Some(c"UnitLookInput"));
+    assert_eq!(look.description_ref().unwrap(), Some(c"look behavior test"));
+    assert_eq!(look.try_name().unwrap().as_deref(), Some("UnitLook"));
+    assert_eq!(
+        look.try_process_space().unwrap().as_deref(),
+        Some("UnitLookInput")
+    );
+    assert_eq!(
+        look.try_description().unwrap().as_deref(),
+        Some("look behavior test")
+    );
+    let empty = Look::create().unwrap();
+    assert_eq!(empty.try_name().unwrap().as_deref(), Some(""));
+    assert_eq!(empty.try_process_space().unwrap().as_deref(), Some(""));
+    assert_eq!(empty.try_description().unwrap().as_deref(), Some(""));
+    empty.set_name_cstr(c"native name").unwrap();
+    empty.set_process_space_cstr(c"native space").unwrap();
+    empty.set_description_cstr(c"native description").unwrap();
+    assert_eq!(empty.try_name().unwrap().as_deref(), Some("native name"));
+    assert_eq!(
+        empty.try_process_space().unwrap().as_deref(),
+        Some("native space")
+    );
+    assert_eq!(
+        empty.try_description().unwrap().as_deref(),
+        Some("native description")
+    );
+    assert!(empty.set_name("invalid\0name").is_err());
+    assert!(empty.set_process_space("invalid\0space").is_err());
+    assert!(empty.set_description("invalid\0description").is_err());
+    assert_eq!(empty.try_name().unwrap().as_deref(), Some("native name"));
     #[cfg(feature = "v2_5")]
     {
         assert_eq!(

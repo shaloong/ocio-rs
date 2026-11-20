@@ -22,6 +22,21 @@ fn config_runtime_settings_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_environment_mode_fallible_query_tracks_native_state() {
+    let _guard = config_runtime_settings_test_lock();
+    let config = ocio_rs::Config::raw().unwrap();
+    for mode in [
+        ocio_rs::EnvironmentMode::LoadAll,
+        ocio_rs::EnvironmentMode::LoadPredefined,
+    ] {
+        config.set_environment_mode(mode).unwrap();
+        assert_eq!(config.try_environment_mode().unwrap(), mode);
+        assert_eq!(config.environment_mode(), mode);
+    }
+}
+
 #[cfg(feature = "v2_5")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
@@ -88,10 +103,7 @@ fn config_active_display_view_environment_and_cache_flag_behavior() {
     );
 
     let initial_cache_flags = config.processor_cache_flags();
-    assert_eq!(
-        initial_cache_flags,
-        (ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES).0 as i32
-    );
+    assert_eq!(initial_cache_flags, ProcessorCacheFlags::DEFAULT.0 as i32);
     let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
     config
         .try_set_processor_cache_flags(custom_flags.0 as i32)
@@ -118,16 +130,18 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         return;
     }
 
-    let original = try_current_config().expect("read current config");
+    // This integration-test process serializes its global OCIO operations.
+    let original = unsafe { try_current_config() }.expect("read current config");
 
     let config = create_test_config()
         .expect("raw config")
         .create_editable_copy()
         .expect("editable config copy");
-    let custom_flags = ProcessorCacheFlags::ENABLED | ProcessorCacheFlags::SHARE_DYN_PROPERTIES;
-
     try_set_current_config(&config).expect("install current config");
-    let installed = try_current_config()
+    let snapshot = unsafe { ocio_rs::try_const_current_config() }
+        .unwrap()
+        .unwrap();
+    let installed = unsafe { try_current_config() }
         .expect("read current config after install")
         .expect("current config after install");
     assert_eq!(
@@ -135,9 +149,35 @@ fn global_current_config_and_processor_cache_flag_behavior() {
         config.processor_cache_flags()
     );
 
-    try_set_processor_cache_flags(custom_flags).expect("set global processor cache flags");
-    assert_eq!(processor_cache_flags(), custom_flags);
-    assert_eq!(config.processor_cache_flags(), custom_flags.0 as i32);
+    unsafe { try_set_processor_cache_flags(ProcessorCacheFlags::OFF) }
+        .expect("disable cache globally");
+    assert_eq!(unsafe { processor_cache_flags() }, ProcessorCacheFlags::OFF);
+    assert_eq!(
+        snapshot.processor_cache_flags().unwrap(),
+        ProcessorCacheFlags::DEFAULT
+    );
+    assert_eq!(
+        config.processor_cache_flags(),
+        ProcessorCacheFlags::DEFAULT.0 as i32
+    );
+    // No other operations can access this former global snapshot during the
+    // update, and the other tests in this binary share the test lock.
+    unsafe {
+        snapshot
+            .try_set_processor_cache_flags(ProcessorCacheFlags::ENABLED)
+            .unwrap();
+    }
+    assert_eq!(
+        snapshot.processor_cache_flags().unwrap(),
+        ProcessorCacheFlags::ENABLED
+    );
+    assert_eq!(unsafe { processor_cache_flags() }, ProcessorCacheFlags::OFF);
+    unsafe { try_set_processor_cache_flags(ProcessorCacheFlags::DEFAULT) }
+        .expect("re-enable cache globally");
+    assert_eq!(
+        unsafe { processor_cache_flags() },
+        ProcessorCacheFlags::DEFAULT
+    );
     try_clear_all_caches().expect("clear global caches");
 
     if let Some(ref original_config) = original {

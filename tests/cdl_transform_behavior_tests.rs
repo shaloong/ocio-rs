@@ -69,6 +69,12 @@ fn cdl_transform_round_trip_and_copy_behavior() {
     assert_close(transform.sat(), 1.0, 1e-10);
     assert_eq!(transform.style(), CDLStyle::NoClamp);
     assert_eq!(transform.id().as_deref(), Some("cdl-behavior"));
+    assert_eq!(transform.try_style().unwrap(), CDLStyle::NoClamp);
+    assert_eq!(transform.try_id().unwrap().as_deref(), Some("cdl-behavior"));
+    assert_eq!(
+        transform.try_first_sop_description().unwrap().as_deref(),
+        Some("behavior test")
+    );
     assert_eq!(
         transform.first_sop_description().as_deref(),
         Some("behavior test")

@@ -84,9 +84,18 @@ impl BuiltinTransform {
 
     // --- Static methods ---
 
-    /// Return the total number of available builtin transform styles.
+    /// Return the total number of available builtin transform styles, or zero
+    /// if the native query fails.
     pub fn num_builtin_styles() -> i32 {
-        unsafe { ocio_sys::ocio_builtin_transform_get_num_styles() }
+        Self::try_num_builtin_styles().unwrap_or(0)
+    }
+
+    /// Return the available builtin transform count, preserving native errors.
+    pub fn try_num_builtin_styles() -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_builtin_transform_get_num_styles() };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return the builtin style name at the given index.

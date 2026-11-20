@@ -22,6 +22,122 @@ fn context_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn resolve_nested_variables_updates_used_context_on_cache_hit() {
+    let _guard = context_test_lock();
+    let context = Context::create().unwrap();
+    context
+        .set_string_var("OCIO_RS_OUTER", "${OCIO_RS_INNER}/nested")
+        .unwrap();
+    context.set_string_var("OCIO_RS_INNER", "root").unwrap();
+    context.set_string_var("OCIO_RS_UNUSED", "ignored").unwrap();
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        used.set_string_var("OCIO_RS_EXISTING", "preserved")
+            .unwrap();
+        let result = context
+            .try_resolve_string_var_with_used_context("${OCIO_RS_OUTER}/file", &mut used)
+            .unwrap();
+        assert_eq!(result.as_deref(), Some("root/nested/file"));
+        assert_eq!(
+            used.try_string_var("OCIO_RS_OUTER").unwrap().as_deref(),
+            Some("${OCIO_RS_INNER}/nested")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_INNER").unwrap().as_deref(),
+            Some("root")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_EXISTING").unwrap().as_deref(),
+            Some("preserved")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_UNUSED").unwrap().as_deref(),
+            Some("")
+        );
+    }
+    let config = ocio_rs::Config::create().unwrap();
+    config
+        .add_environment_var("OCIO_RS_OUTER", "${OCIO_RS_INNER}/nested")
+        .unwrap();
+    config.add_environment_var("OCIO_RS_INNER", "root").unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        let result = shared
+            .resolve_string_var_with_used_context(c"${OCIO_RS_OUTER}/file", &mut used)
+            .unwrap();
+        assert_eq!(result.as_deref(), Some("root/nested/file"));
+        assert_eq!(
+            used.try_string_var("OCIO_RS_INNER").unwrap().as_deref(),
+            Some("root")
+        );
+        assert_eq!(
+            used.try_string_var("OCIO_RS_OUTER").unwrap().as_deref(),
+            Some("${OCIO_RS_INNER}/nested")
+        );
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn resolve_file_tracks_used_variables_for_editable_and_shared_contexts() {
+    let _guard = context_test_lock();
+    let root = path_str(Path::new(env!("CARGO_MANIFEST_DIR")));
+    let expected = Path::new(&root).join("Cargo.toml");
+    let context = Context::create().unwrap();
+    context.set_string_var("OCIO_RS_FILE_ROOT", &root).unwrap();
+    let config = ocio_rs::Config::create().unwrap();
+    config
+        .add_environment_var("OCIO_RS_FILE_ROOT", &root)
+        .unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+
+    for _ in 0..2 {
+        let mut used = Context::create().unwrap();
+        let result = context
+            .try_resolve_file_location_with_used_context(
+                "${OCIO_RS_FILE_ROOT}/Cargo.toml",
+                &mut used,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(PathBuf::from(result), expected);
+        assert_eq!(
+            used.try_string_var("OCIO_RS_FILE_ROOT").unwrap().as_deref(),
+            Some(root.as_str())
+        );
+
+        let mut used = Context::create().unwrap();
+        let result = shared
+            .resolve_file_location_with_used_context(c"${OCIO_RS_FILE_ROOT}/Cargo.toml", &mut used)
+            .unwrap()
+            .unwrap();
+        assert_eq!(PathBuf::from(result), expected);
+        assert_eq!(
+            used.try_string_var("OCIO_RS_FILE_ROOT").unwrap().as_deref(),
+            Some(root.as_str())
+        );
+    }
+
+    let mut used = Context::create().unwrap();
+    assert!(matches!(
+        context.try_resolve_file_location_with_used_context(
+            "${OCIO_RS_FILE_ROOT}/ocio-rs-missing-file",
+            &mut used
+        ),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    assert!(matches!(
+        shared.resolve_file_location_with_used_context(
+            c"${OCIO_RS_FILE_ROOT}/ocio-rs-missing-file",
+            &mut used
+        ),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+}
+
 fn unique_test_dir(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -32,6 +148,67 @@ fn unique_test_dir(label: &str) -> PathBuf {
 
 fn path_str(path: &Path) -> String {
     path.to_string_lossy().into_owned()
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn removing_one_variable_preserves_empty_values_and_other_variables() {
+    let _guard = context_test_lock();
+    let ctx = Context::create().unwrap();
+    ctx.set_string_var("REMOVE", "value").unwrap();
+    ctx.set_string_var("EMPTY", "").unwrap();
+    ctx.set_string_var("KEEP", "keep").unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 3);
+    let old_id = ctx.try_cache_id().unwrap();
+    ctx.remove_string_var("REMOVE").unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 2);
+    assert_eq!(ctx.try_string_var("EMPTY").unwrap().as_deref(), Some(""));
+    assert_eq!(ctx.try_string_var("KEEP").unwrap().as_deref(), Some("keep"));
+    assert_ne!(ctx.try_cache_id().unwrap(), old_id);
+    let id_after = ctx.try_cache_id().unwrap();
+    ctx.remove_string_var("REMOVE").unwrap();
+    assert_eq!(ctx.try_cache_id().unwrap(), id_after);
+    assert!(ctx.remove_string_var("BAD\0NAME").is_err());
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 2);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn clearing_variables_invalidates_cached_resolution_and_cache_id() {
+    let _guard = context_test_lock();
+    let ctx = Context::create().unwrap();
+    let fresh = Context::create().unwrap();
+    let expression = "${OCIO_RS_CLEAR_CACHE_TEST}/asset.clf";
+    let expected = fresh.try_resolve_string_var(expression).unwrap();
+    let empty_id = fresh.try_cache_id().unwrap();
+    ctx.set_string_var("OCIO_RS_CLEAR_CACHE_TEST", "old-value")
+        .unwrap();
+    assert_eq!(
+        ctx.try_resolve_string_var(expression).unwrap().as_deref(),
+        Some("old-value/asset.clf")
+    );
+    assert_ne!(ctx.try_cache_id().unwrap(), empty_id);
+    ctx.try_clear_string_vars().unwrap();
+    assert_eq!(ctx.try_num_string_vars().unwrap(), 0);
+    assert_eq!(ctx.try_resolve_string_var(expression).unwrap(), expected);
+    assert_eq!(ctx.try_cache_id().unwrap(), empty_id);
+    let mut used = Context::create().unwrap();
+    assert_eq!(
+        ctx.try_resolve_string_var_with_used_context(expression, &mut used)
+            .unwrap(),
+        expected
+    );
+    assert_eq!(used.try_num_string_vars().unwrap(), 0);
+    ctx.set_working_dir(env!("CARGO_MANIFEST_DIR")).unwrap();
+    ctx.set_string_var("OCIO_RS_CLEAR_CACHE_TEST", ".").unwrap();
+    assert!(ctx
+        .try_resolve_file_location("${OCIO_RS_CLEAR_CACHE_TEST}/Cargo.toml")
+        .unwrap()
+        .is_some());
+    ctx.try_clear_string_vars().unwrap();
+    assert!(ctx
+        .try_resolve_file_location("${OCIO_RS_CLEAR_CACHE_TEST}/Cargo.toml")
+        .is_err());
 }
 
 #[test]
@@ -267,7 +444,7 @@ fn context_missing_file_resolution_surfaces_ocio_error_behavior() {
     let error = ctx
         .try_resolve_file_location("definitely-not-present-ocio-rs.spi1d")
         .expect_err("missing file resolution must report an OCIO error");
-    assert!(matches!(error, ocio_rs::OcioError::Ocio(_)));
+    assert!(matches!(error, ocio_rs::OcioError::MissingFile(_)));
     assert!(ctx
         .try_resolve_file_location("definitely-not-present\0.spi1d")
         .is_err());
@@ -294,6 +471,10 @@ fn context_cache_id_changes_with_mutation_behavior() {
     ctx.set_environment_mode(EnvironmentMode::LoadAll)
         .expect("set environment mode");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    assert_eq!(
+        ctx.try_environment_mode().unwrap(),
+        EnvironmentMode::LoadAll
+    );
 }
 
 #[test]
@@ -325,6 +506,9 @@ fn context_load_environment_honors_selected_mode_behavior() {
         .expect("select all mode");
     ctx.load_environment().expect("load complete environment");
     assert_eq!(ctx.environment_mode(), EnvironmentMode::LoadAll);
+    if let Some((key, value)) = std::env::vars().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        assert!(ctx.string_var(key).is_some_and(|loaded| loaded == value));
+    }
     assert_ne!(
         ctx.cache_id().as_deref(),
         Some(predefined_cache_id.as_str())

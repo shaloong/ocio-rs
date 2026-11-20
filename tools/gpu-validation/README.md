@@ -1,0 +1,80 @@
+# Hardware GPU validation
+
+This independent, unpublished tool compares Rust-generated OCIO 2.6 Vulkan
+GLSL running on a physical GPU with the OCIO CPU processor. It checks four
+RGBA pixels for a matrix transform and for two dynamically updated exposure
+values on the same compiled pipeline, including native uniform-buffer offsets.
+It also uploads and samples a channel-coupled, non-identity 2×2×2 3D LUT
+with both linear and tetrahedral interpolation; the tetrahedral inputs exercise
+all six channel orderings and verify that the fixture differs from linear.
+It tests a 1D
+LUT represented both as a native 1D texture and as a 2D texture. It rejects
+software and virtual adapters. This is a targeted integration test, not
+comprehensive GPU, texture, language, driver, or color-pipeline coverage.
+It also exercises OCIO 2.6's ACES RGB↔HMJ fixed function in both directions,
+using representative upstream-derived high-light and negative-channel inputs.
+The matrix and tetrahedral cases also run through Rust shader code hooks that
+halve RGB in the generated footer; GPU output is compared with the equivalent
+CPU result, verifying that the rewrite actually affects execution.
+The matrix case additionally collects the raw code fragments and assembles them
+with a custom finalizer before executing the resulting shader. A combined case
+does the same with a dynamic uniform and mixed retained/external textures,
+including the explicitly constructed Vulkan uniform block.
+The tetrahedral and additional 1D/2D cases stream texture data through the
+Rust texture sink rather than retaining it in the returned descriptor.
+An additional exposure case stores a native getter outside the descriptor and
+checks the GPU against CPU output before and after changing its property.
+Combined cases also exercise that external dynamic uniform with streamed 2D
+and 3D LUTs in the same Vulkan bind group.
+Two further cases mix one externally managed texture with one descriptor-owned
+texture in a single pipeline, in both 2D-then-3D and 3D-then-2D order. Each
+order is also tested with an external dynamic exposure uniform, updated on a
+second GPU pass without rebuilding the shader.
+The checked dynamic texture-policy case also executes a 1D LUT promoted to a 2D
+texture by Rust's native virtual getter callbacks, checks setter events, and
+compares GPU with CPU.
+The persistent-policy case also extracts through a retained Rust policy,
+uses a borrowed dynamic cache-ID callback, detaches it into a native descriptor,
+and executes the result on the GPU.
+Persistent texture-control cases additionally use explicit bindings and mix
+external and descriptor-owned 2D/3D textures in both registration orders;
+each order is tested with and without an externally retained, updated dynamic
+exposure uniform using the persistent uniform controller.
+The first explicit binding occupies the next default slot; the second texture
+uses the next unoccupied default binding and the resulting shader is executed.
+These cases also pass generated shader fragments through persistent lifecycle
+and code hooks and a persistent custom assembler before execution, including
+an explicitly constructed Vulkan uniform block when needed.
+Another mixed-resource case replaces persistent finalization itself and runs
+the resulting shader with a dynamic uniform before and after an update.
+
+The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, and either
+OCIO 2.6 source usable by `bundled` or an explicitly configured 2.6 installation.
+A source build also requires CMake. The adapter must support
+filtering 32-bit float textures. It uses a separate Cargo
+workspace and lockfile so its GPU dependencies do not enter the library's
+production dependency graph. Run from the repository root:
+
+```sh
+cargo run --locked --manifest-path tools/gpu-validation/Cargo.toml
+```
+
+Set `OCIO_SOURCE_DIR` to an OpenColorIO 2.6 source checkout if the bundled
+source is not already available, or set `OCIO_INSTALL_DIR` to a compatible
+native installation. For example, in PowerShell:
+
+```powershell
+$env:OCIO_SOURCE_DIR = 'C:\path\to\OpenColorIO-2.6.0'
+cargo run --locked --manifest-path tools/gpu-validation/Cargo.toml
+```
+
+The emitted GLSL is parsed and validated by wgpu/Naga before execution through
+Vulkan; a Naga rejection is not by itself proof that an OCIO shader is invalid
+for other GLSL compilers. For LUT cases, the tool adapts OCIO's
+combined sampler to separate texture/sampler bindings required by wgpu, adds
+explicit LOD 0 for the compute stage, and expands RGB texels to RGBA. It does
+not change OCIO's coordinates or color calculation. The program exits nonzero
+on missing hardware, shader or GPU errors, unexpected resource layouts, or
+CPU/GPU differences above 1e-5 for most analytic cases, 2e-5 for inverse
+HMJ, 1e-6 for tetrahedral LUTs, or 5e-3 for hardware-filtered LUTs.
+It reports the measured maximum error for each case.

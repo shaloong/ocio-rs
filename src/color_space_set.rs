@@ -9,7 +9,286 @@ pub struct ColorSpaceSet {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// Read-only native result of a color-space set operation.
+///
+/// The result owns OCIO's original const set, with no additional editable copy.
+pub struct ConstColorSpaceSet {
+    handle: NonNull<c_void>,
+}
+
+/// A borrowed editable or read-only color-space set.
+#[derive(Clone, Copy)]
+pub enum ColorSpaceSetRef<'a> {
+    Editable(&'a ColorSpaceSet),
+    ReadOnly(&'a ConstColorSpaceSet),
+}
+
+impl<'a> From<&'a ColorSpaceSet> for ColorSpaceSetRef<'a> {
+    fn from(value: &'a ColorSpaceSet) -> Self {
+        Self::Editable(value)
+    }
+}
+impl<'a> From<&'a ConstColorSpaceSet> for ColorSpaceSetRef<'a> {
+    fn from(value: &'a ConstColorSpaceSet) -> Self {
+        Self::ReadOnly(value)
+    }
+}
+impl ColorSpaceSetRef<'_> {
+    fn raw(self) -> (*mut c_void, bool) {
+        match self {
+            Self::Editable(value) => (value.handle.as_ptr(), false),
+            Self::ReadOnly(value) => (value.handle.as_ptr(), true),
+        }
+    }
+
+    fn operation(self, other: Self, operation: i32) -> Result<ConstColorSpaceSet> {
+        let (left, left_const) = self.raw();
+        let (right, right_const) = other.raw();
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_set_operation(
+                left,
+                left_const,
+                right,
+                right_const,
+                operation,
+            )
+        };
+        crate::handle_result(handle).map(|handle| ConstColorSpaceSet { handle })
+    }
+    fn equals(self, other: Self) -> Result<bool> {
+        let (left, left_const) = self.raw();
+        let (right, right_const) = other.raw();
+        crate::clear_last_error();
+        let equal =
+            unsafe { ocio_sys::ocio_color_space_set_equal(left, left_const, right, right_const) };
+        crate::ocio_call_status()?;
+        Ok(equal)
+    }
+
+    fn const_color_space(self, name: &std::ffi::CStr) -> Result<Option<crate::ConstColorSpace>> {
+        let (handle, is_const) = self.raw();
+        crate::clear_last_error();
+        let space = unsafe {
+            ocio_sys::ocio_color_space_set_ref_get_const_color_space(
+                handle,
+                is_const,
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(space).map(|handle| crate::ConstColorSpace { handle }))
+    }
+
+    fn const_color_space_by_index(self, index: i32) -> Result<Option<crate::ConstColorSpace>> {
+        let (handle, is_const) = self.raw();
+        crate::clear_last_error();
+        let space = unsafe {
+            ocio_sys::ocio_color_space_set_ref_get_const_color_space_by_index(
+                handle, is_const, index,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(space).map(|handle| crate::ConstColorSpace { handle }))
+    }
+}
+
+macro_rules! set_lookup {
+    () => {
+        /// Look up a name with OCIO's matching rules; `-1` means absent.
+        pub fn try_color_space_index(&self, name: impl AsRef<str>) -> Result<i32> {
+            let name = cstring(name)?;
+            let (handle, is_const) = ColorSpaceSetRef::from(self).raw();
+            crate::clear_last_error();
+            let index = unsafe {
+                ocio_sys::ocio_color_space_set_ref_get_color_space_index(
+                    handle,
+                    is_const,
+                    name.as_ptr(),
+                )
+            };
+            crate::ocio_call_status()?;
+            Ok(index)
+        }
+        /// Check name or alias membership, preserving native errors.
+        pub fn try_has_color_space(&self, name: impl AsRef<str>) -> Result<bool> {
+            let name = cstring(name)?;
+            let (handle, is_const) = ColorSpaceSetRef::from(self).raw();
+            crate::clear_last_error();
+            let found = unsafe {
+                ocio_sys::ocio_color_space_set_ref_has_color_space(handle, is_const, name.as_ptr())
+            };
+            crate::ocio_call_status()?;
+            Ok(found)
+        }
+    };
+}
+
+macro_rules! set_operations {
+    () => {
+        /// Compare names using OCIO's set equality semantics, not deep color-space equality.
+        pub fn try_equals<'a>(&self, other: impl Into<ColorSpaceSetRef<'a>>) -> Result<bool> {
+            ColorSpaceSetRef::from(self).equals(other.into())
+        }
+        /// Return OCIO's union as an independently owned read-only set.
+        pub fn union<'a>(
+            &self,
+            other: impl Into<ColorSpaceSetRef<'a>>,
+        ) -> Result<ConstColorSpaceSet> {
+            ColorSpaceSetRef::from(self).operation(other.into(), 0)
+        }
+        /// Return OCIO's intersection as an independently owned read-only set.
+        pub fn intersection<'a>(
+            &self,
+            other: impl Into<ColorSpaceSetRef<'a>>,
+        ) -> Result<ConstColorSpaceSet> {
+            ColorSpaceSetRef::from(self).operation(other.into(), 1)
+        }
+        /// Return OCIO's set difference as an independently owned read-only set.
+        pub fn difference<'a>(
+            &self,
+            other: impl Into<ColorSpaceSetRef<'a>>,
+        ) -> Result<ConstColorSpaceSet> {
+            ColorSpaceSetRef::from(self).operation(other.into(), 2)
+        }
+    };
+}
+
+impl ConstColorSpaceSet {
+    set_lookup!();
+    set_operations!();
+
+    /// Share a named native color space without making an editable copy.
+    /// The returned handle retains its own native reference.
+    pub fn try_const_color_space(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        ColorSpaceSetRef::from(self).const_color_space(&cstring(name)?)
+    }
+
+    /// Share a native color space by index, or return `None` for an invalid index.
+    pub fn try_const_color_space_by_index(
+        &self,
+        index: i32,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        ColorSpaceSetRef::from(self).const_color_space_by_index(index)
+    }
+
+    /// Return the number of color spaces, preserving native errors.
+    pub fn try_num_color_spaces(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_const_color_space_set_get_num_color_spaces(self.handle.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+    /// Copy the name at `index`, or return `None` for an invalid index.
+    pub fn try_color_space_name_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let name = unsafe {
+            cstr_to_opt_string(
+                ocio_sys::ocio_const_color_space_set_get_color_space_name_by_index(
+                    self.handle.as_ptr(),
+                    index,
+                ),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(name)
+    }
+    /// Copy a named color space into an independent editable object.
+    pub fn copy_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_color_space_set_copy_color_space(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ColorSpace { handle }))
+    }
+    /// Copy an indexed color space into an independent editable object.
+    pub fn copy_color_space_by_index(&self, index: i32) -> Result<Option<ColorSpace>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_color_space_set_copy_color_space_by_index(
+                self.handle.as_ptr(),
+                index,
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| ColorSpace { handle }))
+    }
+    /// Create an editable copy on explicit request.
+    pub fn create_editable_copy(&self) -> Result<ColorSpaceSet> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_color_space_set_create_editable_copy(self.handle.as_ptr())
+        };
+        crate::handle_result(handle).map(|handle| ColorSpaceSet { handle })
+    }
+}
+impl Drop for ConstColorSpaceSet {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_color_space_set_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl ColorSpaceSet {
+    /// Look up a name with OCIO's matching rules; `-1` means absent.
+    pub fn try_color_space_index(&self, name: impl AsRef<str>) -> Result<i32> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let index = unsafe {
+            ocio_sys::ocio_color_space_set_ref_get_color_space_index(
+                self.handle.as_ptr(),
+                false,
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(index)
+    }
+    /// Check name or alias membership, preserving native errors.
+    pub fn try_has_color_space(&self, name: impl AsRef<str>) -> Result<bool> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let found = unsafe {
+            ocio_sys::ocio_color_space_set_ref_has_color_space(
+                self.handle.as_ptr(),
+                false,
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(found)
+    }
+    /// Compare the sets by color-space names, as OCIO does.
+    pub fn try_equals<'a>(&self, other: impl Into<ColorSpaceSetRef<'a>>) -> Result<bool> {
+        ColorSpaceSetRef::from(self).equals(other.into())
+    }
+    /// Return OCIO's union as an independently owned read-only set.
+    pub fn union<'a>(&self, other: impl Into<ColorSpaceSetRef<'a>>) -> Result<ConstColorSpaceSet> {
+        ColorSpaceSetRef::from(self).operation(other.into(), 0)
+    }
+    /// Return OCIO's intersection as an independently owned read-only set.
+    pub fn intersection<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<ConstColorSpaceSet> {
+        ColorSpaceSetRef::from(self).operation(other.into(), 1)
+    }
+    /// Return OCIO's difference as an independently owned read-only set.
+    pub fn difference<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<ConstColorSpaceSet> {
+        ColorSpaceSetRef::from(self).operation(other.into(), 2)
+    }
     /// Create an empty color-space set.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -50,12 +329,12 @@ impl ColorSpaceSet {
         Ok(name)
     }
 
-    /// Return one color-space handle by index.
+    /// Return an independent editable copy of a color space by index.
     pub fn color_space_by_index(&self, index: i32) -> Option<ColorSpace> {
         self.try_color_space_by_index(index).ok().flatten()
     }
 
-    /// Return a color-space handle by index while preserving bridge failures.
+    /// Copy a color space by index while preserving bridge failures.
     pub fn try_color_space_by_index(&self, index: i32) -> Result<Option<ColorSpace>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -65,12 +344,38 @@ impl ColorSpaceSet {
         Ok(NonNull::new(handle).map(|h| ColorSpace { handle: h }))
     }
 
-    /// Look up a color-space handle by name.
+    /// Look up an independent editable color-space copy by name.
     pub fn color_space(&self, name: impl AsRef<str>) -> Option<ColorSpace> {
         self.try_color_space(name).ok().flatten()
     }
 
-    /// Look up a color-space by name while preserving bridge failures.
+    /// Look up a shared read-only color space without copying the native object.
+    pub fn try_const_color_space(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        let name = cstring(name)?;
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_set_get_const_color_space(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(NonNull::new(handle).map(|handle| crate::ConstColorSpace { handle }))
+    }
+
+    /// Share a native color space by index, or return `None` for an invalid index.
+    /// The returned handle remains valid if the set is modified or dropped.
+    pub fn try_const_color_space_by_index(
+        &self,
+        index: i32,
+    ) -> Result<Option<crate::ConstColorSpace>> {
+        ColorSpaceSetRef::from(self).const_color_space_by_index(index)
+    }
+
+    /// Copy a color space by name while preserving bridge failures.
     pub fn try_color_space(&self, name: impl AsRef<str>) -> Result<Option<ColorSpace>> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -124,6 +429,23 @@ impl ColorSpaceSet {
         crate::ocio_call_status()
     }
 
+    /// Add an editable or read-only color space. OCIO stores an independent copy.
+    pub fn try_add_color_space_ref<'a>(
+        &self,
+        color_space: impl Into<crate::ColorSpaceRef<'a>>,
+    ) -> Result<()> {
+        let (space, is_const) = color_space.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_space_ref(
+                self.handle.as_ptr(),
+                space,
+                is_const,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Insert every color space from `other` into the set.
     pub fn add_color_spaces(&self, other: &ColorSpaceSet) {
         self.try_add_color_spaces(other)
@@ -142,7 +464,24 @@ impl ColorSpaceSet {
         crate::ocio_call_status()
     }
 
-    /// Remove one color space by name.
+    /// Add copies of the color spaces in an editable or read-only set.
+    /// As in OCIO, a conflict can leave preceding entries already added.
+    pub fn try_add_color_spaces_ref<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<()> {
+        let (set, is_const) = other.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_add_color_spaces_ref(self.handle.as_ptr(), set, is_const)
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Remove one color space by canonical name, case-insensitively.
+    ///
+    /// Unlike lookup and membership queries, OCIO does not resolve aliases
+    /// when removing; an alias or other missing name leaves the set unchanged.
     pub fn remove_color_space(&self, name: impl AsRef<str>) -> Result<()> {
         let n = cstring(name)?;
         crate::clear_last_error();
@@ -170,6 +509,24 @@ impl ColorSpaceSet {
                 other.handle.as_ptr(),
             );
         }
+        crate::ocio_call_status()
+    }
+
+    /// Remove entries named by an editable or read-only set.
+    /// Removing this set from itself clears it safely.
+    pub fn try_remove_color_spaces_ref<'a>(
+        &self,
+        other: impl Into<ColorSpaceSetRef<'a>>,
+    ) -> Result<()> {
+        let (set, is_const) = other.into().raw();
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_remove_color_spaces_ref(
+                self.handle.as_ptr(),
+                set,
+                is_const,
+            )
+        };
         crate::ocio_call_status()
     }
 

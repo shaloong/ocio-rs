@@ -69,9 +69,17 @@ consumed by the bundled build path, so use it together with
 `--features bundled` when overriding the vendored
 OpenColorIO source tree.
 
+When building an unmodified OpenColorIO 2.4.1 source tree with CMake 4, some
+of its older bundled dependencies require compatibility with CMake policies
+older than 3.5. If configuration fails with “Compatibility with CMake < 3.5
+has been removed”, either use a supported CMake 3 release or set
+`CMAKE_POLICY_VERSION_MINIMUM=3.5` in the build environment. This CMake 4
+setting also reaches the dependency builds. It is a compatibility override for
+those older projects, not a requirement for all OpenColorIO versions.
+
 Installed-library resolution is owned by `system-deps`. The supported native
-range is `>= 2.4.1, < 2.6`, which the `v2_5` feature raises to
-`>= 2.5.1, < 2.6`
+range is `>= 2.4.1, < 2.7`, which the `v2_5` feature raises to
+`>= 2.5.1, < 2.7`
 through the feature-versions table; pkg-config is queried using the lower-case
 metadata key first and the upstream `OpenColorIO` package name as a fallback.
 `OCIO_INSTALL_DIR` augments `PKG_CONFIG_PATH` with the conventional metadata
@@ -106,7 +114,7 @@ The native Adapter is deterministic. With no backend feature, `cargo build`
 preserves the historical stub default. `system` requires an installed native
 library; `bundled` adds the source-build Adapter and takes precedence when
 Cargo unifies it with `system`. A real-backend resolution failure is fatal and
-may not silently become a stub. docs.rs enables only the `v2_5` Interface, so
+may not silently become a stub. docs.rs enables only the `v2_6` Interface, so
 its native Adapter remains stub.
 
 `OCIO_RS_ENABLE_REAL=0/1` remains as a legacy adapter. Invalid values and
@@ -155,17 +163,22 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 `ocio-sys/vendor/OpenColorIO`; the submodule is a fallback when that tree is
 absent, and `OCIO_SOURCE_DIR` is an explicit source override. Keep the vendored
 source, submodule, bridge, and packaged dependencies synchronized when upgrading.
+The vendored source carries a small fix in `Lut1DOpGPU.cpp`: multi-row LUTs
+reserve a texel per row for interpolation across the row boundary, so the
+allocation includes the final row addressed by the shader. Recheck this fix
+when updating the source snapshot. Installed libraries and external source
+overrides do not inherit the patch.
 The supported baseline is older:
-OpenColorIO `>= 2.4.1, < 2.6` resolved through system-deps/pkg-config works
+OpenColorIO `>= 2.4.1, < 2.7` resolved through system-deps/pkg-config works
 without an API-version feature, but still requires a real backend such as
-`system`. OCIO 2.6 and newer are not yet supported.
+`system`. OCIO 2.7 and newer are not yet supported.
 
 Upgrade workflow: update submodule → run generator → fix compile errors → release.
 
 ### Version-gated API
 
 API added by OCIO minors newer than the 2.4.1 baseline is exposed behind
-additive `vX_Y` cargo features (currently `v2_5`). Each API item is gated in
+additive `vX_Y` cargo features (currently `v2_5` and `v2_6`). Each API item is gated in
 every layer with the same marker:
 
 1. `build_support/compatibility.rs` owns the minimum versions and generates
@@ -206,7 +219,7 @@ cargo test --workspace --no-default-features
 # Real OCIO mode
 cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
 
-# API parity checker (L1: FFI coverage, L2: wrapper coverage, L3: API diffs)
+# API name checker (L1: FFI names, L2: wrapper names, L3: selected C++ classes)
 cargo run --bin check_parity
 cargo run --bin check_parity -- --check-l3
 

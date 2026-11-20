@@ -12,7 +12,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ocio_rs::grading::GradingPrimary;
 use ocio_rs::transform::GradingPrimaryTransform;
-use ocio_rs::{GradingStyle, TransformDirection};
+use ocio_rs::{GradingStyle, OcioError, TransformDirection};
 
 fn grading_primary_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -37,6 +37,40 @@ fn configured_linear_grading_primary_transform() -> GradingPrimaryTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn grading_primary_value_constructor_matches_native_defaults() {
+    let _guard = grading_primary_transform_test_lock();
+    for style in [GradingStyle::Log, GradingStyle::Lin, GradingStyle::Video] {
+        let native = GradingPrimaryTransform::create(style).unwrap().value();
+        assert_eq!(GradingPrimary::new(style), native, "{style:?}");
+    }
+}
+
+#[test]
+fn grading_primary_value_validation_does_not_require_a_transform() {
+    let style = GradingStyle::Log;
+    let mut value = GradingPrimary::new(style);
+    if is_stub() {
+        assert!(matches!(
+            value.validate(style),
+            Err(OcioError::ValidationFailed(_))
+        ));
+        return;
+    }
+
+    value.validate(style).unwrap();
+    value.gamma.red = 0.0;
+    assert!(matches!(
+        value.validate(style),
+        Err(OcioError::ValidationFailed(_))
+    ));
+    // The native linear style checks contrast, not gamma.
+    value.validate(GradingStyle::Lin).unwrap();
+    value.gamma.red = 1.0;
+    value.validate(style).unwrap();
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn grading_primary_default_style_dynamic_and_copy_behavior() {
     let _guard = grading_primary_transform_test_lock();
     if is_stub() {
@@ -46,6 +80,7 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
     let transform =
         GradingPrimaryTransform::create(GradingStyle::Lin).expect("grading primary create");
     let value = transform.value();
+    assert_eq!(transform.try_value().unwrap(), value);
 
     assert_eq!(transform.style(), GradingStyle::Lin);
     assert_eq!(transform.direction(), TransformDirection::Forward);
@@ -84,6 +119,7 @@ fn grading_primary_default_style_dynamic_and_copy_behavior() {
     copy_value.offset.blue = 0.25;
     copy.try_set_value(&copy_value)
         .expect("set copy primary grading value");
+    assert_eq!(copy.try_value().unwrap(), copy_value);
 
     assert_eq!(copy.direction(), TransformDirection::Inverse);
     assert_close(copy.value().offset.blue, 0.25, 1e-10);

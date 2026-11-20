@@ -51,24 +51,23 @@ fn matrix_fit_static_values() {
         return;
     }
 
-    let result = MatrixTransform::fit(
-        &[0.0, 0.0, 0.0, 0.0],
-        &[2.0, 4.0, 8.0, 1.0],
+    let t = MatrixTransform::fit(
+        &[1.0, 2.0, 3.0, -1.0],
+        &[3.0, 6.0, 11.0, 1.0],
         &[10.0, 20.0, 30.0, 0.0],
         &[20.0, 40.0, 50.0, 1.0],
-    );
-    if let Ok(t) = result {
-        let matrix = t.matrix();
-        let offset = t.offset();
-        assert_close(matrix[0], 5.0, 1e-10);
-        assert_close(matrix[5], 5.0, 1e-10);
-        assert_close(matrix[10], 2.5, 1e-10);
-        assert_close(matrix[15], 1.0, 1e-10);
-        assert_close(offset[0], 10.0, 1e-10);
-        assert_close(offset[1], 20.0, 1e-10);
-        assert_close(offset[2], 30.0, 1e-10);
-        assert_close(offset[3], 0.0, 1e-10);
-    }
+    )
+    .expect("fit matrix");
+    let matrix = t.matrix();
+    let offset = t.offset();
+    assert_close(matrix[0], 5.0, 1e-10);
+    assert_close(matrix[5], 5.0, 1e-10);
+    assert_close(matrix[10], 2.5, 1e-10);
+    assert_close(matrix[15], 0.5, 1e-10);
+    assert_close(offset[0], 5.0, 1e-10);
+    assert_close(offset[1], 10.0, 1e-10);
+    assert_close(offset[2], 22.5, 1e-10);
+    assert_close(offset[3], 0.5, 1e-10);
 }
 
 #[test]
@@ -400,4 +399,78 @@ fn matrix_combined_scale_offset_behavior() {
     assert_close(pixel[1] as f64, 1.75, 1e-5);
     assert_close(pixel[2] as f64, 0.5, 1e-5);
     assert_close(pixel[3] as f64, 1.0, 1e-5);
+}
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn static_matrix_helpers_write_directly_to_caller_buffers() {
+    use ocio_rs::transform::MatrixTransform;
+    let mut matrix = [0.0; 16];
+    let mut offset = [0.0; 4];
+    let old_min = [0.0; 4];
+    let old_max = [1.0; 4];
+    let new_min = [0.1; 4];
+    let new_max = [0.9; 4];
+    MatrixTransform::fit_into(
+        &mut matrix,
+        &mut offset,
+        &old_min,
+        &old_max,
+        &new_min,
+        &new_max,
+    )
+    .unwrap();
+    let expected = MatrixTransform::fit(&old_min, &old_max, &new_min, &new_max).unwrap();
+    assert_eq!(matrix, expected.matrix());
+    assert_eq!(offset, expected.offset());
+    assert!(MatrixTransform::fit_into(
+        &mut matrix,
+        &mut offset,
+        &old_min,
+        &old_min,
+        &new_min,
+        &new_max
+    )
+    .is_err());
+    let luma = [0.2126, 0.7152, 0.0722];
+    MatrixTransform::sat_into(&mut matrix, &mut offset, 0.5, &luma).unwrap();
+    let expected = MatrixTransform::sat(0.5, &luma).unwrap();
+    assert_eq!((matrix, offset), (expected.matrix(), expected.offset()));
+    let scale = [0.5, 1.0, 2.0, 1.0];
+    MatrixTransform::scale_into(&mut matrix, &mut offset, &scale).unwrap();
+    let expected = MatrixTransform::scale(&scale).unwrap();
+    assert_eq!((matrix, offset), (expected.matrix(), expected.offset()));
+    let mut channels = [1, 0, 1, 0];
+    let mut expected_channels = channels;
+    MatrixTransform::view_into(&mut matrix, &mut offset, &mut channels, &luma).unwrap();
+    let expected = MatrixTransform::view(&mut expected_channels, &luma).unwrap();
+    assert_eq!(
+        (matrix, offset, channels),
+        (expected.matrix(), expected.offset(), expected_channels)
+    );
+}
+
+#[test]
+#[cfg(ocio_stub)]
+fn static_matrix_helpers_report_stub_unavailability() {
+    use ocio_rs::transform::MatrixTransform;
+    let mut matrix = [0.0; 16];
+    let mut offset = [0.0; 4];
+    assert!(MatrixTransform::scale_into(&mut matrix, &mut offset, &[1.0; 4]).is_err());
+    assert!(MatrixTransform::sat_into(&mut matrix, &mut offset, 0.5, &[0.2, 0.7, 0.1]).is_err());
+    assert!(MatrixTransform::view_into(
+        &mut matrix,
+        &mut offset,
+        &mut [1, 0, 0, 0],
+        &[0.2, 0.7, 0.1]
+    )
+    .is_err());
+    assert!(MatrixTransform::fit_into(
+        &mut matrix,
+        &mut offset,
+        &[0.0; 4],
+        &[1.0; 4],
+        &[0.0; 4],
+        &[1.0; 4]
+    )
+    .is_err());
 }

@@ -1,0 +1,422 @@
+use ocio_rs::transform::MatrixTransform;
+use ocio_rs::{
+    Config, Look, NamedTransform, ReferenceSpaceType, TransformDirection, ViewTransform,
+    ViewTransformDirection,
+};
+
+#[test]
+#[cfg(ocio_stub)]
+fn named_item_diagnostics_report_stub_unavailability() {
+    assert!(Look::create().unwrap().serialize().is_err());
+    assert!(NamedTransform::create().unwrap().serialize().is_err());
+    assert!(ViewTransform::create(ReferenceSpaceType::Scene)
+        .unwrap()
+        .serialize()
+        .is_err());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_look_setters_reject_null_without_crashing() {
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let look = sys::ocio_look_create();
+        assert!(!look.is_null());
+        for setter in [
+            sys::ocio_look_set_transform,
+            sys::ocio_look_set_inverse_transform,
+        ] {
+            sys::ocio_error_clear_last();
+            setter(look, std::ptr::null_mut());
+            assert!(!sys::ocio_error_get_last().is_null());
+        }
+        sys::ocio_error_clear_last();
+        sys::ocio_look_destroy(look);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_color_space_and_named_transform_setters_clear_null_transforms() {
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let matrix = sys::ocio_matrix_transform_create();
+        let color_space = sys::ocio_color_space_create();
+        let named = sys::ocio_named_transform_create();
+        assert!(!matrix.is_null() && !color_space.is_null() && !named.is_null());
+        for (handle, setter, getter) in [
+            (
+                color_space,
+                sys::ocio_color_space_set_transform as unsafe extern "C" fn(_, _, _),
+                sys::ocio_color_space_get_transform as unsafe extern "C" fn(_, _) -> _,
+            ),
+            (
+                named,
+                sys::ocio_named_transform_set_transform as unsafe extern "C" fn(_, _, _),
+                sys::ocio_named_transform_get_transform as unsafe extern "C" fn(_, _) -> _,
+            ),
+        ] {
+            for direction in [0, 1] {
+                sys::ocio_error_clear_last();
+                setter(handle, matrix, direction);
+                assert!(sys::ocio_error_get_last().is_null());
+                let copy: *mut std::ffi::c_void = getter(handle, direction);
+                assert!(!copy.is_null());
+                sys::ocio_matrix_transform_destroy(copy);
+                setter(handle, std::ptr::null_mut(), direction);
+                assert!(sys::ocio_error_get_last().is_null());
+                assert!(getter(handle, direction).is_null());
+                assert!(sys::ocio_error_get_last().is_null());
+            }
+        }
+        sys::ocio_color_space_destroy(color_space);
+        sys::ocio_named_transform_destroy(named);
+        sys::ocio_matrix_transform_destroy(matrix);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn config_named_items_are_copied_or_shared_read_only() {
+    let config = Config::raw().unwrap();
+    let matrix = MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
+    let look = Look::create().unwrap();
+    look.set_name("test-look").unwrap();
+    look.set_process_space("raw").unwrap();
+    look.set_description("look description").unwrap();
+    look.try_set_transform(&matrix).unwrap();
+    config.try_add_look(&look).unwrap();
+    let named = NamedTransform::create().unwrap();
+    named.set_name("test-named").unwrap();
+    named.set_family("named/family").unwrap();
+    named.set_encoding("scene-linear").unwrap();
+    named.set_description("named description").unwrap();
+    named.add_alias("test-alias").unwrap();
+    named.add_category("working-space").unwrap();
+    named
+        .try_set_transform(&matrix, TransformDirection::Forward)
+        .unwrap();
+    config.try_add_named_transform(&named).unwrap();
+    let view = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    view.set_name("test-view").unwrap();
+    view.set_family("view/family").unwrap();
+    view.set_description("view description").unwrap();
+    view.add_category("display").unwrap();
+    #[cfg(feature = "v2_5")]
+    {
+        look.set_interchange_attribute("amf_transform_ids", "look-id")
+            .unwrap();
+        view.set_interchange_attribute("amf_transform_ids", "view-id")
+            .unwrap();
+        config.try_add_look(&look).unwrap();
+    }
+    view.try_set_transform(Some(&matrix), ViewTransformDirection::ToReference)
+        .unwrap();
+    config.try_add_view_transform(&view).unwrap();
+    config.set_default_view_transform_name("test-view").unwrap();
+
+    let shared_look = config.try_const_look(c"test-look").unwrap().unwrap();
+    let shared_named = config
+        .try_const_named_transform(c"test-named")
+        .unwrap()
+        .unwrap();
+    let shared_view = config
+        .try_const_view_transform(c"test-view")
+        .unwrap()
+        .unwrap();
+    let look_text = look.serialize().unwrap();
+    let named_text = named.serialize().unwrap();
+    let view_text = view.serialize().unwrap();
+    assert_eq!(shared_look.serialize().unwrap(), look_text);
+    assert_eq!(shared_named.serialize().unwrap(), named_text);
+    assert_eq!(shared_view.serialize().unwrap(), view_text);
+    assert!(look_text.contains("test-look") && look_text.contains("look description"));
+    assert!(named_text.contains("test-named") && named_text.contains("named/family"));
+    assert!(view_text.contains("test-view") && view_text.contains("view/family"));
+    look.set_description("later description").unwrap();
+    assert!(look_text.contains("look description"));
+    assert!(look.serialize().unwrap().contains("later description"));
+    let shared_transform = shared_look.try_const_transform().unwrap().unwrap();
+    let target_look = Look::create().unwrap();
+    target_look
+        .try_set_const_transform(&shared_transform)
+        .unwrap();
+    target_look
+        .try_set_const_inverse_transform(&shared_transform)
+        .unwrap();
+    let target_view = ViewTransform::create(ReferenceSpaceType::Scene).unwrap();
+    let target_named = NamedTransform::create().unwrap();
+    target_named
+        .try_set_const_transform(Some(&shared_transform), TransformDirection::Forward)
+        .unwrap();
+    target_named
+        .try_set_const_transform(Some(&shared_transform), TransformDirection::Inverse)
+        .unwrap();
+    target_named
+        .try_set_const_transform(None, TransformDirection::Inverse)
+        .unwrap();
+    assert!(target_named
+        .try_const_transform(TransformDirection::Inverse)
+        .unwrap()
+        .is_none());
+    assert!(target_named
+        .try_const_transform(TransformDirection::Forward)
+        .unwrap()
+        .is_some());
+    target_view
+        .try_set_const_transform(Some(&shared_transform), ViewTransformDirection::ToReference)
+        .unwrap();
+    target_view
+        .try_set_const_transform(
+            Some(&shared_transform),
+            ViewTransformDirection::FromReference,
+        )
+        .unwrap();
+    target_view
+        .try_set_const_transform(None, ViewTransformDirection::ToReference)
+        .unwrap();
+    assert!(target_view
+        .try_const_transform(ViewTransformDirection::ToReference)
+        .unwrap()
+        .is_none());
+    assert!(target_view
+        .try_const_transform(ViewTransformDirection::FromReference)
+        .unwrap()
+        .is_some());
+    let retained_view_transform = target_view
+        .try_const_transform(ViewTransformDirection::FromReference)
+        .unwrap()
+        .unwrap();
+    target_view
+        .try_set_const_transform(None, ViewTransformDirection::FromReference)
+        .unwrap();
+    drop(target_view);
+    let ocio_rs::transform::Transform::Matrix(retained_copy) =
+        retained_view_transform.create_editable_copy().unwrap()
+    else {
+        panic!("expected retained view matrix transform");
+    };
+    assert_eq!(retained_copy.matrix()[0], 2.0);
+    assert!(target_look.try_const_transform().unwrap().is_some());
+    assert!(target_look.try_const_inverse_transform().unwrap().is_some());
+    drop(shared_transform);
+    let ocio_rs::transform::Transform::Matrix(copied) =
+        target_look.try_transform().unwrap().unwrap()
+    else {
+        panic!("expected matrix transform");
+    };
+    assert_eq!(copied.matrix()[0], 2.0);
+    let ocio_rs::transform::Transform::Matrix(named_copy) = target_named
+        .try_transform(TransformDirection::Forward)
+        .unwrap()
+        .unwrap()
+    else {
+        panic!("expected matrix transform");
+    };
+    assert_eq!(named_copy.matrix()[0], 2.0);
+    assert_eq!(shared_look.name_ref().unwrap().unwrap(), c"test-look");
+    assert_eq!(shared_look.process_space().unwrap().unwrap(), c"raw");
+    assert_eq!(
+        shared_look.description().unwrap().unwrap(),
+        c"look description"
+    );
+    assert_eq!(shared_named.family().unwrap().unwrap(), c"named/family");
+    assert_eq!(
+        shared_named.description().unwrap().unwrap(),
+        c"named description"
+    );
+    assert_eq!(shared_named.encoding().unwrap().unwrap(), c"scene-linear");
+    assert_eq!(shared_named.num_aliases().unwrap(), 1);
+    assert_eq!(shared_named.alias(0).unwrap().unwrap(), c"test-alias");
+    assert!(shared_named.alias(usize::MAX).unwrap().is_none());
+    assert!(shared_named.has_alias(c"test-alias").unwrap());
+    assert_eq!(shared_named.num_categories().unwrap(), 1);
+    assert!(shared_named.has_category(c"working-space").unwrap());
+    assert_eq!(shared_named.category(0).unwrap().unwrap(), c"working-space");
+    assert_eq!(shared_view.family().unwrap().unwrap(), c"view/family");
+    assert_eq!(
+        shared_view.description().unwrap().unwrap(),
+        c"view description"
+    );
+    assert_eq!(
+        shared_view.reference_space_type().unwrap(),
+        ReferenceSpaceType::Scene
+    );
+    assert_eq!(shared_view.num_categories().unwrap(), 1);
+    assert_eq!(shared_view.category(0).unwrap().unwrap(), c"display");
+    assert!(shared_view.has_category(c"display").unwrap());
+    #[cfg(feature = "v2_5")]
+    {
+        assert_eq!(
+            shared_look
+                .interchange_attribute(c"amf_transform_ids")
+                .unwrap()
+                .unwrap(),
+            c"look-id"
+        );
+        assert_eq!(
+            shared_view
+                .interchange_attribute(c"amf_transform_ids")
+                .unwrap()
+                .unwrap(),
+            c"view-id"
+        );
+        assert!(shared_view.interchange_attribute(c"unknown").is_err());
+        let look_snapshot = shared_look.try_interchange_attributes().unwrap();
+        let view_snapshot = shared_view.try_interchange_attributes().unwrap();
+        assert_eq!(
+            look_snapshot.get("amf_transform_ids").map(String::as_str),
+            Some("look-id")
+        );
+        assert_eq!(
+            view_snapshot.get("amf_transform_ids").map(String::as_str),
+            Some("view-id")
+        );
+        assert_eq!(look.try_interchange_attributes().unwrap(), look_snapshot);
+        assert_eq!(view.try_interchange_attributes().unwrap(), view_snapshot);
+        assert_eq!(look.interchange_attributes(), look_snapshot);
+        assert_eq!(view.interchange_attributes(), view_snapshot);
+        look.set_interchange_attribute("amf_transform_ids", "changed-look-id")
+            .unwrap();
+        view.set_interchange_attribute("amf_transform_ids", "changed-view-id")
+            .unwrap();
+        assert_eq!(
+            shared_look.try_interchange_attributes().unwrap(),
+            look_snapshot
+        );
+        assert_eq!(
+            shared_view.try_interchange_attributes().unwrap(),
+            view_snapshot
+        );
+    }
+    let shared_default = config
+        .try_const_default_scene_to_display_view_transform()
+        .unwrap()
+        .unwrap();
+    let default_copy = config.default_scene_to_display_view_transform().unwrap();
+    default_copy.set_name("changed-default").unwrap();
+    assert_eq!(shared_default.name().unwrap().as_deref(), Some("test-view"));
+    let look_copy = config.try_look("test-look").unwrap().unwrap();
+    let named_copy = config.try_named_transform("test-named").unwrap().unwrap();
+    let view_copy = config.try_view_transform("test-view").unwrap().unwrap();
+    look_copy.set_name("changed-look").unwrap();
+    named_copy.set_name("changed-named").unwrap();
+    view_copy.set_name("changed-view").unwrap();
+    assert_eq!(shared_look.name().unwrap().as_deref(), Some("test-look"));
+    assert_eq!(shared_named.name().unwrap().as_deref(), Some("test-named"));
+    assert_eq!(shared_view.name().unwrap().as_deref(), Some("test-view"));
+    assert!(config.try_look("changed-look").unwrap().is_none());
+    assert!(config
+        .try_named_transform("changed-named")
+        .unwrap()
+        .is_none());
+    assert!(config.try_view_transform("changed-view").unwrap().is_none());
+    let edited_look = shared_look.create_editable_copy().unwrap();
+    edited_look.set_description("edited").unwrap();
+    config.try_add_look(&edited_look).unwrap();
+    assert_eq!(
+        config
+            .try_look("test-look")
+            .unwrap()
+            .unwrap()
+            .description()
+            .as_deref(),
+        Some("edited")
+    );
+    let context = config.current_context().unwrap();
+    for ctx in [None, Some(&context)] {
+        let processor = config
+            .processor_from_const_named_transform(&shared_named, TransformDirection::Forward, ctx)
+            .unwrap();
+        let mut pixel = [0.25, 0.25, 0.25, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        assert!((pixel[0] - 0.5).abs() < 1e-6);
+    }
+    assert!(shared_named
+        .try_const_transform(TransformDirection::Inverse)
+        .unwrap()
+        .is_none());
+    let inverse = shared_named
+        .resolve_const_transform(TransformDirection::Inverse)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        named
+            .resolve_const_transform(TransformDirection::Inverse)
+            .unwrap()
+            .unwrap()
+            .type_tag()
+            .unwrap(),
+        ocio_rs::TransformType::Matrix as i32
+    );
+    let processor = config
+        .processor_from_const_transform(&inverse, TransformDirection::Forward, None)
+        .unwrap();
+    let mut pixel = [0.5, 0.25, 0.25, 1.0];
+    processor
+        .default_cpu_processor()
+        .unwrap()
+        .try_apply_rgba(&mut pixel)
+        .unwrap();
+    assert!((pixel[0] - 0.25).abs() < 1e-6);
+    let empty = NamedTransform::create().unwrap();
+    assert!(empty
+        .resolve_const_transform(TransformDirection::Forward)
+        .is_err());
+    drop(config);
+    assert_eq!(
+        shared_look
+            .create_editable_copy()
+            .unwrap()
+            .name()
+            .as_deref(),
+        Some("test-look")
+    );
+    assert_eq!(
+        shared_named
+            .create_editable_copy()
+            .unwrap()
+            .name()
+            .as_deref(),
+        Some("test-named")
+    );
+    assert_eq!(
+        shared_view
+            .create_editable_copy()
+            .unwrap()
+            .name()
+            .as_deref(),
+        Some("test-view")
+    );
+    assert_eq!(
+        shared_look
+            .try_const_transform()
+            .unwrap()
+            .unwrap()
+            .type_tag()
+            .unwrap(),
+        ocio_rs::TransformType::Matrix as i32
+    );
+    assert_eq!(
+        shared_named
+            .try_const_transform(TransformDirection::Forward)
+            .unwrap()
+            .unwrap()
+            .type_tag()
+            .unwrap(),
+        ocio_rs::TransformType::Matrix as i32
+    );
+    assert_eq!(
+        shared_view
+            .try_const_transform(ViewTransformDirection::ToReference)
+            .unwrap()
+            .unwrap()
+            .type_tag()
+            .unwrap(),
+        ocio_rs::TransformType::Matrix as i32
+    );
+}
