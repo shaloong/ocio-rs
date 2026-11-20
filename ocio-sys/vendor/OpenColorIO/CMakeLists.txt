@@ -29,12 +29,12 @@ endif()
 # Project definition.
 
 project(OpenColorIO 
-    VERSION 2.5.2
+    VERSION 2.6.0
     DESCRIPTION "OpenColorIO (OCIO) is a complete color management solution"
     HOMEPAGE_URL https://github.com/AcademySoftwareFoundation/OpenColorIO
     LANGUAGES CXX C)
 
-# Release type "dev", "beta1", rc1", etc or "" for an official release.
+# "dev", "beta1", rc1", etc or "" for an official release.
 set(OpenColorIO_VERSION_RELEASE_TYPE "")
 
 
@@ -287,6 +287,19 @@ message(STATUS "")
 message(STATUS "Checking for GPU configuration...")
 include(CheckSupportGL)
 
+# DirectX 12 is only available on Windows.
+if(WIN32)
+    option(OCIO_DIRECTX_ENABLED "Enable DirectX 12 GPU rendering support" ON)
+else()
+    set(OCIO_DIRECTX_ENABLED OFF CACHE BOOL "Enable DirectX 12 GPU rendering support" FORCE)
+endif()
+mark_as_advanced(OCIO_DIRECTX_ENABLED)
+
+# Vulkan is cross-platform but requires an external SDK, so it is off by
+# default; enable explicitly with -DOCIO_VULKAN_ENABLED=ON.
+option(OCIO_VULKAN_ENABLED "Enable Vulkan GPU rendering support" OFF)
+mark_as_advanced(OCIO_VULKAN_ENABLED)
+
 
 ###############################################################################
 # Check for ARM neon here because we need to know if ARM NEON is supported
@@ -348,6 +361,11 @@ endif()
 # Define compilation and link flags
 
 include(CompilerFlags)
+
+###############################################################################
+# Include utility functions for setting debugging environments
+
+include(DebuggerEnvironment)
 
 ###############################################################################
 # External linking options

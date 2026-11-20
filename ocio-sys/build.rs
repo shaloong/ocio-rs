@@ -339,6 +339,9 @@ fn build_ocio_from_source(
             "OpenColorIO source not found. Use a recursive checkout or set OCIO_SOURCE_DIR.",
         )
     })?;
+    // CMake must be rerun when any selected source or bundled dependency
+    // changes, not only when the LUT patch changes.
+    println!("cargo:rerun-if-changed={}", ocio_source.display());
     let source_version = ocio_source_version(&ocio_source)?;
     let vendored = ocio_source
         == PathBuf::from(

@@ -140,8 +140,8 @@ ocio-rs/
 
 `v2_6` 包含 `v2_5`，开放显示和视图别名、色彩互操作 ID 查询、HDR 兼容检查、
 HMJ 变换与 CLF ID 元数据。使用已安装的 2.6 时选择 `system,v2_6`；
-从源码构建时选择 `bundled,v2_6` 并将 `OCIO_SOURCE_DIR` 指向 2.6 源码。
-默认 vendored 源码仍为 2.5.2，包含上游多行 GPU LUT 打包问题的修复；已安装库和
+选择 `bundled,v2_6` 可构建 vendored OpenColorIO 2.6.0 源码。
+该源码包含上游多行 GPU LUT 打包问题的修复；已安装库和
 外部源码不自动包含此修复。对尚未修复的外部库，如果 LUT 长度未知，可使用
 `GPUProcessor::try_extract_shader_info_checked`，或在自定义提取前调用
 `validate_shader_texture_layout`。检查会生成两次 shader 资源，可能保守地拒绝非

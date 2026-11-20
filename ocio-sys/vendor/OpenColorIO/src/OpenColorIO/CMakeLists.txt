@@ -4,6 +4,7 @@
 set(SOURCES
     apphelpers/CategoryHelpers.cpp
     apphelpers/ColorSpaceHelpers.cpp
+    apphelpers/ConfigCompatibility.cpp
     apphelpers/DisplayViewHelpers.cpp
     apphelpers/LegacyViewingPipeline.cpp
     apphelpers/mergeconfigs/MergeConfigsHelpers.cpp
@@ -234,6 +235,9 @@ endif()
 configure_file(CPUInfoConfig.h.in CPUInfoConfig.h)
 
 add_library(OpenColorIO ${SOURCES})
+
+# Group the source files to replicate the source tree structure in the IDEs.
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
 # Require at least a C++11 compatible compiler for consumer projects.
 target_compile_features(OpenColorIO

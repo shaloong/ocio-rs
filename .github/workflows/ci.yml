@@ -178,7 +178,9 @@ jobs:
       - name: Test with bundled OCIO
         # The real-OCIO bundled suite exercises process-global config/env/cache
         # paths, so run it serially for deterministic CI behavior.
-        run: cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
+        env:
+          OCIO_RS_TEST_VERSION: 2.6.0
+        run: cargo test --workspace --no-default-features --features bundled,v2_6 -- --test-threads=1
 
   ocio-2-6:
     name: OpenColorIO 2.6.0 compatibility

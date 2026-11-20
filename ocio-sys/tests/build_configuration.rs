@@ -486,9 +486,9 @@ fn shared_only_system_install_skips_transitive_static_deps() {
 
 fn prepare_headers(ocio_sys_dir: &Path, include_dir: &Path) {
     let source = ocio_sys_dir
-        .join("vendor")
-        .join("OpenColorIO")
-        .join("include")
+        .join("tests")
+        .join("fixtures")
+        .join("ocio-2.5.2")
         .join("OpenColorIO");
     let destination = include_dir.join("OpenColorIO");
     fs::create_dir_all(&destination).unwrap();

@@ -163,6 +163,8 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 `ocio-sys/vendor/OpenColorIO`; the submodule is a fallback when that tree is
 absent, and `OCIO_SOURCE_DIR` is an explicit source override. Keep the vendored
 source, submodule, bridge, and packaged dependencies synchronized when upgrading.
+The bundled source includes OpenColorIO 2.6.0 and zlib 1.3.2; local
+dependency patches preserve offline builds and must be reviewed when updating.
 The vendored source carries a small fix in `Lut1DOpGPU.cpp`: multi-row LUTs
 reserve a texel per row for interpolation across the row boundary, so the
 allocation includes the final row addressed by the shader. Recheck this fix

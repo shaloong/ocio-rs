@@ -164,14 +164,13 @@ time, failing with a clear error on mismatch.
 | `v2_6`  | 2.6.0          | display/view aliases, color interop lookup, HDR compatibility, HMJ fixed function and CLF ID metadata |
 
 `v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
-`bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
-The vendored 2.5.2 source remains the default for builds without `v2_6`.
+`bundled,v2_6` to build the vendored OpenColorIO 2.6.0 source.
 With native 2.5.0, the baseline interface remains available, but texture
 insertion does not report a shader binding index: upstream returns a per-kind
 texture index and does not provide the binding-query virtual methods added in
 2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
 
-The vendored 2.5.2 source includes a fix for an upstream multi-row GPU LUT
+The vendored 2.6.0 source includes a fix for an upstream multi-row GPU LUT
 packing error; installed libraries and external source overrides do not
 inherit it. For an unpatched external build with unknown LUT lengths, use
 `GPUProcessor::try_extract_shader_info_checked` or
