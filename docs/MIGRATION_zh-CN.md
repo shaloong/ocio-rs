@@ -1,6 +1,8 @@
 # 迁移说明
 
-## 未发布：合并参数快照和 GPU 原始指针
+## 0.4.0
+
+### 合并参数快照和 GPU 原始指针
 
 `ConfigMergingParameters` 的 `search_path`、`active_displays`、`active_views`、
 `inactive_color_spaces`、`environment_var` 和 `environment_var_value` 现在返回
@@ -11,7 +13,7 @@
 应分别传入 `&mut *const c_char` 或 `&mut *const f32`；返回指针仍借用 descriptor
 的存储。高层纹理接口不受影响。
 
-## 未发布：线程与全局配置
+### 线程与全局配置
 
 `Processor`、`CPUProcessor`、`GPUProcessor` 和 `GpuShaderDesc` 不再实现 `Send`。
 请在使用它们的线程中创建；不含动态属性的 CPU processor 可用 `try_into_static()`
@@ -23,52 +25,52 @@ IO proxy 或自定义变换状态，调用者还必须在其整个生命周期�
 共享全局配置及原生浅拷贝接口有更强的别名和同步要求，详见英文
 [迁移说明](MIGRATION.md)。
 
-## 未发布：可失败枚举查询与动态缓存 ID
+### 可失败枚举查询与动态缓存 ID
 
 `FixedFunctionTransform::try_style` 和 `GpuShaderDesc::try_language` 会报告当前
 接口级别无法表示的原生值；已有的非可失败方法保留兼容回退。持久 GPU creator
 可通过 `ShaderCacheIdPolicy` 为单次提取提供动态缓存 ID；调用方仍需保证缓存
 身份正确，并负责外部资源的清理。
 
-## 未发布：packed 图像指针步进填充
+### packed 图像指针步进填充
 
 packed 原位、packed 到 packed 及 packed/平面混合转换通过仅拆分受影响区域
 支持无填充尾部，每次最多复制一个像素；紧密正向 RGBA 保留原生快速路径。
 后续区域发生错误时，较早的输出可能已被修改。
 
-## 未发布：极大 RGBA 步长
+### 极大 RGBA 步长
 
 RGBA 字节步长超过原生 C++ `int` 最大值时一般会被拒绝，避免 OCIO 的紧密布局
 优化因整数截窄将极大步长误判为紧密像素。要解除这一保守限制，后续需要单独的
 安全处理路径。单像素浮点及 packed 字节接口会将有效的极大步长规范化，
 因为不存在第二个像素。
 
-## 未发布：平面图像尾部填充
+### 平面图像尾部填充
 
 正步长平面转换和原位接口通过拆分必要的尾部区域支持无尾部填充，不复制图像
 数据。后续区域发生错误时，较早的目标区域可能已被修改。有符号步长的原位处理、
 平面到平面及 packed/平面混合转换也支持无填充。
 
-## 未发布：变换句柄安全
+### 变换句柄安全
 
 `TransformHandle` 现在是封闭 trait：外部安全实现可以伪造会被原生桥接层
 解引用的指针。泛型约束和本库提供的变换类型不受影响；自定义实现请改用
 本库的具体封装或 `Transform` 枚举。原生互操作仍可通过明确标注为 unsafe 的
 底层接口进行。
 
-## 未发布：日志回调同步
+### 日志回调同步
 
 安全的日志回调安装和重置要求原生 OpenColorIO 2.5.2 或更新版本。更早的版本
 没有将回调替换与并发日志同步，因此安全接口会返回错误且不会更改回调。能够排除
 所有并发 OCIO 日志（包括本 crate 之外的原生代码）的应用，可改用对应的
 `unsafe` `_unchecked` 接口，并遵守其安全要求。
 
-## 未发布：OpenColorIO 2.6
+### OpenColorIO 2.6
 
 支持的原生库范围扩展至 `>= 2.4.1, < 2.7`。使用 `v2_6` 启用 2.6 API；
 该 feature 同时启用 `v2_5`，并要求 OpenColorIO 2.6.0 或更新版本。
-安装 2.6 不会自动启用 Cargo feature。覆盖情况及尚存限制见
-[兼容性指南](OCIO_2_6.md)。下方 0.3.0 章节描述该版本发布时的兼容范围。
+安装 2.6 不会自动启用 Cargo feature。后端选择及外部 GPU LUT 限制见 README。
+下方 0.3.0 章节描述该版本发布时的兼容范围。
 
 ## 0.3.0
 

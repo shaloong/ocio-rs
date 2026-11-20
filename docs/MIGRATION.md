@@ -1,6 +1,8 @@
 # Migration Notes
 
-## Unreleased: merge-parameter override snapshots
+## 0.4.0
+
+### Merge-parameter override snapshots
 
 `ConfigMergingParameters::{search_path, active_displays, active_views,
 inactive_color_spaces, environment_var, environment_var_value}` now return
@@ -11,7 +13,7 @@ invalidate a borrowed pointer. The owned snapshots avoid that invalidation;
 they do not change OCIO's shared-mutation behavior. The raw `ocio-sys` getters
 retain their original pointer and synchronization contracts.
 
-## Unreleased: legacy GPU texture output pointers
+### Legacy GPU texture output pointers
 
 The four low-level `ocio-sys` legacy GPU texture queries now type their name
 and value outputs as pointers to pointers, matching their existing binary ABI
@@ -23,7 +25,7 @@ descriptor's native storage and must not outlive or be invalidated by it. Prefer
 typed texture-info and borrowed-value APIs for new code. Oversized
 pointer-encoded texture indices now report an error instead of narrowing.
 
-## Unreleased: fallible enum queries and dynamic cache IDs
+### Fallible enum queries and dynamic cache IDs
 
 `FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report
 native values unavailable at the enabled interface level. Their existing
@@ -31,14 +33,14 @@ infallible counterparts retain their compatibility fallbacks. A persistent
 GPU creator may opt into `ShaderCacheIdPolicy` for a single extraction; the
 caller remains responsible for stable cache identity and resource cleanup.
 
-## Unreleased: packed image pointer-step padding
+### Packed image pointer-step padding
 
 Packed in-place, packed-to-packed and mixed planar conversions support unpadded
 tails by splitting only the affected regions and copying at most a pixel at a
 time. Tight forward RGBA retains the native fast path. A later regional failure
 may leave earlier output modified.
 
-## Unreleased: extreme RGBA strides
+### Extreme RGBA strides
 
 RGBA byte strides above the native C++ `int` maximum are generally rejected instead of
 being narrowed by OCIO's packed-layout optimization. This prevents extremely
@@ -47,7 +49,7 @@ layouts without this conservative restriction requires a separate safe path.
 The single-pixel float and packed-byte APIs normalize otherwise valid extreme
 strides because no second pixel is accessed.
 
-## Unreleased: planar image padding
+### Planar image padding
 
 Positive-stride planar conversion and in-place APIs support unpadded planes by
 splitting only necessary tail regions without copying image data. A failure in
@@ -55,7 +57,7 @@ a later region may leave earlier destination regions modified. Signed-stride
 in-place processing, planar-to-planar and mixed packed/planar conversion also
 support unpadded planes.
 
-## Unreleased: transform handle safety
+### Transform handle safety
 
 `TransformHandle` is now sealed because safe external implementations could
 forge pointers that the native bridge dereferences. Generic bounds and all
@@ -63,7 +65,7 @@ crate-provided transforms continue to work; replace custom implementations with
 the provided concrete wrappers or the `Transform` enum. Raw native interop
 remains available through explicitly unsafe low-level APIs.
 
-## Unreleased: logging callback synchronization
+### Logging callback synchronization
 
 Safe logger installation and reset require native OpenColorIO 2.5.2 or later.
 Earlier versions do not synchronize replacement with concurrent logging, so
@@ -71,15 +73,15 @@ these functions return an error without changing the logger. Applications able
 to exclude all concurrent OCIO logging (including native users outside this
 crate) may use the corresponding `unsafe` `_unchecked` functions instead.
 
-## Unreleased: OpenColorIO 2.6
+### OpenColorIO 2.6
 
 The supported native range is extended to `>= 2.4.1, < 2.7`. Enable `v2_6`
 for the 2.6 API; it also enables `v2_5` and requires OpenColorIO 2.6.0 or
 newer. Installing 2.6 does not enable this Cargo feature automatically. See
-the [compatibility guide](OCIO_2_6.md) for supported versions and limitations.
+the README for backend selection and external GPU LUT limitations.
 The 0.3.0 section below describes that release's original compatibility range.
 
-## Unreleased: processor thread confinement
+### Processor thread confinement
 
 `Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` no longer
 implement `Send`. A dynamic-property handle may outlive the processor or shader
@@ -91,6 +93,16 @@ can be shared, for example with `Arc`, without a lock in the pixel path.
 Independent queries through the shared current config
 isolate dynamic pipelines; static lookups still use OCIO's native cache. This
 does not synchronize callers using raw C++ interop.
+
+### Global configuration safety
+
+Global configuration snapshot getters and global processor-cache flag helpers
+now require `unsafe`. Coordinate calls with independent native OCIO users;
+external proxies and custom-transform state retained by a snapshot also need
+safe synchronization throughout the lifetime of that snapshot and its derived
+objects. The detailed global-configuration and native-copy contracts are
+described in [Config processors and file rules](#config-processors-and-file-rules)
+and in the API documentation.
 
 ## 0.3.0
 

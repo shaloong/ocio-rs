@@ -5,10 +5,16 @@ All notable changes to `ocio-rs` will be documented in this file.
 The format is based on Keep a Changelog, and this project follows Semantic
 Versioning as closely as practical for a still-maturing binding crate.
 
-## [Unreleased]
+## [0.4.0]
 
 ### Breaking safety changes
 
+- Global configuration snapshot getters and processor-cache flag helpers now
+  require `unsafe` and coordination with independent native OCIO users.
+- `TransformHandle` is sealed, and safe logger replacement requires native
+  OpenColorIO 2.5.2 or newer.
+- Merge-parameter override getters return owned `CString` snapshots; legacy
+  raw GPU texture queries use pointer-to-pointer output types.
 - `Baker::config` now returns an independent editable copy instead of a
   mutable alias to OCIO's read-only internal config. `Baker::const_config`
   shares the read-only native configuration without that copy.

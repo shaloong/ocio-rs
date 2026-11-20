@@ -68,7 +68,6 @@ tree, not `OCIO_SOURCE_DIR` or an installed-library override.
 - Exact 2.4.1 baseline and exact 2.5.1 with `v2_5` (source-build CI).
 - Exact 2.6.0 with baseline, `v2_5`, and `v2_6` (source-build CI), in addition to
   the vendored 2.5.2 bundled jobs.
-  See the [compatibility guide](OCIO_2_6.md) for supported versions and GPU limitations.
 - Bundled baseline and `bundled,v2_5`, including the optimization-flag regression.
 - Linux, macOS, and Windows bundled `v2_5` tests.
 - Arch Linux with system zlib-ng: bundled minizip-ng must still use bundled zlib.

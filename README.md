@@ -167,7 +167,15 @@ With native 2.5.0, the baseline interface remains available, but texture
 insertion does not report a shader binding index: upstream returns a per-kind
 texture index and does not provide the binding-query virtual methods added in
 2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
-See the [compatibility guide](docs/OCIO_2_6.md) for external GPU LUT limitations.
+
+The vendored 2.5.2 source includes a fix for an upstream multi-row GPU LUT
+packing error; installed libraries and external source overrides do not
+inherit it. For an unpatched external build with unknown LUT lengths, use
+`GPUProcessor::try_extract_shader_info_checked` or
+`validate_shader_texture_layout` before custom extraction. These conservative
+checks generate shader resources twice, may reject non-LUT textures, and
+require resource-generating state to remain unchanged between the probe and
+extraction. Ordinary extraction retains native behavior.
 
 Vendored OCIO per release:
 
