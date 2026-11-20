@@ -8,13 +8,14 @@ basis for the current release line and development branch.
 | Version | Supported |
 | --- | --- |
 | `main` (release line) / `develop` (integration) | Yes |
-| `0.3.x` | Current release series; best-effort fixes |
-| `0.2.x` | Superseded; upgrade to 0.3 |
+| `0.4.x` | Best-effort fixes |
+| `0.3.x` | Best-effort fixes; upgrade to 0.4 where practical |
+| `0.2.x` | Superseded; upgrade to 0.4 |
 | `0.1.x` | No |
 
 ## Reporting a Vulnerability
 
-The source tree supports OpenColorIO `>= 2.4.1, < 2.7`; released crate versions
+Version 0.4 supports OpenColorIO `>= 2.4.1, < 2.7`; older crate versions
 may support a narrower range. Installed builds
 use the distribution's library and security updates; bundled builds contain
 the pinned OpenColorIO and transitive sources, so native fixes may require a

@@ -5,7 +5,7 @@ All notable changes to `ocio-rs` will be documented in this file.
 The format is based on Keep a Changelog, and this project follows Semantic
 Versioning as closely as practical for a still-maturing binding crate.
 
-## [0.4.0]
+## [0.4.0] - 2026-11-20
 
 ### Breaking safety changes
 

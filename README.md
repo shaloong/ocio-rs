@@ -7,7 +7,7 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-This source tree supports OpenColorIO `>= 2.4.1, < 2.7` (newer APIs are
+Version 0.4 supports OpenColorIO `>= 2.4.1, < 2.7` (newer APIs are
 opt-in via the `v2_5` and `v2_6` Cargo features; see Compatibility below).
 The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
@@ -33,11 +33,11 @@ several high-use runtime paths, including:
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 
-For a local checkout of this source tree (adjust the path as needed):
+For a system OpenColorIO installation:
 
 ```toml
 [dependencies]
-ocio-rs = { path = "../ocio-rs", features = ["system"] }
+ocio-rs = { version = "0.4", features = ["system"] }
 ```
 
 This configuration uses an installed OpenColorIO. Distribution packages and
@@ -45,7 +45,6 @@ plugins such as GStreamer should normally use this backend. For shared-library
 linking, set `OCIO_RS_LINK=dynamic` in the build environment and install the
 OpenColorIO development package plus `pkg-config`. For a source build instead,
 use `features = ["bundled"]`. Add `"v2_5"` only when your code needs 2.5 APIs.
-For registry releases, select a published version and consult its documentation.
 The 0.4 interface and breaking changes are described in the
 [migration notes](docs/MIGRATION.md#040); 0.3 supports OCIO versions below 2.6.
 
@@ -185,6 +184,7 @@ Vendored OCIO per release:
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.4.0   | v2.5.2 |
 | 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |

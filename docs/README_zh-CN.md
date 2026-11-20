@@ -7,8 +7,8 @@
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-开发分支支持 OpenColorIO `>= 2.4.1, < 2.7`；OCIO 2.5.1 新增的接口通过
-`v2_5` feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
+0.4 支持 OpenColorIO `>= 2.4.1, < 2.7`；较新接口通过 `v2_5` 和 `v2_6`
+feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
 核心 C++ API 桥接面已经基本到位，但发布加固与长尾行为验证仍在继续。
 
 > [English](../README.md)
@@ -26,18 +26,18 @@
   texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
 
-本地源码检出示例（请按实际位置调整路径）：
+使用系统安装的 OpenColorIO：
 
 ```toml
 [dependencies]
-ocio-rs = { path = "../ocio-rs", features = ["system"] }
+ocio-rs = { version = "0.4", features = ["system"] }
 ```
 
 此配置使用系统安装的 OpenColorIO，适合发行版打包和 GStreamer 等插件。
 构建时设置 `OCIO_RS_LINK=dynamic` 可明确选择动态链接；同时需要安装 OCIO
 开发包和 `pkg-config`。需要源码构建时改用 `features = ["bundled"]`；
 仅在使用 2.5 新接口时额外启用 `"v2_5"`。
-从 0.2 升级请阅读 [0.3 迁移说明](MIGRATION_zh-CN.md#030)。
+从旧版本升级请阅读 [0.4 迁移说明](MIGRATION_zh-CN.md#040)。
 
 ## 构建
 
@@ -149,6 +149,7 @@ LUT 纹理，并要求探测和提取之间资源生成状态不变。普通提�
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.4.0   | v2.5.2 |
 | 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |

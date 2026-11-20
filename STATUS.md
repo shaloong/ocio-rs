@@ -1,6 +1,6 @@
 # Project Status
 
-The source tree targets OpenColorIO `>= 2.4.1, < 2.7`. The baseline Rust
+Version 0.4 targets OpenColorIO `>= 2.4.1, < 2.7`. The baseline Rust
 interface supports 2.4.1; `v2_5` requires 2.5.1 and `v2_6` requires 2.6.0.
 The default backend is a stub and performs no color processing. Select
 `system` or `bundled` for real processing. The vendored source is 2.5.2;
