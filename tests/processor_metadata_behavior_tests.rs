@@ -65,3 +65,62 @@ fn processor_metadata_from_real_processor_behavior() {
     assert!(metadata.num_files() >= 0);
     assert!(metadata.num_looks() >= 0);
 }
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn processor_metadata_copies_do_not_mutate_shared_processor_state() {
+    use ocio_rs::transform::FileTransform;
+    let config = ocio_rs::Config::raw().unwrap();
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/data/clf/matrix_3x4_example.clf");
+    let transform = FileTransform::create().unwrap();
+    transform.set_src(path.to_string_lossy()).unwrap();
+    let processor = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap();
+    let shared = processor.try_const_processor_metadata().unwrap().unwrap();
+    let original_count = shared.num_files().unwrap();
+    assert!(original_count > 0);
+    let first = shared.file(0).unwrap().unwrap().to_owned();
+    let editable = processor.try_processor_metadata().unwrap();
+    let other_copy = shared.create_editable_copy().unwrap();
+    assert_eq!(editable.num_files(), original_count);
+    assert_eq!(editable.file(0).as_deref(), first.to_str().ok());
+    editable.add_file("synthetic-edit.clf").unwrap();
+    other_copy.add_look("synthetic-look").unwrap();
+    assert_eq!(shared.num_files().unwrap(), original_count);
+    assert_eq!(shared.num_looks().unwrap(), 0);
+    drop(processor);
+    assert_eq!(shared.file(0).unwrap().unwrap(), first.as_c_str());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn processor_metadata_copy_preserves_look_entries() {
+    use ocio_rs::transform::LookTransform;
+    let config = ocio_rs::Config::raw().unwrap();
+    let scene = ocio_rs::ColorSpace::create().unwrap();
+    scene.set_name("scene").unwrap();
+    config.try_add_color_space(&scene).unwrap();
+    let look = ocio_rs::Look::create().unwrap();
+    look.set_name("film").unwrap();
+    look.set_process_space("scene").unwrap();
+    look.try_set_transform(&MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap())
+        .unwrap();
+    config.try_add_look(&look).unwrap();
+    let transform = LookTransform::create().unwrap();
+    transform.set_src("scene").unwrap();
+    transform.set_dst("scene").unwrap();
+    transform.set_looks("film").unwrap();
+    let processor = config
+        .processor_from_transform(&transform, TransformDirection::Forward)
+        .unwrap();
+    let shared = processor.try_const_processor_metadata().unwrap().unwrap();
+    assert_eq!(shared.num_looks().unwrap(), 1);
+    assert_eq!(shared.look(0).unwrap().unwrap(), c"film");
+    let copy = processor.try_processor_metadata().unwrap();
+    assert_eq!(copy.num_looks(), 1);
+    assert_eq!(copy.look(0).as_deref(), Some("film"));
+    copy.add_look("other").unwrap();
+    assert_eq!(shared.num_looks().unwrap(), 1);
+}

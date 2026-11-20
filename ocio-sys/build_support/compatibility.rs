@@ -2,10 +2,13 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-pub const BASELINE_REQUIREMENT: &str = ">= 2.4.1, < 2.6";
-pub const V2_5_REQUIREMENT: &str = ">= 2.5.1, < 2.6";
+pub const BASELINE_REQUIREMENT: &str = ">= 2.4.1, < 2.7";
+pub const V2_5_REQUIREMENT: &str = ">= 2.5.1, < 2.7";
+pub const V2_6_REQUIREMENT: &str = ">= 2.6.0, < 2.7";
 const BASELINE_API_HEX: u32 = 0x02040100;
 const V2_5_API_HEX: u32 = 0x02050100;
+const V2_6_API_HEX: u32 = 0x02060000;
+const UNSUPPORTED_API_HEX: u32 = 0x02070000;
 
 pub fn prepare() -> PathBuf {
     assert_cargo_metadata_matches();
@@ -15,7 +18,9 @@ pub fn prepare() -> PathBuf {
     let contents = format!(
         "#pragma once\n\
          \n\
-         #ifdef OCIO_RS_FEATURE_V2_5\n\
+         #if defined(OCIO_RS_FEATURE_V2_6)\n\
+         #define OCIO_RS_INTERFACE_API_HEX 0x{V2_6_API_HEX:08X}\n\
+         #elif defined(OCIO_RS_FEATURE_V2_5)\n\
          #define OCIO_RS_INTERFACE_API_HEX 0x{V2_5_API_HEX:08X}\n\
          #else\n\
          #define OCIO_RS_INTERFACE_API_HEX 0x{BASELINE_API_HEX:08X}\n\
@@ -28,8 +33,14 @@ pub fn prepare() -> PathBuf {
          #if OCIO_VERSION_HEX < 0x{BASELINE_API_HEX:08X}\n\
          #error \"ocio-rs requires OpenColorIO 2.4.1 or newer\"\n\
          #endif\n\
+         #if OCIO_VERSION_HEX >= 0x{UNSUPPORTED_API_HEX:08X}\n\
+         #error \"ocio-rs requires OpenColorIO older than 2.7\"\n\
+         #endif\n\
          #if defined(OCIO_RS_FEATURE_V2_5) && OCIO_VERSION_HEX < 0x{V2_5_API_HEX:08X}\n\
          #error \"ocio-rs feature v2_5 requires OpenColorIO 2.5.1 or newer\"\n\
+         #endif\n\
+         #if defined(OCIO_RS_FEATURE_V2_6) && OCIO_VERSION_HEX < 0x{V2_6_API_HEX:08X}\n\
+         #error \"ocio-rs feature v2_6 requires OpenColorIO 2.6.0 or newer\"\n\
          #endif\n\
          #endif\n"
     );
@@ -39,7 +50,7 @@ pub fn prepare() -> PathBuf {
 
 fn assert_cargo_metadata_matches() {
     let manifest = include_str!("../Cargo.toml");
-    for requirement in [BASELINE_REQUIREMENT, V2_5_REQUIREMENT] {
+    for requirement in [BASELINE_REQUIREMENT, V2_5_REQUIREMENT, V2_6_REQUIREMENT] {
         let declaration = format!("version = \"{requirement}\"");
         assert!(
             manifest.contains(&declaration),

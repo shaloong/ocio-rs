@@ -3,7 +3,8 @@ use std::ptr::NonNull;
 
 use super::{transform_from_raw_handle, Transform, TransformHandle};
 use crate::{
-    cstr_from_mut, cstr_to_opt_string, cstring, Config, OcioError, Result, TransformDirection,
+    cstr_from_mut, cstr_to_opt_string, cstring, Config, ConstConfig, OcioError, Result,
+    TransformDirection,
 };
 use ocio_sys;
 
@@ -11,6 +12,9 @@ use ocio_sys;
 ///
 /// Group transforms are useful for composing generated or user-authored
 /// transform chains before asking a `Config` for a processor.
+/// Adding or replacing a child rejects direct and indirect cycles before
+/// mutation. Acyclic groups may share children; non-group children require no
+/// graph traversal. Group traversal occurs only while editing, not per pixel.
 pub struct GroupTransform {
     pub(crate) handle: NonNull<c_void>,
 }
@@ -47,17 +51,40 @@ impl GroupTransform {
     }
 
     /// Return the child transform at `index`, if present.
+    ///
+    /// The returned handle shares the native child rather than copying it.
+    /// Mutating it affects every group retaining that child. Replacing the
+    /// group's slot does not retarget an already returned handle.
     pub fn transform(&self, index: i32) -> Option<Transform> {
         self.try_transform(index).ok().flatten()
     }
 
-    /// Return the child transform at `index` while preserving OCIO query failures.
+    /// Return the shared native child while preserving OCIO query failures.
+    ///
+    /// This has the same sharing and mutation semantics as [`Self::transform`];
+    /// it does not copy the child transform.
     pub fn try_transform(&self, index: i32) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle =
             unsafe { ocio_sys::ocio_group_transform_get_transform(self.handle.as_ptr(), index) };
         crate::ocio_call_status()?;
         Ok(transform_from_raw_handle(handle))
+    }
+
+    /// Replace a child in place, preserving the group's identity and metadata.
+    ///
+    /// The group retains the same native transform as `child`. Existing handles
+    /// to the previous child remain valid. An invalid index returns an error.
+    pub fn set_transform(&self, index: i32, child: &impl TransformHandle) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_group_transform_set_transform(
+                self.handle.as_ptr(),
+                index,
+                child.as_ptr(),
+            );
+        }
+        crate::ocio_call_status()
     }
 
     #[deprecated(since = "0.2.0", note = "compat alias; prefer transform()")]
@@ -94,14 +121,32 @@ impl GroupTransform {
         crate::ocio_call_status()
     }
 
-    /// Create an editable copy that is independent from the original transform.
+    /// Copy the group container and metadata using OCIO's native operation.
+    /// Child transforms remain shared with the original. Use
+    /// [`Self::create_deep_copy`] to independently copy the graph.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_transform_create_editable_copy(self.handle.as_ptr()) };
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Remove the child transform at `index`.
+    /// Deep-copy the built-in transform graph while preserving sharing within
+    /// the copy. Group nodes are reconstructed as native OCIO groups; other
+    /// nodes use their native editable-copy method. Custom native subclasses
+    /// may have additional state or copy semantics not represented by this API.
+    /// Cycles and null children from external native interop are rejected.
+    pub fn create_deep_copy(&self) -> Result<Self> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_group_transform_create_deep_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    /// Remove the child transform at `index` by rebuilding this wrapper's group.
+    ///
+    /// OCIO exposes no in-place removal API. Existing shared references,
+    /// including groups that already contain this group and previously obtained
+    /// metadata, continue to refer to the original native object.
     pub fn remove_transform(&self, index: usize) -> Result<()> {
         crate::clear_last_error();
         unsafe {
@@ -110,7 +155,9 @@ impl GroupTransform {
         crate::ocio_call_status()
     }
 
-    /// Remove every child transform from the group.
+    /// Remove every child by rebuilding this wrapper's group. Existing shared
+    /// native references continue to point to the original group; see
+    /// [`Self::remove_transform`].
     pub fn clear_transforms(&self) -> Result<()> {
         crate::clear_last_error();
         unsafe { ocio_sys::ocio_group_transform_clear_transforms(self.handle.as_ptr()) };
@@ -152,6 +199,25 @@ impl GroupTransform {
         Ok(result)
     }
 
+    /// Serialize using a retained read-only native config without copying it.
+    pub fn write_to_string_with_const_config(
+        &self,
+        config: &ConstConfig,
+        format_name: impl AsRef<str>,
+    ) -> Result<Option<String>> {
+        let format_name = cstring(format_name)?;
+        crate::clear_last_error();
+        let result = unsafe {
+            cstr_from_mut(ocio_sys::ocio_group_transform_write_to_string_const(
+                self.handle.as_ptr(),
+                config.handle.as_ptr(),
+                format_name.as_ptr(),
+            ))
+        };
+        crate::ocio_call_status()?;
+        Ok(result)
+    }
+
     /// Return format metadata attached to the group, when available.
     pub fn format_metadata(&self) -> Option<crate::FormatMetadata> {
         let handle = unsafe { ocio_sys::ocio_transform_get_format_metadata(self.handle.as_ptr()) };
@@ -173,8 +239,11 @@ impl GroupTransform {
         unsafe { ocio_sys::ocio_group_transform_get_num_write_formats() }
     }
 
-    /// Return the writer format name at `index`.
+    /// Return the writer format name at `index`, or `None` for an invalid index.
     pub fn format_name_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_write_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_name_by_index(
                 index,
@@ -183,7 +252,11 @@ impl GroupTransform {
     }
 
     /// Return the writer format extension at `index`, without a leading dot.
+    /// Returns `None` for an invalid index.
     pub fn format_extension_by_index(index: i32) -> Option<String> {
+        if index < 0 || index >= Self::num_write_formats() {
+            return None;
+        }
         unsafe {
             cstr_to_opt_string(ocio_sys::ocio_group_transform_get_format_extension_by_index(index))
         }

@@ -7,8 +7,8 @@
 
 [OpenColorIO](https://opencolorio.org/) 的 Rust 绑定。
 
-0.3 版本支持 OpenColorIO `>= 2.4.1, < 2.6`；OCIO 2.5.1 新增的接口通过
-`v2_5` feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
+0.4 支持 OpenColorIO `>= 2.4.1, < 2.7`；较新接口通过 `v2_5` 和 `v2_6`
+feature 启用。主要 safe wrapper、bundled real-OCIO 构建链路，以及
 核心 C++ API 桥接面已经基本到位，但发布加固与长尾行为验证仍在继续。
 
 > [English](../README.md)
@@ -26,16 +26,18 @@
   texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
 
+使用系统安装的 OpenColorIO：
+
 ```toml
 [dependencies]
-ocio-rs = { version = "0.3", features = ["system"] }
+ocio-rs = { version = "0.4", features = ["system"] }
 ```
 
 此配置使用系统安装的 OpenColorIO，适合发行版打包和 GStreamer 等插件。
 构建时设置 `OCIO_RS_LINK=dynamic` 可明确选择动态链接；同时需要安装 OCIO
 开发包和 `pkg-config`。需要源码构建时改用 `features = ["bundled"]`；
 仅在使用 2.5 新接口时额外启用 `"v2_5"`。
-从 0.2 升级请阅读 [0.3 迁移说明](MIGRATION_zh-CN.md#030)。
+从旧版本升级请阅读 [0.4 迁移说明](MIGRATION_zh-CN.md#040)。
 
 ## 构建
 
@@ -72,8 +74,8 @@ OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features syste
 `OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
 OCIO 模式。
 
-预装模式接受 OpenColorIO `>= 2.4.1, < 2.6`；启用 `v2_5` 时要求
-`>= 2.5.1, < 2.6`。系统依次通过 pkg-config 探测
+预装模式接受 OpenColorIO `>= 2.4.1, < 2.7`；启用 `v2_5` 时要求
+`>= 2.5.1, < 2.7`。系统依次通过 pkg-config 探测
 `opencolorio` / `OpenColorIO`。`OCIO_INSTALL_DIR` 会把安装前缀下的
 `lib/pkgconfig`、`lib64/pkgconfig` 和 `share/pkgconfig` 加入搜索路径；对于没有
 `.pc` 文件的旧安装，传统的 `include`、`lib`、`lib64` 布局仍然可用。也可以直接
@@ -124,16 +126,30 @@ ocio-rs/
 
 ## 兼容性
 
-支持范围为 `>= 2.4.1, < 2.6`；`v2_5` 将最低版本提高到 2.5.1。OCIO 2.6
+支持范围为 `>= 2.4.1, < 2.7`；`v2_5` 将最低版本提高到 2.5.1。OCIO 2.7
 及以后的版本需要单独验证，目前不在支持范围内。接口 feature 不决定后端选择。
+原生 2.5.0 可使用基础接口，但纹理插入不会报告 shader binding 索引：该版本返回的是
+按纹理类型分别计数的索引，binding 查询虚方法在 2.5.1 才加入。需要 binding 接口时，
+请使用 2.5.1 或更新版本并启用 `v2_5`。
 
 | feature | OCIO 接口级别 |
 | ------- | ------------- |
 | （无）  | 2.4.1         |
 | `v2_5`  | 2.5.1         |
+| `v2_6`  | 2.6.0         |
+
+`v2_6` 包含 `v2_5`，开放显示和视图别名、色彩互操作 ID 查询、HDR 兼容检查、
+HMJ 变换与 CLF ID 元数据。使用已安装的 2.6 时选择 `system,v2_6`；
+从源码构建时选择 `bundled,v2_6` 并将 `OCIO_SOURCE_DIR` 指向 2.6 源码。
+默认 vendored 源码仍为 2.5.2，包含上游多行 GPU LUT 打包问题的修复；已安装库和
+外部源码不自动包含此修复。对尚未修复的外部库，如果 LUT 长度未知，可使用
+`GPUProcessor::try_extract_shader_info_checked`，或在自定义提取前调用
+`validate_shader_texture_layout`。检查会生成两次 shader 资源，可能保守地拒绝非
+LUT 纹理，并要求探测和提取之间资源生成状态不变。普通提取保留原生行为。
 
 | ocio-rs | OCIO   |
 | ------- | ------ |
+| 0.4.0   | v2.5.2 |
 | 0.3.0   | v2.5.2 |
 | 0.2.1   | v2.5.2 |
 | 0.2.0   | v2.5.2 |

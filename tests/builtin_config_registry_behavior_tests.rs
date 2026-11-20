@@ -29,6 +29,8 @@ fn builtin_config_registry_round_trip_behavior() {
     let registry = BuiltinConfigRegistry::get().expect("builtin config registry");
     let count = registry.num_builtin_configs();
     assert!(count > 0);
+    let native_count = registry.try_num_builtin_configs().unwrap();
+    assert_eq!(native_count, count as usize);
 
     let name = registry
         .try_config_name(0)
@@ -52,6 +54,15 @@ fn builtin_config_registry_round_trip_behavior() {
     assert_eq!(yaml_by_index, yaml_by_name);
     assert!(yaml_by_index.contains("ocio_profile_version"));
     assert!(yaml_by_index.contains("colorspaces:"));
+    let name_cstr = std::ffi::CString::new(name.as_str()).unwrap();
+    let indexed = registry.config_yaml_ref_by_index(0).unwrap();
+    let named = registry.config_yaml_ref_by_name(&name_cstr).unwrap();
+    assert_eq!(indexed.as_ptr(), named.as_ptr());
+    assert_eq!(indexed.to_bytes(), yaml_by_index.as_bytes());
+    assert!(registry.config_yaml_ref_by_index(native_count).is_err());
+    assert!(registry.config_yaml_ref_by_index(usize::MAX).is_err());
+    assert!(registry.config_yaml_ref_by_name(c"missing-config").is_err());
+    assert_eq!(indexed.to_bytes(), yaml_by_index.as_bytes());
 
     let _recommended = registry
         .try_is_config_recommended(0)

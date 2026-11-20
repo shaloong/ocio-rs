@@ -13,6 +13,76 @@ pub struct MatrixTransform {
 }
 
 impl MatrixTransform {
+    /// Write OCIO's fitted matrix and offset into caller-owned arrays.
+    /// On error, the output arrays may have been partially modified by OCIO.
+    pub fn fit_into(
+        m: &mut [f64; 16],
+        o: &mut [f64; 4],
+        old_min: &[f64; 4],
+        old_max: &[f64; 4],
+        new_min: &[f64; 4],
+        new_max: &[f64; 4],
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_matrix_transform_fit_into(
+                m.as_mut_ptr(),
+                o.as_mut_ptr(),
+                old_min.as_ptr(),
+                old_max.as_ptr(),
+                new_min.as_ptr(),
+                new_max.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Write OCIO's saturation matrix and offset without creating a transform.
+    pub fn sat_into(m: &mut [f64; 16], o: &mut [f64; 4], sat: f64, luma: &[f64; 3]) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_matrix_transform_sat_into(
+                m.as_mut_ptr(),
+                o.as_mut_ptr(),
+                sat,
+                luma.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Write OCIO's channel-scale matrix and offset without creating a transform.
+    pub fn scale_into(m: &mut [f64; 16], o: &mut [f64; 4], scale: &[f64; 4]) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_matrix_transform_scale_into(
+                m.as_mut_ptr(),
+                o.as_mut_ptr(),
+                scale.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Write OCIO's view matrix and offset, preserving native channel-mask semantics.
+    pub fn view_into(
+        m: &mut [f64; 16],
+        o: &mut [f64; 4],
+        channels: &mut [i32; 4],
+        luma: &[f64; 3],
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_matrix_transform_view_into(
+                m.as_mut_ptr(),
+                o.as_mut_ptr(),
+                channels.as_mut_ptr(),
+                luma.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+
     /// Create a new identity matrix transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();

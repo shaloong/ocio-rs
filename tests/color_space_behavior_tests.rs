@@ -87,12 +87,45 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert!(!cs.is_data());
     assert_eq!(cs.allocation(), Allocation::Lg2);
     assert_eq!(cs.allocation_vars(), vec![-8.0, 8.0]);
+    let mut allocation = [0.0; 2];
+    cs.try_allocation_vars_into(&mut allocation).unwrap();
+    assert_eq!(allocation, [-8.0, 8.0]);
+    let mut wrong_length = [42.0];
+    assert!(cs.try_allocation_vars_into(&mut wrong_length).is_err());
+    assert_eq!(wrong_length, [42.0]);
+    let empty_allocation = ocio_rs::ColorSpace::create().unwrap();
+    empty_allocation.set_allocation_vars(&[-8.0, 8.0]).unwrap();
+    empty_allocation.set_allocation_vars(&[]).unwrap();
+    assert_eq!(empty_allocation.try_allocation_num_vars().unwrap(), 0);
+    empty_allocation.try_allocation_vars_into(&mut []).unwrap();
+    assert_eq!(
+        empty_allocation.try_allocation_vars().unwrap(),
+        Vec::<f32>::new()
+    );
+    empty_allocation.try_allocation_vars_into(&mut []).unwrap();
 
     assert_eq!(cs.num_aliases(), 1);
+    assert_eq!(cs.try_num_aliases().unwrap(), 1);
+    assert_eq!(cs.try_alias_at(0).unwrap().as_deref(), Some("unit_cs_a"));
+    assert!(cs.try_alias_at(usize::MAX).unwrap().is_none());
     assert_eq!(cs.alias(0).as_deref(), Some("unit_cs_a"));
+    assert!(cs.alias(-1).is_none());
+    assert!(cs.alias(1).is_none());
+    assert!(cs.alias(i32::MAX).is_none());
     assert!(cs.has_alias("unit_cs_a"));
+    assert!(cs.try_has_alias_cstr(c"unit_cs_a").unwrap());
+    assert!(!cs.try_has_alias("absent").unwrap());
+    assert!(cs.try_has_alias("bad\0alias").is_err());
+    assert!(!cs.has_alias("bad\0alias"));
 
     assert_eq!(cs.num_categories(), 1);
+    assert_eq!(cs.try_num_categories().unwrap(), 1);
+    assert_eq!(
+        cs.try_category_by_index(0).unwrap().as_deref(),
+        Some("unit_category")
+    );
+    assert!(cs.try_category_by_index(-1).unwrap().is_none());
+    assert!(cs.try_category_by_index(i32::MAX).unwrap().is_none());
     assert_eq!(cs.category().as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(1), None);
@@ -101,6 +134,9 @@ fn color_space_metadata_alias_category_round_trip_behavior() {
     assert_eq!(cs.category_by_index(0).as_deref(), Some("unit_category"));
     assert_eq!(cs.category_by_index(1).as_deref(), Some("delivery"));
     assert!(cs.has_category("unit_category"));
+    assert!(cs.try_has_category_cstr(c"unit_category").unwrap());
+    assert!(!cs.try_has_category("absent").unwrap());
+    assert!(cs.try_has_category("bad\0category").is_err());
     assert!(cs.has_category("delivery"));
 
     #[cfg(feature = "v2_5")]
@@ -235,6 +271,52 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
 
     let src_lookup = config.color_space("UnitColorSpaceA").expect("src lookup");
     let dst_lookup = config.color_space("UnitColorSpaceB").expect("dst lookup");
+    let src_const = config
+        .try_const_color_space("UnitColorSpaceA")
+        .unwrap()
+        .unwrap();
+    let dst_const = config
+        .try_const_color_space("UnitColorSpaceB")
+        .unwrap()
+        .unwrap();
+    let context = config.current_context().unwrap();
+    for processor in [
+        config
+            .processor_from_color_space_refs(&src_const, &dst_const)
+            .unwrap(),
+        config
+            .processor_from_color_space_refs(&src_lookup, &dst_const)
+            .unwrap(),
+        config
+            .processor_from_color_space_refs_with_context(&context, &src_const, &dst_lookup)
+            .unwrap(),
+    ] {
+        let mut value = [0.25f32, 0.5, 0.5, 1.0];
+        processor
+            .default_cpu_processor()
+            .unwrap()
+            .apply_rgba(&mut value);
+        assert_close(value[0] as f64, 0.5, 1e-6);
+        assert_close(value[2] as f64, 0.25, 1e-6);
+    }
+    let copied = src_const
+        .copy_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(matrix) = copied else {
+        panic!("expected matrix transform")
+    };
+    let mut values = matrix.matrix();
+    values[0] = 7.0;
+    matrix.set_matrix(&values).unwrap();
+    let copied_again = src_const
+        .copy_transform(ocio_rs::ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(original) = copied_again else {
+        panic!("expected matrix transform")
+    };
+    assert_eq!(original.matrix()[0], 2.0);
     let processor_by_object = config
         .processor_from_color_spaces(&src_lookup, &dst_lookup)
         .expect("processor by object");
@@ -247,6 +329,106 @@ fn color_space_config_registration_lookup_and_processor_behavior() {
     assert_close(second_pixel[1] as f64, 0.5, 1e-6);
     assert_close(second_pixel[2] as f64, 0.25, 1e-6);
     assert_close(second_pixel[3] as f64, 1.0, 1e-6);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_object_processor_uses_explicit_context() {
+    use ocio_rs::transform::FileTransform;
+    use ocio_rs::{ColorSpaceDirection, Context};
+    let config = Config::raw().unwrap();
+    let reference = ColorSpace::create().unwrap();
+    reference.set_name("context-reference").unwrap();
+    config.try_add_color_space(&reference).unwrap();
+    let input = ColorSpace::create().unwrap();
+    input.set_name("context-input").unwrap();
+    let file = FileTransform::create().unwrap();
+    file.set_src("${LUT_DIR}/lut1.clf").unwrap();
+    input
+        .try_set_transform(&file, ColorSpaceDirection::ToReference)
+        .unwrap();
+    config.try_add_color_space(&input).unwrap();
+    let input_view = config
+        .try_const_color_space("context-input")
+        .unwrap()
+        .unwrap();
+    let raw_view = config
+        .try_const_color_space("context-reference")
+        .unwrap()
+        .unwrap();
+    assert!(raw_view
+        .copy_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .is_none());
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/configs/context_test1");
+    for (dir, expected) in [("shot1", 0.1), ("shot4", 0.4)] {
+        let context = Context::create().unwrap();
+        context.set_working_dir(root.to_str().unwrap()).unwrap();
+        context.set_string_var("LUT_DIR", dir).unwrap();
+        let cpu = config
+            .processor_from_color_space_refs_with_context(&context, &input_view, &raw_view)
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap();
+        let mut value = [0.01, 0.01, 0.01, 1.0];
+        cpu.try_apply_rgba(&mut value).unwrap();
+        assert_close(value[0] as f64, expected, 1e-5);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_sets_const_transform_copy_and_clears_one_direction() {
+    let _guard = color_space_test_lock();
+    let source = ColorSpace::create().unwrap();
+    let matrix = MatrixTransform::create().unwrap();
+    let mut values = matrix.matrix();
+    values[0] = 2.0;
+    matrix.set_matrix(&values).unwrap();
+    source
+        .try_set_transform(&matrix, ColorSpaceDirection::ToReference)
+        .unwrap();
+    let shared = source
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let target = ColorSpace::create().unwrap();
+    target
+        .try_set_const_transform(&shared, ColorSpaceDirection::ToReference)
+        .unwrap();
+    target
+        .try_set_transform(&matrix, ColorSpaceDirection::FromReference)
+        .unwrap();
+    source
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
+    drop(source);
+    values[0] = 7.0;
+    matrix.set_matrix(&values).unwrap();
+    let copied = target
+        .try_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let ocio_rs::transform::Transform::Matrix(copied) = copied else {
+        panic!("expected matrix")
+    };
+    assert_eq!(copied.matrix()[0], 2.0);
+    assert!(shared.create_editable_copy().is_ok());
+    target
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
+    assert!(target
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .is_none());
+    assert!(target
+        .try_const_transform(ColorSpaceDirection::FromReference)
+        .unwrap()
+        .is_some());
+    target
+        .try_clear_transform(ColorSpaceDirection::ToReference)
+        .unwrap();
 }
 
 #[cfg(feature = "v2_5")]
@@ -285,4 +467,58 @@ fn color_space_interop_and_interchange_errors_surface_behavior() {
     assert!(cs
         .interchange_attribute("definitely_unknown_attr")
         .is_none());
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_interchange_attribute_snapshots_cover_const_and_editable() {
+    let _guard = color_space_test_lock();
+    let space = ColorSpace::create().unwrap();
+    space.set_name("snapshot").unwrap();
+    assert!(space.try_interchange_attributes().unwrap().is_empty());
+    space
+        .set_interchange_attribute("icc_profile_name", "profile.icc")
+        .unwrap();
+    space
+        .set_interchange_attribute("amf_transform_ids", "id-one\nid-two")
+        .unwrap();
+    let expected = space.try_interchange_attributes().unwrap();
+    assert_eq!(expected.len(), 2);
+    assert_eq!(
+        expected.get("icc_profile_name").map(String::as_str),
+        Some("profile.icc")
+    );
+    assert_eq!(
+        expected.get("amf_transform_ids").map(String::as_str),
+        Some("id-one\nid-two")
+    );
+    assert_eq!(space.interchange_attributes(), expected);
+    let config = Config::raw().unwrap();
+    config.try_add_color_space(&space).unwrap();
+    let shared = config.try_const_color_space("snapshot").unwrap().unwrap();
+    assert_eq!(shared.try_interchange_attributes().unwrap(), expected);
+    space
+        .set_interchange_attribute("icc_profile_name", "changed.icc")
+        .unwrap();
+    assert_eq!(shared.try_interchange_attributes().unwrap(), expected);
+    assert_eq!(
+        expected.get("icc_profile_name").map(String::as_str),
+        Some("profile.icc")
+    );
+    space
+        .set_interchange_attribute("icc_profile_name", "")
+        .unwrap();
+    assert!(!space
+        .try_interchange_attributes()
+        .unwrap()
+        .contains_key("icc_profile_name"));
+}
+
+#[cfg(all(feature = "v2_5", ocio_stub))]
+#[test]
+fn stub_interchange_attribute_snapshot_is_empty() {
+    let space = ColorSpace::create().unwrap();
+    assert!(space.try_interchange_attributes().unwrap().is_empty());
+    assert!(space.interchange_attributes().is_empty());
 }

@@ -66,6 +66,58 @@ fn baker_property_round_trip_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_configuration_isolation_and_shared_const_lifetime() {
+    let _guard = baker_test_lock();
+    let source = Config::raw().unwrap().create_editable_copy().unwrap();
+    source.set_name("original").unwrap();
+    let baker = Baker::create().unwrap();
+    assert!(baker.const_config().unwrap().is_none());
+    baker.set_config(&source).unwrap();
+    source.set_name("source changed").unwrap();
+
+    let shared = baker.const_config().unwrap().unwrap();
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    let editable = baker.config().unwrap();
+    editable.set_name("editable changed").unwrap();
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    assert_eq!(baker.config().unwrap().name().as_deref(), Some("original"));
+
+    let other = Baker::create().unwrap();
+    other.set_const_config(&shared).unwrap();
+    assert_eq!(other.config().unwrap().name().as_deref(), Some("original"));
+    baker.set_config(&source).unwrap();
+    drop(baker);
+    assert_eq!(shared.name().unwrap().as_deref(), Some("original"));
+    assert_eq!(other.config().unwrap().name().as_deref(), Some("original"));
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_copy_preserves_display_view_and_independent_metadata() {
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_display_view("display", "view").unwrap();
+    let metadata = baker.format_metadata().unwrap();
+    metadata.add_child_element("Comment", "original").unwrap();
+
+    let copy = baker.create_editable_copy().unwrap();
+    assert_eq!(copy.display().as_deref(), Some("display"));
+    assert_eq!(copy.view().as_deref(), Some("view"));
+    let copied_metadata = copy.format_metadata().unwrap();
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    metadata.clear();
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    copy.set_display_view("other display", "other view")
+        .unwrap();
+    assert_eq!(baker.display().as_deref(), Some("display"));
+    drop(baker);
+    assert_eq!(copied_metadata.try_num_children().unwrap(), 1);
+    assert!(copy.const_config().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn baker_static_format_registry_contains_resolve_cube_behavior() {
     let _guard = baker_test_lock();
     if is_stub() {
@@ -114,6 +166,26 @@ fn baker_bake_to_string_and_file_behavior() {
     assert!(!baked.trim().is_empty());
     assert!(baked.contains("LUT_1D_SIZE 2"));
     assert!(baked.lines().any(|line| line.contains("0.000000")));
+    assert_eq!(baker.bake_to_bytes().unwrap().unwrap(), baked.as_bytes());
+    struct ShortWriter(Vec<u8>);
+    impl std::io::Write for ShortWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let n = bytes.len().min(7);
+            self.0.extend_from_slice(&bytes[..n]);
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut writer = ShortWriter(Vec::new());
+    baker.bake_to_writer(&mut writer).unwrap();
+    assert_eq!(writer.0, baked.as_bytes());
+    let mut dynamic = Vec::new();
+    baker
+        .bake_to_writer(&mut dynamic as &mut dyn std::io::Write)
+        .unwrap();
+    assert_eq!(dynamic, baked.as_bytes());
 
     let output_path = unique_temp_path("baker", "cube");
     baker
@@ -123,6 +195,185 @@ fn baker_bake_to_string_and_file_behavior() {
     assert_eq!(written, baked);
 
     let _ = fs::remove_file(output_path);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_writer_errors_and_panics_do_not_cross_ffi() {
+    struct Failed(bool);
+    impl std::io::Write for Failed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            assert!(!self.0, "intentional writer panic");
+            Err(std::io::Error::other("writer rejected output"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2).unwrap();
+    for panic in [false, true] {
+        let error = baker
+            .bake_to_writer(&mut Failed(panic))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(if panic {
+            "writer panicked"
+        } else {
+            "writer rejected output"
+        }));
+    }
+    #[derive(Debug)]
+    struct PanicDisplay;
+    impl std::fmt::Display for PanicDisplay {
+        fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            panic!("formatting writer error");
+        }
+    }
+    impl std::error::Error for PanicDisplay {}
+    struct PanicDrop;
+    impl Drop for PanicDrop {
+        fn drop(&mut self) {
+            panic!("dropping writer panic payload");
+        }
+    }
+    struct AdversarialWriter(bool);
+    impl std::io::Write for AdversarialWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            if self.0 {
+                std::panic::panic_any(PanicDrop);
+            }
+            Err(std::io::Error::other(PanicDisplay))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    for panic_payload in [false, true] {
+        let error = baker
+            .bake_to_writer(&mut AdversarialWriter(panic_payload))
+            .unwrap_err();
+        assert!(error.to_string().contains("writer panicked"));
+    }
+    struct Zero;
+    impl std::io::Write for Zero {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Ok(0)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(baker.bake_to_writer(&mut Zero).is_err());
+    struct Partial(usize);
+    impl std::io::Write for Partial {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.0 != 0 {
+                return Err(std::io::Error::other("partial write failure"));
+            }
+            let n = bytes.len().min(5);
+            self.0 += n;
+            Ok(n)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut partial = Partial(0);
+    assert!(baker
+        .bake_to_writer(&mut partial)
+        .unwrap_err()
+        .to_string()
+        .contains("partial write failure"));
+    assert_eq!(partial.0, 5);
+    assert!(baker.bake_to_bytes().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_streams_large_output_in_bounded_chunks() {
+    struct Sink {
+        bytes: Vec<u8>,
+        max_chunk: usize,
+        calls: usize,
+    }
+    impl std::io::Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.max_chunk = self.max_chunk.max(bytes.len());
+            self.calls += 1;
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2048).unwrap();
+    let mut sink = Sink {
+        bytes: Vec::new(),
+        max_chunk: 0,
+        calls: 0,
+    };
+    baker.bake_to_writer(&mut sink).unwrap();
+    assert!(sink.calls > 1);
+    assert!(sink.max_chunk <= 16384);
+    assert_eq!(sink.bytes, baker.bake_to_bytes().unwrap().unwrap());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn baker_writer_mutation_cannot_invalidate_native_metadata_in_flight() {
+    struct MutatingWriter<'a> {
+        metadata: &'a ocio_rs::FormatMetadata,
+        bytes: Vec<u8>,
+        mutated: bool,
+    }
+    impl std::io::Write for MutatingWriter<'_> {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if !self.mutated {
+                self.metadata.clear();
+                self.mutated = true;
+            }
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let _guard = baker_test_lock();
+    let baker = Baker::create().unwrap();
+    baker.set_config(&Config::raw().unwrap()).unwrap();
+    baker.set_format("resolve_cube").unwrap();
+    baker.set_input_space("raw").unwrap();
+    baker.set_target_space("raw").unwrap();
+    baker.set_cube_size(2).unwrap();
+    let metadata = baker.format_metadata().unwrap();
+    metadata
+        .add_child_element("Comment", "x".repeat(40_000))
+        .unwrap();
+    let expected = baker.bake_to_bytes().unwrap().unwrap();
+    assert!(expected.len() > 40_000);
+    let mut writer = MutatingWriter {
+        metadata: &metadata,
+        bytes: Vec::new(),
+        mutated: false,
+    };
+    baker.bake_to_writer(&mut writer).unwrap();
+    assert!(writer.mutated);
+    assert_eq!(writer.bytes, expected);
+    assert!(baker.bake_to_bytes().unwrap().unwrap().len() < expected.len());
 }
 
 #[test]
@@ -156,4 +407,16 @@ fn baker_unconfigured_bake_surfaces_ocio_error_behavior() {
         .bake_to_string()
         .expect_err("unconfigured Baker must not silently produce no output");
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
+
+    use ocio_rs::ocio_sys;
+    unsafe {
+        let handle = ocio_sys::ocio_baker_create();
+        assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_baker_bake(handle, std::ptr::null_mut());
+        let reports_error = !ocio_sys::ocio_error_get_last().is_null();
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_baker_destroy(handle);
+        assert!(reports_error);
+    }
 }

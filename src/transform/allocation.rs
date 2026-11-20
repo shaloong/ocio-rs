@@ -60,20 +60,43 @@ impl AllocationTransform {
     }
 
     pub fn try_vars(&self) -> Result<Vec<f32>> {
-        let n = self.try_num_vars()? as usize;
+        let n = super::checked_native_count(self.try_num_vars()?, "AllocationTransform::vars")?;
         if n == 0 {
             return Ok(vec![]);
         }
-        let mut v = vec![0.0f32; n];
+        let mut v = super::reserve_native_items(n, "AllocationTransform::vars")?;
+        v.resize(n, 0.0f32);
+        self.read_vars(&mut v)?;
+        Ok(v)
+    }
+
+    /// Copy variables into an exactly sized buffer without allocating.
+    /// A length mismatch leaves the buffer untouched.
+    pub fn try_vars_into(&self, output: &mut [f32]) -> Result<()> {
+        let count = super::checked_native_count(
+            self.try_num_vars()?,
+            "AllocationTransform::try_vars_into",
+        )?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "allocation variable buffer length mismatch".into(),
+            ));
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        self.read_vars(output)
+    }
+
+    fn read_vars(&self, output: &mut [f32]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_allocation_transform_get_vars(
                 self.handle.as_ptr(),
-                v.as_mut_ptr() as *mut c_void,
+                output.as_mut_ptr() as *mut c_void,
             );
         }
-        crate::ocio_call_status()?;
-        Ok(v)
+        crate::ocio_call_status()
     }
 
     pub fn vars(&self) -> Vec<f32> {
@@ -103,10 +126,7 @@ impl AllocationTransform {
         let dir =
             unsafe { ocio_sys::ocio_allocation_transform_get_direction(self.handle.as_ptr()) };
         crate::ocio_call_status()?;
-        Ok(match dir {
-            1 => TransformDirection::Inverse,
-            _ => TransformDirection::Forward,
-        })
+        super::direction_from_raw(dir)
     }
 
     pub fn direction(&self) -> TransformDirection {

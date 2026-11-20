@@ -4,13 +4,24 @@ use std::ptr::NonNull;
 use crate::{cstr_from_mut, cstring, OcioError, Result};
 use ocio_sys;
 
-/// Holds filename-based routing rules that map media to color spaces and views.
+fn checked_index(index: u64) -> Result<usize> {
+    usize::try_from(index).map_err(|_| {
+        OcioError::InvalidInput("file rule or custom key index does not fit usize".into())
+    })
+}
+
+/// Holds filename-based routing rules that map media paths to color spaces.
 pub struct FileRules {
     pub(crate) handle: NonNull<c_void>,
 }
 
 impl FileRules {
-    /// Create a new, empty set of file rules.
+    /// Native name of the mandatory final rule.
+    pub const DEFAULT_RULE_NAME: &'static str = "Default";
+    /// Native name of the special color-space-name path search rule.
+    pub const FILE_PATH_SEARCH_RULE_NAME: &'static str = "ColorSpaceNamePathSearch";
+
+    /// Create file rules containing OCIO's mandatory default rule.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_file_rules_create() };
@@ -31,7 +42,7 @@ impl FileRules {
         unsafe { ocio_sys::ocio_file_rules_get_num_entries(self.handle.as_ptr()) as u64 }
     }
 
-    /// Look up the index for a rule name.
+    /// Look up the index for a rule name using OCIO's case-insensitive matching.
     ///
     /// This compatibility method returns `u64::MAX` when OCIO rejects the name.
     /// Prefer [`Self::try_index_for_rule`] to preserve the OCIO error, or
@@ -59,12 +70,7 @@ impl FileRules {
     /// Returns `None` when the rule is absent or the rule name is not a valid
     /// C string for the OCIO ABI.
     pub fn rule_index(&self, rule_name: impl AsRef<str>) -> Option<u64> {
-        let rule_name = rule_name.as_ref();
-        let index = self.try_index_for_rule(rule_name).ok()?;
-        match self.name(index) {
-            Some(found_name) if found_name == rule_name => Some(index),
-            _ => None,
-        }
+        self.try_index_for_rule(rule_name).ok()
     }
 
     /// Get the rule name at the given index.
@@ -78,7 +84,7 @@ impl FileRules {
         let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_name(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -96,7 +102,7 @@ impl FileRules {
         let pattern = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_pattern(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -110,7 +116,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_pattern(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 pattern.as_ptr().cast(),
             )
         };
@@ -128,7 +134,7 @@ impl FileRules {
         let extension = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_extension(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -142,7 +148,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_extension(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 extension.as_ptr().cast(),
             )
         };
@@ -160,7 +166,7 @@ impl FileRules {
         let regex = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_regex(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -174,7 +180,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_regex(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 regex.as_ptr().cast(),
             )
         };
@@ -192,7 +198,7 @@ impl FileRules {
         let color_space = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_color_space(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -206,7 +212,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_color_space(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 color_space.as_ptr().cast(),
             )
         };
@@ -215,10 +221,18 @@ impl FileRules {
 
     /// Get the number of custom keys on the rule at the given index.
     pub fn num_custom_keys(&self, rule_index: u64) -> u64 {
-        unsafe {
-            ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index as usize)
-                as u64
-        }
+        self.try_num_custom_keys(rule_index).unwrap_or(0)
+    }
+
+    /// Get the number of custom keys, preserving invalid-index and bridge failures.
+    pub fn try_num_custom_keys(&self, rule_index: u64) -> Result<u64> {
+        let rule_index = checked_index(rule_index)?;
+        crate::clear_last_error();
+        let count = unsafe {
+            ocio_sys::ocio_file_rules_get_num_custom_keys(self.handle.as_ptr(), rule_index) as u64
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Get the name of the custom key at the given key index.
@@ -232,8 +246,8 @@ impl FileRules {
         let name = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_name(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                key as usize,
+                checked_index(rule_index)?,
+                checked_index(key)?,
             ))
         };
         crate::ocio_call_status()?;
@@ -251,15 +265,15 @@ impl FileRules {
         let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_file_rules_get_custom_key_value(
                 self.handle.as_ptr(),
-                rule_index as usize,
-                key as usize,
+                checked_index(rule_index)?,
+                checked_index(key)?,
             ))
         };
         crate::ocio_call_status()?;
         Ok(value)
     }
 
-    /// Set a custom key-value pair on the rule at the given index.
+    /// Set a custom key-value pair. An empty value removes the key.
     pub fn set_custom_key(
         &self,
         rule_index: u64,
@@ -272,7 +286,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_set_custom_key(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 key.as_ptr().cast(),
                 value.as_ptr().cast(),
             )
@@ -297,7 +311,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_insert_rule(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 name.as_ptr().cast(),
                 color_space.as_ptr().cast(),
                 pattern.as_ptr().cast(),
@@ -322,7 +336,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_insert_rule_v1(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
                 name.as_ptr().cast(),
                 color_space.as_ptr().cast(),
                 regex.as_ptr().cast(),
@@ -357,7 +371,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_insert_path_search_rule(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             )
         };
         crate::ocio_call_status()
@@ -388,7 +402,9 @@ impl FileRules {
     /// Remove the rule at `rule_index`.
     pub fn try_remove_rule(&self, rule_index: u64) -> Result<()> {
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_file_rules_remove_rule(self.handle.as_ptr(), rule_index as usize) };
+        unsafe {
+            ocio_sys::ocio_file_rules_remove_rule(self.handle.as_ptr(), checked_index(rule_index)?)
+        };
         crate::ocio_call_status()
     }
 
@@ -407,7 +423,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_increase_rule_priority(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             )
         };
         crate::ocio_call_status()
@@ -428,7 +444,7 @@ impl FileRules {
         unsafe {
             ocio_sys::ocio_file_rules_decrease_rule_priority(
                 self.handle.as_ptr(),
-                rule_index as usize,
+                checked_index(rule_index)?,
             )
         };
         crate::ocio_call_status()

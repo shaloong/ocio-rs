@@ -5,11 +5,102 @@ use crate::{ExposureContrastStyle, OcioError, Result, TransformDirection};
 use ocio_sys;
 
 /// Exposure/contrast/gamma style transform with optional dynamic controls.
+///
+/// The `try_*` queries preserve native errors. The infallible getters retain
+/// their compatibility fallback values if a native query fails.
 pub struct ExposureContrastTransform {
     pub(crate) handle: NonNull<c_void>,
 }
 
+macro_rules! fallible_query {
+    ($name:ident, $ffi:ident, $result:ty, $doc:literal) => {
+        #[doc = $doc]
+        pub fn $name(&self) -> Result<$result> {
+            self.try_query(ocio_sys::$ffi)
+        }
+    };
+}
+
 impl ExposureContrastTransform {
+    fn try_query<T>(&self, getter: unsafe extern "C" fn(*mut c_void) -> T) -> Result<T> {
+        if cfg!(ocio_stub) {
+            return Err(OcioError::Ocio(
+                "exposure/contrast query requires native OpenColorIO".into(),
+            ));
+        }
+        crate::clear_last_error();
+        let value = unsafe { getter(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    fallible_query!(
+        try_exposure,
+        ocio_exposure_contrast_transform_get_exposure,
+        f64,
+        "Read exposure while preserving native errors."
+    );
+    fallible_query!(
+        try_contrast,
+        ocio_exposure_contrast_transform_get_contrast,
+        f64,
+        "Read contrast while preserving native errors."
+    );
+    fallible_query!(
+        try_gamma,
+        ocio_exposure_contrast_transform_get_gamma,
+        f64,
+        "Read gamma while preserving native errors."
+    );
+    fallible_query!(
+        try_pivot,
+        ocio_exposure_contrast_transform_get_pivot,
+        f64,
+        "Read pivot while preserving native errors."
+    );
+    fallible_query!(
+        try_log_exposure_step,
+        ocio_exposure_contrast_transform_get_log_exposure_step,
+        f64,
+        "Read log exposure step while preserving native errors."
+    );
+    fallible_query!(
+        try_log_mid_gray,
+        ocio_exposure_contrast_transform_get_log_mid_gray,
+        f64,
+        "Read log mid-gray while preserving native errors."
+    );
+    fallible_query!(
+        try_is_exposure_dynamic,
+        ocio_exposure_contrast_transform_is_exposure_dynamic,
+        bool,
+        "Read the dynamic exposure flag while preserving native errors."
+    );
+    fallible_query!(
+        try_is_contrast_dynamic,
+        ocio_exposure_contrast_transform_is_contrast_dynamic,
+        bool,
+        "Read the dynamic contrast flag while preserving native errors."
+    );
+    fallible_query!(
+        try_is_gamma_dynamic,
+        ocio_exposure_contrast_transform_is_gamma_dynamic,
+        bool,
+        "Read the dynamic gamma flag while preserving native errors."
+    );
+
+    /// Read the native style, rejecting native errors and unknown values.
+    pub fn try_style(&self) -> Result<ExposureContrastStyle> {
+        match self.try_query(ocio_sys::ocio_exposure_contrast_transform_get_style)? {
+            0 => Ok(ExposureContrastStyle::Linear),
+            1 => Ok(ExposureContrastStyle::Video),
+            2 => Ok(ExposureContrastStyle::Logarithmic),
+            value => Err(OcioError::ValidationFailed(format!(
+                "unknown exposure/contrast style {value}"
+            ))),
+        }
+    }
+
     /// Create a new exposure-contrast transform.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -357,6 +448,15 @@ impl Drop for ExposureContrastTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(ocio_stub)]
+    fn fallible_queries_report_missing_native_backend() {
+        let transform = ExposureContrastTransform::create().unwrap();
+        assert!(transform.try_exposure().is_err());
+        assert!(transform.try_style().is_err());
+        assert!(transform.try_is_exposure_dynamic().is_err());
+    }
 
     #[test]
     fn create_exposure_contrast() {

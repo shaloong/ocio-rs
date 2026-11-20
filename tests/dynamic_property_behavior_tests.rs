@@ -72,6 +72,63 @@ fn dynamic_grading_rgb_curve_processor() -> Option<ocio_rs::Processor> {
         .ok()
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn shared_rgb_value_retains_previous_native_value_after_replacement() {
+    let _guard = dynamic_property_test_lock();
+    let property = dynamic_grading_rgb_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .unwrap();
+    let old = property.grading_rgb_curve_shared().unwrap();
+    let old_view = old.curve_ref(RGBCurveType::Red).unwrap();
+    let old_child = old.curve_shared(RGBCurveType::Red).unwrap();
+    let old_slope = old_child.view().slope(0).unwrap();
+    let mut replacement = old.create_editable_copy().unwrap();
+    replacement
+        .curve(RGBCurveType::Red)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    property.set_grading_rgb_curve_object(&replacement).unwrap();
+    assert_eq!(old_view.slope(0).unwrap(), old_slope);
+    let new = property.grading_rgb_curve_shared().unwrap();
+    assert_eq!(
+        old.equals(&new).unwrap(),
+        old.create_editable_copy()
+            .unwrap()
+            .equals(&new.create_editable_copy().unwrap())
+            .unwrap()
+    );
+    assert_eq!(
+        new.curve_shared(RGBCurveType::Red)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
+    property.set_grading_rgb_curve_shared(&old).unwrap();
+    assert_eq!(
+        property
+            .grading_rgb_curve_shared()
+            .unwrap()
+            .slope(RGBCurveType::Red, 0)
+            .unwrap(),
+        old_slope
+    );
+    let exposure = dynamic_exposure_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::Exposure)
+        .unwrap();
+    assert!(exposure.set_grading_rgb_curve_shared(&new).is_err());
+    assert_eq!(exposure.double_value().unwrap(), 0.0);
+    drop(property);
+    drop(old);
+    drop(new);
+    assert_eq!(old_child.view().slope(0).unwrap(), old_slope);
+}
+
 #[cfg(feature = "v2_5")]
 fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
     let config = create_test_config()?;
@@ -80,6 +137,142 @@ fn dynamic_grading_hue_curve_processor() -> Option<ocio_rs::Processor> {
     config
         .processor_from_transform(&transform, TransformDirection::Forward)
         .ok()
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn dynamic_hue_snapshot_includes_every_curve() {
+    let _guard = dynamic_property_test_lock();
+    let processor = dynamic_grading_hue_curve_processor().unwrap();
+    let property = processor
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .unwrap();
+    for kind in [
+        HueCurveType::SatSat,
+        HueCurveType::LumLum,
+        HueCurveType::SatLum,
+        HueCurveType::HueFx,
+    ] {
+        property.grading_hue_curve_set_slope(kind, 0, 0.37).unwrap();
+    }
+    let value = property.complete_grading_hue_curve_value().unwrap();
+    for curve in [
+        &value.sat_sat,
+        &value.lum_lum,
+        &value.sat_lum,
+        &value.hue_fx,
+    ] {
+        assert!((curve[0].slope - 0.37).abs() < 1e-6);
+    }
+    let mut replacement = value.clone();
+    replacement.sat_sat[0].slope = 0.7;
+    replacement.lum_lum[0].slope = 0.8;
+    property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .unwrap();
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap(),
+        replacement
+    );
+    replacement.hue_fx.clear();
+    assert!(property
+        .set_complete_grading_hue_curve_value(&replacement)
+        .is_err());
+    assert_eq!(
+        property.complete_grading_hue_curve_value().unwrap().sat_sat[0].slope,
+        0.7
+    );
+}
+
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn dynamic_native_curve_objects_round_trip_and_preserve_draw_mode() {
+    let _guard = dynamic_property_test_lock();
+    let hue = dynamic_grading_hue_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingHueCurve)
+        .unwrap();
+    let mut value = hue.grading_hue_curve_object().unwrap();
+    value.set_draw_curve_only(true).unwrap();
+    value
+        .curve(HueCurveType::HueFx)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    hue.set_grading_hue_curve_object(&value).unwrap();
+    let retained_hue = hue.grading_hue_curve_shared().unwrap();
+    let result = hue.grading_hue_curve_object().unwrap();
+    assert!(result.draw_curve_only().unwrap());
+    assert!(result.equals(&value).unwrap());
+    assert!(retained_hue
+        .create_editable_copy()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
+    value
+        .curve(HueCurveType::HueFx)
+        .unwrap()
+        .set_slope(0, 0.58)
+        .unwrap();
+    hue.set_grading_hue_curve_object(&value).unwrap();
+    assert_eq!(
+        hue.grading_hue_curve_shared()
+            .unwrap()
+            .curve_shared(HueCurveType::HueFx)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.58
+    );
+    hue.set_grading_hue_curve_shared(&retained_hue).unwrap();
+    let restored = hue.grading_hue_curve_shared().unwrap();
+    assert!(restored.draw_curve_only().unwrap());
+    assert_eq!(restored.slope(HueCurveType::HueFx, 0).unwrap(), 0.37);
+
+    let rgb = dynamic_grading_rgb_curve_processor()
+        .unwrap()
+        .dynamic_property(DynamicPropertyType::GradingRgbCurve)
+        .unwrap();
+    let mut value = rgb.grading_rgb_curve_object().unwrap();
+    value
+        .curve(RGBCurveType::Red)
+        .unwrap()
+        .set_slope(0, 0.37)
+        .unwrap();
+    rgb.set_grading_rgb_curve_object(&value).unwrap();
+    let retained_rgb = rgb.grading_rgb_curve_shared().unwrap();
+    assert!(rgb
+        .grading_rgb_curve_object()
+        .unwrap()
+        .equals(&value)
+        .unwrap());
+    assert!(rgb.grading_hue_curve_object().is_err());
+    assert!(rgb.grading_hue_curve_shared().is_err());
+    assert!(rgb.set_grading_hue_curve_shared(&retained_hue).is_err());
+    assert!(hue.set_grading_rgb_curve_shared(&retained_rgb).is_err());
+    drop(rgb);
+    drop(hue);
+    assert_eq!(
+        retained_rgb
+            .curve_shared(RGBCurveType::Red)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
+    assert_eq!(
+        retained_hue
+            .curve_shared(HueCurveType::HueFx)
+            .unwrap()
+            .view()
+            .slope(0)
+            .unwrap(),
+        0.37
+    );
 }
 
 #[test]
@@ -131,6 +324,10 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
         .dynamic_property(DynamicPropertyType::Exposure)
         .expect("cpu dynamic property");
     assert_eq!(cpu_prop.property_type(), DynamicPropertyType::Exposure);
+    assert_eq!(
+        cpu_prop.try_property_type().unwrap(),
+        DynamicPropertyType::Exposure
+    );
     assert_close(
         cpu_prop.double_value().expect("cpu prop double value"),
         1.0,
@@ -143,6 +340,12 @@ fn dynamic_exposure_processor_property_seeds_cpu_behavior() {
     assert_close(pixel[1] as f64, 1.0, 1e-6);
     assert_close(pixel[2] as f64, 0.25, 1e-6);
     assert_close(pixel[3] as f64, 1.0, 1e-6);
+    drop(cpu);
+    drop(processor);
+    cpu_prop.set_double_value(2.0).unwrap();
+    processor_prop.set_double_value(-1.0).unwrap();
+    assert_close(cpu_prop.double_value().unwrap(), 2.0, 1e-8);
+    assert_close(processor_prop.double_value().unwrap(), -1.0, 1e-8);
 }
 
 #[test]
@@ -214,10 +417,19 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let mut value = processor_prop
         .grading_primary_value()
         .expect("grading primary value");
-    value.brightness.red = 0.125;
-    value.contrast.master = 1.15;
-    value.gain.blue = 1.25;
+    value.brightness = ocio_rs::grading::GradingRGBM::new(0.125, 0.13, 0.14, 0.15);
+    value.contrast = ocio_rs::grading::GradingRGBM::new(1.11, 1.12, 1.13, 1.15);
+    value.gamma = ocio_rs::grading::GradingRGBM::new(1.21, 1.22, 1.23, 1.24);
+    value.offset = ocio_rs::grading::GradingRGBM::new(0.01, 0.0, 0.03, 0.04);
+    value.exposure = ocio_rs::grading::GradingRGBM::new(0.05, 0.06, 0.07, 0.08);
+    value.lift = ocio_rs::grading::GradingRGBM::new(0.09, 0.10, 0.11, 0.12);
+    value.gain = ocio_rs::grading::GradingRGBM::new(1.21, 1.22, 1.25, 1.24);
     value.saturation = 0.9;
+    value.pivot = -0.1;
+    value.pivot_black = 0.01;
+    value.pivot_white = 0.95;
+    value.clamp_black = -2.0;
+    value.clamp_white = 2.0;
     processor_prop
         .set_grading_primary_value(&value)
         .expect("set grading primary value");
@@ -225,6 +437,11 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let round_trip = processor_prop
         .grading_primary_value()
         .expect("processor grading primary round trip");
+    assert_eq!(round_trip, value, "all primary fields must round-trip");
+    let mut invalid = value.clone();
+    invalid.gamma.red = -1.0;
+    assert!(processor_prop.set_grading_primary_value(&invalid).is_err());
+    assert_eq!(processor_prop.grading_primary_value().unwrap(), value);
     assert_close(round_trip.brightness.red, 0.125, 1e-8);
     assert_close(round_trip.contrast.master, 1.15, 1e-8);
     assert_close(round_trip.gain.blue, 1.25, 1e-8);
@@ -242,6 +459,10 @@ fn dynamic_grading_primary_round_trip_between_processor_and_cpu() {
     let cpu_value = cpu_prop
         .grading_primary_value()
         .expect("cpu grading primary value");
+    assert_eq!(
+        cpu_value, value,
+        "CPU property must preserve all primary fields"
+    );
     assert_close(cpu_value.brightness.red, 0.125, 1e-8);
     assert_close(cpu_value.contrast.master, 1.15, 1e-8);
     assert_close(cpu_value.gain.blue, 1.25, 1e-8);
@@ -285,9 +506,11 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let mut value = processor_prop
         .grading_tone_value()
         .expect("grading tone value");
-    value.blacks.red = 0.95;
-    value.midtones.master = 1.1;
-    value.highlights.width = 0.8;
+    value.blacks = ocio_rs::grading::GradingRGBMSW::new(0.95, 0.96, 0.97, 0.98, 0.1, 0.2);
+    value.shadows = ocio_rs::grading::GradingRGBMSW::new(0.81, 0.82, 0.83, 0.84, 0.5, 0.3);
+    value.midtones = ocio_rs::grading::GradingRGBMSW::new(1.01, 1.02, 1.03, 1.1, 0.3, 0.4);
+    value.highlights = ocio_rs::grading::GradingRGBMSW::new(1.11, 1.12, 1.13, 1.14, 0.4, 0.8);
+    value.whites = ocio_rs::grading::GradingRGBMSW::new(1.21, 1.22, 1.23, 1.24, 0.4, 0.6);
     value.scontrast = 1.2;
     processor_prop
         .set_grading_tone_value(&value)
@@ -296,6 +519,11 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let round_trip = processor_prop
         .grading_tone_value()
         .expect("processor grading tone round trip");
+    assert_eq!(round_trip, value, "all tone fields must round-trip");
+    let mut invalid = value.clone();
+    invalid.blacks.red = -1.0;
+    assert!(processor_prop.set_grading_tone_value(&invalid).is_err());
+    assert_eq!(processor_prop.grading_tone_value().unwrap(), value);
     assert_close(round_trip.blacks.red, 0.95, 1e-8);
     assert_close(round_trip.midtones.master, 1.1, 1e-8);
     assert_close(round_trip.highlights.width, 0.8, 1e-8);
@@ -310,6 +538,10 @@ fn dynamic_grading_tone_round_trip_between_processor_and_cpu() {
     let cpu_value = cpu_prop
         .grading_tone_value()
         .expect("cpu grading tone value");
+    assert_eq!(
+        cpu_value, value,
+        "CPU property must preserve all tone fields"
+    );
     assert_close(cpu_value.blacks.red, 0.95, 1e-8);
     assert_close(cpu_value.midtones.master, 1.1, 1e-8);
     assert_close(cpu_value.highlights.width, 0.8, 1e-8);
@@ -456,6 +688,12 @@ fn dynamic_grading_hue_curve_round_trip_between_processor_and_cpu() {
         processor_prop.property_type(),
         DynamicPropertyType::GradingHueCurve
     );
+    assert_eq!(
+        processor_prop.try_property_type().unwrap(),
+        DynamicPropertyType::GradingHueCurve
+    );
+    assert!(processor_prop.double_value().is_err());
+    assert!(processor_prop.set_double_value(1.0).is_err());
 
     let points = [
         GradingCurvePoint::new(0.0, 0.0, 1.0),

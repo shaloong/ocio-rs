@@ -6,7 +6,133 @@
     clippy::unused_unit
 )]
 
+#[cfg(feature = "v2_6")]
+mod v2_6;
+#[cfg(feature = "v2_6")]
+pub use v2_6::*;
+
 use std::ffi::c_void;
+
+#[repr(C)]
+#[derive(Default)]
+pub struct OcioImageDescInfo {
+    pub width: i64,
+    pub height: i64,
+    pub x_stride: i64,
+    pub y_stride: i64,
+    pub channel_stride: i64,
+    pub num_channels: i64,
+    pub bit_depth: i32,
+    pub channel_order: i32,
+    pub has_alpha: bool,
+    pub is_rgba_packed: bool,
+    pub is_float: bool,
+    pub is_packed: bool,
+    pub is_planar: bool,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct OcioImageDescPointers {
+    pub red: *mut c_void,
+    pub green: *mut c_void,
+    pub blue: *mut c_void,
+    pub alpha: *mut c_void,
+    pub packed: *mut c_void,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct OcioImageDescValue {
+    pub pointer: *mut c_void,
+    pub scalar: i64,
+}
+
+#[repr(i32)]
+#[derive(Clone, Copy)]
+pub enum OcioImageDescQuery {
+    Red,
+    Green,
+    Blue,
+    Alpha,
+    BitDepth,
+    Width,
+    Height,
+    XStride,
+    YStride,
+    Packed,
+    Float,
+}
+
+pub type OcioImageDescQueryFn =
+    unsafe extern "C" fn(*const c_void, OcioImageDescQuery, *mut OcioImageDescValue) -> bool;
+pub type OcioImageDescReleaseFn = unsafe extern "C" fn(*mut c_void);
+
+extern "C" {
+    pub fn ocio_image_desc_info(image: *const c_void, out: *mut OcioImageDescInfo);
+    pub fn ocio_image_desc_pointers(image: *const c_void, out: *mut OcioImageDescPointers);
+    pub fn ocio_image_desc_diagnostic_text(image: *const c_void) -> *const std::ffi::c_char;
+    pub fn ocio_image_desc_create_packed(image: *const OcioPackedBuffer) -> *mut c_void;
+    pub fn ocio_image_desc_create_planar(image: *const OcioPlanarBuffer) -> *mut c_void;
+    pub fn ocio_image_desc_create_custom(image: *const OcioPlanarBuffer) -> *mut c_void;
+    pub fn ocio_image_desc_create_callback(
+        context: *mut c_void,
+        query: OcioImageDescQueryFn,
+        release: OcioImageDescReleaseFn,
+    ) -> *mut c_void;
+    pub fn ocio_image_desc_destroy(image: *mut c_void);
+}
+
+/// Raw packed image descriptor; data is owned by the caller.
+#[repr(C)]
+pub struct OcioPackedBuffer {
+    pub data: *mut c_void,
+    pub width: i64,
+    pub height: i64,
+    pub channel_stride: i64,
+    pub x_stride: i64,
+    pub y_stride: i64,
+    pub bit_depth: i32,
+    pub channel_order: i32,
+}
+
+/// Raw planar image descriptor passed to the bridge; pointers are caller-owned.
+#[repr(C)]
+pub struct OcioPlanarBuffer {
+    pub red: *mut c_void,
+    pub green: *mut c_void,
+    pub blue: *mut c_void,
+    pub alpha: *mut c_void,
+    pub width: i64,
+    pub height: i64,
+    pub x_stride: i64,
+    pub y_stride: i64,
+    pub bit_depth: i32,
+}
+
+#[repr(C)]
+pub struct OcioShaderTextureEvent {
+    pub texture_name: *const i8,
+    pub sampler_name: *const i8,
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32,
+    pub channel: i32,
+    pub dimensions: i32,
+    pub interpolation: i32,
+    pub values: *const f32,
+    pub value_count: usize,
+    pub has_binding: bool,
+    pub binding: u32,
+}
+mod spline;
+pub use spline::*;
+mod app_helpers;
+pub use app_helpers::*;
+#[cfg(feature = "v2_5")]
+mod config_merging;
+#[cfg(feature = "v2_5")]
+pub use config_merging::*;
 
 #[repr(C)]
 pub struct OcioGpuTexture2DInfo {
@@ -51,8 +177,380 @@ pub type OcioComputeHashCallback = Option<
 >;
 
 unsafe extern "C" {
+    pub fn ocio_enum_to_string(kind: i32, value: i32) -> *const i8;
+    pub fn ocio_enum_from_string(kind: i32, text: *const i8) -> i32;
+    pub fn ocio_bit_depth_utility(depth: i32, as_integer: bool) -> i32;
+    pub fn ocio_direction_utility(first: i32, second: i32, combine: bool) -> i32;
+    pub fn ocio_processor_get_const_format_metadata(
+        handle: *mut c_void,
+        per_transform: bool,
+        index: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_format_metadata_destroy(handle: *mut c_void);
+    pub fn ocio_const_format_metadata_text(
+        handle: *mut c_void,
+        field: i32,
+        index: i32,
+        name: *const i8,
+    ) -> *const i8;
+    pub fn ocio_const_format_metadata_count(handle: *mut c_void, children: bool) -> i32;
+    pub fn ocio_const_format_metadata_child(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_const_format_metadata_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_format_metadata_stream(handle: *mut c_void, is_const: bool) -> *const i8;
+    pub fn ocio_processor_get_const_metadata(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_processor_metadata_destroy(handle: *mut c_void);
+    pub fn ocio_const_processor_metadata_count(handle: *mut c_void, looks: bool) -> i32;
+    pub fn ocio_const_processor_metadata_entry(
+        handle: *mut c_void,
+        looks: bool,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_const_processor_metadata_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_config_get_named_item(
+        handle: *mut c_void,
+        name: *const i8,
+        kind: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_rules(handle: *mut c_void, kind: i32) -> *mut c_void;
+    /// Retain the native global config without making a copy.
+    ///
+    /// # Safety
+    /// Serialize access through this handle and all aliases with other users
+    /// of the same native config, including concurrent config copying. Const
+    /// OCIO operations may modify lazy caches. Coordinate access to any
+    /// externally shared proxy or custom-transform state for its lifetime.
+    pub fn ocio_get_const_current_config() -> *mut c_void;
+    /// Return an editable config snapshot with detached group children.
+    ///
+    /// # Safety
+    /// The native global config must not be accessed concurrently through
+    /// external aliases while the snapshot is being constructed. External
+    /// proxies and custom-transform state may remain shared and must be safe
+    /// for all uses of the snapshot and its derivatives. Destroy a non-null
+    /// result with `ocio_config_destroy`.
+    pub fn ocio_get_isolated_current_config() -> *mut c_void;
+    /// Return a read-only handle to an independent copy of the current config.
+    ///
+    /// # Safety
+    /// The caller must not concurrently mutate or access the native global
+    /// config through aliases outside this binding while it is being copied.
+    /// External proxies and custom-transform state may remain shared and must
+    /// be safe for all uses of the snapshot and its derivatives. Destroy a
+    /// non-null result with `ocio_const_config_destroy`.
+    pub fn ocio_get_isolated_const_current_config() -> *mut c_void;
+    /// Install a config after detaching its native group-transform graph.
+    ///
+    /// # Safety
+    /// `config` must be a live handle of the kind selected by `is_const` and
+    /// must not be accessed concurrently while its graph is copied. External
+    /// proxies and custom-transform state retained by the installed config
+    /// must remain safe for all subsequent concurrent native uses.
+    pub fn ocio_set_isolated_current_config(config: *mut c_void, is_const: bool);
+    pub fn ocio_const_config_destroy(handle: *mut c_void);
+    pub fn ocio_const_config_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_config_text(handle: *mut c_void, field: i32) -> *const i8;
+    pub fn ocio_const_config_environment_mode(handle: *mut c_void) -> i32;
+    pub fn ocio_config_get_cache_id_explicit(
+        config: *mut c_void,
+        read_only: bool,
+        context: *const c_void,
+    ) -> *const std::ffi::c_char;
+    pub fn ocio_const_config_get_processor_cache_flags(config: *mut c_void) -> i32;
+    pub fn ocio_const_config_set_processor_cache_flags(config: *mut c_void, flags: i32);
+    pub fn ocio_const_config_get_color_space(handle: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_const_config_get_context(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_config_get_processor(
+        handle: *mut c_void,
+        source: *const i8,
+        destination: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_with_context(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        destination: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_from_transform(
+        handle: *mut c_void,
+        context: *mut c_void,
+        transform: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_display(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        display: *const i8,
+        view: *const i8,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_named(
+        handle: *mut c_void,
+        context: *mut c_void,
+        name: *const i8,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_spaces(
+        handle: *mut c_void,
+        context: *mut c_void,
+        source: *mut c_void,
+        destination: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_const_configs_get_processor(
+        source: *mut c_void,
+        source_name: *const std::ffi::c_char,
+        destination: *mut c_void,
+        target: *const std::ffi::c_char,
+        view: *const std::ffi::c_char,
+        direction: i32,
+        source_context: *mut c_void,
+        destination_context: *mut c_void,
+        source_interchange: *const std::ffi::c_char,
+        destination_interchange: *const std::ffi::c_char,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_builtin_processor(
+        config: *mut c_void,
+        local: *const std::ffi::c_char,
+        builtin: *const std::ffi::c_char,
+        from_builtin: bool,
+    ) -> *mut c_void;
+    pub fn ocio_const_config_get_processor_named_object(
+        handle: *mut c_void,
+        context: *mut c_void,
+        named: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_named_item_text(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        index: usize,
+        argument: *const i8,
+    ) -> *const i8;
+    pub fn ocio_const_named_item_number(handle: *mut c_void, kind: i32, field: i32) -> usize;
+    pub fn ocio_const_named_item_contains(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        value: *const i8,
+    ) -> bool;
+    pub fn ocio_config_get_const_rules(config: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_const_rules_destroy(handle: *mut c_void, kind: i32);
+    pub fn ocio_const_rules_editable_copy(handle: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_const_rules_number(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        rule: usize,
+        name: *const i8,
+    ) -> usize;
+    pub fn ocio_const_rules_text(
+        handle: *mut c_void,
+        kind: i32,
+        field: i32,
+        rule: usize,
+        index: usize,
+    ) -> *const i8;
+    pub fn ocio_config_get_processor_from_const_named_transform(
+        config: *mut c_void,
+        context: *mut c_void,
+        named: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_const_named_item(
+        config: *mut c_void,
+        name: *const i8,
+        kind: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_named_item_destroy(handle: *mut c_void, kind: i32);
+    pub fn ocio_named_item_serialize_text(
+        handle: *mut c_void,
+        kind: i32,
+        is_const: bool,
+    ) -> *const i8;
+    pub fn ocio_const_named_item_name(handle: *mut c_void, kind: i32) -> *const i8;
+    pub fn ocio_const_named_item_editable_copy(handle: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_config_get_const_current_context(config: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_destroy(handle: *mut c_void);
+    pub fn ocio_const_context_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_get_text(
+        handle: *mut c_void,
+        field: i32,
+        argument: *const i8,
+    ) -> *const i8;
+    pub fn ocio_const_context_get_int(handle: *mut c_void, field: i32) -> i32;
+    pub fn ocio_const_context_get_indexed_text(
+        handle: *mut c_void,
+        field: i32,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_const_context_get_config_io_proxy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_context_resolve_with_used(
+        handle: *mut c_void,
+        field: i32,
+        input: *const i8,
+        used: *mut c_void,
+    ) -> *const i8;
+    pub fn ocio_context_add_string_vars_from_const(handle: *mut c_void, source: *mut c_void);
+    pub fn ocio_context_serialize_text(handle: *mut c_void, is_const: bool) -> *const i8;
+    pub fn ocio_config_get_processor_with_const_context(
+        config: *mut c_void,
+        context: *mut c_void,
+        source: *const i8,
+        destination: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_processor_const_transform_with_const_context(
+        config: *mut c_void,
+        context: *mut c_void,
+        transform: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    /// Parent kind 12 takes a bridge-owned const transform handle and a group
+    /// child index in the third argument. Release the result with
+    /// `ocio_const_transform_destroy`.
+    pub fn ocio_get_const_child_transform(
+        parent: *mut c_void,
+        parent_kind: i32,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_transform_group_child_count(handle: *mut c_void) -> i32;
+    pub fn ocio_const_transform_destroy(handle: *mut c_void);
+    pub fn ocio_const_transform_get_type(handle: *mut c_void) -> i32;
+    pub fn ocio_const_transform_get_direction(handle: *mut c_void) -> i32;
+    pub fn ocio_const_transform_validate(handle: *mut c_void);
+    pub fn ocio_transform_diagnostic_text(handle: *mut c_void, is_const: bool) -> *const i8;
+    pub fn ocio_const_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    /// Creates a typed handle sharing the original transform, without copying it.
+    ///
+    /// # Safety
+    /// `handle` must be a valid const transform handle. Use the result only for
+    /// const native operations, coordinate all mutable aliases, and release it
+    /// with `ocio_transform_destroy`. Any descendant handles must also remain
+    /// read-only and obey the native lifetime and synchronization requirements.
+    pub fn ocio_const_transform_create_readonly_handle(handle: *mut c_void) -> *mut c_void;
+    /// Retains a const transform's native metadata, if that type has metadata.
+    /// Null means the type has no metadata or an error occurred; inspect the
+    /// bridge error slot to distinguish these cases.
+    ///
+    /// # Safety
+    /// `handle` must be a valid const transform handle. Prevent mutation of
+    /// the transform and metadata through all aliases while the result or its
+    /// descendants are in use. Release it with `ocio_const_format_metadata_destroy`.
+    pub fn ocio_const_transform_get_const_metadata(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_get_processor_from_const_transform(
+        config: *mut c_void,
+        context: *mut c_void,
+        transform: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_config_get_const_color_space(config: *mut c_void, name: *const i8) -> *mut c_void;
+    pub fn ocio_config_get_processor_from_color_space_refs(
+        config: *mut c_void,
+        context: *mut c_void,
+        source: *mut c_void,
+        source_const: bool,
+        destination: *mut c_void,
+        destination_const: bool,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_get_const_color_space(
+        set: *mut c_void,
+        name: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_const_color_space_destroy(handle: *mut c_void);
+    pub fn ocio_const_color_space_get_name(handle: *mut c_void) -> *const i8;
+    pub fn ocio_const_color_space_get_description(handle: *mut c_void) -> *const i8;
+    pub fn ocio_const_color_space_text(handle: *mut c_void, field: i32, index: usize) -> *const i8;
+    pub fn ocio_const_color_space_number(handle: *mut c_void, field: i32) -> i64;
+    pub fn ocio_const_color_space_alias_count(handle: *mut c_void) -> usize;
+    pub fn ocio_const_color_space_contains(
+        handle: *mut c_void,
+        field: i32,
+        value: *const i8,
+    ) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_const_color_space_interchange_attribute(
+        handle: *mut c_void,
+        name: *const i8,
+    ) -> *const i8;
+    pub fn ocio_const_color_space_allocation_vars(handle: *mut c_void, out: *mut f32, count: usize);
+    pub fn ocio_const_color_space_create_editable_copy(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_const_color_space_copy_transform(
+        handle: *mut c_void,
+        direction: i32,
+    ) -> *mut c_void;
+    pub fn ocio_cpu_processor_apply_packed_image(
+        handle: *mut c_void,
+        image: *const OcioPackedBuffer,
+    );
+    pub fn ocio_cpu_processor_convert_packed_image(
+        handle: *mut c_void,
+        source: *const OcioPackedBuffer,
+        destination: *const OcioPackedBuffer,
+    );
+    pub fn ocio_cpu_processor_apply_planar_convert(
+        handle: *mut c_void,
+        source: *const OcioPlanarBuffer,
+        destination: *const OcioPlanarBuffer,
+    );
+    pub fn ocio_cpu_processor_convert_mixed_image(
+        handle: *mut c_void,
+        packed: *const OcioPackedBuffer,
+        planar: *const OcioPlanarBuffer,
+        packed_is_source: bool,
+    );
+    pub fn ocio_cpu_processor_apply_packed_convert(
+        handle: *mut c_void,
+        src: *const c_void,
+        dst: *mut c_void,
+        count: i64,
+        channels: i32,
+        input_depth: i32,
+        output_depth: i32,
+        input_stride: i64,
+        output_stride: i64,
+    );
+    pub fn ocio_processor_get_optimized_cpu_processor_bit_depth(
+        handle: *mut c_void,
+        input_depth: i32,
+        output_depth: i32,
+        flags: u32,
+    ) -> *mut c_void;
+    pub fn ocio_cpu_processor_apply_planar_bytes(
+        handle: *mut c_void,
+        red: *mut c_void,
+        green: *mut c_void,
+        blue: *mut c_void,
+        alpha: *mut c_void,
+        width: i64,
+        height: i64,
+        x_stride: i64,
+        y_stride: i64,
+        bit_depth: i32,
+    );
+    pub fn ocio_cpu_processor_apply_planar_strided_f32(
+        handle: *mut c_void,
+        red: *mut f32,
+        green: *mut f32,
+        blue: *mut f32,
+        alpha: *mut f32,
+        width: i64,
+        height: i64,
+        x_stride: i64,
+        y_stride: i64,
+    );
+    pub fn ocio_cpu_processor_apply_planar_f32(
+        handle: *mut c_void,
+        red: *mut f32,
+        green: *mut f32,
+        blue: *mut f32,
+        alpha: *mut f32,
+        width: i64,
+        height: i64,
+    );
     // --- Error state ---
     pub fn ocio_error_get_last() -> *const i8;
+    /// Returns 1 for an OCIO ExceptionMissingFile, or 0 otherwise.
+    pub fn ocio_error_get_last_kind() -> i32;
     pub fn ocio_error_clear_last();
 
     // --- Runtime ---
@@ -76,8 +574,16 @@ unsafe extern "C" {
     pub fn ocio_is_env_variable_present(name: *const i8) -> bool;
 
     // --- Global config ---
+    /// Return a native editable config copy, without detaching group children.
+    ///
+    /// # Safety
+    /// Synchronize all independent access to the current config during the
+    /// copy. Group children, external proxies, and custom-transform state may
+    /// remain shared and require synchronization for all subsequent uses.
+    /// Destroy a non-null result with `ocio_config_destroy`.
     pub fn ocio_get_current_config() -> *mut c_void;
     pub fn ocio_set_current_config(config: *mut c_void);
+    pub fn ocio_set_const_current_config(config: *mut c_void);
     pub fn ocio_clear_all_caches();
 
     // --- BuiltinConfigRegistry ---
@@ -116,15 +622,64 @@ unsafe extern "C" {
         index: usize,
     ) -> *const i8;
     pub fn ocio_config_io_proxy_create() -> *mut c_void;
+    pub fn ocio_config_io_proxy_copy_native_shared(proxy: *const c_void) -> *mut c_void;
+    pub fn ocio_config_io_proxy_create_with_callback(
+        context: *mut c_void,
+        read: unsafe extern "C" fn(
+            *mut c_void,
+            i32,
+            *const i8,
+            *mut c_void,
+            unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+        ) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> *mut c_void;
+    pub fn ocio_config_io_proxy_visit_lut_data(
+        handle: *mut c_void,
+        path: *const i8,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_read_native(
+        handle: *mut c_void,
+        path: *const i8,
+        hash: bool,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
     pub fn ocio_config_io_proxy_destroy(handle: *mut c_void);
     pub fn ocio_config_io_proxy_set_config_data(handle: *mut c_void, data: *const i8) -> ();
     pub fn ocio_config_io_proxy_get_config_data(handle: *mut c_void) -> *const i8;
+    pub fn ocio_config_io_proxy_set_config_data_bytes(
+        handle: *mut c_void,
+        data: *const u8,
+        len: usize,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_visit_config_data(
+        handle: *mut c_void,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
     pub fn ocio_config_io_proxy_set_lut_data(
         handle: *mut c_void,
         filepath: *const i8,
         data: *const u8,
         len: usize,
         fastHash: *const i8,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_set_lut_data_bytes(
+        handle: *mut c_void,
+        filepath: *const i8,
+        data: *const u8,
+        len: usize,
+        hash: *const u8,
+        hash_len: usize,
+    ) -> bool;
+    pub fn ocio_config_io_proxy_visit_fast_lut_file_hash(
+        handle: *mut c_void,
+        filepath: *const i8,
+        destination: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
     ) -> bool;
     pub fn ocio_config_io_proxy_get_lut_data_size(
         handle: *mut c_void,
@@ -146,6 +701,7 @@ unsafe extern "C" {
     pub fn ocio_config_raw() -> *mut c_void;
     pub fn ocio_config_from_file(path: *const i8) -> *mut c_void;
     pub fn ocio_config_create_raw() -> *mut c_void;
+    pub fn ocio_config_create_empty() -> *mut c_void;
     pub fn ocio_config_create_from_file(path: *const i8) -> *mut c_void;
     pub fn ocio_config_create_from_builtin_config(configName: *const i8) -> *mut c_void;
     pub fn ocio_config_create_from_env() -> *mut c_void;
@@ -238,6 +794,35 @@ unsafe extern "C" {
         builtinConfig: *mut c_void,
         builtinColorSpaceName: *const i8,
     ) -> *mut c_void;
+    /// # Safety
+    /// Handles must be live, match their const flags, and remain alive while
+    /// the returned borrowed string is used. `name` must be a valid C string.
+    /// Native heuristics can change cache flags on both configs; serialize all
+    /// access through every alias for the duration of this call.
+    /// Clear and check the bridge error slot to distinguish an error from no match.
+    pub fn ocio_config_identify_builtin_color_space_refs(
+        source: *mut c_void,
+        source_const: bool,
+        builtin: *mut c_void,
+        builtin_const: bool,
+        name: *const std::ffi::c_char,
+    ) -> *const std::ffi::c_char;
+    /// # Safety
+    /// Both output pointers and C strings must be valid, and config handles
+    /// must be live and match their flags. Output strings are borrowed from
+    /// the corresponding configs. Serialize access to both native configs
+    /// through all aliases during this call; heuristics may change cache flags.
+    /// Clear and check the bridge error slot before reading either output.
+    pub fn ocio_config_identify_interchange_space_refs(
+        source_interchange: *mut *const std::ffi::c_char,
+        builtin_interchange: *mut *const std::ffi::c_char,
+        source: *mut c_void,
+        source_const: bool,
+        source_name: *const std::ffi::c_char,
+        builtin: *mut c_void,
+        builtin_const: bool,
+        builtin_name: *const std::ffi::c_char,
+    );
     pub fn ocio_config_identify_interchange_space(
         handle: *mut c_void,
         srcInterchangeName: *mut c_void,
@@ -719,7 +1304,14 @@ unsafe extern "C" {
     pub fn ocio_config_get_config_io_proxy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_config_is_archivable(handle: *mut c_void) -> bool;
     pub fn ocio_config_archive(handle: *mut c_void, ostream: *mut c_void) -> ();
+    /// Legacy C-string view: OCIOZ is binary and this cannot represent its full contents.
+    #[deprecated(note = "binary output is truncated; use ocio_config_archive_to_writer")]
     pub fn ocio_config_archive_to_string(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_config_archive_to_writer(
+        handle: *mut c_void,
+        context: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
 
     // --- FileRules ---
     pub fn ocio_file_rules_create() -> *mut c_void;
@@ -856,6 +1448,7 @@ unsafe extern "C" {
 
     // --- ColorSpace ---
     pub fn ocio_color_space_create() -> *mut c_void;
+    pub fn ocio_color_space_create_with_reference_space(reference_space: i32) -> *mut c_void;
     pub fn ocio_color_space_destroy(handle: *mut c_void);
     pub fn ocio_color_space_get_name(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_set_name(handle: *mut c_void, name: *const i8) -> ();
@@ -922,14 +1515,89 @@ unsafe extern "C" {
         vars: *mut c_void,
     ) -> ();
     pub fn ocio_color_space_get_transform(handle: *mut c_void, dir: i32) -> *mut c_void;
+    /// A null `transform` clears the selected native direction.
     pub fn ocio_color_space_set_transform(
         handle: *mut c_void,
         transform: *mut c_void,
         dir: i32,
     ) -> ();
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_color_space_visit_interchange_attributes(
+        handle: *mut c_void,
+        is_const: bool,
+        visitor: unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> bool,
+        context: *mut c_void,
+    ) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_named_item_visit_interchange_attributes(
+        handle: *mut c_void,
+        kind: i32,
+        is_const: bool,
+        visitor: unsafe extern "C" fn(*mut c_void, *const u8, usize, *const u8, usize) -> bool,
+        context: *mut c_void,
+    ) -> bool;
+    pub fn ocio_color_space_set_const_transform(
+        handle: *mut c_void,
+        transform: *mut c_void,
+        dir: i32,
+    );
+    pub fn ocio_named_item_set_const_transform(
+        handle: *mut c_void,
+        kind: i32,
+        transform: *mut c_void,
+        direction: i32,
+    );
 
     // --- ColorSpaceSet ---
     pub fn ocio_color_space_set_create() -> *mut c_void;
+    pub fn ocio_color_space_set_operation(
+        left: *mut c_void,
+        left_const: bool,
+        right: *mut c_void,
+        right_const: bool,
+        operation: i32,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_equal(
+        left: *mut c_void,
+        left_const: bool,
+        right: *mut c_void,
+        right_const: bool,
+    ) -> bool;
+    pub fn ocio_const_color_space_set_destroy(handle: *mut c_void);
+    pub fn ocio_const_color_space_set_get_num_color_spaces(handle: *mut c_void) -> i32;
+    pub fn ocio_const_color_space_set_get_color_space_name_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *const i8;
+    pub fn ocio_const_color_space_set_copy_color_space(
+        handle: *mut c_void,
+        name: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_ref_get_const_color_space(
+        handle: *mut c_void,
+        is_const: bool,
+        name: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_ref_get_const_color_space_by_index(
+        handle: *mut c_void,
+        is_const: bool,
+        index: i32,
+    ) -> *mut c_void;
+    pub fn ocio_color_space_set_ref_get_color_space_index(
+        handle: *mut c_void,
+        is_const: bool,
+        name: *const i8,
+    ) -> i32;
+    pub fn ocio_color_space_set_ref_has_color_space(
+        handle: *mut c_void,
+        is_const: bool,
+        name: *const i8,
+    ) -> bool;
+    pub fn ocio_const_color_space_set_copy_color_space_by_index(
+        handle: *mut c_void,
+        index: i32,
+    ) -> *mut c_void;
+    pub fn ocio_const_color_space_set_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_color_space_set_destroy(handle: *mut c_void);
     pub fn ocio_color_space_set_get_num_color_spaces(handle: *mut c_void) -> i32;
     pub fn ocio_color_space_set_get_color_space_name_by_index(
@@ -947,6 +1615,21 @@ unsafe extern "C" {
     pub fn ocio_color_space_set_get_color_space_index(handle: *mut c_void, name: *const i8) -> i32;
     pub fn ocio_color_space_set_has_color_space(handle: *mut c_void, name: *const i8) -> bool;
     pub fn ocio_color_space_set_add_color_space(handle: *mut c_void, cs: *mut c_void) -> ();
+    pub fn ocio_color_space_set_add_color_space_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
+    pub fn ocio_color_space_set_add_color_spaces_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
+    pub fn ocio_color_space_set_remove_color_spaces_ref(
+        handle: *mut c_void,
+        cs: *mut c_void,
+        cs_const: bool,
+    );
     pub fn ocio_color_space_set_add_color_spaces(handle: *mut c_void, cs: *mut c_void) -> ();
     pub fn ocio_color_space_set_remove_color_space(handle: *mut c_void, name: *const i8) -> ();
     pub fn ocio_color_space_set_remove_color_spaces(handle: *mut c_void, cs: *mut c_void) -> ();
@@ -1013,6 +1696,7 @@ unsafe extern "C" {
     pub fn ocio_named_transform_get_encoding(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_named_transform_set_encoding(handle: *mut c_void, encoding: *const i8) -> ();
     pub fn ocio_named_transform_get_transform(handle: *mut c_void, dir: i32) -> *mut c_void;
+    /// A null `transform` clears the selected native direction.
     pub fn ocio_named_transform_set_transform(
         handle: *mut c_void,
         transform: *mut c_void,
@@ -1071,6 +1755,9 @@ unsafe extern "C" {
     pub fn ocio_transform_create_editable_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_transform_destroy(handle: *mut c_void);
     pub fn ocio_transform_get_transform_type(handle: *mut c_void) -> i32;
+    pub fn ocio_transform_get_direction(handle: *mut c_void) -> i32;
+    pub fn ocio_transform_set_direction(handle: *mut c_void, direction: i32);
+    pub fn ocio_transform_validate(handle: *mut c_void);
 
     // --- Processor ---
     pub fn ocio_processor_destroy(handle: *mut c_void);
@@ -1149,6 +1836,7 @@ unsafe extern "C" {
     ) -> ();
     pub fn ocio_cpu_processor_apply_rgb(handle: *mut c_void, pixel: *mut c_void) -> ();
     pub fn ocio_cpu_processor_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> ();
+    pub fn ocio_cpu_processor_try_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> bool;
 
     // --- GPUProcessor ---
     pub fn ocio_gpu_processor_destroy(handle: *mut c_void);
@@ -1167,6 +1855,515 @@ unsafe extern "C" {
         handle: *mut c_void,
         shaderCreator: *mut c_void,
     ) -> ();
+    pub fn ocio_gpu_shader_creator_from_desc(shader_desc: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_clone(creator: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_borrow_desc(creator: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_get_cache_id(creator: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_creator_copy_native_shared(creator: *const c_void) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_get_text(creator: *mut c_void, field: i32) -> *const i8;
+    pub fn ocio_gpu_shader_creator_set_text(creator: *mut c_void, field: i32, value: *const i8);
+    pub fn ocio_gpu_shader_creator_get_language(creator: *mut c_void) -> i32;
+    pub fn ocio_gpu_shader_creator_set_language(creator: *mut c_void, language: i32);
+    pub fn ocio_gpu_shader_creator_next_resource_index(creator: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_creator_add_dynamic_property(
+        creator: *mut c_void,
+        property: *mut c_void,
+    );
+    pub fn ocio_gpu_shader_creator_num_dynamic_properties(creator: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_creator_add_uniform(
+        creator: *mut c_void,
+        name: *const i8,
+        kind: i32,
+        scalar: f64,
+        values: *const c_void,
+        len: usize,
+        max_size: u32,
+        property_type: i32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_add_scalar_getter(
+        creator: *mut c_void,
+        name: *const i8,
+        kind: i32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_add_float_array_getter(
+        creator: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_add_int_array_getter(
+        creator: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut i32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_has_dynamic_property(
+        creator: *mut c_void,
+        property_type: i32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_dynamic_property(
+        creator: *mut c_void,
+        value: u32,
+        by_index: bool,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_lifecycle(creator: *mut c_void, operation: i32, uid: *const i8);
+    pub fn ocio_gpu_shader_creator_add_texture(
+        creator: *mut c_void,
+        name: *const i8,
+        sampler: *const i8,
+        width: u32,
+        height: u32,
+        depth: u32,
+        channel: i32,
+        dimensions: i32,
+        interpolation: i32,
+        values: *const f32,
+        len: usize,
+        is_3d: bool,
+        has_binding: *mut bool,
+        binding: *mut u32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_creator_add_code(creator: *mut c_void, section: i32, code: *const i8);
+    pub fn ocio_gpu_shader_creator_create_text(
+        creator: *mut c_void,
+        parameters: *const i8,
+        textures: *const i8,
+        helpers: *const i8,
+        header: *const i8,
+        body: *const i8,
+        footer: *const i8,
+    );
+    pub fn ocio_gpu_shader_creator_get_texture_max_width(creator: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_creator_set_texture_max_width(creator: *mut c_void, width: u32);
+    pub fn ocio_gpu_shader_creator_get_allow_texture_1d(creator: *mut c_void) -> bool;
+    pub fn ocio_gpu_shader_creator_set_allow_texture_1d(creator: *mut c_void, allow: bool);
+    /// The caller must keep `context` alive until callbacks are detached, even
+    /// if other native references retain the creator. The callback must not unwind.
+    pub fn ocio_gpu_shader_creator_create_persistent_policy(
+        template_desc: *mut c_void,
+        cache_id: *const i8,
+        policy: unsafe extern "C" fn(*mut c_void, i32, *mut u32) -> bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_detach_persistent_policy(creator: *mut c_void);
+    pub fn ocio_gpu_shader_creator_set_persistent_finalizer(
+        creator: *mut c_void,
+        finalizer: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_set_persistent_assembler(
+        creator: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_set_persistent_hooks(
+        creator: *mut c_void,
+        lifecycle: unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool,
+        code: unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_set_persistent_uniform_control(
+        creator: *mut c_void,
+        uniform: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            i32,
+            bool,
+            u32,
+            *mut c_void,
+            *mut i32,
+        ) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_set_persistent_texture_control(
+        creator: *mut c_void,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_extract_persistent_policy(
+        processor: *mut c_void,
+        creator: *mut c_void,
+    );
+    pub fn ocio_gpu_shader_creator_begin_manual(creator: *mut c_void, uid: *const i8);
+    pub fn ocio_gpu_shader_creator_clone_with_policy(
+        creator: *mut c_void,
+        clone: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_shader_creator_query_cache_policy(
+        creator: *mut c_void,
+        cache_id: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+    ) -> *const i8;
+    pub fn ocio_gpu_shader_creator_extract_with_cache_policy(
+        processor: *mut c_void,
+        creator: *mut c_void,
+        cache_id: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+    );
+    pub fn ocio_gpu_shader_creator_destroy(creator: *mut c_void);
+    pub fn ocio_gpu_processor_extract_owned_creator(processor: *mut c_void, creator: *mut c_void);
+    pub fn ocio_gpu_shader_desc_borrow_native_creator(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_assembler(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        callback: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_texture_callback(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_resource_callbacks(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_lifecycle_callbacks(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_hooks(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_uniform_control(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        stream_textures: bool,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_texture_policy(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        finalize: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+        policy: unsafe extern "C" fn(*mut c_void, i32, *mut u32) -> bool,
+        cache_id_override: *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_finalize_control(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        finalize: unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool,
+        cache_id_override: *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_texture_control(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: unsafe extern "C" fn(
+            *mut c_void,
+            *const OcioShaderTextureEvent,
+            *mut bool,
+            *mut bool,
+            *mut u32,
+        ) -> bool,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        cache_id_override: *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_creator_options(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        registration: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const i8,
+                i32,
+                bool,
+                u32,
+                *mut c_void,
+                *mut i32,
+            ) -> bool,
+        >,
+        stream_textures: bool,
+        cache_id_override: *const i8,
+        context: *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_gpu_processor_extract_with_streamed_texture_hooks(
+        handle: *mut c_void,
+        template_desc: *mut c_void,
+        assembler: unsafe extern "C" fn(
+            *mut c_void,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *const i8,
+            *mut *const i8,
+        ) -> bool,
+        texture: Option<
+            unsafe extern "C" fn(
+                *mut c_void,
+                *const OcioShaderTextureEvent,
+                *mut bool,
+                *mut u32,
+            ) -> bool,
+        >,
+        uniform: Option<
+            unsafe extern "C" fn(*mut c_void, *const i8, i32, u32, bool, u32, bool, usize) -> bool,
+        >,
+        lifecycle: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8) -> bool>,
+        code: Option<unsafe extern "C" fn(*mut c_void, i32, *const i8, *mut *const i8) -> bool>,
+        context: *mut c_void,
+    ) -> *mut c_void;
 
     // --- GpuShaderDesc ---
     pub fn ocio_gpu_shader_desc_create_shader_desc() -> *mut c_void;
@@ -1174,12 +2371,63 @@ unsafe extern "C" {
     pub fn ocio_gpu_shader_desc_destroy(handle: *mut c_void);
     pub fn ocio_gpu_shader_desc_clone(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num_uniforms_u32(handle: *mut c_void) -> u32;
+    /// Returns a name borrowed from the descriptor. Errors use the bridge error slot.
+    ///
+    /// # Safety
+    /// `handle` must be a valid descriptor handle. The returned pointer must not
+    /// outlive the descriptor or be used across mutation of its native storage;
+    /// externally shared native aliases require appropriate synchronization.
+    pub fn ocio_gpu_shader_desc_get_uniform_name(
+        handle: *mut c_void,
+        index: u32,
+    ) -> *const std::ffi::c_char;
     pub fn ocio_gpu_shader_desc_get_uniform_info(
         handle: *mut c_void,
         index: u32,
         out: *mut OcioGpuUniformInfo,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_uniform_value_count(handle: *mut c_void, index: u32) -> usize;
+    pub fn ocio_gpu_uniform_cache_create(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_gpu_uniform_cache_destroy(handle: *mut c_void);
+    pub fn ocio_gpu_uniform_cache_copy_f32(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut f32,
+        len: usize,
+        actual: *mut usize,
+    ) -> i32;
+    pub fn ocio_gpu_uniform_cache_copy_i32(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut i32,
+        len: usize,
+        actual: *mut usize,
+    ) -> i32;
+    pub fn ocio_gpu_uniform_cache_double(handle: *mut c_void, index: u32, value: *mut f64) -> i32;
+    pub fn ocio_gpu_shader_desc_get_uniform_double_value(
+        handle: *mut c_void,
+        index: u32,
+        value: *mut f64,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_get_uniform_bool_value(
+        handle: *mut c_void,
+        index: u32,
+        value: *mut bool,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_copy_uniform_f32_values_with_count(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut f32,
+        len: usize,
+        actual: *mut usize,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_copy_uniform_i32_values_with_count(
+        handle: *mut c_void,
+        index: u32,
+        values: *mut i32,
+        len: usize,
+        actual: *mut usize,
+    ) -> bool;
     pub fn ocio_gpu_shader_desc_copy_uniform_f32_values(
         handle: *mut c_void,
         index: u32,
@@ -1198,6 +2446,43 @@ unsafe extern "C" {
         handle: *mut c_void,
         name: *const i8,
         value: f64,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_double_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f64) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_bool_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut bool) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_float3_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f32) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_float_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut f32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_uniform_vector_int_getter(
+        handle: *mut c_void,
+        name: *const i8,
+        max_size: u32,
+        context: *mut c_void,
+        getter: unsafe extern "C" fn(*mut c_void, *mut i32, usize, *mut usize) -> bool,
+        release: unsafe extern "C" fn(*mut c_void),
     ) -> bool;
     pub fn ocio_gpu_shader_desc_add_uniform_bool(
         handle: *mut c_void,
@@ -1224,6 +2509,12 @@ unsafe extern "C" {
         values: *const i32,
         len: usize,
         max_size: u32,
+    ) -> bool;
+    pub fn ocio_gpu_shader_desc_add_dynamic_property(handle: *mut c_void, property: *mut c_void);
+    pub fn ocio_gpu_shader_desc_add_uniform_dynamic_double(
+        handle: *mut c_void,
+        name: *const i8,
+        property_type: i32,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_dynamic_properties_u32(handle: *mut c_void) -> u32;
     pub fn ocio_gpu_shader_desc_get_dynamic_property_by_index(
@@ -1262,6 +2553,12 @@ unsafe extern "C" {
         values: *mut f32,
         len: usize,
     ) -> bool;
+    pub fn ocio_gpu_shader_desc_borrow_texture_values(
+        handle: *mut c_void,
+        index: u32,
+        is3d: bool,
+        len: *mut usize,
+    ) -> *const f32;
     pub fn ocio_gpu_shader_desc_add3d_texture(
         handle: *mut c_void,
         texture_name: *const i8,
@@ -1288,6 +2585,15 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_gpu_shader_desc_get_num_uniforms(handle: *mut c_void) -> *mut c_void;
+    /// Legacy native uniform query. Prefer the typed uniform-info and cache
+    /// APIs, which do not expose C++ function objects to Rust.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor. `index` encodes an unsigned native
+    /// index in the pointer value and must fit `u32`. `data` must point to an
+    /// initialized `OCIO::GpuShaderDesc::UniformData` from the matching native
+    /// C++ ABI; a Rust byte buffer is not a valid substitute. The returned name
+    /// is borrowed and may be invalidated by descriptor mutation or destruction.
     pub fn ocio_gpu_shader_desc_get_uniform(
         handle: *mut c_void,
         index: *mut c_void,
@@ -1296,21 +2602,36 @@ unsafe extern "C" {
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_uniform_buffer_size(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num_textures(handle: *mut c_void) -> *mut c_void;
+    /// Legacy texture query. `index` encodes an unsigned integer in the pointer
+    /// value; name outputs are addresses of pointers, not writable byte buffers.
+    /// Prefer `ocio_gpu_shader_desc_get_texture_info` for typed indices/outputs.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor. Non-null name slots must be writable.
+    /// Width and height must point to writable native `unsigned` values,
+    /// channel and interpolation to their native enum representations, and
+    /// dimensions to the native `TextureDimensions` (`u8`) representation.
+    /// Returned names borrow storage invalidated by descriptor mutation or drop.
     pub fn ocio_gpu_shader_desc_get_texture(
         handle: *mut c_void,
         index: *mut c_void,
-        textureName: *const i8,
-        samplerName: *const i8,
+        textureName: *mut *const i8,
+        samplerName: *mut *const i8,
         width: *mut c_void,
         height: *mut c_void,
         channel: *mut c_void,
         dimensions: *mut c_void,
         interpolation: *mut c_void,
     ) -> ();
+    /// Legacy query writing the borrowed values pointer to `values`.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor and a non-null `values` must be a
+    /// writable pointer slot. The result borrows descriptor storage.
     pub fn ocio_gpu_shader_desc_get_texture_values(
         handle: *mut c_void,
         index: *mut c_void,
-        values: *mut c_void,
+        values: *mut *const f32,
     ) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get_texture_shader_binding_index(
@@ -1318,18 +2639,30 @@ unsafe extern "C" {
         index: *mut c_void,
     ) -> *mut c_void;
     pub fn ocio_gpu_shader_desc_get_num3d_textures(handle: *mut c_void) -> *mut c_void;
+    /// Legacy 3D query; name outputs are addresses of borrowed pointers.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor; non-null name slots must be
+    /// writable, `edgelen` must point to a native `unsigned`, and
+    /// `interpolation` to its native enum representation. Returned names
+    /// borrow storage invalidated by descriptor mutation or drop.
     pub fn ocio_gpu_shader_desc_get3d_texture(
         handle: *mut c_void,
         index: *mut c_void,
-        textureName: *const i8,
-        samplerName: *const i8,
+        textureName: *mut *const i8,
+        samplerName: *mut *const i8,
         edgelen: *mut c_void,
         interpolation: *mut c_void,
     ) -> ();
+    /// Legacy 3D query writing the borrowed values pointer to `values`.
+    ///
+    /// # Safety
+    /// `handle` must be a live descriptor and a non-null `values` must be a
+    /// writable pointer slot. The result borrows descriptor storage.
     pub fn ocio_gpu_shader_desc_get3d_texture_values(
         handle: *mut c_void,
         index: *mut c_void,
-        values: *mut c_void,
+        values: *mut *const f32,
     ) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_get3d_texture_shader_binding_index(
@@ -1342,6 +2675,8 @@ unsafe extern "C" {
     pub fn ocio_baker_create() -> *mut c_void;
     pub fn ocio_baker_destroy(handle: *mut c_void);
     pub fn ocio_baker_get_config(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_get_const_config(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_set_const_config(handle: *mut c_void, config: *mut c_void);
     pub fn ocio_baker_set_config(handle: *mut c_void, config: *mut c_void) -> ();
     pub fn ocio_baker_get_format(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_baker_set_format(handle: *mut c_void, formatName: *const i8) -> ();
@@ -1368,6 +2703,11 @@ unsafe extern "C" {
     pub fn ocio_baker_set_cube_size(handle: *mut c_void, cubesize: i32) -> ();
     pub fn ocio_baker_bake(handle: *mut c_void, os: *mut c_void) -> ();
     pub fn ocio_baker_bake_to_string(handle: *mut c_void) -> *mut c_void;
+    pub fn ocio_baker_bake_to_writer(
+        handle: *mut c_void,
+        context: *mut c_void,
+        write: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
+    ) -> bool;
 
     // --- Context ---
     pub fn ocio_context_create() -> *mut c_void;
@@ -1653,6 +2993,7 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_grading_primary_transform_is_dynamic(handle: *mut c_void) -> bool;
+    pub fn ocio_grading_primary_value_validate(style: i32, values: *const f64, len: usize);
     pub fn ocio_grading_primary_transform_make_dynamic(handle: *mut c_void) -> ();
     pub fn ocio_grading_primary_transform_make_non_dynamic(handle: *mut c_void) -> ();
 
@@ -1762,6 +3103,12 @@ unsafe extern "C" {
         value: *mut c_void,
     ) -> ();
     #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_transform_set_checked(
+        handle: *mut c_void,
+        curves: *const *const c_void,
+        counts: *const usize,
+    );
+    #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_destroy(handle: *mut c_void) -> ();
     #[cfg(feature = "v2_5")]
     pub fn ocio_grading_hue_curve_transform_get_num_control_points(
@@ -1841,17 +3188,29 @@ unsafe extern "C" {
         len: usize,
     ) -> bool;
     pub fn ocio_grading_tone_transform_is_dynamic(handle: *mut c_void) -> bool;
+    pub fn ocio_grading_tone_value_validate(values: *const f64, len: usize);
     pub fn ocio_grading_tone_transform_make_dynamic(handle: *mut c_void) -> ();
     pub fn ocio_grading_tone_transform_make_non_dynamic(handle: *mut c_void) -> ();
 
     // --- GroupTransform ---
     pub fn ocio_group_transform_create() -> *mut c_void;
+    pub fn ocio_group_transform_create_deep_copy(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_destroy(handle: *mut c_void);
     pub fn ocio_group_transform_get_format_metadata(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_format_metadata_v1(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_format_metadata_v2(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_group_transform_get_transform(handle: *mut c_void, index: i32) -> *mut c_void;
     pub fn ocio_group_transform_get_transform_v1(handle: *mut c_void, index: i32) -> *mut c_void;
+    pub fn ocio_group_transform_set_transform(
+        handle: *mut c_void,
+        index: i32,
+        transform: *mut c_void,
+    );
+    pub fn ocio_grading_rgb_curve_transform_set_checked(
+        handle: *mut c_void,
+        curves: *const *const c_void,
+        counts: *const usize,
+    );
     pub fn ocio_group_transform_get_num_transforms(handle: *mut c_void) -> i32;
     pub fn ocio_group_transform_append_transform(handle: *mut c_void, transform: *mut c_void)
         -> ();
@@ -1869,6 +3228,17 @@ unsafe extern "C" {
         handle: *mut c_void,
         config: *mut c_void,
         formatName: *const i8,
+    ) -> *mut c_void;
+    pub fn ocio_group_transform_write_const(
+        handle: *mut c_void,
+        config: *const c_void,
+        format_name: *const i8,
+        os: *mut c_void,
+    );
+    pub fn ocio_group_transform_write_to_string_const(
+        handle: *mut c_void,
+        config: *const c_void,
+        format_name: *const i8,
     ) -> *mut c_void;
     pub fn ocio_group_transform_get_num_write_formats() -> i32;
     pub fn ocio_group_transform_get_format_name_by_index(index: i32) -> *const i8;
@@ -1968,6 +3338,13 @@ unsafe extern "C" {
     pub fn ocio_look_transform_get_dst(handle: *mut c_void) -> *mut c_void;
     pub fn ocio_look_transform_set_dst(handle: *mut c_void, dst: *const i8) -> ();
     pub fn ocio_look_transform_get_looks(handle: *mut c_void) -> *mut c_void;
+    /// Borrow OCIO's result until the config or its color spaces are mutated.
+    /// `config` and `context` must be live editable-config and const-context handles.
+    pub fn ocio_look_transform_get_result_color_space(
+        config: *mut c_void,
+        context: *const c_void,
+        looks: *const std::ffi::c_char,
+    ) -> *const std::ffi::c_char;
     pub fn ocio_look_transform_set_looks(handle: *mut c_void, looks: *const i8) -> ();
     pub fn ocio_look_transform_get_skip_color_space_conversion(handle: *mut c_void) -> bool;
     pub fn ocio_look_transform_set_skip_color_space_conversion(
@@ -1977,6 +3354,7 @@ unsafe extern "C" {
 
     // --- Lut1DTransform ---
     pub fn ocio_lut1d_transform_create() -> *mut c_void;
+    pub fn ocio_lut1d_transform_create_with_length(length: u64, half_domain: bool) -> *mut c_void;
     pub fn ocio_lut1d_transform_destroy(handle: *mut c_void);
     pub fn ocio_lut1d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut1d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)
@@ -2017,6 +3395,7 @@ unsafe extern "C" {
 
     // --- Lut3DTransform ---
     pub fn ocio_lut3d_transform_create() -> *mut c_void;
+    pub fn ocio_lut3d_transform_create_with_grid_size(grid_size: u64) -> *mut c_void;
     pub fn ocio_lut3d_transform_destroy(handle: *mut c_void);
     pub fn ocio_lut3d_transform_get_file_output_bit_depth(handle: *mut c_void) -> i32;
     pub fn ocio_lut3d_transform_set_file_output_bit_depth(handle: *mut c_void, bitDepth: i32)
@@ -2142,8 +3521,8 @@ unsafe extern "C" {
         config: *mut c_void,
         display: *const i8,
         view: *const i8,
-        transformName: *const i8,
-        rule: *const i8,
+        color_space_name: *const i8,
+        looks: *const i8,
     ) -> ();
 
     pub fn ocio_config_create_editable_copy(config: *mut c_void) -> *mut c_void;
@@ -2179,6 +3558,13 @@ unsafe extern "C" {
         numPixels: i64,
         stride: i64,
     ) -> ();
+
+    pub fn ocio_cpu_processor_try_apply_rgba_pixels(
+        cpu_processor: *mut c_void,
+        rgba: *mut f32,
+        numPixels: i64,
+        stride: i64,
+    ) -> bool;
 
     pub fn ocio_dynamic_property_double_get_value(prop: *mut c_void) -> f64;
 
@@ -2221,6 +3607,13 @@ unsafe extern "C" {
         curveType: i32,
         num: i32,
     ) -> ();
+
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_set_complete(
+        prop: *mut c_void,
+        curves: *const *const c_void,
+        counts: *const usize,
+    );
 
     #[cfg(feature = "v2_5")]
     pub fn ocio_dynamic_property_grading_hue_curve_set_slope(
@@ -2356,6 +3749,10 @@ unsafe extern "C" {
 
     pub fn ocio_format_metadata_clear(metadata: *mut c_void) -> ();
 
+    pub fn ocio_format_metadata_assign(destination: *mut c_void, source: *mut c_void);
+
+    pub fn ocio_format_metadata_assign_const(destination: *mut c_void, source: *mut c_void);
+
     pub fn ocio_format_metadata_destroy(handle: *mut c_void) -> ();
 
     pub fn ocio_format_metadata_get_attribute_name(metadata: *mut c_void, i: i32) -> *const i8;
@@ -2393,9 +3790,14 @@ unsafe extern "C" {
     pub fn ocio_format_metadata_set_name(metadata: *mut c_void, name: *const i8) -> ();
 
     pub fn ocio_gpu_shader_desc_get_cache_id(desc: *mut c_void) -> *const i8;
+    pub fn ocio_gpu_shader_desc_set_custom_cache_id(desc: *mut c_void, value: *const i8) -> bool;
     pub fn ocio_gpu_shader_desc_begin(shader_desc: *mut c_void, uid: *const i8) -> ();
     pub fn ocio_gpu_shader_desc_end(shader_desc: *mut c_void) -> ();
     pub fn ocio_gpu_shader_desc_get_next_resource_index(shader_desc: *mut c_void) -> u32;
+    pub fn ocio_gpu_shader_desc_add_to_declare_shader_code(
+        handle: *mut c_void,
+        shader_code: *const i8,
+    );
     #[cfg(feature = "v2_5")]
     pub fn ocio_gpu_shader_desc_add_to_parameter_declare_shader_code(
         shader_desc: *mut c_void,
@@ -2474,6 +3876,18 @@ unsafe extern "C" {
         index: u32,
         texture_binding_start: u32,
     ) -> ();
+
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_gpu_shader_creator_set_descriptor_set_index(
+        creator: *mut c_void,
+        index: u32,
+        start: u32,
+    );
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_gpu_shader_creator_get_descriptor_set_index(
+        creator: *mut c_void,
+        binding_start: bool,
+    ) -> u32;
 
     pub fn ocio_gpu_shader_desc_set_texture_max_width_u32(
         shader_desc: *mut c_void,
@@ -2578,6 +3992,27 @@ unsafe extern "C" {
     pub fn ocio_matrix_transform_create_identity() -> *mut c_void;
 
     pub fn ocio_matrix_transform_identity(m44: *mut f64, offset4: *mut f64) -> ();
+    pub fn ocio_matrix_transform_fit_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        old_min: *const f64,
+        old_max: *const f64,
+        new_min: *const f64,
+        new_max: *const f64,
+    );
+    pub fn ocio_matrix_transform_sat_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        sat: f64,
+        luma: *const f64,
+    );
+    pub fn ocio_matrix_transform_scale_into(m44: *mut f64, offset4: *mut f64, scale: *const f64);
+    pub fn ocio_matrix_transform_view_into(
+        m44: *mut f64,
+        offset4: *mut f64,
+        channels: *mut i32,
+        luma: *const f64,
+    );
 
     pub fn ocio_matrix_transform_create_sat(sat: f64, luma: *const f64) -> *mut c_void;
 

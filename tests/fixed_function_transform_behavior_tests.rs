@@ -33,7 +33,19 @@ fn fixed_function_style_params_and_copy_behavior() {
             .expect("fixed function create with params");
 
     assert_eq!(transform.style(), FixedFunctionStyle::Rec2100Surround);
+    assert_eq!(
+        transform.try_style().unwrap(),
+        FixedFunctionStyle::Rec2100Surround
+    );
     assert_eq!(transform.num_params(), 1);
+    assert_eq!(transform.try_num_params_usize().unwrap(), 1);
+    let mut params = [0.0];
+    transform.try_params_into(&mut params).unwrap();
+    assert_vec_close(&params, &[1.25], 1e-10);
+    let mut wrong = [42.0; 2];
+    assert!(transform.try_params_into(&mut wrong).is_err());
+    assert_eq!(wrong, [42.0; 2]);
+    assert_vec_close(&transform.try_params().unwrap(), &[1.25], 1e-10);
     assert_vec_close(&transform.params(), &[1.25], 1e-10);
 
     let copy = transform
@@ -48,6 +60,8 @@ fn fixed_function_style_params_and_copy_behavior() {
         .expect("set copy style");
 
     assert_eq!(copy.style(), FixedFunctionStyle::RgbToHsv);
+    let no_params = FixedFunctionTransform::create(FixedFunctionStyle::RgbToHsv).unwrap();
+    no_params.try_params_into(&mut []).unwrap();
     assert_eq!(copy.num_params(), copy.params().len() as i32);
 
     assert_eq!(transform.style(), FixedFunctionStyle::Rec2100Surround);
@@ -118,6 +132,51 @@ fn fixed_function_invalid_params_surface_real_error_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn fixed_function_empty_parameter_buffers_use_native_factory_safely() {
+    let _guard = fixed_function_test_lock();
+    let style = FixedFunctionStyle::RgbToHsv;
+    let via_empty_slice = FixedFunctionTransform::create_with_params(style, &[]).unwrap();
+    let via_default = FixedFunctionTransform::create(style).unwrap();
+    assert!(via_empty_slice.equals(&via_default));
+    assert_eq!(via_default.try_num_params_usize().unwrap(), 0);
+    via_default.set_params(&[1.0]).unwrap();
+    via_default.set_params(&[]).unwrap();
+    assert_eq!(via_default.try_num_params_usize().unwrap(), 0);
+
+    // The low-level API also accepts a null pointer for an empty range.
+    unsafe {
+        let handle = ocio_sys::ocio_fixed_function_transform_create_with_params(
+            style as i32,
+            std::ptr::null(),
+            0,
+        );
+        assert!(!handle.is_null());
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_fixed_function_transform_set_params(handle, std::ptr::null(), 0);
+        assert!(ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_fixed_function_transform_set_params(handle, std::ptr::null(), 1);
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+        assert_eq!(
+            ocio_sys::ocio_fixed_function_transform_get_num_params(handle),
+            0
+        );
+        ocio_sys::ocio_fixed_function_transform_destroy(handle);
+
+        // A non-empty range must never be forwarded with a null pointer.
+        let invalid = ocio_sys::ocio_fixed_function_transform_create_with_params(
+            style as i32,
+            std::ptr::null(),
+            1,
+        );
+        assert!(invalid.is_null());
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        ocio_sys::ocio_error_clear_last();
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn fixed_function_set_params_uses_ocio_delayed_validation() {
     let _guard = fixed_function_test_lock();
     if is_stub() {
@@ -139,4 +198,27 @@ fn fixed_function_set_params_uses_ocio_delayed_validation() {
         Err(err) => err,
     };
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
+}
+#[cfg(feature = "v2_5")]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn hsy_bridge_discriminants_select_the_native_styles() {
+    use ocio_rs::{transform::GroupTransform, Config};
+    let config = Config::raw().unwrap();
+    for (style, native_name) in [
+        (FixedFunctionStyle::RgbToHsyLin, "RGB_TO_HSY_LIN"),
+        (FixedFunctionStyle::RgbToHsyLog, "RGB_TO_HSY_LOG"),
+        (FixedFunctionStyle::RgbToHsyVid, "RGB_TO_HSY_VID"),
+    ] {
+        let transform = FixedFunctionTransform::create_with_params(style, &[]).unwrap();
+        assert_eq!(transform.style(), style);
+        assert_eq!(transform.try_style().unwrap(), style);
+        let group = GroupTransform::create().unwrap();
+        group.append_transform(&transform).unwrap();
+        let ctf = group
+            .write_to_string(&config, "Color Transform Format")
+            .unwrap()
+            .unwrap();
+        assert!(ctf.contains(native_name), "{ctf}");
+    }
 }

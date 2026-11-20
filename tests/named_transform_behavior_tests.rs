@@ -41,6 +41,31 @@ fn configured_named_transform() -> NamedTransform {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn empty_named_transform_processor_reports_error() {
+    let _guard = named_transform_test_lock();
+    let config = Config::raw().unwrap();
+    let context = config.try_current_context().unwrap().unwrap();
+    let named = NamedTransform::create().unwrap();
+    for direction in [TransformDirection::Forward, TransformDirection::Inverse] {
+        assert!(config.processor_named_transform(&named, direction).is_err());
+        assert!(config
+            .processor_named_transform_with_context(&context, &named, direction)
+            .is_err());
+    }
+    let inverse = MatrixTransform::scale(&[0.5, 1.0, 1.0, 1.0]).unwrap();
+    named
+        .try_set_transform(&inverse, TransformDirection::Inverse)
+        .unwrap();
+    assert!(config
+        .processor_named_transform(&named, TransformDirection::Forward)
+        .is_ok());
+    assert!(config
+        .processor_named_transform_with_context(&context, &named, TransformDirection::Inverse)
+        .is_ok());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn named_transform_metadata_alias_category_round_trip_behavior() {
     let _guard = named_transform_test_lock();
     if is_stub() {
@@ -58,12 +83,32 @@ fn named_transform_metadata_alias_category_round_trip_behavior() {
     assert_eq!(nt.encoding().as_deref(), Some("scene-linear"));
 
     assert_eq!(nt.num_aliases(), 1);
+    assert_eq!(nt.try_num_aliases().unwrap(), 1);
+    assert_eq!(nt.try_alias_at(0).unwrap().as_deref(), Some("unit_alias"));
+    assert!(nt.try_alias_at(usize::MAX).unwrap().is_none());
     assert_eq!(nt.alias(0).as_deref(), Some("unit_alias"));
+    assert!(nt.alias(-1).is_none());
+    assert!(nt.alias(1).is_none());
+    assert!(nt.alias(i32::MAX).is_none());
     assert!(nt.has_alias("unit_alias"));
+    assert!(nt.try_has_alias_cstr(c"unit_alias").unwrap());
+    assert!(!nt.try_has_alias("absent").unwrap());
+    assert!(nt.try_has_alias("bad\0alias").is_err());
+    assert!(!nt.has_alias("bad\0alias"));
 
     assert_eq!(nt.num_categories(), 1);
+    assert_eq!(nt.try_num_categories().unwrap(), 1);
+    assert_eq!(
+        nt.try_category(0).unwrap().as_deref(),
+        Some("unit_category")
+    );
+    assert!(nt.try_category(-1).unwrap().is_none());
+    assert!(nt.try_category(i32::MAX).unwrap().is_none());
     assert_eq!(nt.category(0).as_deref(), Some("unit_category"));
     assert!(nt.has_category("unit_category"));
+    assert!(nt.try_has_category_cstr(c"unit_category").unwrap());
+    assert!(!nt.try_has_category("absent").unwrap());
+    assert!(nt.try_has_category("bad\0category").is_err());
 }
 
 #[test]

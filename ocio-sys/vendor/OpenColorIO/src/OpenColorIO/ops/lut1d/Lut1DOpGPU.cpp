@@ -151,10 +151,19 @@ void GetLut1DGPUShaderProgram(GpuShaderCreatorRcPtr & shaderCreator,
     }
 
     const unsigned long defaultMaxWidth = shaderCreator->getTextureMaxWidth();
+    if (defaultMaxWidth < 2)
+    {
+        throw Exception("The GPU texture maximum width must be at least 2");
+    }
 
     const unsigned long length      = lutData->getArray().getLength();
     const unsigned long width       = std::min(length, defaultMaxWidth);
-    const unsigned long height      = (length / defaultMaxWidth) + 1;
+    // Each completed row repeats its last texel as the next row's first.
+    // The shader divides by (width - 1) to find the row, including for the
+    // final sample. Allocate that row even when it starts at the last sample.
+    const unsigned long height      = length < defaultMaxWidth
+                                        ? 1
+                                        : (length - 1) / (width - 1) + 1;
     const unsigned long numChannels = lutData->getArray().getNumColorComponents();
 
     // Note: The 1D LUT needs a GPU texture for the Look-up table implementation. 

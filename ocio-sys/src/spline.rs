@@ -1,0 +1,169 @@
+use std::ffi::c_void;
+
+unsafe extern "C" {
+    pub fn ocio_grading_spline_copy_points(
+        value: *const c_void,
+        borrowed: bool,
+        start: usize,
+        points: *mut [f32; 3],
+        count: usize,
+    );
+    pub fn ocio_grading_curve_value_shared(source: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_set_dynamic_property(
+        value: *const c_void,
+        hue: bool,
+        property: *mut c_void,
+    );
+    pub fn ocio_grading_curve_value_shared_set_transform(
+        value: *const c_void,
+        hue: bool,
+        transform: *mut c_void,
+    );
+    pub fn ocio_grading_curve_value_shared_destroy(value: *mut c_void, hue: bool);
+    pub fn ocio_grading_curve_value_shared_spline(
+        value: *mut c_void,
+        kind: i32,
+        hue: bool,
+    ) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_spline_view(
+        value: *mut c_void,
+        kind: i32,
+        hue: bool,
+    ) -> *const c_void;
+    pub fn ocio_grading_curve_value_shared_copy(value: *mut c_void, hue: bool) -> *mut c_void;
+    pub fn ocio_grading_curve_value_shared_identity(value: *mut c_void, hue: bool) -> bool;
+    pub fn ocio_grading_curve_value_shared_validate(value: *mut c_void, hue: bool);
+    pub fn ocio_grading_curve_value_shared_equals(
+        lhs: *mut c_void,
+        rhs: *mut c_void,
+        hue: bool,
+    ) -> bool;
+    pub fn ocio_grading_curve_value_shared_slope(
+        value: *mut c_void,
+        kind: i32,
+        index: usize,
+        hue: bool,
+    ) -> f32;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_value_shared_draw_only(value: *mut c_void) -> bool;
+    pub fn ocio_grading_curve_serialize(
+        handle: *const c_void,
+        kind: i32,
+    ) -> *const std::ffi::c_char;
+    pub fn ocio_grading_curve_const_view(h: *mut c_void, kind: i32, hue: bool) -> *const c_void;
+    pub fn ocio_grading_curve_const_shared(h: *mut c_void, kind: i32, hue: bool) -> *mut c_void;
+    pub fn ocio_grading_spline_shared_data(h: *const c_void) -> *const c_void;
+    pub fn ocio_grading_spline_shared_destroy(h: *mut c_void);
+    pub fn ocio_grading_spline_const_count(h: *const c_void) -> usize;
+    pub fn ocio_grading_spline_const_equals(left: *const c_void, right: *const c_void) -> bool;
+    pub fn ocio_grading_spline_const_point(
+        h: *const c_void,
+        index: usize,
+        x: *mut f32,
+        y: *mut f32,
+    );
+    pub fn ocio_grading_spline_const_slope(h: *const c_void, index: usize) -> f32;
+    pub fn ocio_grading_spline_const_slopes_default(h: *const c_void) -> bool;
+    pub fn ocio_grading_spline_const_validate(h: *const c_void);
+    pub fn ocio_grading_spline_const_copy(h: *const c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_spline_const_type(h: *const c_void) -> i32;
+    pub fn ocio_grading_bspline_curve_create(count: usize) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_create_from_points(
+        xy: *const [f32; 2],
+        count: usize,
+        kind: i32,
+        mode: i32,
+    ) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_create_from_points_unvalidated(
+        xy: *const [f32; 2],
+        count: usize,
+        kind: i32,
+        mode: i32,
+    ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_bspline_curve_create_with_spline_type(
+        count: usize,
+        kind: i32,
+    ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_bspline_curve_create_with_hue_type(count: usize, kind: i32) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_destroy(h: *mut c_void);
+    pub fn ocio_grading_bspline_curve_create_editable_copy(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_grading_bspline_curve_get_num_control_points(h: *mut c_void) -> usize;
+    pub fn ocio_grading_bspline_curve_set_num_control_points(h: *mut c_void, count: usize);
+    pub fn ocio_grading_bspline_curve_get_control_point(
+        h: *mut c_void,
+        index: usize,
+        x: *mut f32,
+        y: *mut f32,
+    );
+    pub fn ocio_grading_bspline_curve_set_control_point(
+        h: *mut c_void,
+        index: usize,
+        x: f32,
+        y: f32,
+    );
+    pub fn ocio_grading_bspline_curve_get_slope(h: *mut c_void, index: usize) -> f32;
+    pub fn ocio_grading_bspline_curve_set_slope(h: *mut c_void, index: usize, slope: f32);
+    pub fn ocio_grading_bspline_curve_slopes_are_default(h: *mut c_void) -> bool;
+    pub fn ocio_grading_bspline_curve_validate(h: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_bspline_curve_get_spline_type(h: *mut c_void) -> i32;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_bspline_curve_set_spline_type(h: *mut c_void, kind: i32);
+    pub fn ocio_grading_bspline_curve_equals(h: *mut c_void, other: *mut c_void) -> bool;
+    pub fn ocio_grading_rgb_curve_object_create(style: i32) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_object_destroy(h: *mut c_void);
+    pub fn ocio_grading_rgb_curve_object_create_editable_copy(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_object_validate(h: *mut c_void);
+    pub fn ocio_grading_rgb_curve_object_is_identity(h: *mut c_void) -> bool;
+    pub fn ocio_grading_rgb_curve_object_get_curve(h: *mut c_void, kind: i32) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_object_equals(h: *mut c_void, other: *mut c_void) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_create(style: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_destroy(h: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_create_editable_copy(h: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_validate(h: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_is_identity(h: *mut c_void) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_get_curve(h: *mut c_void, kind: i32) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_equals(h: *mut c_void, other: *mut c_void) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_get_draw_curve_only(h: *mut c_void) -> bool;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_set_draw_curve_only(h: *mut c_void, value: bool);
+    pub fn ocio_grading_rgb_curve_object_from_transform(transform: *mut c_void) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_object_set_transform(h: *mut c_void, transform: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_from_transform(transform: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_set_transform(h: *mut c_void, transform: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_get_b_spline_type_for_hue_curve_type(kind: i32) -> i32;
+    pub fn ocio_grading_rgb_curve_object_create_from_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_grading_rgb_curve_object_create_from_shared_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_create_from_shared_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_grading_hue_curve_object_create_from_curves(
+        curves: *const *mut c_void,
+    ) -> *mut c_void;
+    pub fn ocio_dynamic_property_grading_rgb_curve_object_get(h: *mut c_void) -> *mut c_void;
+    pub fn ocio_dynamic_property_grading_rgb_curve_object_set(h: *mut c_void, value: *mut c_void);
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_object_get(h: *mut c_void) -> *mut c_void;
+    #[cfg(feature = "v2_5")]
+    pub fn ocio_dynamic_property_grading_hue_curve_object_set(h: *mut c_void, value: *mut c_void);
+}

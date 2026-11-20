@@ -12,15 +12,18 @@ pub struct GradingRGBCurveTransform {
 
 impl GradingRGBCurveTransform {
     fn read_curve(&self, curve_type: RGBCurveType) -> Result<Vec<GradingCurvePoint>> {
-        let count = self.num_control_points(curve_type)?.max(0) as usize;
-        (0..count)
-            .map(|index| {
-                let index = index as i32;
-                let (x, y) = self.control_point(curve_type, index)?;
-                let slope = self.slope(curve_type, index)?;
-                Ok(GradingCurvePoint { x, y, slope })
-            })
-            .collect()
+        let count = super::checked_native_count(
+            self.num_control_points(curve_type)?,
+            "GradingRGBCurveTransform::read_curve",
+        )?;
+        let mut points =
+            super::reserve_native_items(count, "GradingRGBCurveTransform::read_curve")?;
+        for index in 0..count {
+            let (x, y) = self.control_point(curve_type, index as i32)?;
+            let slope = self.slope(curve_type, index as i32)?;
+            points.push(GradingCurvePoint { x, y, slope });
+        }
+        Ok(points)
     }
 
     fn require_non_negative_index(index: i32, operation: &'static str) -> Result<()> {
@@ -94,12 +97,16 @@ impl GradingRGBCurveTransform {
 
     /// Set the RGB curve grading values.
     pub fn set_value(&self, value: &GradingRGBCurveValue) -> Result<()> {
+        for points in [&value.red, &value.green, &value.blue, &value.master] {
+            super::checked_curve_count(points.len())?;
+        }
         fn write_curve(
             transform: &GradingRGBCurveTransform,
             curve_type: RGBCurveType,
             points: &[GradingCurvePoint],
         ) -> Result<()> {
-            transform.set_num_control_points(curve_type, points.len() as i32)?;
+            transform
+                .set_num_control_points(curve_type, super::checked_curve_count(points.len())?)?;
             for (index, point) in points.iter().enumerate() {
                 let index = index as i32;
                 transform.set_control_point(curve_type, index, point.x, point.y)?;
@@ -112,6 +119,26 @@ impl GradingRGBCurveTransform {
         write_curve(self, RGBCurveType::Green, &value.green)?;
         write_curve(self, RGBCurveType::Blue, &value.blue)?;
         write_curve(self, RGBCurveType::Master, &value.master)
+    }
+
+    /// Validate a complete RGB snapshot before committing it through OCIO.
+    ///
+    /// Validation errors leave the transform unchanged. If the native commit
+    /// itself fails, OCIO does not guarantee rollback. Unlike `set_value`, this
+    /// method validates the entire snapshot and batches it into one bridge call.
+    pub fn set_value_checked(&self, value: &GradingRGBCurveValue) -> Result<()> {
+        let curves = [&value.red, &value.green, &value.blue, &value.master];
+        let pointers = curves.map(|curve| curve.as_ptr().cast::<c_void>());
+        let counts = curves.map(|curve| curve.len());
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_grading_rgb_curve_transform_set_checked(
+                self.handle.as_ptr(),
+                pointers.as_ptr(),
+                counts.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()
     }
 
     #[deprecated(

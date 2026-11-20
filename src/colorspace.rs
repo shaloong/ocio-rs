@@ -9,12 +9,323 @@ use crate::{
 };
 use ocio_sys;
 
+#[cfg(feature = "v2_5")]
+pub(crate) fn interchange_attributes_snapshot(
+    handle: *mut c_void,
+    is_const: bool,
+    named_kind: Option<i32>,
+) -> Result<BTreeMap<String, String>> {
+    unsafe extern "C" fn visit(
+        context: *mut c_void,
+        name: *const u8,
+        name_len: usize,
+        value: *const u8,
+        value_len: usize,
+    ) -> bool {
+        crate::catch_callback_unwind(std::panic::AssertUnwindSafe(|| {
+            if context.is_null()
+                || name.is_null()
+                || value.is_null()
+                || name_len > isize::MAX as usize
+                || value_len > isize::MAX as usize
+            {
+                return false;
+            }
+            let map = unsafe { &mut *context.cast::<BTreeMap<String, String>>() };
+            let name = unsafe { std::slice::from_raw_parts(name, name_len) };
+            let value = unsafe { std::slice::from_raw_parts(value, value_len) };
+            map.insert(
+                String::from_utf8_lossy(name).into_owned(),
+                String::from_utf8_lossy(value).into_owned(),
+            );
+            true
+        }))
+        .unwrap_or(false)
+    }
+    let mut attributes = BTreeMap::new();
+    crate::clear_last_error();
+    let ok = unsafe {
+        let context = (&mut attributes as *mut BTreeMap<String, String>).cast();
+        match named_kind {
+            Some(kind) => ocio_sys::ocio_named_item_visit_interchange_attributes(
+                handle, kind, is_const, visit, context,
+            ),
+            None => ocio_sys::ocio_color_space_visit_interchange_attributes(
+                handle, is_const, visit, context,
+            ),
+        }
+    };
+    crate::ocio_call_status()?;
+    if !ok {
+        return Err(OcioError::Ocio(
+            "interchange attribute visitor failed".into(),
+        ));
+    }
+    Ok(attributes)
+}
+
 /// Describes a color space definition stored in a [`Config`](crate::Config).
 pub struct ColorSpace {
     pub(crate) handle: NonNull<c_void>,
 }
 
+/// An owned, read-only reference to a native OCIO color space.
+///
+/// The native object is shared rather than copied. Text is borrowed from it;
+/// coordinate external native mutations that could invalidate the text.
+pub struct ConstColorSpace {
+    pub(crate) handle: NonNull<c_void>,
+}
+
+/// Borrowed editable or read-only color space for OCIO operations.
+#[derive(Clone, Copy)]
+pub enum ColorSpaceRef<'a> {
+    Editable(&'a ColorSpace),
+    ReadOnly(&'a ConstColorSpace),
+}
+impl<'a> From<&'a ColorSpace> for ColorSpaceRef<'a> {
+    fn from(value: &'a ColorSpace) -> Self {
+        Self::Editable(value)
+    }
+}
+impl<'a> From<&'a ConstColorSpace> for ColorSpaceRef<'a> {
+    fn from(value: &'a ConstColorSpace) -> Self {
+        Self::ReadOnly(value)
+    }
+}
+impl ColorSpaceRef<'_> {
+    pub(crate) fn raw(self) -> (*mut c_void, bool) {
+        match self {
+            Self::Editable(value) => (value.handle.as_ptr(), false),
+            Self::ReadOnly(value) => (value.handle.as_ptr(), true),
+        }
+    }
+}
+
+impl ConstColorSpace {
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ColorSpaceDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 1, direction as i32)
+    }
+    /// Copy the native transform in `direction` using OCIO's editable-copy semantics.
+    /// A copied group still shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
+    pub fn copy_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_const_color_space_copy_transform(self.handle.as_ptr(), direction as i32)
+        };
+        crate::ocio_call_status()?;
+        Ok(transform_from_raw_handle(handle))
+    }
+    fn text(&self, field: i32, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr =
+            unsafe { ocio_sys::ocio_const_color_space_text(self.handle.as_ptr(), field, index) };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    fn number(&self, field: i32) -> Result<i64> {
+        crate::clear_last_error();
+        let value = unsafe { ocio_sys::ocio_const_color_space_number(self.handle.as_ptr(), field) };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+    fn contains(&self, field: i32, value: impl AsRef<str>) -> Result<bool> {
+        let value = cstring(value)?;
+        self.contains_cstr(field, &value)
+    }
+    fn contains_cstr(&self, field: i32, value: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let present = unsafe {
+            ocio_sys::ocio_const_color_space_contains(self.handle.as_ptr(), field, value.as_ptr())
+        };
+        crate::ocio_call_status()?;
+        Ok(present)
+    }
+    /// Borrow the family without copying.
+    pub fn family(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(0, 0)
+    }
+    /// Borrow the equality group without copying.
+    pub fn equality_group(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(1, 0)
+    }
+    /// Borrow the encoding without copying.
+    pub fn encoding(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(2, 0)
+    }
+    /// Borrow a named alias; out-of-range indices return `None`.
+    pub fn alias(&self, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        self.text(3, index)
+    }
+    /// Borrow a category; out-of-range indices return `None`.
+    pub fn category(&self, index: usize) -> Result<Option<&std::ffi::CStr>> {
+        self.text(4, index)
+    }
+    /// Borrow the interchange identifier without copying.
+    #[cfg(feature = "v2_5")]
+    pub fn interop_id(&self) -> Result<Option<&std::ffi::CStr>> {
+        self.text(5, 0)
+    }
+    /// Borrow a native interchange attribute. Unknown attribute names report an error.
+    #[cfg(feature = "v2_5")]
+    pub fn interchange_attribute(&self, name: &std::ffi::CStr) -> Result<Option<&std::ffi::CStr>> {
+        crate::clear_last_error();
+        let ptr = unsafe {
+            ocio_sys::ocio_const_color_space_interchange_attribute(
+                self.handle.as_ptr(),
+                name.as_ptr(),
+            )
+        };
+        crate::ocio_call_status()?;
+        Ok(if ptr.is_null() {
+            None
+        } else {
+            Some(unsafe { std::ffi::CStr::from_ptr(ptr) })
+        })
+    }
+    /// Return an owned snapshot of all native interchange attributes.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        interchange_attributes_snapshot(self.handle.as_ptr(), true, None)
+    }
+    /// Number of aliases.
+    pub fn num_aliases(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_const_color_space_alias_count(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+    /// Number of categories.
+    pub fn num_categories(&self) -> Result<usize> {
+        usize::try_from(self.number(1)?)
+            .map_err(|_| OcioError::Ocio("invalid category count".into()))
+    }
+    /// Whether OCIO recognizes an alias.
+    pub fn has_alias(&self, value: impl AsRef<str>) -> Result<bool> {
+        self.contains(0, value)
+    }
+    /// Check an alias without constructing a C string.
+    pub fn has_alias_cstr(&self, value: &std::ffi::CStr) -> Result<bool> {
+        self.contains_cstr(0, value)
+    }
+    /// Whether OCIO recognizes a category.
+    pub fn has_category(&self, value: impl AsRef<str>) -> Result<bool> {
+        self.contains(1, value)
+    }
+    /// Check a category without constructing a C string.
+    pub fn has_category_cstr(&self, value: &std::ffi::CStr) -> Result<bool> {
+        self.contains_cstr(1, value)
+    }
+    /// Native bit depth.
+    pub fn bit_depth(&self) -> Result<BitDepth> {
+        Ok(match self.number(2)? {
+            1 => BitDepth::Uint8,
+            2 => BitDepth::Uint10,
+            3 => BitDepth::Uint12,
+            4 => BitDepth::Uint14,
+            5 => BitDepth::Uint16,
+            6 => BitDepth::Uint32,
+            7 => BitDepth::F16,
+            8 => BitDepth::F32,
+            _ => BitDepth::Unknown,
+        })
+    }
+    /// Reference space used by this color space.
+    pub fn reference_space_type(&self) -> Result<ReferenceSpaceType> {
+        match self.number(3)? {
+            0 => Ok(ReferenceSpaceType::Scene),
+            1 => Ok(ReferenceSpaceType::Display),
+            _ => Err(OcioError::Ocio("unknown reference space type".into())),
+        }
+    }
+    /// Whether this color space represents non-color data.
+    pub fn is_data(&self) -> Result<bool> {
+        Ok(self.number(4)? != 0)
+    }
+    /// Native allocation mode.
+    pub fn allocation(&self) -> Result<Allocation> {
+        Ok(match self.number(5)? {
+            1 => Allocation::Uniform,
+            2 => Allocation::Lg2,
+            _ => Allocation::Unknown,
+        })
+    }
+    /// Copy allocation parameters into a caller-provided buffer without allocation.
+    pub fn allocation_vars_into(&self, output: &mut [f32]) -> Result<()> {
+        let count = usize::try_from(self.number(6)?)
+            .map_err(|_| OcioError::Ocio("invalid allocation parameter count".into()))?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "allocation parameter buffer length mismatch".into(),
+            ));
+        }
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_const_color_space_allocation_vars(
+                self.handle.as_ptr(),
+                output.as_mut_ptr(),
+                output.len(),
+            )
+        };
+        crate::ocio_call_status()
+    }
+    /// Number of allocation parameters.
+    pub fn num_allocation_vars(&self) -> Result<usize> {
+        usize::try_from(self.number(6)?)
+            .map_err(|_| OcioError::Ocio("invalid allocation parameter count".into()))
+    }
+    /// Borrow the native name without allocating.
+    pub fn name(&self) -> Result<&std::ffi::CStr> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_color_space_get_name(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            return Err(OcioError::Ocio("null color-space name".into()));
+        }
+        Ok(unsafe { std::ffi::CStr::from_ptr(ptr) })
+    }
+    /// Borrow the native description without allocating.
+    pub fn description(&self) -> Result<&std::ffi::CStr> {
+        crate::clear_last_error();
+        let ptr = unsafe { ocio_sys::ocio_const_color_space_get_description(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        if ptr.is_null() {
+            return Err(OcioError::Ocio("null color-space description".into()));
+        }
+        Ok(unsafe { std::ffi::CStr::from_ptr(ptr) })
+    }
+    /// Create an editable color-space copy. Native group-transform copies may
+    /// retain children shared with the original.
+    pub fn create_editable_copy(&self) -> Result<ColorSpace> {
+        crate::clear_last_error();
+        let handle =
+            unsafe { ocio_sys::ocio_const_color_space_create_editable_copy(self.handle.as_ptr()) };
+        crate::handle_result(handle).map(|handle| ColorSpace { handle })
+    }
+}
+impl Drop for ConstColorSpace {
+    fn drop(&mut self) {
+        unsafe { ocio_sys::ocio_const_color_space_destroy(self.handle.as_ptr()) }
+    }
+}
+
 impl ColorSpace {
+    /// Share the native transform without an editable copy.
+    pub fn try_const_transform(
+        &self,
+        direction: ColorSpaceDirection,
+    ) -> Result<Option<crate::transform::ConstTransform>> {
+        crate::transform::ConstTransform::from_parent(self.handle.as_ptr(), 0, direction as i32)
+    }
     /// Create a new default color space.
     pub fn create() -> Result<Self> {
         crate::clear_last_error();
@@ -22,7 +333,17 @@ impl ColorSpace {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Create an editable copy of this color space.
+    /// Create a scene- or display-referred color space.
+    pub fn create_with_reference_space(reference_space: ReferenceSpaceType) -> Result<Self> {
+        crate::clear_last_error();
+        let handle = unsafe {
+            ocio_sys::ocio_color_space_create_with_reference_space(reference_space as i32)
+        };
+        crate::handle_result(handle).map(|handle| Self { handle })
+    }
+
+    /// Create an editable copy. Native group-transform copies may retain
+    /// children shared with the original.
     pub fn create_editable_copy(&self) -> Result<Self> {
         crate::clear_last_error();
         let handle =
@@ -160,12 +481,20 @@ impl ColorSpace {
     ///
     /// Returns `None` when `index` does not refer to an authored category.
     pub fn category_by_index(&self, index: i32) -> Option<String> {
-        unsafe {
+        self.try_category_by_index(index).ok().flatten()
+    }
+
+    /// Get a category while preserving bridge errors.
+    pub fn try_category_by_index(&self, index: i32) -> Result<Option<String>> {
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_category(
                 self.handle.as_ptr(),
                 index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Set the category of this color space.
@@ -223,20 +552,47 @@ impl ColorSpace {
 
     /// Get the allocation variables as a slice of floats.
     pub fn try_allocation_vars(&self) -> Result<Vec<f32>> {
-        let n = self.try_allocation_num_vars()?;
-        if n <= 0 {
+        let n = crate::transform::checked_native_count(
+            self.try_allocation_num_vars()?,
+            "ColorSpace::try_allocation_vars",
+        )?;
+        if n == 0 {
             return Ok(Vec::new());
         }
-        let mut vars = vec![0.0f32; n as usize];
+        let mut vars =
+            crate::transform::reserve_native_items(n, "ColorSpace::try_allocation_vars")?;
+        vars.resize(n, 0.0f32);
+        self.read_allocation_vars(&mut vars)?;
+        Ok(vars)
+    }
+
+    /// Copy allocation variables into an exactly sized caller-provided buffer.
+    /// The buffer is left untouched if its length does not match the native count.
+    pub fn try_allocation_vars_into(&self, output: &mut [f32]) -> Result<()> {
+        let count = crate::transform::checked_native_count(
+            self.try_allocation_num_vars()?,
+            "ColorSpace::try_allocation_vars_into",
+        )?;
+        if output.len() != count {
+            return Err(OcioError::InvalidInput(
+                "allocation parameter buffer length mismatch".into(),
+            ));
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        self.read_allocation_vars(output)
+    }
+
+    fn read_allocation_vars(&self, output: &mut [f32]) -> Result<()> {
         crate::clear_last_error();
         unsafe {
             ocio_sys::ocio_color_space_get_allocation_vars(
                 self.handle.as_ptr(),
-                vars.as_mut_ptr() as *mut c_void,
+                output.as_mut_ptr() as *mut c_void,
             );
         }
-        crate::ocio_call_status()?;
-        Ok(vars)
+        crate::ocio_call_status()
     }
 
     /// Get the allocation variables as a slice of floats.
@@ -279,12 +635,13 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
-    /// Get the transform for the given direction.
+    /// Get an editable copy of the transform for the given direction.
+    /// A copied group still shares its children; see [`crate::transform::GroupTransform::create_deep_copy`].
     pub fn transform(&self, direction: ColorSpaceDirection) -> Option<Transform> {
         self.try_transform(direction).ok().flatten()
     }
 
-    /// Get the transform for the given direction, preserving OCIO query failures.
+    /// Copy the transform for the given direction, preserving OCIO query failures.
     pub fn try_transform(&self, direction: ColorSpaceDirection) -> Result<Option<Transform>> {
         crate::clear_last_error();
         let handle = unsafe {
@@ -320,19 +677,74 @@ impl ColorSpace {
         crate::ocio_call_status()
     }
 
-    /// Get the number of aliases for this color space.
-    pub fn num_aliases(&self) -> i32 {
-        unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) as i32 }
+    /// Set a shared read-only transform in `direction`.
+    /// OCIO stores an editable copy. A copied group still shares its children.
+    pub fn try_set_const_transform(
+        &self,
+        transform: &crate::transform::ConstTransform,
+        direction: ColorSpaceDirection,
+    ) -> Result<()> {
+        crate::clear_last_error();
+        unsafe {
+            ocio_sys::ocio_color_space_set_const_transform(
+                self.handle.as_ptr(),
+                transform.handle.as_ptr(),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
     }
 
-    /// Get the alias at the given index.
-    pub fn alias(&self, index: i32) -> Option<String> {
+    /// Remove the transform in `direction`, leaving the other direction unchanged.
+    pub fn try_clear_transform(&self, direction: ColorSpaceDirection) -> Result<()> {
+        crate::clear_last_error();
         unsafe {
+            ocio_sys::ocio_color_space_set_const_transform(
+                self.handle.as_ptr(),
+                std::ptr::null_mut(),
+                direction as i32,
+            )
+        };
+        crate::ocio_call_status()
+    }
+
+    /// Get the number of aliases, or zero on error or overflow.
+    pub fn num_aliases(&self) -> i32 {
+        self.try_num_aliases()
+            .ok()
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or(0)
+    }
+
+    /// Get the full native alias count, preserving bridge failures.
+    pub fn try_num_aliases(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe { ocio_sys::ocio_color_space_get_num_aliases(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(count)
+    }
+
+    /// Get an alias by native index, returning `None` when out of range.
+    pub fn try_alias_at(&self, index: usize) -> Result<Option<String>> {
+        if index >= self.try_num_aliases()? {
+            return Ok(None);
+        }
+        crate::clear_last_error();
+        let value = unsafe {
             cstr_from_mut(ocio_sys::ocio_color_space_get_alias(
                 self.handle.as_ptr(),
-                index as usize,
+                index,
             ))
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(value)
+    }
+
+    /// Get the alias at the given index, or `None` if it is out of range.
+    pub fn alias(&self, index: i32) -> Option<String> {
+        self.try_alias_at(usize::try_from(index).ok()?)
+            .ok()
+            .flatten()
     }
 
     /// Add an alias for this color space.
@@ -406,27 +818,62 @@ impl ColorSpace {
 
     /// Returns whether this color space has the given category.
     pub fn has_category(&self, category: impl AsRef<str>) -> bool {
-        let c = match cstring(category) {
-            Ok(c) => c,
-            Err(_) => return false,
+        self.try_has_category(category).unwrap_or(false)
+    }
+
+    /// Check a category while preserving invalid input and bridge errors.
+    pub fn try_has_category(&self, category: impl AsRef<str>) -> Result<bool> {
+        self.try_has_category_cstr(&cstring(category)?)
+    }
+
+    /// Check a category without allocating a C string.
+    pub fn try_has_category_cstr(&self, category: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), category.as_ptr().cast())
         };
-        unsafe { ocio_sys::ocio_color_space_has_category(self.handle.as_ptr(), c.as_ptr().cast()) }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the number of categories for this color space.
     pub fn num_categories(&self) -> i32 {
-        unsafe {
+        self.try_num_categories().unwrap_or(0)
+    }
+
+    /// Get the native category count, preserving bridge errors.
+    pub fn try_num_categories(&self) -> Result<i32> {
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_color_space_get_num_categories(self.handle.as_ptr() as *mut c_void)
+        };
+        crate::ocio_call_status()?;
+        if count < 0 {
+            return Err(OcioError::ValidationFailed(
+                "negative native category count".into(),
+            ));
         }
+        Ok(count)
     }
 
     /// Returns whether this color space has the given alias.
     pub fn has_alias(&self, alias: impl AsRef<str>) -> bool {
-        let a = match cstring(alias) {
-            Ok(a) => a,
-            Err(_) => return false,
+        self.try_has_alias(alias).unwrap_or(false)
+    }
+
+    /// Check an alias while preserving invalid input and bridge errors.
+    pub fn try_has_alias(&self, alias: impl AsRef<str>) -> Result<bool> {
+        self.try_has_alias_cstr(&cstring(alias)?)
+    }
+
+    /// Check an alias without allocating a C string.
+    pub fn try_has_alias_cstr(&self, alias: &std::ffi::CStr) -> Result<bool> {
+        crate::clear_last_error();
+        let value = unsafe {
+            ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), alias.as_ptr().cast())
         };
-        unsafe { ocio_sys::ocio_color_space_has_alias(self.handle.as_ptr(), a.as_ptr().cast()) }
+        crate::ocio_call_status()?;
+        Ok(value)
     }
 
     /// Get the interop identifier for this color space.
@@ -503,32 +950,14 @@ impl ColorSpace {
     #[cfg(feature = "v2_5")]
     #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
     pub fn interchange_attributes(&self) -> BTreeMap<String, String> {
-        let mut attrs = BTreeMap::new();
-        let count = unsafe {
-            ocio_sys::ocio_color_space_get_num_interchange_attributes(self.handle.as_ptr())
-        };
-        for index in 0..count {
-            let name = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_color_space_get_interchange_attribute_name_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            let value = unsafe {
-                cstr_to_opt_string(
-                    ocio_sys::ocio_color_space_get_interchange_attribute_value_by_index(
-                        self.handle.as_ptr(),
-                        index,
-                    ),
-                )
-            };
-            if let (Some(name), Some(value)) = (name, value) {
-                attrs.insert(name, value);
-            }
-        }
-        attrs
+        self.try_interchange_attributes().unwrap_or_default()
+    }
+
+    /// Return an owned snapshot of all native interchange attributes, preserving errors.
+    #[cfg(feature = "v2_5")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "v2_5")))]
+    pub fn try_interchange_attributes(&self) -> Result<BTreeMap<String, String>> {
+        interchange_attributes_snapshot(self.handle.as_ptr(), false, None)
     }
 }
 
@@ -546,6 +975,20 @@ mod tests {
     fn create_color_space() {
         let cs = ColorSpace::create();
         assert!(cs.is_ok());
+    }
+
+    #[test]
+    fn create_display_reference_color_space() {
+        let cs = ColorSpace::create_with_reference_space(ReferenceSpaceType::Display).unwrap();
+        assert_eq!(cs.reference_space_type(), ReferenceSpaceType::Display);
+        assert_eq!(
+            cs.create_editable_copy().unwrap().reference_space_type(),
+            ReferenceSpaceType::Display
+        );
+        assert_eq!(
+            ColorSpace::create().unwrap().reference_space_type(),
+            ReferenceSpaceType::Scene
+        );
     }
 
     #[test]

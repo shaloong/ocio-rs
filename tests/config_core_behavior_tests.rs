@@ -22,11 +22,303 @@ fn config_core_test_lock() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn raw_processor_overloads_report_null_arguments() {
+    let _guard = config_core_test_lock();
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let config = sys::ocio_config_create_raw();
+        let context = sys::ocio_context_create();
+        let matrix = sys::ocio_matrix_transform_create();
+        let named = sys::ocio_named_transform_create();
+        let space = sys::ocio_color_space_create();
+        assert!(
+            !config.is_null()
+                && !context.is_null()
+                && !matrix.is_null()
+                && !named.is_null()
+                && !space.is_null()
+        );
+        let null = std::ptr::null_mut();
+        let calls: [Box<dyn Fn() -> *mut std::ffi::c_void>; 17] = [
+            Box::new(|| sys::ocio_config_get_processor(config, null, space, space)),
+            Box::new(|| sys::ocio_config_get_processor(config, context, null, space)),
+            Box::new(|| sys::ocio_config_get_processor(config, context, space, null)),
+            Box::new(|| sys::ocio_config_get_processor_v1(config, null, space)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_v3(config, null, c"raw".as_ptr(), c"raw".as_ptr())
+            }),
+            Box::new(|| {
+                sys::ocio_config_get_processor_v5(
+                    config,
+                    null,
+                    c"raw".as_ptr(),
+                    c"display".as_ptr(),
+                    c"view".as_ptr(),
+                    0,
+                )
+            }),
+            Box::new(|| sys::ocio_config_get_processor_v9(config, null, c"name".as_ptr(), 0)),
+            Box::new(|| sys::ocio_config_get_processor_v10(config, null)),
+            Box::new(|| sys::ocio_config_get_processor_v11(config, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v12(config, context, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v12(config, null, matrix, 0)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_const_transform_with_const_context(
+                    config, null, null, 0,
+                )
+            }),
+            Box::new(|| sys::ocio_config_get_processor_from_const_transform(config, null, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v6(config, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v7(config, context, null, 0)),
+            Box::new(|| sys::ocio_config_get_processor_v7(config, null, named, 0)),
+            Box::new(|| {
+                sys::ocio_config_get_processor_from_const_named_transform(config, null, null, 0)
+            }),
+        ];
+        for call in calls {
+            sys::ocio_error_clear_last();
+            assert!(call().is_null());
+            assert!(!sys::ocio_error_get_last().is_null());
+        }
+        sys::ocio_error_clear_last();
+        sys::ocio_matrix_transform_destroy(matrix);
+        sys::ocio_named_transform_destroy(named);
+        sys::ocio_color_space_destroy(space);
+        sys::ocio_context_destroy(context);
+        sys::ocio_config_destroy(config);
+    }
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_canonical_and_color_space_index_return_none() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    assert_eq!(
+        config
+            .try_canonical_name("missing_space_or_transform")
+            .unwrap(),
+        None
+    );
+    assert_eq!(config.try_color_space_name_by_index(-1).unwrap(), None);
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn missing_display_view_and_look_names_return_none() {
+    let _guard = config_core_test_lock();
+    let config = Config::create().unwrap();
+    assert_eq!(config.try_default_display().unwrap(), None);
+    assert_eq!(config.try_display(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(-1).unwrap(), None);
+    assert_eq!(config.try_display_all(0).unwrap(), None);
+    assert!(!config.is_display_temporary(-1));
+    assert!(!config.is_display_temporary(i32::MAX));
+    #[cfg(feature = "v2_5")]
+    {
+        config.set_display_temporary(-1, true).unwrap();
+        config.set_display_temporary(i32::MAX, true).unwrap();
+    }
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "", -1)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "", i32::MAX)
+            .unwrap(),
+        None
+    );
+    assert_eq!(config.try_role_name(-1).unwrap(), None);
+    assert_eq!(config.try_role_name(config.num_roles()).unwrap(), None);
+    unsafe {
+        use ocio_rs::ocio_sys as sys;
+        let raw = sys::ocio_config_create_raw();
+        assert!(!raw.is_null());
+        for index in [-1, i32::MAX] {
+            let ptr = sys::ocio_config_get_display_all(raw, index);
+            assert!(!ptr.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(ptr.cast()).to_bytes(), b"");
+            assert!(!sys::ocio_config_is_display_temporary(raw, index));
+            #[cfg(feature = "v2_5")]
+            sys::ocio_config_set_display_temporary(raw, index, true);
+            let view = sys::ocio_config_get_view_v2(
+                raw,
+                ocio_rs::ViewType::Shared as i32,
+                std::ptr::null(),
+                index,
+            );
+            assert!(!view.is_null());
+            assert_eq!(std::ffi::CStr::from_ptr(view.cast()).to_bytes(), b"");
+        }
+        sys::ocio_config_destroy(raw);
+    }
+    assert_eq!(config.try_default_view("missing_display").unwrap(), None);
+    assert_eq!(config.try_view("missing_display", 0).unwrap(), None);
+    assert_eq!(
+        config
+            .try_view_with_color_space("missing_display", "raw", 0)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::Shared, "missing_display", 0)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_virtual_display_view_by_type(ocio_rs::ViewType::Shared, -1)
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        config
+            .try_default_view_with_color_space("missing_display", "raw")
+            .unwrap(),
+        None
+    );
+    assert_eq!(config.try_look_name_by_index(-1).unwrap(), None);
+    let baker = ocio_rs::Baker::create().unwrap();
+    baker.set_config(&config).unwrap();
+    assert_eq!(
+        baker
+            .const_config()
+            .unwrap()
+            .unwrap()
+            .default_display()
+            .unwrap(),
+        None
+    );
+}
+
 fn test_data_path(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("data")
         .join(rel)
+}
+
+#[test]
+fn color_space_and_named_transform_indices_preserve_missing_and_errors() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    assert_eq!(config.try_color_space_index_cstr(c"missing").unwrap(), -1);
+    assert_eq!(
+        config.try_named_transform_index_cstr(c"missing").unwrap(),
+        -1
+    );
+    assert!(config.try_color_space_index("bad\0name").is_err());
+    assert!(config.try_named_transform_index("bad\0name").is_err());
+    if is_stub() {
+        return;
+    }
+    assert!(config.try_color_space_index_cstr(c"raw").unwrap() >= 0);
+    let named = ocio_rs::NamedTransform::create().unwrap();
+    named.set_name("index-test").unwrap();
+    let identity = ocio_rs::transform::MatrixTransform::identity().unwrap();
+    named
+        .try_set_transform(&identity, ocio_rs::TransformDirection::Forward)
+        .unwrap();
+    config.try_add_named_transform(&named).unwrap();
+    assert!(
+        config
+            .try_named_transform_index_cstr(c"index-test")
+            .unwrap()
+            >= 0
+    );
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert_eq!(
+            ocio_rs::ocio_sys::ocio_config_get_index_for_color_space(
+                std::ptr::null_mut(),
+                c"raw".as_ptr()
+            ),
+            -1
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(config.try_color_space_index_cstr(c"missing").unwrap(), -1);
+    unsafe {
+        assert_eq!(
+            ocio_rs::ocio_sys::ocio_config_get_index_for_named_transform(
+                std::ptr::null_mut(),
+                c"missing".as_ptr()
+            ),
+            -1
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(
+        config.try_named_transform_index_cstr(c"missing").unwrap(),
+        -1
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn default_file_rule_query_preserves_match_and_bridge_errors() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    let rules = ocio_rs::FileRules::create().unwrap();
+    rules.insert_rule(0, "EXR", "raw", "*", "exr").unwrap();
+    config.set_file_rules(&rules).unwrap();
+    assert!(config
+        .try_filepath_only_matches_default_rule("image.dpx")
+        .unwrap());
+    assert!(!config
+        .try_filepath_only_matches_default_rule_cstr(c"image.exr")
+        .unwrap());
+    assert!(config
+        .try_filepath_only_matches_default_rule("bad\0path")
+        .is_err());
+    assert!(!config.filepath_only_matches_default_rule("bad\0path"));
+    unsafe {
+        ocio_rs::ocio_sys::ocio_error_clear_last();
+        assert!(
+            !ocio_rs::ocio_sys::ocio_config_filepath_only_matches_default_rule(
+                std::ptr::null_mut(),
+                c"image.exr".as_ptr()
+            )
+        );
+        assert!(!ocio_rs::ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert!(config
+        .try_filepath_only_matches_default_rule_cstr(c"image.dpx")
+        .unwrap());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn color_space_linearity_distinguishes_native_errors_from_false() {
+    let _guard = config_core_test_lock();
+    let config = Config::raw().unwrap();
+    let reference = ocio_rs::ReferenceSpaceType::Scene;
+    let linear = ocio_rs::ColorSpace::create().unwrap();
+    linear.set_name("test-linear").unwrap();
+    linear.set_encoding("scene-linear").unwrap();
+    config.try_add_color_space(&linear).unwrap();
+    assert!(config
+        .try_is_color_space_linear_cstr(c"test-linear", reference)
+        .unwrap());
+    assert!(!config.try_is_color_space_linear("raw", reference).unwrap());
+    assert!(!config
+        .try_is_color_space_linear_cstr(c"raw", reference)
+        .unwrap());
+    let error = config
+        .try_is_color_space_linear_cstr(c"missing-space", reference)
+        .unwrap_err();
+    assert!(matches!(error, OcioError::Ocio(_)));
+    assert!(config
+        .try_is_color_space_linear("bad\0name", reference)
+        .is_err());
+    assert!(!config.is_color_space_linear("missing-space", reference));
+    assert!(!config.try_is_color_space_linear("raw", reference).unwrap());
 }
 
 #[cfg(feature = "v2_5")]
@@ -121,10 +413,20 @@ fn assert_context_test1_metadata(config: &Config) {
             .as_deref(),
         Some("Raw")
     );
-    assert!(config
-        .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
-        .expect("reference-space-filtered view query")
-        .is_some());
+    assert_eq!(
+        config
+            .try_view_by_reference_space(ocio_rs::SearchReferenceSpaceType::Scene, "sRGB", 0)
+            .expect("shared-view query"),
+        None
+    );
+    assert_eq!(
+        config
+            .try_view_by_type(ocio_rs::ViewType::DisplayDefined, "sRGB", 0)
+            .expect("display-defined view query")
+            .as_deref(),
+        Some("Raw")
+    );
+    assert_eq!(config.try_view("sRGB", -1).unwrap(), None);
     assert!(config
         .try_view_with_color_space("sRGB\0", "raw", 0)
         .is_err());
@@ -260,6 +562,178 @@ fn config_current_context_exposes_environment_defaults_behavior() {
 
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn current_context_preserves_constness_and_supports_processors() {
+    use ocio_rs::transform::MatrixTransform;
+    use ocio_rs::{ColorSpace, ColorSpaceDirection, TransformDirection};
+    let config = Config::raw().unwrap();
+    config.set_working_dir("original-dir").unwrap();
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    let snapshot = shared.working_dir().unwrap().unwrap();
+    let editable = config.try_current_context().unwrap().unwrap();
+    editable.set_working_dir("changed-copy").unwrap();
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some(snapshot.as_str())
+    );
+    assert_eq!(
+        shared.resolve_string_var(c"plain").unwrap().as_deref(),
+        Some("plain")
+    );
+    assert!(matches!(
+        shared.resolve_file_location(c"ocio-rs-definitely-missing.clf"),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    assert!(shared.cache_id().unwrap().is_some());
+    let copy = shared.create_editable_copy().unwrap();
+    copy.set_working_dir("another-copy").unwrap();
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some(snapshot.as_str())
+    );
+    config
+        .processor_with_const_context(c"raw", c"raw", &shared)
+        .unwrap();
+    let transform = MatrixTransform::scale(&[2.0, 1.0, 1.0, 1.0]).unwrap();
+    let color = ColorSpace::create().unwrap();
+    color
+        .try_set_transform(&transform, ColorSpaceDirection::ToReference)
+        .unwrap();
+    let shared_transform = color
+        .try_const_transform(ColorSpaceDirection::ToReference)
+        .unwrap()
+        .unwrap();
+    let cpu = config
+        .processor_from_const_transform_with_const_context(
+            &shared_transform,
+            TransformDirection::Forward,
+            &shared,
+        )
+        .unwrap()
+        .default_cpu_processor()
+        .unwrap();
+    let mut pixel = [0.25, 0.25, 0.25, 1.0];
+    cpu.try_apply_rgba(&mut pixel).unwrap();
+    assert!((pixel[0] - 0.5).abs() < 1e-6);
+    config.set_working_dir("updated-config-dir").unwrap();
+    assert_eq!(snapshot, "original-dir");
+    assert_eq!(
+        shared.working_dir().unwrap().as_deref(),
+        Some("updated-config-dir")
+    );
+    drop(config);
+    assert!(shared.working_dir().unwrap().is_some());
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn const_context_exposes_native_enumeration_and_retained_proxy() {
+    let _guard = config_core_test_lock();
+    let empty_config = Config::raw().unwrap();
+    let empty_context = empty_config.try_const_current_context().unwrap().unwrap();
+    assert!(empty_context.config_io_proxy().unwrap().is_none());
+    let config_path = test_data_path("configs/context_test1/config.ocio");
+    let config = Config::from_file(config_path.to_string_lossy()).unwrap();
+    config
+        .set_working_dir(config_path.parent().unwrap().to_string_lossy())
+        .unwrap();
+    config.set_search_path(".").unwrap();
+    let proxy = ocio_rs::ConfigIOProxy::create().unwrap();
+    proxy.set_config_data("retained config payload").unwrap();
+    proxy
+        .set_lut_data(
+            config_path
+                .parent()
+                .unwrap()
+                .join("shot4/lut1.clf")
+                .to_string_lossy(),
+            b"fixture",
+            "fixture-v1",
+        )
+        .unwrap();
+    config.set_config_io_proxy_object(&proxy).unwrap();
+    drop(proxy);
+    let shared = config.try_const_current_context().unwrap().unwrap();
+    let editable = shared.create_editable_copy().unwrap();
+    assert_eq!(shared.serialize().unwrap(), editable.serialize().unwrap());
+    assert!(shared.serialize().unwrap().contains("SHOT"));
+    let target = ocio_rs::Context::create().unwrap();
+    target.set_string_var("SHOT", "old").unwrap();
+    target.set_string_var("OTHER", "keep").unwrap();
+    target.try_add_string_vars_from_const(&shared).unwrap();
+    assert_eq!(
+        target.try_string_var("SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
+    assert_eq!(
+        target.try_string_var("OTHER").unwrap().as_deref(),
+        Some("keep")
+    );
+    target.set_string_var("SHOT", "local").unwrap();
+    assert_eq!(
+        shared.string_var(c"SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
+    assert_eq!(
+        shared.num_search_paths().unwrap(),
+        editable.try_num_search_paths().unwrap()
+    );
+    for index in -1..=shared.num_search_paths().unwrap() {
+        assert_eq!(
+            shared.search_path_by_index(index).unwrap(),
+            editable.try_search_path_by_index(index).unwrap()
+        );
+    }
+    assert_eq!(
+        shared.num_string_vars().unwrap(),
+        editable.try_num_string_vars().unwrap()
+    );
+    for index in -1..=shared.num_string_vars().unwrap() {
+        assert_eq!(
+            shared.string_var_name_by_index(index).unwrap(),
+            editable.try_string_var_name_by_index(index).unwrap()
+        );
+        assert_eq!(
+            shared.string_var_by_index(index).unwrap(),
+            editable.try_string_var_by_index(index).unwrap()
+        );
+    }
+    assert_eq!(
+        shared.environment_mode().unwrap(),
+        editable.environment_mode()
+    );
+    let mut used = ocio_rs::Context::create().unwrap();
+    assert_eq!(
+        shared
+            .resolve_string_var_with_used_context(c"${SHOT}/file.clf", &mut used)
+            .unwrap()
+            .as_deref(),
+        Some("shot4/file.clf")
+    );
+    assert_eq!(
+        used.try_string_var("SHOT").unwrap().as_deref(),
+        Some("shot4")
+    );
+    let found = shared
+        .resolve_file_location_with_used_context(c"${SHOT}/lut1.clf", &mut used)
+        .unwrap()
+        .unwrap();
+    assert!(found.ends_with("lut1.clf"));
+    assert!(matches!(
+        shared.resolve_file_location_with_used_context(c"definitely-missing-file.clf", &mut used),
+        Err(ocio_rs::OcioError::MissingFile(_))
+    ));
+    let retained = shared.config_io_proxy().unwrap().unwrap();
+    drop(editable);
+    drop(shared);
+    drop(config);
+    assert_eq!(
+        retained.try_config_data().unwrap().as_deref(),
+        Some("retained config payload")
+    );
+}
+
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
 fn config_current_context_survives_parent_drop_behavior() {
     let _guard = config_core_test_lock();
     if is_stub() {
@@ -300,6 +774,18 @@ fn config_environment_declarations_and_loading_behavior() {
         config.environment_var_default(SHOT).as_deref(),
         Some("shot4")
     );
+    config
+        .set_environment_mode(ocio_rs::EnvironmentMode::LoadAll)
+        .unwrap();
+    config.load_environment().unwrap();
+    assert_eq!(config.environment_mode(), ocio_rs::EnvironmentMode::LoadAll);
+    if let Some((key, value)) = std::env::vars().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        assert!(config
+            .current_context()
+            .unwrap()
+            .string_var(key)
+            .is_some_and(|loaded| loaded == value));
+    }
     assert_eq!(
         config.environment_var_default("LUT_PATH").as_deref(),
         Some("shot3/lut1.clf")
@@ -424,13 +910,92 @@ fn config_archive_returns_payload_for_archivable_file_behavior() {
     assert!(config.is_archivable(), "context_test1 should be archivable");
 
     let archived = config
-        .archive()
+        .archive_to_bytes()
         .expect("archive config")
         .expect("real archived config");
     assert!(
-        !archived.trim().is_empty(),
+        archived.starts_with(b"PK\x03\x04") && archived.contains(&0),
         "archive payload should not be empty"
     );
+    let root = std::env::temp_dir().join(format!(
+        "ocio-rs-archive-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir(&root).unwrap();
+    let archive_path = root.join("roundtrip.ocioz");
+    std::fs::write(&archive_path, &archived).unwrap();
+    let reloaded = Config::from_file(archive_path.to_string_lossy()).expect("load archived config");
+    assert_eq!(config.serialize().unwrap(), reloaded.serialize().unwrap());
+    let extracted = root.join("extracted");
+    ocio_rs::extract_ocioz_archive(archive_path.to_string_lossy(), extracted.to_string_lossy())
+        .unwrap();
+    // OCIO 2.4–2.6 writes the generated config entry with zero Unix mode;
+    // minizip restores that mode on extraction. Repair only this test's own
+    // temporary fixture so that its content and LUTs can be verified.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let path = extracted.join("config.ocio");
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        if permissions.mode() & 0o777 == 0 {
+            permissions.set_mode(0o600);
+            std::fs::set_permissions(path, permissions).unwrap();
+        }
+    }
+    let unpacked = Config::from_file(extracted.join("config.ocio").to_string_lossy()).unwrap();
+    assert_eq!(config.serialize().unwrap(), unpacked.serialize().unwrap());
+    let mut outputs = Vec::new();
+    for candidate in [&config, &reloaded, &unpacked] {
+        let mut pixel = [0.1, 0.2, 0.3, 1.0];
+        candidate
+            .processor("shot1_lut1_cs", "reference")
+            .unwrap()
+            .default_cpu_processor()
+            .unwrap()
+            .try_apply_rgba(&mut pixel)
+            .unwrap();
+        outputs.push(pixel);
+    }
+    assert_eq!(outputs[0], outputs[1]);
+    assert_eq!(outputs[0], outputs[2]);
+    std::fs::remove_dir_all(&root).unwrap();
+
+    #[allow(deprecated)]
+    {
+        assert!(config.archive_to_string().is_err());
+    }
+    struct FailingWriter;
+    impl std::io::Write for FailingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("intentional archive failure"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(config
+        .archive_to_writer(&mut FailingWriter)
+        .unwrap_err()
+        .to_string()
+        .contains("intentional archive failure"));
+    struct PanickingWriter;
+    impl std::io::Write for PanickingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            panic!("intentional writer panic")
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(config
+        .archive_to_writer(&mut PanickingWriter)
+        .unwrap_err()
+        .to_string()
+        .contains("panicked"));
 }
 
 #[test]
@@ -444,7 +1009,7 @@ fn config_unarchivable_archive_surfaces_ocio_error_behavior() {
     let config = Config::raw().expect("raw config");
     assert!(!config.is_archivable());
     let err = config
-        .archive()
+        .archive_to_bytes()
         .expect_err("unarchivable config must report an OCIO error");
     assert!(matches!(err, ocio_rs::OcioError::Ocio(_)));
 }
@@ -551,6 +1116,23 @@ fn config_from_file_reports_real_ocio_errors() {
     let missing = test_data_path("configs/does-not-exist.ocio");
     match Config::from_file(missing.to_string_lossy()) {
         Ok(_) => panic!("missing config should fail"),
-        Err(err) => assert!(matches!(err, OcioError::Ocio(_))),
+        Err(err) => assert!(matches!(
+            err,
+            OcioError::Ocio(_) | OcioError::MissingFile(_)
+        )),
     }
+}
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn empty_config_is_distinct_from_raw_fallback() {
+    let empty = ocio_rs::Config::create().unwrap();
+    let raw = ocio_rs::Config::raw().unwrap();
+    assert_eq!(empty.num_color_spaces(), 0);
+    assert!(raw.num_color_spaces() > 0);
+    assert!(raw.color_space("raw").is_some());
+    assert!(empty.color_space("raw").is_none());
+    let space = ocio_rs::ColorSpace::create().unwrap();
+    space.set_name("authored").unwrap();
+    empty.try_add_color_space(&space).unwrap();
+    assert!(empty.color_space("authored").is_some());
 }

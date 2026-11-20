@@ -1,5 +1,109 @@
 # Migration Notes
 
+## 0.4.0
+
+### Merge-parameter override snapshots
+
+`ConfigMergingParameters::{search_path, active_displays, active_views,
+inactive_color_spaces, environment_var, environment_var_value}` now return
+owned `CString` values instead of borrowed `&CStr` values. Use `.as_c_str()`
+when a borrowed C string is required. OCIO's editable parameter copies share
+their internal override configuration, so a mutation through another copy can
+invalidate a borrowed pointer. The owned snapshots avoid that invalidation;
+they do not change OCIO's shared-mutation behavior. The raw `ocio-sys` getters
+retain their original pointer and synchronization contracts.
+
+### Legacy GPU texture output pointers
+
+The four low-level `ocio-sys` legacy GPU texture queries now type their name
+and value outputs as pointers to pointers, matching their existing binary ABI
+and actual behavior. Direct callers must pass `&mut *const c_char` or
+`&mut *const f32` as appropriate instead of a pointer cast to a byte/float
+buffer. This is a source-breaking correction for direct `ocio-sys` callers;
+the high-level Rust texture APIs are unchanged. Returned pointers borrow the
+descriptor's native storage and must not outlive or be invalidated by it. Prefer the
+typed texture-info and borrowed-value APIs for new code. Oversized
+pointer-encoded texture indices now report an error instead of narrowing.
+
+### Fallible enum queries and dynamic cache IDs
+
+`FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report
+native values unavailable at the enabled interface level. Their existing
+infallible counterparts retain their compatibility fallbacks. A persistent
+GPU creator may opt into `ShaderCacheIdPolicy` for a single extraction; the
+caller remains responsible for stable cache identity and resource cleanup.
+
+### Packed image pointer-step padding
+
+Packed in-place, packed-to-packed and mixed planar conversions support unpadded
+tails by splitting only the affected regions and copying at most a pixel at a
+time. Tight forward RGBA retains the native fast path. A later regional failure
+may leave earlier output modified.
+
+### Extreme RGBA strides
+
+RGBA byte strides above the native C++ `int` maximum are generally rejected instead of
+being narrowed by OCIO's packed-layout optimization. This prevents extremely
+large strides from being mistaken for tightly packed pixels. Supporting these
+layouts without this conservative restriction requires a separate safe path.
+The single-pixel float and packed-byte APIs normalize otherwise valid extreme
+strides because no second pixel is accessed.
+
+### Planar image padding
+
+Positive-stride planar conversion and in-place APIs support unpadded planes by
+splitting only necessary tail regions without copying image data. A failure in
+a later region may leave earlier destination regions modified. Signed-stride
+in-place processing, planar-to-planar and mixed packed/planar conversion also
+support unpadded planes.
+
+### Transform handle safety
+
+`TransformHandle` is now sealed because safe external implementations could
+forge pointers that the native bridge dereferences. Generic bounds and all
+crate-provided transforms continue to work; replace custom implementations with
+the provided concrete wrappers or the `Transform` enum. Raw native interop
+remains available through explicitly unsafe low-level APIs.
+
+### Logging callback synchronization
+
+Safe logger installation and reset require native OpenColorIO 2.5.2 or later.
+Earlier versions do not synchronize replacement with concurrent logging, so
+these functions return an error without changing the logger. Applications able
+to exclude all concurrent OCIO logging (including native users outside this
+crate) may use the corresponding `unsafe` `_unchecked` functions instead.
+
+### OpenColorIO 2.6
+
+The supported native range is extended to `>= 2.4.1, < 2.7`. Enable `v2_6`
+for the 2.6 API; it also enables `v2_5` and requires OpenColorIO 2.6.0 or
+newer. Installing 2.6 does not enable this Cargo feature automatically. See
+the README for backend selection and external GPU LUT limitations.
+The 0.3.0 section below describes that release's original compatibility range.
+
+### Processor thread confinement
+
+`Processor`, `CPUProcessor`, `GPUProcessor`, and `GpuShaderDesc` no longer
+implement `Send`. A dynamic-property handle may outlive the processor or shader
+descriptor it came from, and OCIO does not synchronize all property access.
+Build each pipeline on its owning worker thread rather than moving an existing
+handle between threads. For a non-dynamic CPU processor, `try_into_static()`
+validates it once and returns a `StaticCPUProcessor` that is `Send + Sync` and
+can be shared, for example with `Arc`, without a lock in the pixel path.
+Independent queries through the shared current config
+isolate dynamic pipelines; static lookups still use OCIO's native cache. This
+does not synchronize callers using raw C++ interop.
+
+### Global configuration safety
+
+Global configuration snapshot getters and global processor-cache flag helpers
+now require `unsafe`. Coordinate calls with independent native OCIO users;
+external proxies and custom-transform state retained by a snapshot also need
+safe synchronization throughout the lifetime of that snapshot and its derived
+objects. The detailed global-configuration and native-copy contracts are
+described in [Config processors and file rules](#config-processors-and-file-rules)
+and in the API documentation.
+
 ## 0.3.0
 
 `0.3.0` is a breaking release relative to `0.2.1`. Both `ocio-rs` and
@@ -122,13 +226,71 @@ being conflated with `FormatMetadata`. Use `Processor::processor_metadata()`
 to obtain it; bundled coverage validates standalone file/look mutation plus
 metadata extraction from a real processor.
 
+Metadata obtained from `Processor::processor_metadata` is now an independent
+editable copy. Use `try_const_processor_metadata` to share the native immutable
+metadata without copying its entries.
+
+Processor format-metadata getters now return independent editable trees. Use
+`try_const_format_metadata` or `try_const_transform_format_metadata` to inspect
+shared native metadata without copying; const child handles keep the processor
+alive independently.
+
 ### Config processors and file rules
+
+Color-space lookup on `Config` and `ColorSpaceSet` returns an independent
+editable copy. To apply edits, register that copy back with the parent. For
+shared read-only access without copying the native object, use
+`try_const_color_space`; its `name` and `description` borrow native text, and
+`create_editable_copy` creates an editable object on demand.
+
+Transform getters on color spaces, looks, named transforms and view transforms
+now return editable copies. Use the corresponding `try_const_transform` (or
+`try_const_inverse_transform` on a look) for shared read-only access and direct
+processor creation. Reassign editable copies to their parent to apply changes.
+
+`Config::current_context` now returns an independent editable copy. Use
+`try_const_current_context` for a shared read-only context; context text queries
+return owned strings because the configuration can change the underlying state.
+
+Global snapshot getters (`current_config`, `get_current_config`,
+`try_current_config`, and `try_const_current_config`) and the global processor
+cache flag helpers now require `unsafe`. OCIO's config copy reads lazy caches
+that other native OCIO users may update through const handles. During each call,
+the application must prevent independent native code from accessing a config
+that may be current or mutating objects retained by it; a Rust-only lock cannot
+synchronize independent C++ users.
+Coordinate global cache-flag read/modify/write operations with other global
+writes as well. OCIO may retain external IO proxies or custom-transform state
+in a snapshot; throughout the lifetime of the snapshot and derived objects,
+including any config installed from it, the caller must ensure those external
+objects support concurrent use or synchronize access to them. Rust-managed IO
+providers already require `Send + Sync`.
+
+Global snapshot getters and safe setters detach mutable group-transform
+children. `try_current_config_native_copy` makes OCIO's native editable copy
+without detaching group children; its unsafe contract requires coordination of
+those shared children for the returned config and derived handles' lifetimes.
+For shared-global semantics without a snapshot copy,
+`try_const_current_config_shared` is unsafe and its stronger synchronization
+requirement lasts for the retained handle and any derived handles. Explicitly
+install an edited config with `try_set_current_config`.
+
+Config look, named-transform and view-transform getters return independent
+editable copies. Register edits back into the config. For shared read-only
+objects, use `try_const_look`, `try_const_named_transform`, or
+`try_const_view_transform`.
+
+Config file-rules and viewing-rules getters now return editable copies. Reattach
+an edited copy with the respective setter. `try_const_file_rules` and
+`try_const_viewing_rules` offer shared read-only access without a rules copy.
 
 The high-level `Config::processor`, `Config::processor_with_context`, and `Config::processor_from_configs` wrappers now call the real OCIO processor APIs.
 
-`Config::serialize()` and `Config::archive()` now return `Result<Option<String>>`.
-They return the real OCIO text output in a real OCIO build, `Ok(None)` in stub
-mode, and `Err` when OCIO cannot serialize or archive the config.
+`Config::serialize()` returns `Result<Option<String>>` containing OCIO YAML.
+OCIOZ archives are binary: use `Config::archive_to_bytes()` or
+`Config::archive_to_writer()`. The deprecated text archive methods now return
+an error for binary data rather than silently truncating it. The owned-output
+methods return `Ok(None)` in stub mode and surface native errors.
 
 `color_space_from_filepath_by_ref_type` has been replaced by:
 

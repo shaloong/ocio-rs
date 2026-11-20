@@ -117,8 +117,12 @@ impl ProbeFixture {
     }
 
     fn with_features(features: &[&str]) -> Self {
+        Self::with_features_in(features, &std::env::temp_dir())
+    }
+
+    fn with_features_in(features: &[&str], temp_root: &Path) -> Self {
         let id = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
+        let root = temp_root.join(format!(
             "ocio-sys-build-configuration-{}-{id}",
             std::process::id()
         ));
@@ -141,7 +145,7 @@ impl ProbeFixture {
         fs::write(
             root.join("Cargo.toml"),
             format!(
-                "[package]\nname = 'ocio-sys-build-probe'\nversion = '0.0.0'\nedition = '2021'\n\n[dependencies]\n{dependency}\n"
+                "[package]\nname = 'ocio-sys-build-probe'\nversion = '0.0.0'\nedition = '2021'\n\n[workspace]\n\n[dependencies]\n{dependency}\n"
             ),
         )
         .unwrap();
@@ -218,6 +222,7 @@ impl ProbeFixture {
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_INCLUDE")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_LIB")
+            .env_remove("SYSTEM_DEPS_OPENCOLORIO_LINK")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_NO_PKG_CONFIG")
             .env_remove("SYSTEM_DEPS_OPENCOLORIO_SEARCH_NATIVE")
             .env_remove("OCIO_INSTALL_DIR")
@@ -236,6 +241,26 @@ impl Drop for ProbeFixture {
 }
 
 #[test]
+fn nested_probe_is_an_independent_workspace() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let temp_root = workspace.parent().unwrap().join("target");
+    let fixture = ProbeFixture::with_features_in(&[], &temp_root);
+    let output = Command::new(env!("CARGO"))
+        .args([
+            "metadata",
+            "--offline",
+            "--no-deps",
+            "--format-version",
+            "1",
+        ])
+        .arg("--manifest-path")
+        .arg(&fixture.manifest)
+        .output()
+        .expect("nested cargo metadata should run");
+    assert!(output.status.success(), "{}", output_text(&output));
+}
+
+#[test]
 fn installed_prefix_is_added_to_pkg_config_search_path() {
     let fixture = ProbeFixture::new(false);
     let output = fixture.cargo_check(|command| {
@@ -243,7 +268,7 @@ fn installed_prefix_is_added_to_pkg_config_search_path() {
             .env("OCIO_RS_ENABLE_REAL", "1")
             .env("OCIO_INSTALL_DIR", &fixture.install_dir)
             .env("FAKE_PKG_CONFIG_EXPECT_PATH", &fixture.pkg_config_dir)
-            .env("FAKE_PKG_CONFIG_EXPECT_ARG", "opencolorio < 2.6");
+            .env("FAKE_PKG_CONFIG_EXPECT_ARG", "opencolorio < 2.7");
     });
 
     assert!(
@@ -609,8 +634,14 @@ fn invalid_enable_real_value_is_rejected() {
 }
 
 #[test]
-fn baseline_accepts_2_4_1_and_rejects_2_4_0() {
-    for (version, should_succeed) in [("2.4.1", true), ("2.4.0", false)] {
+fn system_baseline_enforces_supported_version_range() {
+    for (version, should_succeed) in [
+        ("2.4.0", false),
+        ("2.4.1", true),
+        ("2.5.2", true),
+        ("2.6.0", true),
+        ("2.7.0", false),
+    ] {
         let fixture = ProbeFixture::with_features(&["system"]);
         let output = fixture.cargo_check(|command| {
             command.env("FAKE_PKG_CONFIG_VERSION", version);
@@ -625,8 +656,14 @@ fn baseline_accepts_2_4_1_and_rejects_2_4_0() {
 }
 
 #[test]
-fn v2_5_accepts_2_5_1_and_rejects_2_5_0() {
-    for (version, should_succeed) in [("2.5.1", true), ("2.5.0", false)] {
+fn system_v2_5_enforces_supported_version_range() {
+    for (version, should_succeed) in [
+        ("2.5.0", false),
+        ("2.5.1", true),
+        ("2.5.2", true),
+        ("2.6.0", true),
+        ("2.7.0", false),
+    ] {
         let fixture = ProbeFixture::with_features(&["system", "v2_5"]);
         let output = fixture.cargo_check(|command| {
             command.env("FAKE_PKG_CONFIG_VERSION", version);
@@ -637,5 +674,29 @@ fn v2_5_accepts_2_5_1_and_rejects_2_5_0() {
             "unexpected v2_5 result for OpenColorIO {version}:\n{}",
             output_text(&output)
         );
+    }
+}
+
+#[test]
+fn system_v2_6_rejects_incompatible_metadata_or_headers() {
+    // The fixture always supplies genuine 2.5.2 headers. Even if pkg-config
+    // advertises 2.6.0, the compiler must reject the mismatched installation.
+    for version in ["2.5.2", "2.6.0", "2.7.0"] {
+        let fixture = ProbeFixture::with_features(&["system", "v2_6"]);
+        let output = fixture.cargo_check(|command| {
+            command.env("FAKE_PKG_CONFIG_VERSION", version);
+        });
+        let text = output_text(&output);
+        assert!(
+            !output.status.success(),
+            "unexpected v2_6 result for OpenColorIO {version}:\n{}",
+            text
+        );
+        if version == "2.6.0" {
+            assert!(
+                text.contains("feature v2_6 requires OpenColorIO 2.6.0 or newer"),
+                "{text}"
+            );
+        }
     }
 }

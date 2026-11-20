@@ -1,4 +1,4 @@
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 
 use crate::{cstr_from_mut, cstring, Config, OcioError, Result};
@@ -17,12 +17,22 @@ impl BuiltinConfigRegistry {
         crate::handle_result(handle).map(|handle| Self { handle })
     }
 
-    /// Return the number of built-in configs exposed by the linked OCIO build.
+    /// Return the number of built-in configs, or zero on error or overflow.
     pub fn num_builtin_configs(&self) -> i32 {
-        unsafe {
+        self.try_num_builtin_configs()
+            .ok()
+            .and_then(|count| i32::try_from(count).ok())
+            .unwrap_or(0)
+    }
+
+    /// Return the full native count of built-in configs.
+    pub fn try_num_builtin_configs(&self) -> Result<usize> {
+        crate::clear_last_error();
+        let count = unsafe {
             ocio_sys::ocio_builtin_config_registry_get_num_builtin_configs(self.handle.as_ptr())
-                as i32
-        }
+        };
+        crate::ocio_call_status()?;
+        Ok(count)
     }
 
     /// Return the stable OCIO name for the built-in config at `index`.
@@ -152,15 +162,18 @@ impl BuiltinConfigRegistry {
         if index < 0 {
             return Ok(None);
         }
+        self.config_yaml_ref_by_index(index as usize)
+            .map(|yaml| Some(yaml.to_string_lossy().into_owned()))
+    }
+
+    /// Borrow native YAML without allocating or copying it.
+    /// The index uses OCIO's full native `size_t` width.
+    pub fn config_yaml_ref_by_index(&self, index: usize) -> Result<&CStr> {
         crate::clear_last_error();
-        let handle = unsafe {
-            ocio_sys::ocio_builtin_config_registry_get_builtin_config(
-                self.handle.as_ptr(),
-                index as usize,
-            )
+        let value = unsafe {
+            ocio_sys::ocio_builtin_config_registry_get_builtin_config(self.handle.as_ptr(), index)
         };
-        crate::ocio_call_status()?;
-        Ok(unsafe { cstr_from_mut(handle) })
+        self.yaml_ref(value)
     }
 
     /// Return the serialized OCIO YAML/text for the built-in config named `name`.
@@ -171,15 +184,29 @@ impl BuiltinConfigRegistry {
     /// Return built-in config YAML by name while preserving bridge failures.
     pub fn try_config_yaml_by_name(&self, name: impl AsRef<str>) -> Result<Option<String>> {
         let n = cstring(name)?;
+        self.config_yaml_ref_by_name(&n)
+            .map(|yaml| Some(yaml.to_string_lossy().into_owned()))
+    }
+
+    /// Borrow native YAML by name without copying the name or result.
+    pub fn config_yaml_ref_by_name(&self, name: &CStr) -> Result<&CStr> {
         crate::clear_last_error();
-        let handle = unsafe {
+        let value = unsafe {
             ocio_sys::ocio_builtin_config_registry_get_builtin_config_by_name(
                 self.handle.as_ptr(),
-                n.as_ptr().cast(),
+                name.as_ptr().cast(),
             )
         };
+        self.yaml_ref(value)
+    }
+
+    fn yaml_ref(&self, value: *mut c_void) -> Result<&CStr> {
         crate::ocio_call_status()?;
-        Ok(unsafe { cstr_from_mut(handle) })
+        if value.is_null() {
+            return Err(OcioError::Ocio("null built-in config YAML".into()));
+        }
+        // The native registry retains this immutable NUL-terminated text.
+        Ok(unsafe { CStr::from_ptr(value.cast()) })
     }
 }
 
