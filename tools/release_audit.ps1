@@ -176,21 +176,21 @@ function Ensure-StandalonePackageManifest {
 }
 
 Invoke-Check -Name "Format" -Arguments @("fmt", "--all", "--", "--check")
-Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--", "-D", "warnings")
-Invoke-Check -Name "Clippy (v2_5)" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--features", "v2_5", "--", "-D", "warnings")
-Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features")
-Invoke-Check -Name "Tests (stub, v2_5)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "v2_5")
-Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-default-features")
-Invoke-Check -Name "Examples (stub, v2_5)" -Arguments @("test", "--examples", "--no-default-features", "--features", "v2_5")
+Invoke-Check -Name "Clippy" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--features", "stub", "--", "-D", "warnings")
+Invoke-Check -Name "Clippy (v2_5)" -Arguments @("clippy", "--workspace", "--all-targets", "--no-default-features", "--features", "stub,v2_5", "--", "-D", "warnings")
+Invoke-Check -Name "Tests (stub)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "stub")
+Invoke-Check -Name "Tests (stub, v2_5)" -Arguments @("test", "--workspace", "--no-default-features", "--features", "stub,v2_5")
+Invoke-Check -Name "Examples (stub)" -Arguments @("test", "--examples", "--no-default-features", "--features", "stub")
+Invoke-Check -Name "Examples (stub, v2_5)" -Arguments @("test", "--examples", "--no-default-features", "--features", "stub,v2_5")
 Invoke-Check `
     -Name "Docs (stub)" `
-    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features") `
+    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features", "--features", "stub") `
     -Environment @{ RUSTDOCFLAGS = "-D warnings" }
 Invoke-Check `
     -Name "Docs (stub, v2_5)" `
-    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features", "--features", "v2_5") `
+    -Arguments @("doc", "--workspace", "--no-deps", "--no-default-features", "--features", "stub,v2_5") `
     -Environment @{ RUSTDOCFLAGS = "-D warnings" }
-Invoke-Check -Name "Parity" -Arguments @("run", "--bin", "check_parity", "--quiet", "--", "--check-l3")
+Invoke-Check -Name "Parity" -Arguments @("run", "--no-default-features", "--features", "stub", "--bin", "check_parity", "--quiet", "--", "--check-l3")
 
 # Cargo stages interdependent workspace packages for verification before either
 # has been published. Do not hide packaging failures as publish-order warnings.

@@ -1,5 +1,21 @@
 # Migration Notes
 
+## Backend selection
+
+The default backend now probes for a compatible system OpenColorIO, then builds
+the bundled source if none is found. Real build failures do not fall back to
+stub behavior. Use `system` for strict system-library selection or `bundled`
+to force a source build. With defaults disabled and no backend selected, the
+system library is required.
+
+Test-only stub builds now require `default-features = false, features = ["stub"]`.
+The `stub` feature conflicts with `auto`, `system`, and `bundled`, including
+features unified by other dependencies. For existing test scripts using
+`OCIO_RS_ENABLE_REAL=0`, disable default features; the explicit feature is
+preferred. Consequently `--all-features` is not a valid backend combination;
+test real and stub backends separately. docs.rs uses `stub` explicitly and does
+not execute native OCIO.
+
 ## 0.4.0
 
 ### Merge-parameter override snapshots

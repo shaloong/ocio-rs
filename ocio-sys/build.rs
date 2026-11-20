@@ -9,11 +9,11 @@ use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 use std::collections::hash_map::DefaultHasher;
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 use std::hash::{Hash, Hasher};
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 use std::path::Path;
 
 const OPENCOLORIO_DEPENDENCY_NAME: &str = "opencolorio";
@@ -35,7 +35,7 @@ fn main() {
     let built_internally = Rc::new(Cell::new(false));
 
     let has_real_ocio = if backend.is_stub() {
-        println!("cargo:warning=building ocio-sys in stub mode; enable the 'system' or 'bundled' feature for real OpenColorIO.");
+        println!("cargo:warning=building ocio-sys in explicit stub mode; no color processing is performed.");
         false
     } else {
         let install = configure_install_dir(link_mode, &runtime_dll_dirs);
@@ -61,18 +61,27 @@ fn main() {
             );
         }
 
-        // `add_build_internal`'s status always defaults to `never` regardless of
-        // whether a closure is registered. The "bundled" feature previously
-        // built from source by default, but an explicit OCIO_INSTALL_DIR took
-        // precedence. Preserve both behaviors while still allowing
-        // SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL to override the default.
-        #[cfg(feature = "bundled")]
+        // Explicit system selection is strict, even if a global system-deps
+        // setting requests an internal build. Bundled takes precedence when
+        // Cargo unifies both features.
+        if cfg!(feature = "system") && !cfg!(feature = "bundled") {
+            // SAFETY: build scripts are single-threaded at this point.
+            unsafe { env::set_var("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "never") };
+        }
+        // Otherwise preserve the explicit install prefix and system-deps
+        // override; auto probes first and bundled requests a source build.
+        #[cfg(any(feature = "auto", feature = "bundled"))]
         if env::var_os("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL").is_none()
             && env::var_os("OCIO_INSTALL_DIR").is_none()
         {
             // SAFETY: build scripts are single-threaded at this point.
             unsafe {
-                env::set_var("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "always");
+                let mode = if cfg!(feature = "bundled") {
+                    "always"
+                } else {
+                    "auto"
+                };
+                env::set_var("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", mode);
             }
         }
 
@@ -310,14 +319,14 @@ fn set_env_if_missing(name: &str, value: impl AsRef<std::ffi::OsStr>) {
     }
 }
 
-#[cfg(not(feature = "bundled"))]
+#[cfg(not(any(feature = "auto", feature = "bundled")))]
 fn build_ocio_from_source(
     _version_requirement: &str,
     _link_mode: LinkMode,
     _runtime_dll_dirs: Rc<RefCell<Vec<PathBuf>>>,
 ) -> Result<system_deps::Library, system_deps::BuildInternalClosureError> {
     Err(system_deps::BuildInternalClosureError::failed(
-        "OpenColorIO internal fallback requires enabling ocio-sys' `bundled` feature",
+        "OpenColorIO internal fallback requires enabling ocio-sys' `auto` or `bundled` feature",
     ))
 }
 
@@ -326,7 +335,7 @@ fn build_ocio_from_source(
 /// real `.pc` file OpenColorIO's own CMake build generates and installs (see
 /// `src/OpenColorIO/CMakeLists.txt`'s `configure_file(res/OpenColorIO.pc.in ...)`),
 /// plus the transitive static dependencies it doesn't declare there itself.
-#[cfg(feature = "bundled")]
+#[cfg(any(feature = "auto", feature = "bundled"))]
 fn build_ocio_from_source(
     _version_requirement: &str,
     link_mode: LinkMode,
@@ -339,6 +348,9 @@ fn build_ocio_from_source(
             "OpenColorIO source not found. Use a recursive checkout or set OCIO_SOURCE_DIR.",
         )
     })?;
+    // CMake must be rerun when any selected source or bundled dependency
+    // changes, not only when the LUT patch changes.
+    println!("cargo:rerun-if-changed={}", ocio_source.display());
     let source_version = ocio_source_version(&ocio_source)?;
     let vendored = ocio_source
         == PathBuf::from(
@@ -556,7 +568,7 @@ fn build_ocio_from_source(
     Ok(lib)
 }
 
-#[cfg(feature = "bundled")]
+#[cfg(any(feature = "auto", feature = "bundled"))]
 fn ocio_source_version(
     source_dir: &std::path::Path,
 ) -> Result<String, system_deps::BuildInternalClosureError> {
@@ -632,7 +644,7 @@ impl LinkMode {
         matches!(self, Self::Dynamic)
     }
 
-    #[cfg(feature = "bundled")]
+    #[cfg(any(feature = "auto", feature = "bundled"))]
     fn cmake_build_shared_libs(self) -> &'static str {
         match self {
             Self::Static => "OFF",
@@ -640,7 +652,7 @@ impl LinkMode {
         }
     }
 
-    #[cfg(feature = "bundled")]
+    #[cfg(any(feature = "auto", feature = "bundled"))]
     fn cmake_out_dir_tag(self, base: &str) -> String {
         let suffix = match self {
             Self::Static => "static",
@@ -656,7 +668,7 @@ fn push_existing_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
     }
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn collect_runtime_dll_dirs(paths: &mut Vec<PathBuf>, root: &std::path::Path) {
     if !root.exists() {
         return;
@@ -688,7 +700,7 @@ fn collect_runtime_dll_dirs(paths: &mut Vec<PathBuf>, root: &std::path::Path) {
     }
 }
 
-#[cfg(all(feature = "bundled", not(target_os = "windows")))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), not(target_os = "windows")))]
 fn collect_runtime_dll_dirs(_paths: &mut Vec<PathBuf>, _root: &std::path::Path) {}
 
 #[cfg(target_os = "windows")]
@@ -812,7 +824,7 @@ fn static_library_file_name(name: &str) -> String {
 
 // See the call site's comment: OpenColorIO's own .pc file doesn't declare these,
 // so pkg-config can't find them and they're linked explicitly instead.
-#[cfg(feature = "bundled")]
+#[cfg(any(feature = "auto", feature = "bundled"))]
 fn add_transitive_static_libs(lib: &mut system_deps::Library) {
     let link_paths = lib.link_paths.clone();
     for candidates in SYSTEM_TRANSITIVE_STATIC_LIBRARIES {
@@ -832,7 +844,7 @@ fn add_transitive_static_libs(lib: &mut system_deps::Library) {
 // actually exists. Dependency versions and debug/release naming differ across
 // supported OpenColorIO releases and platforms, and pkg-config has no record of
 // these privately linked libraries to consult.
-#[cfg(feature = "bundled")]
+#[cfg(any(feature = "auto", feature = "bundled"))]
 fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candidates: &[&str]) {
     let candidate = select_static_lib(link_paths, candidates);
     lib.libs.push(system_deps::InternalLib {
@@ -841,7 +853,7 @@ fn add_static_lib(lib: &mut system_deps::Library, link_paths: &[PathBuf], candid
     });
 }
 
-#[cfg(feature = "bundled")]
+#[cfg(any(feature = "auto", feature = "bundled"))]
 fn resolve_ocio_source_dir() -> Option<PathBuf> {
     if let Some(dir) = env::var_os("OCIO_SOURCE_DIR") {
         let path = PathBuf::from(dir);
@@ -867,7 +879,7 @@ fn resolve_ocio_source_dir() -> Option<PathBuf> {
     None
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn find_windows_ninja() -> Option<PathBuf> {
     let candidates = [
         r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe",
@@ -905,7 +917,7 @@ fn find_msvc_include() -> Option<PathBuf> {
     None
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn find_msvc_compiler() -> Option<PathBuf> {
     let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
     for year in &["2022", "2019"] {
@@ -957,7 +969,7 @@ fn find_windows_sdk_includes() -> Vec<PathBuf> {
     dirs
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn find_windows_sdk_tool(tool_name: &str) -> Option<PathBuf> {
     let kits = std::path::Path::new("C:/Program Files (x86)/Windows Kits/10/bin");
     let mut versions = std::fs::read_dir(kits).ok()?.flatten().collect::<Vec<_>>();
@@ -973,12 +985,12 @@ fn find_windows_sdk_tool(tool_name: &str) -> Option<PathBuf> {
     None
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn cmake_path(path: &std::path::Path) -> String {
     path.display().to_string().replace('\\', "/")
 }
 
-#[cfg(all(feature = "bundled", target_os = "windows"))]
+#[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn bundled_cmake_out_dir(out_dir: &Path, ocio_source: &Path, generator_tag: &str) -> PathBuf {
     let mut hasher = DefaultHasher::new();
     out_dir.hash(&mut hasher);

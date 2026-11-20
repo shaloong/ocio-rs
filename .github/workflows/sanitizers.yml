@@ -31,4 +31,4 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq g++ llvm
 
       - name: Test with AddressSanitizer
-        run: cargo test --workspace --no-default-features --features v2_5
+        run: cargo test --workspace --no-default-features --features stub,v2_5

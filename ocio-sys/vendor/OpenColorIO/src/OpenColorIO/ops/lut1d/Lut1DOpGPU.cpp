@@ -158,9 +158,7 @@ void GetLut1DGPUShaderProgram(GpuShaderCreatorRcPtr & shaderCreator,
 
     const unsigned long length      = lutData->getArray().getLength();
     const unsigned long width       = std::min(length, defaultMaxWidth);
-    // Each completed row repeats its last texel as the next row's first.
-    // The shader divides by (width - 1) to find the row, including for the
-    // final sample. Allocate that row even when it starts at the last sample.
+    // Include the final row addressed by the shader's width - 1 stride.
     const unsigned long height      = length < defaultMaxWidth
                                         ? 1
                                         : (length - 1) / (width - 1) + 1;

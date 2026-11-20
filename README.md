@@ -50,11 +50,10 @@ The 0.4 interface and breaking changes are described in the
 
 ## Build
 
-`cargo build` uses deterministic **stub mode** by default, where APIs return
-safe defaults for API-shape testing and CI but perform no real color
-management. Stub builds
-report their OCIO-dependent tests as ignored rather than passed, so a green run
-is never mistaken for a verified one.
+`cargo build` probes for a compatible system OpenColorIO and, if unavailable,
+builds the bundled source. Real-backend failures stop the build. For API-shape
+testing only, select `--no-default-features --features stub`; this backend
+does not perform color processing and ignores OCIO-dependent tests.
 
 ```bash
 cargo build
@@ -84,12 +83,12 @@ OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 # Use a pre-installed shared OCIO library instead of static libs
 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features system
 
-# Force the default stub backend explicitly for legacy scripts
-OCIO_RS_ENABLE_REAL=0 cargo build
+# Explicit test-only stub
+cargo build --no-default-features --features stub
 ```
 
-`OCIO_SOURCE_DIR` is currently only consumed by the bundled build path; setting
-it by itself does not enable real OCIO mode.
+`OCIO_SOURCE_DIR` is consumed only when a source build is selected. To force
+its use instead of a compatible system library, enable `bundled`.
 
 Installed mode accepts OpenColorIO `>= 2.4.1, < 2.7`, raised to
 `>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. It first probes
@@ -100,10 +99,12 @@ directories; for older installations without a `.pc` file, the conventional
 also be set directly.
 
 Backend features are additive, as Cargo requires for dependency unification:
-no backend feature is deterministic stub mode, `system` requires an installed
-library, and `bundled` adds the source-build Adapter and takes precedence when
-combined with `system`. `OCIO_RS_ENABLE_REAL=0/1` remains as a legacy adapter,
-but invalid values and conflicts with real-backend features fail the build.
+the default `auto` probes the system then builds bundled sources, `system`
+requires an installed library, and `bundled` takes precedence when combined
+with `system`. `stub` conflicts with real backend features; select it with
+`default-features = false`. With defaults disabled and no backend selected,
+the system library is required. `OCIO_RS_ENABLE_REAL=0/1` remains a legacy
+adapter; invalid values and conflicting choices fail the build.
 
 The `bundled` feature builds the vendored source by default, preserving its
 historical behavior. Set
@@ -164,14 +165,13 @@ time, failing with a clear error on mismatch.
 | `v2_6`  | 2.6.0          | display/view aliases, color interop lookup, HDR compatibility, HMJ fixed function and CLF ID metadata |
 
 `v2_6` implies `v2_5`. Use `system,v2_6` with an installed 2.6 library or
-`bundled,v2_6` with `OCIO_SOURCE_DIR` pointing to a 2.6 source checkout.
-The vendored 2.5.2 source remains the default for builds without `v2_6`.
+`bundled,v2_6` to build the vendored OpenColorIO 2.6.0 source.
 With native 2.5.0, the baseline interface remains available, but texture
 insertion does not report a shader binding index: upstream returns a per-kind
 texture index and does not provide the binding-query virtual methods added in
 2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
 
-The vendored 2.5.2 source includes a fix for an upstream multi-row GPU LUT
+The vendored 2.6.0 source includes a fix for an upstream multi-row GPU LUT
 packing error; installed libraries and external source overrides do not
 inherit it. For an unpatched external build with unknown LUT lengths, use
 `GPUProcessor::try_extract_shader_info_checked` or

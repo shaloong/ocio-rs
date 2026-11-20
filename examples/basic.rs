@@ -1,7 +1,7 @@
 //! Basic API demonstration for ocio-rs.
 //!
 //! This example shows the core config-query and processor workflow using
-//! the default stub build. Stub mode returns safe placeholder values and
+//! either real OCIO or the explicit test-only stub. Stub mode returns placeholder values and
 //! does not perform real color management - it is useful for verifying
 //! that the API surface compiles and runs without an OCIO installation.
 

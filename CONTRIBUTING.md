@@ -21,7 +21,8 @@ behavior, tests, release packaging, and documentation all matter.
 
 `ocio-rs` supports two main build modes:
 
-- Stub mode: default; used for fast API-shape validation and lightweight CI.
+- Stub mode: explicit `--no-default-features --features stub`; used only for
+  fast API-shape validation and lightweight CI.
 - Real OCIO mode:
   - Installed OCIO via pkg-config: `cargo build --features system`
   - Installed OCIO under a custom prefix: `OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system`
@@ -30,8 +31,9 @@ behavior, tests, release packaging, and documentation all matter.
 The installed-library path supports OpenColorIO `>= 2.4.1, < 2.7`, raised to
 `>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. Set
 `OCIO_RS_LINK=dynamic` for shared linking.
-Without a backend feature or legacy environment override the backend is stub;
-it performs no color processing. `bundled` takes precedence over `system` when
+The default `auto` probes the system then builds bundled sources if necessary.
+With default features disabled, `system` is required unless `bundled` or
+`stub` is selected. Stub mode performs no color processing. `bundled` takes precedence over `system` when
 Cargo unifies both. Real backend failures never silently fall back to stub.
 `OCIO_INSTALL_DIR` supports both pkg-config metadata and the legacy
 `include`/`lib` layout. For bundled builds, set
@@ -53,14 +55,14 @@ Before opening a pull request, run the checks that match your change:
 
 ```powershell
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
-cargo clippy --workspace --all-targets --no-default-features --features v2_6 -- -D warnings
-cargo test --workspace --no-default-features
-cargo test --workspace --no-default-features --features v2_5
-cargo test --workspace --no-default-features --features v2_6
-cargo test --examples --no-default-features
-cargo run --bin check_parity --quiet -- --check-l3
+cargo clippy --workspace --all-targets --no-default-features --features stub -- -D warnings
+cargo clippy --workspace --all-targets --no-default-features --features stub,v2_5 -- -D warnings
+cargo clippy --workspace --all-targets --no-default-features --features stub,v2_6 -- -D warnings
+cargo test --workspace --no-default-features --features stub
+cargo test --workspace --no-default-features --features stub,v2_5
+cargo test --workspace --no-default-features --features stub,v2_6
+cargo test --examples --no-default-features --features stub
+cargo run --no-default-features --features stub --bin check_parity --quiet -- --check-l3
 ```
 
 If your change affects real OCIO behavior, also run:
