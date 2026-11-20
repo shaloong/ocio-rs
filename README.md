@@ -7,8 +7,8 @@
 
 Rust bindings for [OpenColorIO](https://opencolorio.org/).
 
-The development branch supports OpenColorIO `>= 2.4.1, < 2.7` (API introduced in OCIO
-2.5.1 is opt-in via the `v2_5` Cargo feature; see Compatibility below).
+This source tree supports OpenColorIO `>= 2.4.1, < 2.7` (newer APIs are
+opt-in via the `v2_5` and `v2_6` Cargo features; see Compatibility below).
 The core OCIO Rust wrapper surface
 is now broadly in place, including bundled real-OCIO builds, bridge parity
 across the exposed API surface, and broad safe-wrapper coverage. The remaining
@@ -33,9 +33,11 @@ several high-use runtime paths, including:
 - `CPUProcessor` packed/pixel execution paths, including stride-preserving
   behavior for `RGB(A)` buffers
 
+For a local checkout of this source tree (adjust the path as needed):
+
 ```toml
 [dependencies]
-ocio-rs = { version = "0.3", features = ["system"] }
+ocio-rs = { path = "../ocio-rs", features = ["system"] }
 ```
 
 This configuration uses an installed OpenColorIO. Distribution packages and
@@ -43,7 +45,9 @@ plugins such as GStreamer should normally use this backend. For shared-library
 linking, set `OCIO_RS_LINK=dynamic` in the build environment and install the
 OpenColorIO development package plus `pkg-config`. For a source build instead,
 use `features = ["bundled"]`. Add `"v2_5"` only when your code needs 2.5 APIs.
-See the [0.3 migration notes](docs/MIGRATION.md#030) when upgrading from 0.2.
+For registry releases, select a published version and consult its documentation.
+The 0.4 interface and breaking changes are described in the
+[migration notes](docs/MIGRATION.md#040); 0.3 supports OCIO versions below 2.6.
 
 ## Build
 
@@ -89,7 +93,7 @@ OCIO_RS_ENABLE_REAL=0 cargo build
 it by itself does not enable real OCIO mode.
 
 Installed mode accepts OpenColorIO `>= 2.4.1, < 2.7`, raised to
-`>= 2.5.1, < 2.7` by the `v2_5` feature. It first probes
+`>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. It first probes
 `opencolorio` / `OpenColorIO` through pkg-config. `OCIO_INSTALL_DIR` prepends
 the prefix's `lib/pkgconfig`, `lib64/pkgconfig`, and `share/pkgconfig`
 directories; for older installations without a `.pc` file, the conventional

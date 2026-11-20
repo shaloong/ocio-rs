@@ -26,9 +26,11 @@
   texture / uniform 插入
 - `CPUProcessor` 的 packed/pixels 执行路径，包括 `RGB(A)` buffer 的 stride 保持行为
 
+本地源码检出示例（请按实际位置调整路径）：
+
 ```toml
 [dependencies]
-ocio-rs = { version = "0.3", features = ["system"] }
+ocio-rs = { path = "../ocio-rs", features = ["system"] }
 ```
 
 此配置使用系统安装的 OpenColorIO，适合发行版打包和 GStreamer 等插件。

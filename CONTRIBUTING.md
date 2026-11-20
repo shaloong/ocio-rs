@@ -3,13 +3,14 @@
 Thanks for your interest in `ocio-rs`.
 
 This project provides Rust bindings for OpenColorIO `>= 2.4.1, < 2.7`.
-The baseline API targets 2.4.1; `v2_5` enables API introduced in 2.5.1.
+The baseline API targets 2.4.1; `v2_5` enables API introduced in 2.5.1 and
+`v2_6` enables the 2.6 interface.
 That means API additions are only part of the work: bridge correctness, runtime
 behavior, tests, release packaging, and documentation all matter.
 
 ## Ground Rules
 
-- Keep changes aligned with upstream OpenColorIO behavior at both supported API levels.
+- Keep changes aligned with upstream OpenColorIO behavior at the applicable API levels.
 - Prefer real bridge implementations over Rust-side placeholders or fake return
   values.
 - When an upstream OCIO API does not exist, remove or deprecate the Rust-side
@@ -27,7 +28,8 @@ behavior, tests, release packaging, and documentation all matter.
   - Bundled OCIO: `cargo build --features bundled`
 
 The installed-library path supports OpenColorIO `>= 2.4.1, < 2.7`, raised to
-`>= 2.5.1, < 2.7` by `v2_5`. Set `OCIO_RS_LINK=dynamic` for shared linking.
+`>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. Set
+`OCIO_RS_LINK=dynamic` for shared linking.
 Without a backend feature or legacy environment override the backend is stub;
 it performs no color processing. `bundled` takes precedence over `system` when
 Cargo unifies both. Real backend failures never silently fall back to stub.
@@ -53,8 +55,10 @@ Before opening a pull request, run the checks that match your change:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
+cargo clippy --workspace --all-targets --no-default-features --features v2_6 -- -D warnings
 cargo test --workspace --no-default-features
 cargo test --workspace --no-default-features --features v2_5
+cargo test --workspace --no-default-features --features v2_6
 cargo test --examples --no-default-features
 cargo run --bin check_parity --quiet -- --check-l3
 ```
