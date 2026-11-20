@@ -11,6 +11,11 @@ build = "build.rs"
 
 [dependencies]
 
+[dev-dependencies]
+# Nested offline backend probes enable `auto`, which needs the CMake crate even
+# when the outer test run selects the stub backend.
+cmake = "0.1"
+
 [build-dependencies]
 cc = "1.0"
 cmake = { version = "0.1", optional = true }
