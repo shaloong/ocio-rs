@@ -167,6 +167,7 @@ With native 2.5.0, the baseline interface remains available, but texture
 insertion does not report a shader binding index: upstream returns a per-kind
 texture index and does not provide the binding-query virtual methods added in
 2.5.1. Enable `v2_5` with 2.5.1 or newer for the binding APIs.
+See the [compatibility guide](docs/OCIO_2_6.md) for external GPU LUT limitations.
 
 Vendored OCIO per release:
 

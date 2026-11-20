@@ -139,7 +139,8 @@ ocio-rs/
 `v2_6` 包含 `v2_5`，开放显示和视图别名、色彩互操作 ID 查询、HDR 兼容检查、
 HMJ 变换与 CLF ID 元数据。使用已安装的 2.6 时选择 `system,v2_6`；
 从源码构建时选择 `bundled,v2_6` 并将 `OCIO_SOURCE_DIR` 指向 2.6 源码。
-默认 vendored 源码仍为 2.5.2。
+默认 vendored 源码仍为 2.5.2。外部 OCIO 的 GPU LUT 限制见
+[兼容性指南](OCIO_2_6.md)（英文）。
 
 | ocio-rs | OCIO   |
 | ------- | ------ |

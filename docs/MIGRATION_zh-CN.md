@@ -1,5 +1,28 @@
 # 迁移说明
 
+## 未发布：合并参数快照和 GPU 原始指针
+
+`ConfigMergingParameters` 的 `search_path`、`active_displays`、`active_views`、
+`inactive_color_spaces`、`environment_var` 和 `environment_var_value` 现在返回
+拥有所有权的 `CString`，需要借用时使用 `.as_c_str()`。这避免共享的原生参数被
+修改后借用指针失效；原生共享修改语义不变。
+
+四个旧版 `ocio-sys` GPU 纹理查询的名称和值输出类型修正为指针的指针。直接调用者
+应分别传入 `&mut *const c_char` 或 `&mut *const f32`；返回指针仍借用 descriptor
+的存储。高层纹理接口不受影响。
+
+## 未发布：线程与全局配置
+
+`Processor`、`CPUProcessor`、`GPUProcessor` 和 `GpuShaderDesc` 不再实现 `Send`。
+请在使用它们的线程中创建；不含动态属性的 CPU processor 可用 `try_into_static()`
+转换为可跨线程共享的 `StaticCPUProcessor`。
+
+全局配置快照 getter 和全局 processor 缓存标志接口现在要求 `unsafe`：调用期间
+必须协调所有可能访问当前配置或其持有对象的原生代码。快照及其派生对象若保留外部
+IO proxy 或自定义变换状态，调用者还必须在其整个生命周期保证并发访问安全。
+共享全局配置及原生浅拷贝接口有更强的别名和同步要求，详见英文
+[迁移说明](MIGRATION.md)。
+
 ## 未发布：可失败枚举查询与动态缓存 ID
 
 `FixedFunctionTransform::try_style` 和 `GpuShaderDesc::try_language` 会报告当前
@@ -45,7 +68,7 @@ RGBA 字节步长超过原生 C++ `int` 最大值时一般会被拒绝，避免 
 支持的原生库范围扩展至 `>= 2.4.1, < 2.7`。使用 `v2_6` 启用 2.6 API；
 该 feature 同时启用 `v2_5`，并要求 OpenColorIO 2.6.0 或更新版本。
 安装 2.6 不会自动启用 Cargo feature。覆盖情况及尚存限制见
-[兼容性审计](OCIO_2_6.md)。下方 0.3.0 章节描述该版本发布时的兼容范围。
+[兼容性指南](OCIO_2_6.md)。下方 0.3.0 章节描述该版本发布时的兼容范围。
 
 ## 0.3.0
 
