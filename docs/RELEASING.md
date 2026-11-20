@@ -27,15 +27,15 @@ under `ocio-sys/vendor/OpenColorIO` before the submodule fallback.
 ```bash
 cargo fetch --locked
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
-cargo test --workspace --no-default-features
-cargo test --workspace --no-default-features --features v2_5
-cargo test --examples --no-default-features
-cargo test --examples --no-default-features --features v2_5
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features v2_5
-cargo run --bin check_parity --quiet -- --check-l3
+cargo clippy --workspace --all-targets --no-default-features --features stub -- -D warnings
+cargo clippy --workspace --all-targets --no-default-features --features stub,v2_5 -- -D warnings
+cargo test --workspace --no-default-features --features stub
+cargo test --workspace --no-default-features --features stub,v2_5
+cargo test --examples --no-default-features --features stub
+cargo test --examples --no-default-features --features stub,v2_5
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features stub
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features stub,v2_5
+cargo run --no-default-features --features stub --bin check_parity --quiet -- --check-l3
 cargo package --workspace
 ```
 

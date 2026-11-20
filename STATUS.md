@@ -2,8 +2,9 @@
 
 Version 0.4 targets OpenColorIO `>= 2.4.1, < 2.7`. The baseline Rust
 interface supports 2.4.1; `v2_5` requires 2.5.1 and `v2_6` requires 2.6.0.
-The default backend is a stub and performs no color processing. Select
-`system` or `bundled` for real processing. The vendored source is 2.6.0.
+The default backend probes the system library and otherwise builds the bundled
+source. The explicit test-only `stub` backend performs no color processing.
+The vendored source is 2.6.0.
 See the [README](README.md) for configuration and GPU LUT limits.
 
 Core OCIO classes, transforms, processing, GPU resources and app helpers have

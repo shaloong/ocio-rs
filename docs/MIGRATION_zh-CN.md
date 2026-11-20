@@ -1,5 +1,17 @@
 # 迁移说明
 
+## 后端选择迁移
+
+默认后端现在先探测兼容的系统 OpenColorIO，未找到时构建 bundled 源码；真实
+后端构建失败不会静默回退到 stub。选择 `system` 可要求系统库，选择 `bundled`
+可强制源码构建。关闭默认 feature 且未选择后端时，要求系统库。
+
+仅供测试的 stub 必须使用 `default-features = false, features = ["stub"]`。
+`stub` 与 `auto`、`system`、`bundled` 不可同时启用，包括被其他依赖合并启用的
+情况。旧脚本使用 `OCIO_RS_ENABLE_REAL=0` 时也须关闭默认 feature；建议改用
+显式 `stub`。因此 `--all-features` 不是有效的后端组合，需分别测试真实与 stub
+后端。docs.rs 显式使用 stub，不执行原生 OCIO。
+
 ## 0.4.0
 
 ### 合并参数快照和 GPU 原始指针

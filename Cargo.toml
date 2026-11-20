@@ -13,11 +13,13 @@ readme = "README.md"
 exclude = ["third_party/*", "third_party/**/*", "tools/gpu-validation/**", "tools/cpu-benchmark/**", "tools/creator-validation/**"]
 
 [dependencies]
-ocio-sys = { version = "0.4.0", path = "ocio-sys" }
+ocio-sys = { version = "0.4.0", path = "ocio-sys", default-features = false }
 thiserror = "1.0"
 
 [features]
-default = []
+default = ["auto"]
+auto = ["ocio-sys/auto"]
+stub = ["ocio-sys/stub"]
 bundled = ["ocio-sys/bundled"]
 system = ["ocio-sys/system"]
 # Additive OpenColorIO API version features. The baseline (no feature)
@@ -27,7 +29,7 @@ v2_6 = ["v2_5", "ocio-sys/v2_6"]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["v2_6"]
+features = ["stub", "v2_6"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]

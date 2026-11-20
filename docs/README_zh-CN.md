@@ -41,13 +41,14 @@ ocio-rs = { version = "0.4", features = ["system"] }
 
 ## 构建
 
-**Stub 模式**（默认）：无需 OCIO 即可编译和测试。API 返回占位默认值，不执行颜色
+默认先探测兼容的系统 OCIO，未找到时构建 bundled 源码。真实后端失败会终止构建。
+**Stub 模式**需显式选择 `--no-default-features --features stub`：API 返回占位默认值，不执行颜色
 管理，仅用于接口验证。依赖真实 OCIO 的测试会报告 ignored，不能把 stub 绿灯
 当作真实颜色处理已通过验证。
 
 ```bash
-cargo build
-cargo test
+cargo build --no-default-features --features stub
+cargo test --no-default-features --features stub
 ```
 
 **真实 OCIO 模式**：
@@ -71,8 +72,8 @@ OCIO_INSTALL_DIR=/path/to/ocio cargo build --features system
 OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features system
 ```
 
-`OCIO_SOURCE_DIR` 目前只在 bundled 构建路径内被消费；单独设置它不会启用真实
-OCIO 模式。
+`OCIO_SOURCE_DIR` 仅在源码构建时使用；要强制使用该源码而不是优先使用兼容的
+系统库，请启用 `bundled`。
 
 预装模式接受 OpenColorIO `>= 2.4.1, < 2.7`；启用 `v2_5` 时要求
 `>= 2.5.1, < 2.7`。系统依次通过 pkg-config 探测
@@ -81,10 +82,10 @@ OCIO 模式。
 `.pc` 文件的旧安装，传统的 `include`、`lib`、`lib64` 布局仍然可用。也可以直接
 设置 `PKG_CONFIG_PATH`。
 
-后端 feature 遵循 Cargo 的加法语义：没有后端 feature 时确定使用 stub；
+后端 feature 遵循 Cargo 的加法语义：默认 `auto` 优先探测系统库，否则构建 bundled；
+关闭默认 feature 后须显式选择 `stub` 才会启用测试替身，否则要求系统库。
 `system` 要求系统安装；`bundled` 增加源码构建 Adapter，并在 Cargo 同时合并
-`system` 时优先。没有后端 feature 且没有旧式环境变量覆盖时，不会自动探测本机
-OCIO。`OCIO_RS_ENABLE_REAL=0/1` 作为旧调用方式保留；显式设置
+`system` 时优先。`OCIO_RS_ENABLE_REAL=0/1` 作为旧调用方式保留；显式设置
 `OCIO_INSTALL_DIR` 也会请求真实后端。无效值和与 feature 冲突的配置会报错。
 
 `bundled` feature 默认构建 vendored 源码，以保持历史行为。设置
