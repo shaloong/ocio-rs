@@ -1,5 +1,12 @@
 # Migration Notes
 
+## Portable C character types
+
+Low-level C `char` arguments, return values and callback pointers use
+`std::ffi::c_char` instead of `i8`. Update explicitly typed `ocio-sys` callers
+and callbacks accordingly. This preserves the native C ABI, including targets
+where `char` is unsigned, such as Linux ARM64. Byte buffers remain `u8`.
+
 ## Backend selection
 
 The default backend now probes for a compatible system OpenColorIO, then builds
