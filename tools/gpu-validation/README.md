@@ -33,20 +33,6 @@ second GPU pass without rebuilding the shader.
 The checked dynamic texture-policy case also executes a 1D LUT promoted to a 2D
 texture by Rust's native virtual getter callbacks, checks setter events, and
 compares GPU with CPU.
-The persistent-policy case also extracts through a retained Rust policy,
-uses a borrowed dynamic cache-ID callback, detaches it into a native descriptor,
-and executes the result on the GPU.
-Persistent texture-control cases additionally use explicit bindings and mix
-external and descriptor-owned 2D/3D textures in both registration orders;
-each order is tested with and without an externally retained, updated dynamic
-exposure uniform using the persistent uniform controller.
-The first explicit binding occupies the next default slot; the second texture
-uses the next unoccupied default binding and the resulting shader is executed.
-These cases also pass generated shader fragments through persistent lifecycle
-and code hooks and a persistent custom assembler before execution, including
-an explicitly constructed Vulkan uniform block when needed.
-Another mixed-resource case replaces persistent finalization itself and runs
-the resulting shader with a dynamic uniform before and after an update.
 
 The tool requires Vulkan, a suitable physical GPU, a C++ toolchain, and either
 OCIO 2.6 source usable by `bundled` or an explicitly configured 2.6 installation.

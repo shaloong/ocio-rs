@@ -1,5 +1,22 @@
 # Migration Notes
 
+## GPU creator policies (breaking change from 0.4.0)
+
+`PersistentPolicyCreator`, `ShaderCacheIdPolicy`, `ShaderClonePolicy`,
+`ShaderTextureControl`, and their dedicated `ocio-sys` entry points have been
+removed. Ordinary descriptor extraction and synchronous GPU hooks are unchanged.
+
+- To reuse Rust state, keep it in the application and pass it to each
+  `try_extract_with_hooks` call. For per-texture storage and binding decisions,
+  pass a closure to `try_extract_with_texture_control`. `ShaderTexturePolicy`
+  is still supported for a single extraction.
+- For a known cache ID, pass it in `ShaderCreatorOptions` for that extraction.
+  This does not implement a virtual cache-ID getter. If the same custom creator
+  must survive multiple extractions or override `getCacheID()` or `clone()`,
+  supply a C++ `GpuShaderCreator` via `GpuShaderCreator::from_native_shared_ptr`
+  and use `GPUProcessor::try_extract_to_creator`. This requires a compatible OCIO
+  C++ ABI and is not a drop-in pure-Rust replacement.
+
 ## Portable C character types
 
 Low-level C `char` arguments, return values and callback pointers use
@@ -52,9 +69,8 @@ pointer-encoded texture indices now report an error instead of narrowing.
 
 `FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report
 native values unavailable at the enabled interface level. Their existing
-infallible counterparts retain their compatibility fallbacks. A persistent
-GPU creator may opt into `ShaderCacheIdPolicy` for a single extraction; the
-caller remains responsible for stable cache identity and resource cleanup.
+infallible counterparts retain their compatibility fallbacks. In 0.4.0,
+`ShaderCacheIdPolicy` supported dynamic cache IDs; see the migration above.
 
 ### Packed image pointer-step padding
 

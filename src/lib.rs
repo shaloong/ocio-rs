@@ -152,9 +152,8 @@ pub use processor::{
     StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
-    PersistentPolicyCreator, ShaderCacheIdPolicy, ShaderClonePolicy, ShaderCodeSection,
-    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,
-    ShaderSections, ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
+    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
+    ShaderLifecycle, ShaderSections, ShaderTexture, ShaderTextureAction, ShaderTexturePolicy,
     ShaderUniform, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
     ShaderUniformRegistration,
 };

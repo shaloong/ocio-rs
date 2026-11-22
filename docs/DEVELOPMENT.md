@@ -131,12 +131,10 @@ and `stub_mode_reporting_tests.rs` asserts the cfg matches `is_stub_build()`.
 ## GPU extension boundary
 
 Keep normal shader extraction and native creator interop aligned with OCIO.
-The existing Rust shader hooks and persistent policies are maintained for
-compatibility, but are not a general Rust implementation of the C++ creator
-interface. Do not extend that policy framework by default; specialized GPU
-resource management can use native creator interop or application-side code.
-Preserve existing public exports unless a separately reviewed breaking change
-has a clear migration path.
+Rust extraction hooks borrow application state for one synchronous call; never
+leave those callbacks attached to a returned descriptor or retained getter.
+Applications own cross-call state and external GPU resources. Use native creator
+interop for custom C++ virtual dispatch or persistent creator identity.
 
 ## Code Generator
 

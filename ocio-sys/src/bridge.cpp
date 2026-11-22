@@ -10512,8 +10512,6 @@ class OcioRsAssemblingDesc final : public ocio::GpuShaderDesc,
   ocio_shader_texture_control_callback texture_control_callback = nullptr;
   ocio_shader_finalize_callback finalize_callback = nullptr;
   ocio_shader_texture_policy_callback policy_callback = nullptr;
-  ocio_shader_cache_id_callback cache_id_callback = nullptr;
-  ocio_shader_clone_callback clone_callback = nullptr;
   mutable bool policy_failed = false;
   ocio_shader_uniform_callback uniform_callback;
   ocio_shader_lifecycle_callback lifecycle_callback;
@@ -10662,34 +10660,13 @@ public:
     else { cache_id_override.clear(); has_cache_id_override = false; }
   }
   void setTextureControl(ocio_shader_texture_control_callback cb) { texture_control_callback = cb; }
-  void setUniformControl(ocio_shader_uniform_registration_callback cb) { registration_callback = cb; }
-  void setPersistentHooks(ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code) { lifecycle_callback = lifecycle; code_callback = code; }
-  void setPersistentAssembler(ocio_shader_assemble_callback assembler) { callback = assembler; }
   void setFinalizeControl(ocio_shader_finalize_callback cb) { finalize_callback = cb; }
   void setTexturePolicy(ocio_shader_texture_policy_callback cb) { policy_callback = cb; }
-  void setCacheIDCallback(ocio_shader_cache_id_callback cb) noexcept { cache_id_callback = cb; }
-  void setCloneCallback(ocio_shader_clone_callback cb) noexcept { clone_callback = cb; }
-  ocio::GpuShaderCreatorRcPtr clone() const override {
-    if (!clone_callback) return ocio::GpuShaderDesc::clone();
-    // The callback transfers one heap-allocated shared-pointer holder.
-    std::unique_ptr<ocio::GpuShaderCreatorRcPtr> result(
-        static_cast<ocio::GpuShaderCreatorRcPtr*>(clone_callback(context)));
-    if (!result || !*result) throw ocio::Exception("Rust shader creator clone callback failed");
-    if (result->get() == this) throw ocio::Exception("shader creator clone returned the original object");
-    return std::move(*result);
-  }
   bool texturePolicyFailed() const noexcept { return policy_failed; }
-  void resetTexturePolicyFailure() noexcept { policy_failed = false; }
   const char* getCacheID() const noexcept override {
-    if (cache_id_callback) {
-      const char* value = nullptr;
-      if (cache_id_callback(context, &value) && value && *value) return value;
-      policy_failed = true;
-      return "";
-    }
     return has_cache_id_override ? cache_id_override.c_str() : ocio::GpuShaderCreator::getCacheID();
   }
-  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; policy_callback = nullptr; cache_id_callback = nullptr; clone_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
+  void clear_callback() noexcept { callback = nullptr; texture_callback = nullptr; texture_control_callback = nullptr; finalize_callback = nullptr; policy_callback = nullptr; uniform_callback = nullptr; lifecycle_callback = nullptr; code_callback = nullptr; registration_callback = nullptr; context = nullptr; stream_textures = false; }
   void begin(const char* uid) override { if (policy_failed) throw ocio::Exception("Rust shader policy callback failed"); ocio::GpuShaderCreator::begin(uid); notifyLifecycle(0, uid); }
   void end() override { ocio::GpuShaderCreator::end(); notifyLifecycle(2); }
   void finalize() override {
@@ -10719,8 +10696,6 @@ public:
 #if OCIO_RS_NATIVE_API_HEX >= 0x02050000
   void setResourceBindings(unsigned set, unsigned start) { resources->setDescriptorSetIndex(set, start); }
 #endif
-  unsigned storedTextureMaxWidth() const noexcept { return resources->getTextureMaxWidth(); }
-  bool storedAllowTexture1D() const { return resources->getAllowTexture1D(); }
   void setTextureMaxWidth(unsigned v) override {
     uint32_t value = v;
     if (policy_callback && !policy_callback(context, 2, &value))
@@ -10948,213 +10923,6 @@ public:
 #endif
 };
 #endif
-
-void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, const char* cache_id, ocio_shader_texture_policy_callback policy, void* context) {
-#ifdef OCIO_RS_STUB
-  (void)template_desc; (void)cache_id; (void)policy; (void)context;
-  ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
-#else
-  try {
-    if (!template_desc || !cache_id || !*cache_id || !policy || !context)
-      throw std::invalid_argument("invalid persistent shader creator arguments");
-    auto source = ocio_rs_bridge::get_real_gpu_shader_desc(template_desc);
-    auto desc = std::make_shared<OcioRsAssemblingDesc>(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, context, false);
-    desc->setLanguage(source->getLanguage());
-    desc->setFunctionName(source->getFunctionName());
-    desc->setPixelName(source->getPixelName());
-    desc->setResourcePrefix(source->getResourcePrefix());
-    desc->setUniqueID(source->getUniqueID());
-#if OCIO_RS_NATIVE_API_HEX >= 0x02050000
-    desc->setDescriptorSetIndex(source->getDescriptorSetIndex(), source->getTextureBindingStart());
-    desc->setResourceBindings(source->getDescriptorSetIndex(), source->getTextureBindingStart());
-#endif
-    desc->setTexturePolicy(policy);
-    // A persistent template's live getters can run Rust code. Copy its stored
-    // configuration without calling into the source policy.
-    const auto* custom = dynamic_cast<const OcioRsAssemblingDesc*>(source.get());
-    desc->setTextureMaxWidth(custom ? custom->storedTextureMaxWidth() : source->getTextureMaxWidth());
-    desc->setAllowTexture1D(custom ? custom->storedAllowTexture1D() : source->getAllowTexture1D());
-    desc->setCacheIDOverride(cache_id);
-    ocio::GpuShaderCreatorRcPtr creator = desc;
-    return new ocio::GpuShaderCreatorRcPtr(std::move(creator));
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
-#endif
-}
-
-void ocio_gpu_shader_creator_set_persistent_texture_control(void* creator, ocio_shader_texture_control_callback texture) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)texture; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !texture) throw std::invalid_argument("invalid persistent texture control arguments");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->setTextureControl(texture);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_set_persistent_uniform_control(void* creator, ocio_shader_uniform_registration_callback uniform) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)uniform; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !uniform) throw std::invalid_argument("invalid persistent uniform control arguments");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->setUniformControl(uniform);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_set_persistent_hooks(void* creator, ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)lifecycle; (void)code; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !lifecycle || !code) throw std::invalid_argument("invalid persistent shader hooks");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->setPersistentHooks(lifecycle, code);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_set_persistent_assembler(void* creator, ocio_shader_assemble_callback assembler) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)assembler; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !assembler) throw std::invalid_argument("invalid persistent shader assembler");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->setPersistentAssembler(assembler);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_set_persistent_finalizer(void* creator, ocio_shader_finalize_callback finalizer) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)finalizer; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !finalizer) throw std::invalid_argument("invalid persistent shader finalizer");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->setFinalizeControl(finalizer);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_detach_persistent_policy(void* creator) {
-#ifdef OCIO_RS_STUB
-  (void)creator;
-#else
-  if (!creator) return;
-  auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-  if (desc) desc->clear_callback();
-#endif
-}
-
-void* ocio_gpu_shader_creator_clone_with_policy(void* creator, ocio_shader_clone_callback clone) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)clone;
-  ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
-#else
-  try {
-    if (!creator || !clone) throw std::invalid_argument("null creator or clone callback");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    struct CallbackGuard {
-      OcioRsAssemblingDesc& desc;
-      ~CallbackGuard() { desc.setCloneCallback(nullptr); }
-    } guard{*desc};
-    desc->setCloneCallback(clone);
-    return ocio_gpu_shader_creator_clone(creator);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
-#endif
-}
-
-void ocio_gpu_shader_creator_begin_manual(void* creator, const char* uid) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)uid; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!creator || !uid) throw std::invalid_argument("null creator or shader identifier");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->resetTexturePolicyFailure();
-    desc->begin(uid);
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* creator) {
-#ifdef OCIO_RS_STUB
-  (void)processor; (void)creator; ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!processor || !creator) throw std::invalid_argument("null processor or shader creator");
-    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(native);
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    desc->resetTexturePolicyFailure();
-    auto active = native;
-    ocio_rs_bridge::get_real_gpu_processor(processor)->extractGpuShaderInfo(active);
-    if (active.get() != native.get()) throw ocio::Exception("OpenColorIO replaced the persistent creator");
-    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust texture policy callback failed");
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
-
-const char* ocio_gpu_shader_creator_query_cache_policy(void* creator, ocio_shader_cache_id_callback cache_id) {
-#ifdef OCIO_RS_STUB
-  (void)creator; (void)cache_id;
-  ocio_rs_bridge::capture_error_message("Native shader creator required"); return nullptr;
-#else
-  try {
-    if (!creator || !cache_id) throw std::invalid_argument("null creator or cache callback");
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(*static_cast<ocio::GpuShaderCreatorRcPtr*>(creator));
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    struct CallbackGuard {
-      OcioRsAssemblingDesc& desc;
-      ~CallbackGuard() {
-        desc.setCacheIDCallback(nullptr);
-        desc.resetTexturePolicyFailure();
-      }
-    } guard{*desc};
-    desc->resetTexturePolicyFailure();
-    desc->setCacheIDCallback(cache_id);
-    const auto* id = desc->getCacheID();
-    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust shader cache callback failed");
-    return id;
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); return nullptr; }
-#endif
-}
-
-void ocio_gpu_shader_creator_extract_with_cache_policy(void* processor, void* creator, ocio_shader_cache_id_callback cache_id) {
-#ifdef OCIO_RS_STUB
-  (void)processor; (void)creator; (void)cache_id;
-  ocio_rs_bridge::capture_error_message("Native shader creator required");
-#else
-  try {
-    if (!processor || !creator || !cache_id) throw std::invalid_argument("null processor, creator or cache callback");
-    auto& native = *static_cast<ocio::GpuShaderCreatorRcPtr*>(creator);
-    auto desc = std::dynamic_pointer_cast<OcioRsAssemblingDesc>(native);
-    if (!desc) throw std::invalid_argument("not a persistent policy creator");
-    struct CallbackGuard {
-      OcioRsAssemblingDesc& desc;
-      ~CallbackGuard() { desc.setCacheIDCallback(nullptr); }
-    } guard{*desc};
-    desc->resetTexturePolicyFailure();
-    desc->setCacheIDCallback(cache_id);
-    auto active = native;
-    ocio_rs_bridge::get_real_gpu_processor(processor)->extractGpuShaderInfo(active);
-    if (active.get() != native.get()) throw ocio::Exception("OpenColorIO replaced the persistent creator");
-    if (desc->texturePolicyFailed()) throw ocio::Exception("Rust shader policy callback failed");
-  } catch (...) { ocio_rs_bridge::capture_current_exception(); }
-#endif
-}
 
 #if !defined(OCIO_RS_STUB) && OCIO_RS_NATIVE_API_HEX >= 0x02050000
 static void ocio_rs_check_generic_texture_binding_range(
