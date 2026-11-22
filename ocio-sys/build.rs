@@ -919,6 +919,19 @@ fn find_msvc_include() -> Option<PathBuf> {
 
 #[cfg(all(any(feature = "auto", feature = "bundled"), target_os = "windows"))]
 fn find_msvc_compiler() -> Option<PathBuf> {
+    let target = env::var("CARGO_CFG_TARGET_ARCH").ok()?;
+    let target_dir = match target.as_str() {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        "x86" => "x86",
+        _ => return None,
+    };
+    let host = env::var("HOST").unwrap_or_default();
+    let host_dirs = if host.starts_with("aarch64") {
+        ["Hostarm64", "Hostx64"]
+    } else {
+        ["Hostx64", "Hostarm64"]
+    };
     let base = std::path::Path::new("C:/Program Files (x86)/Microsoft Visual Studio");
     for year in &["2022", "2019"] {
         let vc_dir = base
@@ -931,14 +944,16 @@ fn find_msvc_compiler() -> Option<PathBuf> {
             let mut entries: Vec<_> = entries.flatten().collect();
             entries.sort_by_key(|entry| std::cmp::Reverse(entry.file_name()));
             for entry in entries {
-                let candidate = entry
-                    .path()
-                    .join("bin")
-                    .join("Hostx64")
-                    .join("x64")
-                    .join("cl.exe");
-                if candidate.exists() {
-                    return Some(candidate);
+                for host_dir in host_dirs {
+                    let candidate = entry
+                        .path()
+                        .join("bin")
+                        .join(host_dir)
+                        .join(target_dir)
+                        .join("cl.exe");
+                    if candidate.exists() {
+                        return Some(candidate);
+                    }
                 }
             }
         }
