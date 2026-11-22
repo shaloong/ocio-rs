@@ -179,7 +179,7 @@ fn generate_stubs(old_lib: &str, removed: &HashSet<String>) -> Vec<String> {
         let body = match ret_type.as_str() {
             "()" => String::new(),
             "*mut c_void" => "    std::ptr::null_mut()".into(),
-            "*const i8" => "    std::ptr::null()".into(),
+            "*const i8" | "*const std::ffi::c_char" => "    std::ptr::null()".into(),
             "i32" | "u32" | "i64" | "u64" | "usize" => "    0".into(),
             "bool" => "    false".into(),
             "f32" | "f64" => "    0.0".into(),

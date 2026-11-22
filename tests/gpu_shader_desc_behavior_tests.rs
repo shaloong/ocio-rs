@@ -6264,8 +6264,8 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             assert!(!has_binding_3d);
         }
 
-        let mut raw_texture_name: *const i8 = std::ptr::null();
-        let mut raw_sampler_name: *const i8 = std::ptr::null();
+        let mut raw_texture_name: *const std::ffi::c_char = std::ptr::null();
+        let mut raw_sampler_name: *const std::ffi::c_char = std::ptr::null();
         let mut width = 0u32;
         let mut height = 0u32;
         let mut channel = -1i32;
@@ -6315,8 +6315,8 @@ fn legacy_gpu_shader_desc_sys_texture_getters_return_real_outputs() {
             texture_values
         );
 
-        let mut raw_texture3d_name: *const i8 = std::ptr::null();
-        let mut raw_sampler3d_name: *const i8 = std::ptr::null();
+        let mut raw_texture3d_name: *const std::ffi::c_char = std::ptr::null();
+        let mut raw_sampler3d_name: *const std::ffi::c_char = std::ptr::null();
         let mut edge_len = 0u32;
         let mut interpolation3d = -1i32;
         ocio_sys::ocio_gpu_shader_desc_get3d_texture(

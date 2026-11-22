@@ -276,7 +276,7 @@ fn native_provider_cannot_ignore_rejected_payload_writes() {
     unsafe extern "C" fn read(
         context: *mut c_void,
         _: i32,
-        _: *const i8,
+        _: *const std::ffi::c_char,
         destination: *mut c_void,
         write: Write,
     ) -> bool {

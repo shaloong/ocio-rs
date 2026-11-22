@@ -238,7 +238,7 @@ fn compute_hash_callback_update_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-unsafe extern "C" fn rust_logging_callback(message: *const i8) {
+unsafe extern "C" fn rust_logging_callback(message: *const std::ffi::c_char) {
     if message.is_null() {
         return;
     }
@@ -912,7 +912,7 @@ pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {
     CString::new(value.as_ref()).map_err(|_| OcioError::InteriorNul)
 }
 
-pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
+pub(crate) unsafe fn cstr_to_opt_string(ptr: *const std::ffi::c_char) -> Option<String> {
     if ptr.is_null() {
         None
     } else {
@@ -922,7 +922,7 @@ pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
 
 // v2.5.1 compat: accept *mut c_void (new return type for many getter functions)
 pub(crate) unsafe fn cstr_from_mut(ptr: *mut c_void) -> Option<String> {
-    cstr_to_opt_string(ptr as *const i8)
+    cstr_to_opt_string(ptr as *const std::ffi::c_char)
 }
 
 pub(crate) fn clear_last_error() {

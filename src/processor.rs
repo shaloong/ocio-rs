@@ -3937,7 +3937,7 @@ impl GpuShaderCreator<'_> {
         getter: F,
         register: unsafe extern "C" fn(
             *mut c_void,
-            *const i8,
+            *const std::ffi::c_char,
             u32,
             *mut c_void,
             unsafe extern "C" fn(*mut c_void, *mut T, usize, *mut usize) -> bool,
@@ -4413,7 +4413,7 @@ pub trait ShaderTextureControl {
 unsafe fn shader_texture_from_event(
     event: &ocio_sys::OcioShaderTextureEvent,
 ) -> Result<ShaderTexture<'_>> {
-    let read = |ptr: *const i8| -> Result<&str> {
+    let read = |ptr: *const std::ffi::c_char| -> Result<&str> {
         if ptr.is_null() {
             return Err(OcioError::InvalidInput("null texture name".into()));
         }
@@ -4671,7 +4671,7 @@ struct PersistentPolicyState<P> {
     finalizer_output: Option<std::ffi::CString>,
 }
 
-type CacheIdCallback = unsafe extern "C" fn(*mut c_void, *mut *const i8) -> bool;
+type CacheIdCallback = unsafe extern "C" fn(*mut c_void, *mut *const std::ffi::c_char) -> bool;
 
 unsafe extern "C" fn persistent_clone_callback<P: ShaderClonePolicy>(
     context: *mut c_void,
@@ -4698,7 +4698,7 @@ unsafe extern "C" fn persistent_clone_callback<P: ShaderClonePolicy>(
 
 unsafe extern "C" fn persistent_cache_id_callback<P: ShaderCacheIdPolicy>(
     context: *mut c_void,
-    output: *mut *const i8,
+    output: *mut *const std::ffi::c_char,
 ) -> bool {
     let state = unsafe { &mut *context.cast::<PersistentPolicyState<P>>() };
     if state.error.is_some() {
@@ -5392,7 +5392,7 @@ unsafe extern "C" fn persistent_uniform_control_callback<
     P: ShaderTexturePolicy + ShaderUniformControl,
 >(
     context: *mut c_void,
-    name: *const i8,
+    name: *const std::ffi::c_char,
     uniform_type: i32,
     has_max_size: bool,
     max_size: u32,
@@ -5477,7 +5477,7 @@ unsafe extern "C" fn persistent_lifecycle_callback<
 >(
     context: *mut c_void,
     event: i32,
-    uid: *const i8,
+    uid: *const std::ffi::c_char,
 ) -> bool {
     if context.is_null() {
         return false;
@@ -5524,8 +5524,8 @@ unsafe extern "C" fn persistent_lifecycle_callback<
 unsafe extern "C" fn persistent_code_callback<P: ShaderTexturePolicy + ShaderExtractionHooks>(
     context: *mut c_void,
     section: i32,
-    code: *const i8,
-    replacement: *mut *const i8,
+    code: *const std::ffi::c_char,
+    replacement: *mut *const std::ffi::c_char,
 ) -> bool {
     if context.is_null() {
         return false;
@@ -5592,13 +5592,13 @@ unsafe extern "C" fn persistent_assembler_callback<
     P: ShaderTexturePolicy + ShaderExtractionHooks,
 >(
     context: *mut c_void,
-    parameters: *const i8,
-    textures: *const i8,
-    helpers: *const i8,
-    header: *const i8,
-    body: *const i8,
-    footer: *const i8,
-    output: *mut *const i8,
+    parameters: *const std::ffi::c_char,
+    textures: *const std::ffi::c_char,
+    helpers: *const std::ffi::c_char,
+    header: *const std::ffi::c_char,
+    body: *const std::ffi::c_char,
+    footer: *const std::ffi::c_char,
+    output: *mut *const std::ffi::c_char,
 ) -> bool {
     if context.is_null() {
         return false;
@@ -5612,7 +5612,7 @@ unsafe extern "C" fn persistent_assembler_callback<
             if output.is_null() {
                 return Err(OcioError::InvalidInput("null shader output".into()));
             }
-            let read = |ptr: *const i8| -> Result<&str> {
+            let read = |ptr: *const std::ffi::c_char| -> Result<&str> {
                 if ptr.is_null() {
                     return Err(OcioError::InvalidInput("null shader section".into()));
                 }
@@ -5666,7 +5666,7 @@ unsafe extern "C" fn persistent_finalizer_callback<
     P: ShaderTexturePolicy + ShaderFinalizeControl,
 >(
     context: *mut c_void,
-    output: *mut *const i8,
+    output: *mut *const std::ffi::c_char,
 ) -> bool {
     if context.is_null() {
         return false;
@@ -6605,7 +6605,7 @@ impl GPUProcessor {
         }
         unsafe extern "C" fn finalize_callback<F, G>(
             context: *mut c_void,
-            output: *mut *const i8,
+            output: *mut *const std::ffi::c_char,
         ) -> bool
         where
             F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -6653,8 +6653,8 @@ impl GPUProcessor {
         unsafe extern "C" fn code_callback<F, G>(
             context: *mut c_void,
             section: i32,
-            code: *const i8,
-            replacement: *mut *const i8,
+            code: *const std::ffi::c_char,
+            replacement: *mut *const std::ffi::c_char,
         ) -> bool
         where
             F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -6715,7 +6715,7 @@ impl GPUProcessor {
         unsafe extern "C" fn lifecycle_callback<F, G>(
             context: *mut c_void,
             event: i32,
-            uid: *const i8,
+            uid: *const std::ffi::c_char,
         ) -> bool
         where
             F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -6758,7 +6758,7 @@ impl GPUProcessor {
         }
         unsafe extern "C" fn uniform_callback<F, G>(
             context: *mut c_void,
-            name: *const i8,
+            name: *const std::ffi::c_char,
             uniform_type: i32,
             index: u32,
             has_max_size: bool,
@@ -6803,13 +6803,13 @@ impl GPUProcessor {
         }
         unsafe extern "C" fn callback<F, G>(
             context: *mut c_void,
-            p: *const i8,
-            t: *const i8,
-            h: *const i8,
-            head: *const i8,
-            body: *const i8,
-            foot: *const i8,
-            output_ptr: *mut *const i8,
+            p: *const std::ffi::c_char,
+            t: *const std::ffi::c_char,
+            h: *const std::ffi::c_char,
+            head: *const std::ffi::c_char,
+            body: *const std::ffi::c_char,
+            foot: *const std::ffi::c_char,
+            output_ptr: *mut *const std::ffi::c_char,
         ) -> bool
         where
             F: FnMut(ShaderSections<'_>) -> Result<Option<String>>,
@@ -6818,7 +6818,7 @@ impl GPUProcessor {
             let state = unsafe { &mut *context.cast::<State<'_, F, G>>() };
             let result = crate::catch_callback_unwind(std::panic::AssertUnwindSafe(
                 || -> Result<Option<std::ffi::CString>> {
-                    let read = |ptr: *const i8| -> Result<&str> {
+                    let read = |ptr: *const std::ffi::c_char| -> Result<&str> {
                         if ptr.is_null() {
                             return Err(OcioError::InvalidInput("null shader section".into()));
                         }
@@ -6934,7 +6934,7 @@ impl GPUProcessor {
         }
         unsafe extern "C" fn registration_callback<F, G>(
             context: *mut c_void,
-            name: *const i8,
+            name: *const std::ffi::c_char,
             uniform_type: i32,
             has_max_size: bool,
             max_size: u32,
@@ -7534,7 +7534,7 @@ impl GpuTextureDimensions {
     }
 }
 
-fn required_ocio_string(ptr: *const i8) -> Option<String> {
+fn required_ocio_string(ptr: *const std::ffi::c_char) -> Option<String> {
     let value = unsafe { cstr_to_opt_string(ptr) }?;
     if value.is_empty() {
         None

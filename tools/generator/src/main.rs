@@ -369,8 +369,8 @@ fn map_c_to_rust(c_type: &str) -> &str {
     match c_type {
         "void" => "()",
         "void*" => "*mut c_void",
-        "const char*" => "*const i8",
-        "char" => "i8",
+        "const char*" => "*const std::ffi::c_char",
+        "char" => "std::ffi::c_char",
         "int" => "i32",
         "unsigned int" => "u32",
         "size_t" => "usize",
@@ -1531,7 +1531,7 @@ fn generate_lib_rs(classes: &HashMap<String, ClassDef>) -> String {
 
     // Global
     l.push_str("    // --- Global utility functions ---\n");
-    l.push_str("    pub fn ocio_get_version() -> *const i8;\n");
+    l.push_str("    pub fn ocio_get_version() -> *const std::ffi::c_char;\n");
     l.push_str("    pub fn ocio_get_version_hex() -> i32;\n");
     l.push_str("    pub fn ocio_get_logging_level() -> i32;\n");
     l.push_str("    pub fn ocio_set_logging_level(level: i32);\n\n");
@@ -1551,7 +1551,7 @@ fn generate_lib_rs(classes: &HashMap<String, ClassDef>) -> String {
     // Config
     l.push_str("\n    // --- Config ---\n");
     l.push_str("    pub fn ocio_config_create_raw() -> *mut c_void;\n");
-    l.push_str("    pub fn ocio_config_create_from_file(path: *const i8) -> *mut c_void;\n");
+    l.push_str("    pub fn ocio_config_create_from_file(path: *const std::ffi::c_char) -> *mut c_void;\n");
     l.push_str("    pub fn ocio_config_destroy(handle: *mut c_void);\n");
     if let Some(cls) = classes.get("Config") {
         gen_rs_class(&mut l, cls);

@@ -4112,7 +4112,10 @@ impl Config {
         }
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_config_set_family_separator(self.handle.as_ptr(), separator as i8);
+            ocio_sys::ocio_config_set_family_separator(
+                self.handle.as_ptr(),
+                separator as std::ffi::c_char,
+            );
         }
         crate::ocio_call_status()
     }
