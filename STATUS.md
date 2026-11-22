@@ -23,15 +23,17 @@ available fallible `try_*` methods where errors matter.
 
 | Coverage | Trigger |
 | --- | --- |
-| Cross-platform stub tests and Ubuntu format, lint, documentation, parity and packaging checks | Pushes and pull requests |
+| Stub tests on Linux x64/ARM64, Windows x64 and macOS ARM64; Ubuntu format, lint, documentation, parity and packaging checks | Pushes and pull requests |
 | Installed OpenColorIO 2.4.x on Fedora | Pushes and pull requests |
 | Representative native OpenColorIO 2.6 behavior | Pull requests |
 | Bundled build with system zlib-ng on Arch | Pull requests, scheduled and manual runs |
-| Bundled builds on Linux, macOS and Windows; exact 2.4.1 and 2.5.1 minima; full 2.6 interface and installed-library checks | Scheduled and manual runs |
+| Bundled builds on Linux x64/ARM64, macOS Intel/Apple Silicon and Windows x64/ARM64; exact 2.4.1 and 2.5.1 minima; full 2.6 interface and installed-library checks | Scheduled and manual runs |
 | Release packaging and offline bundled audit | Manual |
 | Stub bridge AddressSanitizer | Manual |
 
-Stub tests cannot establish native behavior. The parity checker compares names
+These are CI targets, not a claim that every platform, hardware device or
+compiler supported by upstream has been validated. Stub tests cannot establish
+native behavior. The parity checker compares names
 and does not prove signatures or runtime behavior. For a release candidate,
 record the exact commit and successful checks; follow
 [release guidance](docs/RELEASING.md) for the full validation and publishing
