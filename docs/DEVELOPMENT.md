@@ -105,6 +105,9 @@ loader must be able to find the OCIO runtime library when tests or applications
 run. `static` is a preference, not a guarantee: a prefix that ships only a
 shared OpenColorIO satisfies the probe dynamically, and the transitive static
 dependencies above are then left out rather than requested as missing archives.
+On Windows, configure `PATH` before launching a dynamic build's binaries.
+Bundled dynamic builds print the runtime directories; installed builds use the
+installation's DLL directories. No DLLs are copied into the Cargo output.
 
 ## Backend selection
 
@@ -143,7 +146,7 @@ interop for custom C++ virtual dispatch or persistent creator identity.
 ```bash
 cd tools/generator
 cargo run                             # Generate all files
-cargo run -- --check                  # Dry-run: parse only
+cargo run -- --check                  # Generate in memory; do not write files
 cargo run -- --ocio-path <path>       # Use custom OCIO headers
 ```
 

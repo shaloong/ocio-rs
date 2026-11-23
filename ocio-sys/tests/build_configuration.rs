@@ -307,6 +307,38 @@ fn installed_prefix_takes_precedence_over_the_bundled_default() {
 }
 
 #[test]
+fn explicit_prefix_rejects_forced_source_build() {
+    let fixture = ProbeFixture::with_features(&["auto"]);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_INSTALL_DIR", &fixture.install_dir)
+            .env("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "always");
+    });
+    assert!(!output.status.success());
+    let text = output_text(&output);
+    assert!(
+        text.contains("OCIO_INSTALL_DIR conflicts with forcing"),
+        "{text}"
+    );
+}
+
+#[test]
+fn missing_explicit_source_does_not_fall_back_to_vendor() {
+    let fixture = ProbeFixture::with_features(&["auto"]);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("FAKE_PKG_CONFIG_FAIL", "1")
+            .env("OCIO_SOURCE_DIR", fixture.root.join("missing-ocio-source"));
+    });
+    assert!(!output.status.success());
+    let text = output_text(&output);
+    assert!(
+        text.contains("has no CMakeLists.txt") && text.contains("missing-ocio-source"),
+        "{text}"
+    );
+}
+
+#[test]
 fn installed_prefix_without_pkg_config_uses_the_legacy_layout() {
     let fixture = ProbeFixture::new(false);
     fs::remove_file(fixture.pkg_config_dir.join("OpenColorIO.pc")).unwrap();

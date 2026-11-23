@@ -88,7 +88,10 @@ cargo build --no-default-features --features stub
 ```
 
 `OCIO_SOURCE_DIR` is consumed only when a source build is selected. To force
-its use instead of a compatible system library, enable `bundled`.
+its use instead of a compatible system library, enable `bundled` without
+`OCIO_INSTALL_DIR`. An invalid explicit source directory is an error, not a
+request to use vendored sources. An explicit installation prefix cannot be
+combined with forcing an internal source build.
 
 Installed mode accepts OpenColorIO `>= 2.4.1, < 2.7`, raised to
 `>= 2.5.1, < 2.7` by `v2_5` and `>= 2.6.0, < 2.7` by `v2_6`. It first probes
@@ -119,7 +122,9 @@ pkg-config, including on Windows.
 OpenColorIO install with shared libraries. Make sure your platform loader can
 find the OCIO runtime library at execution time, for example via
 `LD_LIBRARY_PATH`, `DYLD_LIBRARY_PATH`, `PATH`, or your package manager's normal
-runtime setup.
+runtime setup. On Windows, add the installation's `bin` directory and any
+required dependency DLL directories to `PATH`; the build does not copy DLLs
+into Cargo's shared output directory.
 
 The `ocio-sys` package vendors the upstream OpenColorIO source tree
 plus the transitive dependency sources used by the current bundled build

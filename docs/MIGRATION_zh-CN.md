@@ -1,5 +1,10 @@
 # 迁移说明
 
+## Windows 动态库查找
+
+构建不再把 DLL 复制到 Cargo 的共享输出目录。Windows 动态链接时，运行测试或
+应用前请把 OCIO 安装的 `bin` 和所需依赖 DLL 目录加入 `PATH`。
+
 ## GPU creator 策略（相对 0.4.0 的破坏性变更）
 
 已移除 `PersistentPolicyCreator`、`ShaderCacheIdPolicy`、`ShaderClonePolicy`、

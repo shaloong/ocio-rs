@@ -1,5 +1,11 @@
 # Migration Notes
 
+## Windows shared library lookup
+
+Builds no longer copy DLLs into Cargo's shared output directory. For dynamic
+linking on Windows, add the OCIO installation's `bin` and any dependency DLL
+directories to `PATH` before running tests or applications.
+
 ## GPU creator policies (breaking change from 0.4.0)
 
 `PersistentPolicyCreator`, `ShaderCacheIdPolicy`, `ShaderClonePolicy`,
