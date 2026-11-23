@@ -1122,6 +1122,28 @@ fn config_from_file_reports_real_ocio_errors() {
         )),
     }
 }
+
+#[cfg(unix)]
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
+fn config_from_native_path_preserves_non_utf8_filename() {
+    use std::ffi::{CString, OsString};
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+
+    let mut name = format!("ocio-rs-native-path-{}-", std::process::id()).into_bytes();
+    name.extend_from_slice(b"\xff.ocio");
+    let path = std::env::temp_dir().join(OsString::from_vec(name));
+    let text = Config::raw()
+        .unwrap()
+        .serialize_to_string()
+        .unwrap()
+        .unwrap();
+    fs::write(&path, text).unwrap();
+    let native_path = CString::new(path.as_os_str().as_bytes()).unwrap();
+    let loaded = Config::from_file_cstr(&native_path);
+    fs::remove_file(path).unwrap();
+    assert!(loaded.unwrap().color_space("raw").is_some());
+}
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn empty_config_is_distinct_from_raw_fallback() {
