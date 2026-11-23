@@ -331,6 +331,8 @@ fn map_return_type(cpp_type: &str) -> (&str, &str, bool) {
         "void" => ("void", "", false),
         "int" => ("int", "0", false),
         "unsigned int" => ("unsigned int", "0", false),
+        "long" => ("long", "0", false),
+        "unsigned long" => ("unsigned long", "0", false),
         "size_t" => ("size_t", "0", false),
         "bool" => ("bool", "false", false),
         "float" => ("float", "0.0f", false),
@@ -377,13 +379,15 @@ fn map_c_to_rust(c_type: &str) -> &str {
         "bool" => "bool",
         "float" => "f32",
         "double" => "f64",
-        "long" => "i64",
-        "unsigned long" => "u64",
+        "long" => "std::ffi::c_long",
+        "unsigned long" => "std::ffi::c_ulong",
+        "long*" => "*mut std::ffi::c_long",
+        "unsigned long*" => "*mut std::ffi::c_ulong",
         _ => {
             if c_type.ends_with('*') {
                 "*mut c_void"
             } else {
-                "i32"
+                panic!("unmapped C ABI value type: {c_type}")
             }
         }
     }
@@ -848,8 +852,10 @@ fn map_param_type(cpp_type: &str) -> &str {
         "int" | "int&" => "int",
         "int*" | "int*&" => "int*",
         "unsigned int" | "unsigned int&" => "unsigned int",
-        "unsigned long" | "unsigned long&" => "unsigned long",
-        "unsigned long*" | "unsigned long*&" => "unsigned long*",
+        "long" => "long",
+        "long*" | "long&" => "long*",
+        "unsigned long" => "unsigned long",
+        "unsigned long*" | "unsigned long&" | "unsigned long*&" => "unsigned long*",
         "size_t" => "size_t",
         "size_t&" => "size_t*",
         "bool" | "bool&" => "bool",
@@ -1379,7 +1385,8 @@ fn gen_cpp_methods(l: &mut String, cls: &ClassDef) {
                 let clean_type = p.cpp_type.trim_end_matches('&').trim().to_string();
                 let norm_type = clean_type.replace(" *", "*").replace("* ", "*");
                 if norm_type == "float" || norm_type == "double" || norm_type == "int"
-                    || norm_type == "unsigned int" || norm_type == "size_t" || norm_type == "bool" {
+                    || norm_type == "unsigned int" || norm_type == "size_t" || norm_type == "bool"
+                    || norm_type == "long" || norm_type == "unsigned long" {
                     // Non-const basic type ref — C param is pointer, dereference for C++ ref
                     call_args.push(format!("*static_cast<{}*>({})", norm_type, pname));
                 } else if norm_type == "const float" || norm_type == "const double" || norm_type == "const int" {
@@ -1668,25 +1675,45 @@ fn main() {
         eprintln!("  {}: {} methods", name, cls.methods.len());
     }
 
+    let hpp = generate_bridge_hpp(&classes);
+    let cpp = generate_bridge_cpp(&classes);
+    let lib = generate_lib_rs(&classes);
     if check_only {
-        eprintln!("\n--check mode: parsed successfully, no files written.");
+        eprintln!("\n--check mode: generated successfully, no files written.");
         return;
     }
 
     eprintln!("\nGenerating {}...", bridge_hpp.display());
-    let hpp = generate_bridge_hpp(&classes);
     fs::write(&bridge_hpp, &hpp).unwrap();
     eprintln!("  Wrote {} lines", hpp.lines().count());
 
     eprintln!("Generating {}...", bridge_cpp.display());
-    let cpp = generate_bridge_cpp(&classes);
     fs::write(&bridge_cpp, &cpp).unwrap();
     eprintln!("  Wrote {} lines", cpp.lines().count());
 
     eprintln!("Generating {}...", lib_rs.display());
-    let lib = generate_lib_rs(&classes);
     fs::write(&lib_rs, &lib).unwrap();
     eprintln!("  Wrote {} lines", lib.lines().count());
 
     eprintln!("\nDone. Review the generated files before committing.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_long_uses_platform_abi_in_both_directions() {
+        for (cpp, rust) in [("long", "std::ffi::c_long"), ("unsigned long", "std::ffi::c_ulong")] {
+            assert_eq!(map_return_type(cpp).0, cpp);
+            assert_eq!(map_c_to_rust(map_param_type(cpp)), rust);
+            assert_eq!(map_c_to_rust(map_param_type(&format!("{cpp}&"))), format!("*mut {rust}"));
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "unmapped C ABI value type")]
+    fn unknown_c_value_type_is_not_guessed() {
+        map_c_to_rust("unknown_value");
+    }
 }
