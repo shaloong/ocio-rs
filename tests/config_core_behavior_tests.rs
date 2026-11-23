@@ -1128,6 +1128,7 @@ fn config_from_file_reports_real_ocio_errors() {
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn config_from_native_path_preserves_non_utf8_filename() {
     use std::ffi::{CString, OsString};
+    use std::fs;
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
     let mut name = format!("ocio-rs-native-path-{}-", std::process::id()).into_bytes();
