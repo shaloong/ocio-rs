@@ -569,8 +569,8 @@ impl Config {
 
     /// Load a config from a native C path without converting its bytes.
     ///
-    /// This accepts non-UTF-8 filenames on Unix. On other platforms the
-    /// bytes must use the path encoding expected by the native OCIO library.
+    /// This preserves non-UTF-8 filenames on Unix filesystems that allow them.
+    /// The bytes must use the path encoding expected by the native OCIO library.
     pub fn from_file_cstr(path: &std::ffi::CStr) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };

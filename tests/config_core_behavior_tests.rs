@@ -1123,7 +1123,8 @@ fn config_from_file_reports_real_ocio_errors() {
     }
 }
 
-#[cfg(unix)]
+// This fixture needs a filesystem that supports arbitrary bytes in filenames.
+#[cfg(target_os = "linux")]
 #[test]
 #[cfg_attr(ocio_stub, ignore = "requires native OpenColorIO")]
 fn config_from_native_path_preserves_non_utf8_filename() {
