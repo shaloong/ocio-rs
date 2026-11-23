@@ -43,17 +43,17 @@
 //!
 //! | Mode | Feature flag | Notes |
 //! |------|-------------|-------|
-//! | **Stub** (default) | `--no-default-features` | APIs return safe defaults; no real color management |
+//! | **Auto** (default) | `auto` | Probe system OCIO, otherwise build bundled source |
+//! | **Stub** | `--no-default-features --features stub` | No real color management; testing only |
 //! | **System** | `--features system` | Requires installed OpenColorIO and pkg-config |
 //! | **Bundled** | `--features bundled` | Builds vendored OCIO; static linking by default |
 //!
-//! Set `OCIO_RS_LINK=dynamic` for shared linking. With neither backend feature
-//! nor legacy environment override, the backend is stub and performs no color
-//! processing. `OCIO_RS_ENABLE_REAL=0/1` remains a legacy override.
+//! Set `OCIO_RS_LINK=dynamic` for shared linking. With default features
+//! disabled and no backend feature, a system library is required.
 //!
 //! ```bash
 //! # Stub mode (CI, API-shape testing)
-//! cargo build
+//! cargo build --no-default-features --features stub
 //!
 //! # Bundled real-OCIO build
 //! cargo build --features bundled
@@ -145,16 +145,15 @@ pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderCreator, GpuShaderDesc,
-    GpuShaderDescView, GpuTexture2D, GpuTexture3D, GpuTextureChannel, GpuTextureDimensions,
-    GpuUniform, GpuUniformCache, GpuUniformCopy, GpuUniformType, GpuUniformValue,
-    PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut,
-    PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut,
-    StaticCPUProcessor, TextureInfo,
+    GpuShaderDescView, GpuTexture2D, GpuTexture3D, GpuTexture3DInfo, GpuTextureChannel,
+    GpuTextureDimensions, GpuUniform, GpuUniformCache, GpuUniformCopy, GpuUniformType,
+    GpuUniformValue, PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes,
+    PlanarBytesMut, PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes,
+    SignedPlanarBytesMut, StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
-    PersistentPolicyCreator, ShaderCacheIdPolicy, ShaderClonePolicy, ShaderCodeSection,
-    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderLifecycle,
-    ShaderSections, ShaderTexture, ShaderTextureAction, ShaderTextureControl, ShaderTexturePolicy,
+    ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
+    ShaderLifecycle, ShaderSections, ShaderTexture, ShaderTextureAction, ShaderTexturePolicy,
     ShaderUniform, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
     ShaderUniformRegistration,
 };
@@ -238,7 +237,7 @@ fn compute_hash_callback_update_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-unsafe extern "C" fn rust_logging_callback(message: *const i8) {
+unsafe extern "C" fn rust_logging_callback(message: *const std::ffi::c_char) {
     if message.is_null() {
         return;
     }
@@ -857,14 +856,17 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 /// The caller must meet the synchronization requirements of [`try_current_config`].
 ///
 /// ```compile_fail
-/// let _ = ocio_rs::processor_cache_flags(); // Reads a native global snapshot.
+/// let _ = ocio_rs::processor_cache_flags(); // Reads native global state.
 /// ```
 pub unsafe fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    unsafe { try_const_current_config() }
-        .ok()
-        .flatten()
-        .and_then(|config| config.processor_cache_flags().ok())
-        .unwrap_or(crate::ProcessorCacheFlags(0))
+    unsafe { read_current_processor_cache_flags() }.unwrap_or(crate::ProcessorCacheFlags(0))
+}
+
+unsafe fn read_current_processor_cache_flags() -> Result<crate::ProcessorCacheFlags> {
+    clear_last_error();
+    let flags = unsafe { ocio_sys::ocio_current_config_get_processor_cache_flags() };
+    ocio_call_status()?;
+    Ok(crate::ProcessorCacheFlags(flags as u32))
 }
 
 /// Updates the processor cache flags on the current global config, if any.
@@ -898,12 +900,12 @@ pub unsafe fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
 /// let _ = ocio_rs::try_set_processor_cache_flags(ocio_rs::ProcessorCacheFlags::DEFAULT);
 /// ```
 pub unsafe fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
-    if let Some(current) = unsafe { try_const_current_config()? } {
-        if current.processor_cache_flags()? != flags {
-            let config = current.create_editable_copy()?;
-            config.try_set_processor_cache_flags(flags.0 as i32)?;
-            try_set_current_config(&config)?;
-        }
+    if unsafe { read_current_processor_cache_flags()? } == flags {
+        return Ok(());
+    }
+    if let Some(config) = unsafe { try_current_config()? } {
+        config.try_set_processor_cache_flags(flags.0 as i32)?;
+        try_set_current_config(&config)?;
     }
     Ok(())
 }
@@ -912,7 +914,7 @@ pub(crate) fn cstring(value: impl AsRef<str>) -> Result<CString> {
     CString::new(value.as_ref()).map_err(|_| OcioError::InteriorNul)
 }
 
-pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
+pub(crate) unsafe fn cstr_to_opt_string(ptr: *const std::ffi::c_char) -> Option<String> {
     if ptr.is_null() {
         None
     } else {
@@ -922,7 +924,7 @@ pub(crate) unsafe fn cstr_to_opt_string(ptr: *const i8) -> Option<String> {
 
 // v2.5.1 compat: accept *mut c_void (new return type for many getter functions)
 pub(crate) unsafe fn cstr_from_mut(ptr: *mut c_void) -> Option<String> {
-    cstr_to_opt_string(ptr as *const i8)
+    cstr_to_opt_string(ptr as *const std::ffi::c_char)
 }
 
 pub(crate) fn clear_last_error() {

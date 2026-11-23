@@ -35,20 +35,41 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
     set(_EXT_DIST_ROOT "${PROJECT_BINARY_DIR}/ext/dist")
     set(_EXT_BUILD_ROOT "${PROJECT_BINARY_DIR}/ext/build")
 
-    if(WIN32)
-        set(_ZLIB_LIB_NAME "zlib")
-        set(_ZLIB_STATIC_LIB_NAME "zlibstatic")
-    else()
-        set(_ZLIB_LIB_NAME "z")
-        set(_ZLIB_STATIC_LIB_NAME "z")
-    endif()
-
     # Set find_package standard args
     set(ZLIB_FOUND TRUE)
     if(OCIO_ZLIB_RECOMMENDED_VERSION)
         set(ZLIB_VERSION ${OCIO_ZLIB_RECOMMENDED_VERSION})
     else()
         set(ZLIB_VERSION ${ZLIB_FIND_VERSION})
+    endif()
+
+    # Bundled sources may be older than the upstream recommended version.
+    # Use their declared version when selecting the actual output names.
+    if(DEFINED OCIO_RS_LOCAL_DEPS_DIR AND EXISTS "${OCIO_RS_LOCAL_DEPS_DIR}/zlib/CMakeLists.txt")
+        set(_ZLIB_VERSION_FILE "${OCIO_RS_LOCAL_DEPS_DIR}/zlib/zlib.h")
+    elseif(EXISTS "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/zlib/CMakeLists.txt")
+        set(_ZLIB_VERSION_FILE "${PROJECT_SOURCE_DIR}/ext/ocio-rs-deps/zlib/zlib.h")
+    endif()
+    if(_ZLIB_VERSION_FILE)
+        file(STRINGS "${_ZLIB_VERSION_FILE}" _ZLIB_VERSION_LINE REGEX "^#define ZLIB_VERSION ")
+        if(_ZLIB_VERSION_LINE MATCHES "^#define ZLIB_VERSION[ \t]+\"([0-9]+\\.[0-9]+\\.[0-9]+)\"")
+            set(ZLIB_VERSION "${CMAKE_MATCH_1}")
+        else()
+            message(FATAL_ERROR "Cannot determine the bundled zlib source version")
+        endif()
+    endif()
+
+    if(WIN32)
+        if(ZLIB_VERSION VERSION_LESS "1.3.2")
+            set(_ZLIB_LIB_NAME "zlib")
+            set(_ZLIB_STATIC_LIB_NAME "zlibstatic")
+        else()
+            set(_ZLIB_LIB_NAME "z")
+            set(_ZLIB_STATIC_LIB_NAME "zs")
+        endif()
+    else()
+        set(_ZLIB_LIB_NAME "z")
+        set(_ZLIB_STATIC_LIB_NAME "z")
     endif()
 
     set(ZLIB_INCLUDE_DIRS "${_EXT_DIST_ROOT}/${CMAKE_INSTALL_INCLUDEDIR}")
@@ -89,7 +110,9 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
             -DCMAKE_INSTALL_MESSAGE=${CMAKE_INSTALL_MESSAGE}
             -DCMAKE_INSTALL_PREFIX=${_EXT_DIST_ROOT}
             -DCMAKE_OBJECT_PATH_MAX=${CMAKE_OBJECT_PATH_MAX}
+            -DCMAKE_INSTALL_LIBDIR=${_ZLIB_INSTALL_LIBDIR}
             -DZLIB_BUILD_EXAMPLES=OFF
+            -DZLIB_BUILD_TESTING=OFF
         )
 
         if(CMAKE_TOOLCHAIN_FILE)
@@ -158,10 +181,20 @@ if(NOT ZLIB_FOUND AND OCIO_INSTALL_EXT_PACKAGES AND NOT OCIO_INSTALL_EXT_PACKAGE
 
     ExternalProject_Add_Step(
         ZLIB_install zlib_remove_dll
-        COMMENT "Remove zlib.lib and zlib.dll, leaves only zlibstatic.lib"
+        COMMENT "Remove the shared zlib library, leaving the static library"
         DEPENDEES install
-        COMMAND ${CMAKE_COMMAND} -E remove -f ${_EXT_DIST_ROOT}/${_ZLIB_INSTALL_LIBDIR}/zlib.lib ${_EXT_DIST_ROOT}/bin/zlib.dll
+        COMMAND ${CMAKE_COMMAND} -E remove -f ${_EXT_DIST_ROOT}/${_ZLIB_INSTALL_LIBDIR}/${_ZLIB_LIB_NAME}.lib ${_EXT_DIST_ROOT}/bin/${_ZLIB_LIB_NAME}.dll
     )
+
+    if(WIN32 AND NOT _ZLIB_STATIC_LIB_NAME STREQUAL "zlibstatic")
+        ExternalProject_Add_Step(
+            ZLIB_install zlib_alias_static_lib
+            DEPENDEES zlib_remove_dll
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${_EXT_DIST_ROOT}/${_ZLIB_INSTALL_LIBDIR}/${_ZLIB_STATIC_LIB_NAME}${_ZLIB_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}
+                ${_EXT_DIST_ROOT}/${_ZLIB_INSTALL_LIBDIR}/zlibstatic${_ZLIB_LIB_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}
+        )
+    endif()
 
     add_dependencies(ZLIB::ZLIB ZLIB_install)
     

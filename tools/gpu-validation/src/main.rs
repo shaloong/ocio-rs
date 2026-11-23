@@ -4,11 +4,10 @@ use ocio_rs::transform::{
 };
 use ocio_rs::{
     Config, DynamicPropertyType, FixedFunctionStyle, GpuLanguage, GpuShaderDesc, GpuTextureChannel,
-    GpuTextureDimensions, GpuUniformType, Interpolation, PersistentPolicyCreator, Processor,
-    ShaderCacheIdPolicy, ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks,
-    ShaderFinalizeControl, ShaderTexture, ShaderTextureAction, ShaderTextureControl,
-    ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl, ShaderUniformGetter,
-    ShaderUniformRegistration, TransformDirection,
+    GpuTextureDimensions, GpuUniformType, Interpolation, Processor, ShaderCodeSection,
+    ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl, ShaderTexture,
+    ShaderTextureAction, ShaderTexturePolicy, ShaderUniformAction, ShaderUniformControl,
+    ShaderUniformGetter, ShaderUniformRegistration, TransformDirection,
 };
 use wgpu::util::DeviceExt;
 
@@ -56,252 +55,14 @@ fn validate_case(
     desc.set_language(GpuLanguage::GlslVk4_6)?;
     desc.set_function_name("ocio_transform")?;
     desc.set_allow_texture_1d(
-        expected_texture == TextureKind::OneD
-            || name == "dynamic texture policy"
-            || name == "persistent texture policy",
+        expected_texture == TextureKind::OneD || name == "dynamic texture policy",
     )?;
     if name.contains("packed-width-4") {
         desc.set_texture_max_width(4)?;
     }
     let mut streamed_lut = Vec::new();
     let mut external_uniform = None;
-    if name == "persistent texture policy" {
-        struct Policy {
-            queries: usize,
-            cache_queries: usize,
-        }
-        impl ShaderTexturePolicy for Policy {
-            fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
-                self.queries += 1;
-                Ok(1024)
-            }
-            fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
-                Ok(false)
-            }
-        }
-        impl ShaderCacheIdPolicy for Policy {
-            fn cache_id(&mut self) -> ocio_rs::Result<&std::ffi::CStr> {
-                self.cache_queries += 1;
-                Ok(c"persistent-dynamic-gpu-validation")
-            }
-        }
-        let mut creator = PersistentPolicyCreator::create(
-            &desc,
-            Policy {
-                queries: 0,
-                cache_queries: 0,
-            },
-            c"persistent-gpu-validation",
-        )?;
-        creator.try_extract_with_cache_policy(&gpu)?;
-        if creator.policy_mut().queries == 0 || creator.policy_mut().cache_queries == 0 {
-            return Err("persistent texture or cache policy was not queried".into());
-        }
-        desc = creator.finish()?;
-    } else if name.starts_with("persistent control") {
-        struct Policy {
-            seen: usize,
-            external: Vec<LutTexture>,
-            uniform: Option<ShaderUniformGetter>,
-            lifecycle: usize,
-            body_seen: bool,
-            footer_modified: bool,
-            assembly_count: usize,
-            sections: [String; 7],
-            custom_finalize: bool,
-        }
-        impl ShaderTexturePolicy for Policy {
-            fn texture_max_width(&mut self) -> ocio_rs::Result<u32> {
-                Ok(1024)
-            }
-            fn allow_texture_1d(&mut self) -> ocio_rs::Result<bool> {
-                Ok(false)
-            }
-        }
-        impl ShaderTextureControl for Policy {
-            fn register_texture(
-                &mut self,
-                texture: ShaderTexture<'_>,
-            ) -> ocio_rs::Result<ShaderTextureAction> {
-                self.seen += 1;
-                let proposed = texture.suggested_binding.ok_or_else(|| {
-                    ocio_rs::OcioError::InvalidInput("missing proposed binding".into())
-                })?;
-                if self.seen != 1 {
-                    if proposed != self.external[0].binding + 1 {
-                        return Err(ocio_rs::OcioError::InvalidInput(
-                            "default binding did not skip the explicit override".into(),
-                        ));
-                    }
-                    return Ok(ShaderTextureAction::StoreInDescriptor { binding: None });
-                }
-                let binding = proposed
-                    .checked_add(1)
-                    .ok_or_else(|| ocio_rs::OcioError::InvalidInput("binding overflow".into()))?;
-                let kind = match texture.dimensions {
-                    Some(GpuTextureDimensions::Texture1D) => TextureKind::OneD,
-                    Some(GpuTextureDimensions::Texture2D) => TextureKind::TwoD,
-                    None => TextureKind::ThreeD,
-                };
-                self.external.push(LutTexture {
-                    sampler: texture.sampler_name.to_owned(),
-                    binding,
-                    width: texture.width,
-                    height: texture.height,
-                    depth: texture.depth,
-                    kind,
-                    channel: texture.channel,
-                    interpolation: texture.interpolation,
-                    values: texture.values.to_vec(),
-                });
-                Ok(ShaderTextureAction::External {
-                    binding: Some(binding),
-                })
-            }
-        }
-        impl ShaderExtractionHooks for Policy {
-            fn lifecycle(&mut self, _: ocio_rs::ShaderLifecycle<'_>) -> ocio_rs::Result<()> {
-                self.lifecycle += 1;
-                Ok(())
-            }
-            fn code(
-                &mut self,
-                section: ShaderCodeSection,
-                code: &str,
-            ) -> ocio_rs::Result<Option<String>> {
-                let replacement = if section == ShaderCodeSection::Body {
-                    self.body_seen = true;
-                    Some(format!("// persistent GPU hook\n{code}"))
-                } else if section == ShaderCodeSection::Footer && code.contains("return outColor;")
-                {
-                    self.footer_modified = true;
-                    Some(code.replace(
-                        "return outColor;",
-                        "outColor.rgb *= 0.5;\n  return outColor;",
-                    ))
-                } else {
-                    None
-                };
-                if self.custom_finalize {
-                    let index = match section {
-                        ShaderCodeSection::Declarations => 0,
-                        ShaderCodeSection::Parameters => 1,
-                        ShaderCodeSection::Textures => 2,
-                        ShaderCodeSection::Helpers => 3,
-                        ShaderCodeSection::Header => 4,
-                        ShaderCodeSection::Body => 5,
-                        ShaderCodeSection::Footer => 6,
-                    };
-                    self.sections[index].push_str(replacement.as_deref().unwrap_or(code));
-                }
-                Ok(replacement)
-            }
-            fn assemble(
-                &mut self,
-                parts: ocio_rs::ShaderSections<'_>,
-            ) -> ocio_rs::Result<Option<String>> {
-                self.assembly_count += 1;
-                let mut result = String::from("// persistent GPU assembler\n");
-                if !parts.parameters.is_empty() {
-                    result.push_str(
-                        "layout (set = 0, binding = 0) uniform ocio_transform_Parameters\n{\n",
-                    );
-                    result.push_str(parts.parameters);
-                    result.push_str("\n};\n");
-                }
-                for part in [
-                    parts.textures,
-                    parts.helpers,
-                    parts.header,
-                    parts.body,
-                    parts.footer,
-                ] {
-                    result.push_str(part);
-                }
-                Ok(Some(result))
-            }
-        }
-        impl ShaderUniformControl for Policy {
-            fn register_uniform(
-                &mut self,
-                uniform: ShaderUniformRegistration,
-            ) -> ocio_rs::Result<ShaderUniformAction> {
-                if uniform.uniform_type != GpuUniformType::Double || self.uniform.is_some() {
-                    return Err(ocio_rs::OcioError::InvalidInput(
-                        "unexpected persistent uniform".into(),
-                    ));
-                }
-                self.uniform = Some(uniform.getter);
-                Ok(ShaderUniformAction::ExternalAdded)
-            }
-        }
-        impl ShaderFinalizeControl for Policy {
-            fn finalize_shader(&mut self) -> ocio_rs::Result<Option<String>> {
-                let mut result = String::from("// persistent GPU finalizer\n");
-                result.push_str(&self.sections[0]);
-                if !self.sections[1].is_empty() {
-                    result.push_str(
-                        "layout (set = 0, binding = 0) uniform ocio_transform_Parameters\n{\n",
-                    );
-                    result.push_str(&self.sections[1]);
-                    result.push_str("\n};\n");
-                }
-                for section in &self.sections[2..] {
-                    result.push_str(section);
-                }
-                Ok(Some(result))
-            }
-        }
-        let custom_finalize = name.contains("finalizer");
-        let policy = Policy {
-            seen: 0,
-            external: Vec::new(),
-            uniform: None,
-            lifecycle: 0,
-            body_seen: false,
-            footer_modified: false,
-            assembly_count: 0,
-            sections: std::array::from_fn(|_| String::new()),
-            custom_finalize,
-        };
-        let mut creator = if custom_finalize {
-            PersistentPolicyCreator::create_with_finalizer(
-                &desc,
-                policy,
-                c"persistent-control-gpu-validation",
-            )?
-        } else {
-            PersistentPolicyCreator::create_with_assembler(
-                &desc,
-                policy,
-                c"persistent-control-gpu-validation",
-            )?
-        };
-        creator.try_extract(&gpu)?;
-        if creator.policy_mut().seen != 2 {
-            return Err("expected two persistent texture registrations".into());
-        }
-        if creator.policy_mut().lifecycle != 3
-            || !creator.policy_mut().body_seen
-            || !creator.policy_mut().footer_modified
-            || creator.policy_mut().assembly_count != usize::from(!custom_finalize)
-        {
-            return Err("persistent shader hooks did not run".into());
-        }
-        streamed_lut = std::mem::take(&mut creator.policy_mut().external);
-        external_uniform = creator.policy_mut().uniform.take();
-        desc = creator.finish()?;
-        if !desc.try_shader_text()?.is_some_and(|s| {
-            s.contains("// persistent GPU hook")
-                && s.contains(if custom_finalize {
-                    "// persistent GPU finalizer"
-                } else {
-                    "// persistent GPU assembler"
-                })
-        }) {
-            return Err("persistent shader code was not applied".into());
-        }
-    } else if use_hooks {
+    if use_hooks {
         if name != "dynamic texture policy" {
             gpu.validate_shader_texture_layout(&desc)?;
         }
@@ -853,7 +614,7 @@ fn validate_case(
         let mut expected = input.to_vec();
         for pixel in &mut expected {
             cpu.apply_rgba(pixel);
-            if use_hooks || name.starts_with("persistent control") {
+            if use_hooks {
                 for channel in &mut pixel[..3] {
                     *channel *= 0.5;
                 }
@@ -1099,21 +860,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         validate_case(
             &device,
             &queue,
-            if reverse {
-                "persistent control external 3D + retained 2D"
-            } else {
-                "persistent control external 2D + retained 3D"
-            },
-            &processor,
-            dynamic.then_some(1.1),
-            TextureKind::Mixed,
-            5e-3,
-            None,
-            false,
-        )?;
-        validate_case(
-            &device,
-            &queue,
             match (reverse, dynamic) {
                 (false, false) => "mixed external 2D + retained 3D",
                 (true, false) => "mixed external 3D + retained 2D",
@@ -1128,17 +874,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             true,
         )?;
         if dynamic && !reverse {
-            validate_case(
-                &device,
-                &queue,
-                "persistent control finalizer external 2D + retained 3D",
-                &processor,
-                Some(1.1),
-                TextureKind::Mixed,
-                5e-3,
-                None,
-                false,
-            )?;
             validate_case(
                 &device,
                 &queue,
@@ -1164,17 +899,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         5e-3,
         None,
         true,
-    )?;
-    validate_case(
-        &device,
-        &queue,
-        "persistent texture policy",
-        &processor,
-        None,
-        TextureKind::TwoD,
-        5e-3,
-        None,
-        false,
     )?;
     packed.set_length(5)?;
     packed.set_values(&[

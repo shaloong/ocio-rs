@@ -143,7 +143,15 @@ impl Lut1DTransform {
 
     /// Return the LUT length (number of entries).
     pub fn length(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) }
+        self.try_length().unwrap_or(0)
+    }
+
+    /// Return the native LUT length, preserving query errors.
+    pub fn try_length(&self) -> Result<u64> {
+        crate::clear_last_error();
+        let size = unsafe { ocio_sys::ocio_lut1d_transform_get_length_u64(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(size)
     }
 
     /// Return the LUT length (number of entries).
@@ -166,13 +174,19 @@ impl Lut1DTransform {
 
     /// Return all RGB LUT values as a flat `f64` vector.
     pub fn try_values(&self) -> Result<Vec<f64>> {
-        let mut data = vec![0.0f64; required_value_count(self.length())?];
+        let count = required_value_count(self.try_length()?)?;
+        let mut data = super::reserve_native_items(count, "Lut1DTransform::try_values")?;
+        data.resize(count, 0.0f64);
         if data.is_empty() {
             return Ok(data);
         }
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_lut1d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
+            ocio_sys::ocio_lut1d_transform_get_values_checked(
+                self.handle.as_ptr(),
+                data.as_mut_ptr(),
+                data.len(),
+            )
         };
         crate::ocio_call_status()?;
         Ok(data)
@@ -187,7 +201,7 @@ impl Lut1DTransform {
     ///
     /// `data` must contain exactly `length() * 3` values in index order.
     pub fn set_values(&self, data: &[f64]) -> Result<()> {
-        let expected = required_value_count(self.length())?;
+        let expected = required_value_count(self.try_length()?)?;
         if data.len() != expected {
             return Err(OcioError::InvalidInput(format!(
                 "Lut1DTransform::set_values: expected {expected} values, got {}",
@@ -195,7 +209,13 @@ impl Lut1DTransform {
             )));
         }
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_lut1d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_lut1d_transform_set_values_checked(
+                self.handle.as_ptr(),
+                data.as_ptr(),
+                data.len(),
+            )
+        };
         crate::ocio_call_status()
     }
 
@@ -203,7 +223,7 @@ impl Lut1DTransform {
     ///
     /// `Ok(None)` means `index` is outside the current LUT length.
     pub fn try_value(&self, index: u64) -> Result<Option<[f32; 3]>> {
-        if index >= self.length() {
+        if index >= self.try_length()? {
             return Ok(None);
         }
         let mut value = [0.0f32; 3];
@@ -228,10 +248,10 @@ impl Lut1DTransform {
 
     /// Set one RGB LUT entry.
     pub fn set_value(&self, index: u64, value: [f32; 3]) -> Result<()> {
-        if index >= self.length() {
+        let length = self.try_length()?;
+        if index >= length {
             return Err(OcioError::InvalidInput(format!(
-                "Lut1DTransform::set_value: index {index} is outside LUT length {}",
-                self.length()
+                "Lut1DTransform::set_value: index {index} is outside LUT length {length}"
             )));
         }
         crate::clear_last_error();

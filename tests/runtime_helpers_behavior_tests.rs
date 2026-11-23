@@ -98,8 +98,12 @@ fn global_version_and_logging_helper_behavior() {
     if let Ok(expected) = std::env::var("OCIO_RS_TEST_VERSION") {
         assert_eq!(runtime_version, expected, "unexpected native library");
     }
+    #[cfg(ocio_vendored_lut_rows_fixed)]
+    assert_eq!(runtime_version, "2.6.0", "unexpected vendored OCIO version");
     // The runtime must provide at least the API level the crate targets.
-    #[cfg(feature = "v2_5")]
+    #[cfg(feature = "v2_6")]
+    assert!(version_hex() >= 0x0206_0000);
+    #[cfg(all(feature = "v2_5", not(feature = "v2_6")))]
     assert!(version_hex() >= 0x0205_0000);
     #[cfg(not(feature = "v2_5"))]
     assert!(version_hex() >= 0x0204_0000);

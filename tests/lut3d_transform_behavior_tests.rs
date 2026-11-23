@@ -13,6 +13,36 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use ocio_rs::transform::Lut3DTransform;
 use ocio_rs::{BitDepth, Interpolation, TransformDirection};
 
+#[test]
+#[cfg_attr(ocio_stub, ignore = "requires a real OpenColorIO build")]
+fn checked_bulk_buffers_reject_length_mismatch_before_access() {
+    use ocio_rs::transform::TransformHandle;
+
+    let lut = configured_lut3d_transform();
+    assert!(lut.try_grid_size().unwrap() > 0);
+    let before = lut.try_values().unwrap();
+    let mut short = vec![-1.0; before.len() - 1];
+    unsafe {
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_lut3d_transform_get_values_checked(
+            lut.as_ptr(),
+            short.as_mut_ptr(),
+            short.len(),
+        );
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+        assert!(short.iter().all(|value| *value == -1.0));
+
+        ocio_sys::ocio_error_clear_last();
+        ocio_sys::ocio_lut3d_transform_set_values_checked(
+            lut.as_ptr(),
+            short.as_ptr(),
+            short.len(),
+        );
+        assert!(!ocio_sys::ocio_error_get_last().is_null());
+    }
+    assert_eq!(lut.try_values().unwrap(), before);
+}
+
 fn lut3d_transform_test_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))

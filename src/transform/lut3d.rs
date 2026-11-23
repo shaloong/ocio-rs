@@ -144,7 +144,16 @@ impl Lut3DTransform {
 
     /// Return the number of grid points along each axis.
     pub fn grid_size(&self) -> u64 {
-        unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size_u64(self.handle.as_ptr()) }
+        self.try_grid_size().unwrap_or(0)
+    }
+
+    /// Return the native LUT grid size, preserving query errors.
+    pub fn try_grid_size(&self) -> Result<u64> {
+        crate::clear_last_error();
+        let size =
+            unsafe { ocio_sys::ocio_lut3d_transform_get_grid_size_u64(self.handle.as_ptr()) };
+        crate::ocio_call_status()?;
+        Ok(size)
     }
 
     /// Return the number of grid points along each axis.
@@ -170,13 +179,19 @@ impl Lut3DTransform {
     /// Each grid entry is an RGB triplet. OCIO stores its native array in a
     /// different order; this method copies and reorders the values.
     pub fn try_values(&self) -> Result<Vec<f64>> {
-        let mut data = vec![0.0f64; required_value_count(self.grid_size())?];
+        let count = required_value_count(self.try_grid_size()?)?;
+        let mut data = super::reserve_native_items(count, "Lut3DTransform::try_values")?;
+        data.resize(count, 0.0f64);
         if data.is_empty() {
             return Ok(data);
         }
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_lut3d_transform_get_values(self.handle.as_ptr(), data.as_mut_ptr())
+            ocio_sys::ocio_lut3d_transform_get_values_checked(
+                self.handle.as_ptr(),
+                data.as_mut_ptr(),
+                data.len(),
+            )
         };
         crate::ocio_call_status()?;
         Ok(data)
@@ -191,7 +206,7 @@ impl Lut3DTransform {
     /// Replace every RGB LUT entry in grid order: the red coordinate changes
     /// fastest, then green, then blue. Each grid entry is an RGB triplet.
     pub fn set_values(&self, data: &[f64]) -> Result<()> {
-        let expected = required_value_count(self.grid_size())?;
+        let expected = required_value_count(self.try_grid_size()?)?;
         if data.len() != expected {
             return Err(OcioError::InvalidInput(format!(
                 "Lut3DTransform::set_values: expected {expected} values, got {}",
@@ -199,7 +214,13 @@ impl Lut3DTransform {
             )));
         }
         crate::clear_last_error();
-        unsafe { ocio_sys::ocio_lut3d_transform_set_values(self.handle.as_ptr(), data.as_ptr()) };
+        unsafe {
+            ocio_sys::ocio_lut3d_transform_set_values_checked(
+                self.handle.as_ptr(),
+                data.as_ptr(),
+                data.len(),
+            )
+        };
         crate::ocio_call_status()
     }
 
@@ -207,7 +228,7 @@ impl Lut3DTransform {
     ///
     /// `Ok(None)` means at least one coordinate is outside the current grid.
     pub fn try_value(&self, index_r: u64, index_g: u64, index_b: u64) -> Result<Option<[f32; 3]>> {
-        let edge = self.grid_size();
+        let edge = self.try_grid_size()?;
         if index_r >= edge || index_g >= edge || index_b >= edge {
             return Ok(None);
         }
@@ -241,7 +262,7 @@ impl Lut3DTransform {
         index_b: u64,
         value: [f32; 3],
     ) -> Result<()> {
-        let edge = self.grid_size();
+        let edge = self.try_grid_size()?;
         if index_r >= edge || index_g >= edge || index_b >= edge {
             return Err(OcioError::InvalidInput(format!(
                 "Lut3DTransform::set_value: index ({index_r}, {index_g}, {index_b}) is outside {edge}x{edge}x{edge} LUT"

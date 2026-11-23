@@ -130,7 +130,10 @@ impl ProbeFixture {
 
         let ocio_sys_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let dependency = if features.is_empty() {
-            format!("ocio-sys = {{ path = '{}' }}", toml_path(&ocio_sys_dir))
+            format!(
+                "ocio-sys = {{ path = '{}', default-features = false }}",
+                toml_path(&ocio_sys_dir)
+            )
         } else {
             let features = features
                 .iter()
@@ -138,7 +141,7 @@ impl ProbeFixture {
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "ocio-sys = {{ path = '{}', features = [{features}] }}",
+                "ocio-sys = {{ path = '{}', default-features = false, features = [{features}] }}",
                 toml_path(&ocio_sys_dir)
             )
         };
@@ -304,6 +307,38 @@ fn installed_prefix_takes_precedence_over_the_bundled_default() {
 }
 
 #[test]
+fn explicit_prefix_rejects_forced_source_build() {
+    let fixture = ProbeFixture::with_features(&["auto"]);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("OCIO_INSTALL_DIR", &fixture.install_dir)
+            .env("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "always");
+    });
+    assert!(!output.status.success());
+    let text = output_text(&output);
+    assert!(
+        text.contains("OCIO_INSTALL_DIR conflicts with forcing"),
+        "{text}"
+    );
+}
+
+#[test]
+fn missing_explicit_source_does_not_fall_back_to_vendor() {
+    let fixture = ProbeFixture::with_features(&["auto"]);
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("FAKE_PKG_CONFIG_FAIL", "1")
+            .env("OCIO_SOURCE_DIR", fixture.root.join("missing-ocio-source"));
+    });
+    assert!(!output.status.success());
+    let text = output_text(&output);
+    assert!(
+        text.contains("has no CMakeLists.txt") && text.contains("missing-ocio-source"),
+        "{text}"
+    );
+}
+
+#[test]
 fn installed_prefix_without_pkg_config_uses_the_legacy_layout() {
     let fixture = ProbeFixture::new(false);
     fs::remove_file(fixture.pkg_config_dir.join("OpenColorIO.pc")).unwrap();
@@ -344,7 +379,7 @@ fn auto_mode_reaches_the_registered_fallback_when_pkg_config_misses() {
         "the unavailable internal build should stop the fallback"
     );
     assert!(
-        text.contains("requires enabling ocio-sys' `bundled` feature"),
+        text.contains("requires enabling ocio-sys' `auto` or `bundled` feature"),
         "auto mode should reach the registered fallback without requiring bundled dependencies:\n{text}"
     );
     assert!(
@@ -353,10 +388,9 @@ fn auto_mode_reaches_the_registered_fallback_when_pkg_config_misses() {
     );
 }
 
-#[cfg(feature = "bundled")]
 #[test]
 fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
-    let fixture = ProbeFixture::new(true);
+    let fixture = ProbeFixture::with_features(&["auto"]);
     let invalid_source = fixture.root.join("invalid-ocio-source");
     fs::create_dir_all(&invalid_source).unwrap();
     fs::write(
@@ -366,7 +400,6 @@ fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
     .unwrap();
     let output = fixture.cargo_check(|command| {
         command
-            .env("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "auto")
             .env("FAKE_PKG_CONFIG_FAIL", "1")
             .env("OCIO_SOURCE_DIR", &invalid_source);
     });
@@ -383,6 +416,37 @@ fn auto_mode_reaches_the_bundled_build_when_pkg_config_misses() {
     assert!(
         !text.contains("BuildInternalNoClosure"),
         "auto mode must not lose the fallback closure through a name mismatch:\n{text}"
+    );
+}
+
+#[test]
+fn stub_and_auto_cannot_be_unified_silently() {
+    let fixture = ProbeFixture::with_features(&["auto", "stub"]);
+    let output = fixture.cargo_check(|_| {});
+    assert!(!output.status.success());
+    assert!(output_text(&output).contains("the 'stub' feature conflicts with real backends"));
+}
+
+#[test]
+fn system_feature_stays_strict_with_auto_enabled() {
+    let fixture = ProbeFixture::with_features(&["auto", "system"]);
+    let invalid_source = fixture.root.join("invalid-ocio-source");
+    fs::create_dir_all(&invalid_source).unwrap();
+    let output = fixture.cargo_check(|command| {
+        command
+            .env("FAKE_PKG_CONFIG_FAIL", "1")
+            .env("SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL", "always")
+            .env("OCIO_SOURCE_DIR", &invalid_source);
+    });
+    let text = output_text(&output);
+    assert!(
+        !output.status.success(),
+        "missing system OCIO must fail: {text}"
+    );
+    assert!(text.contains("the 'system' feature is enabled"), "{text}");
+    assert!(
+        !text.contains("does not declare project(OpenColorIO)"),
+        "{text}"
     );
 }
 
@@ -486,9 +550,9 @@ fn shared_only_system_install_skips_transitive_static_deps() {
 
 fn prepare_headers(ocio_sys_dir: &Path, include_dir: &Path) {
     let source = ocio_sys_dir
-        .join("vendor")
-        .join("OpenColorIO")
-        .join("include")
+        .join("tests")
+        .join("fixtures")
+        .join("ocio-2.5.2")
         .join("OpenColorIO");
     let destination = include_dir.join("OpenColorIO");
     fs::create_dir_all(&destination).unwrap();
@@ -527,24 +591,24 @@ fn output_text(output: &Output) -> String {
 }
 
 #[test]
-fn default_build_stays_stub_with_an_ambient_opencolorio() {
-    let fixture = ProbeFixture::new(false);
+fn auto_backend_uses_an_ambient_opencolorio() {
+    let fixture = ProbeFixture::with_features(&["auto"]);
     let output = fixture.cargo_check(|_| {});
     let text = output_text(&output);
 
     assert!(
         output.status.success(),
-        "the deterministic default stub build should succeed:\n{text}"
+        "the auto backend should find the installed library:\n{text}"
     );
     assert!(
-        text.contains("rustc-cfg=ocio_stub"),
-        "an ambient OpenColorIO installation must not change the default backend:\n{text}"
+        !text.contains("rustc-cfg=ocio_stub"),
+        "the auto backend must not silently select a stub:\n{text}"
     );
 }
 
 #[test]
-fn default_build_falls_back_to_the_stub_when_no_opencolorio_is_installed() {
-    let fixture = ProbeFixture::new(false);
+fn explicit_stub_build_is_available_without_opencolorio() {
+    let fixture = ProbeFixture::with_features(&["stub"]);
     let output = fixture.cargo_check(|command| {
         command.env("FAKE_PKG_CONFIG_FAIL", "1");
     });
@@ -552,14 +616,14 @@ fn default_build_falls_back_to_the_stub_when_no_opencolorio_is_installed() {
 
     assert!(
         output.status.success(),
-        "a machine without OpenColorIO should still build the crate:\n{text}"
+        "the explicit stub should build without OpenColorIO:\n{text}"
     );
     assert!(
         text.contains("rustc-cfg=ocio_stub"),
-        "the stub fallback should advertise itself through the ocio_stub cfg:\n{text}"
+        "the explicit stub should advertise itself through the ocio_stub cfg:\n{text}"
     );
     assert!(
-        text.contains("building ocio-sys in stub mode"),
+        text.contains("building ocio-sys in explicit stub mode"),
         "the default should report the selected backend:\n{text}"
     );
 }

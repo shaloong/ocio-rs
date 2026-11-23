@@ -34,12 +34,12 @@ never resets or force-pushes. See [RELEASING.md](RELEASING.md) for the procedure
 
 ### Stub mode
 
-The default backend when neither `system` nor `bundled` is enabled.
+The explicit test-only backend selected with `--no-default-features --features stub`.
 `OCIO_RS_STUB` is defined; bridge.cpp compiles without OCIO headers. All C++
 functions return safe defaults (nullptr, 0, false).
 
 ```bash
-cargo build
+cargo build --no-default-features --features stub
 ```
 
 ### Real OCIO mode
@@ -64,10 +64,8 @@ OCIO_INSTALL_DIR=/path/to/ocio OCIO_RS_LINK=dynamic cargo build --features syste
 OCIO_SOURCE_DIR=/path/to/ocio cargo build --features bundled
 ```
 
-`OCIO_SOURCE_DIR` is not a standalone switch into real-OCIO mode. It is only
-consumed by the bundled build path, so use it together with
-`--features bundled` when overriding the vendored
-OpenColorIO source tree.
+`OCIO_SOURCE_DIR` is consumed only by a source build. Use `--features bundled`
+to force the override instead of preferring an installed compatible library.
 
 When building an unmodified OpenColorIO 2.4.1 source tree with CMake 4, some
 of its older bundled dependencies require compatibility with CMake policies
@@ -107,15 +105,19 @@ loader must be able to find the OCIO runtime library when tests or applications
 run. `static` is a preference, not a guarantee: a prefix that ships only a
 shared OpenColorIO satisfies the probe dynamically, and the transitive static
 dependencies above are then left out rather than requested as missing archives.
+On Windows, configure `PATH` before launching a dynamic build's binaries.
+Bundled dynamic builds print the runtime directories; installed builds use the
+installation's DLL directories. No DLLs are copied into the Cargo output.
 
 ## Backend selection
 
-The native Adapter is deterministic. With no backend feature, `cargo build`
-preserves the historical stub default. `system` requires an installed native
+The default `auto` backend probes the system and otherwise builds the bundled
+source. With defaults disabled, `stub` must be explicitly selected for tests;
+otherwise an installed library is required. `system` requires an installed native
 library; `bundled` adds the source-build Adapter and takes precedence when
 Cargo unifies it with `system`. A real-backend resolution failure is fatal and
-may not silently become a stub. docs.rs enables only the `v2_6` Interface, so
-its native Adapter remains stub.
+may not silently become a stub. docs.rs explicitly enables `stub` and the
+`v2_6` interface.
 
 `OCIO_RS_ENABLE_REAL=0/1` remains as a legacy adapter. Invalid values and
 conflicts with Cargo backend features are errors. `OCIO_INSTALL_DIR` is also
@@ -129,6 +131,14 @@ reported 561 passed, since the `is_stub()` guards return early and an early
 return counts as a pass. The runtime guards remain for `cargo test -- --ignored`,
 and `stub_mode_reporting_tests.rs` asserts the cfg matches `is_stub_build()`.
 
+## GPU extension boundary
+
+Keep normal shader extraction and native creator interop aligned with OCIO.
+Rust extraction hooks borrow application state for one synchronous call; never
+leave those callbacks attached to a returned descriptor or retained getter.
+Applications own cross-call state and external GPU resources. Use native creator
+interop for custom C++ virtual dispatch or persistent creator identity.
+
 ## Code Generator
 
 `tools/generator/` is a standalone Rust project (outside the Cargo workspace).
@@ -136,7 +146,7 @@ and `stub_mode_reporting_tests.rs` asserts the cfg matches `is_stub_build()`.
 ```bash
 cd tools/generator
 cargo run                             # Generate all files
-cargo run -- --check                  # Dry-run: parse only
+cargo run -- --check                  # Generate in memory; do not write files
 cargo run -- --ocio-path <path>       # Use custom OCIO headers
 ```
 
@@ -163,6 +173,8 @@ Known issues: the generator's type-mapping still produces a number of edge-case 
 `ocio-sys/vendor/OpenColorIO`; the submodule is a fallback when that tree is
 absent, and `OCIO_SOURCE_DIR` is an explicit source override. Keep the vendored
 source, submodule, bridge, and packaged dependencies synchronized when upgrading.
+The bundled source includes OpenColorIO 2.6.0 and zlib 1.3.2; local
+dependency patches preserve offline builds and must be reviewed when updating.
 The vendored source carries a small fix in `Lut1DOpGPU.cpp`: multi-row LUTs
 reserve a texel per row for interpolation across the row boundary, so the
 allocation includes the final row addressed by the shader. Recheck this fix
@@ -214,7 +226,7 @@ and cannot catch gating mistakes.
 
 ```bash
 # Stub mode
-cargo test --workspace --no-default-features
+cargo test --workspace --no-default-features --features stub
 
 # Real OCIO mode
 cargo test --workspace --no-default-features --features bundled,v2_5 -- --test-threads=1
@@ -244,11 +256,11 @@ helpers so one FFI call processes a batch of pixels.
 Current CI (`ci.yml`) runs:
 
 - `cargo fmt --all -- --check`
-- `cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings`
-- `cargo test --workspace --no-default-features`
-- `cargo test --workspace --no-default-features --features v2_5`
-- `cargo test --examples --no-default-features`
-- `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features v2_5`
+- `cargo clippy --workspace --all-targets --no-default-features --features stub,v2_5 -- -D warnings`
+- `cargo test --workspace --no-default-features --features stub`
+- `cargo test --workspace --no-default-features --features stub,v2_5`
+- `cargo test --examples --no-default-features --features stub`
+- `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features stub,v2_5`
 - `cargo package -p ocio-sys --allow-dirty`
 
 A `fedora:43` container job builds and tests against the distro's OpenColorIO
@@ -277,11 +289,11 @@ Recommended full CI pipeline:
 ```yaml
 steps:
   - cargo fmt --all -- --check
-  - cargo clippy --workspace --all-targets --no-default-features --features v2_5 -- -D warnings
-  - cargo test --workspace --no-default-features
-  - cargo test --workspace --no-default-features --features v2_5
-  - cargo test --examples --no-default-features
-  - RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features v2_5
+  - cargo clippy --workspace --all-targets --no-default-features --features stub,v2_5 -- -D warnings
+  - cargo test --workspace --no-default-features --features stub
+  - cargo test --workspace --no-default-features --features stub,v2_5
+  - cargo test --examples --no-default-features --features stub
+  - RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --no-default-features --features stub,v2_5
   - cargo package -p ocio-sys --allow-dirty
 ```
 

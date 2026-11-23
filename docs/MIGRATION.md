@@ -1,5 +1,51 @@
 # Migration Notes
 
+## Windows shared library lookup
+
+Builds no longer copy DLLs into Cargo's shared output directory. For dynamic
+linking on Windows, add the OCIO installation's `bin` and any dependency DLL
+directories to `PATH` before running tests or applications.
+
+## GPU creator policies (breaking change from 0.4.0)
+
+`PersistentPolicyCreator`, `ShaderCacheIdPolicy`, `ShaderClonePolicy`,
+`ShaderTextureControl`, and their dedicated `ocio-sys` entry points have been
+removed. Ordinary descriptor extraction and synchronous GPU hooks are unchanged.
+
+- To reuse Rust state, keep it in the application and pass it to each
+  `try_extract_with_hooks` call. For per-texture storage and binding decisions,
+  pass a closure to `try_extract_with_texture_control`. `ShaderTexturePolicy`
+  is still supported for a single extraction.
+- For a known cache ID, pass it in `ShaderCreatorOptions` for that extraction.
+  This does not implement a virtual cache-ID getter. If the same custom creator
+  must survive multiple extractions or override `getCacheID()` or `clone()`,
+  supply a C++ `GpuShaderCreator` via `GpuShaderCreator::from_native_shared_ptr`
+  and use `GPUProcessor::try_extract_to_creator`. This requires a compatible OCIO
+  C++ ABI and is not a drop-in pure-Rust replacement.
+
+## Portable C character types
+
+Low-level C `char` arguments, return values and callback pointers use
+`std::ffi::c_char` instead of `i8`. Update explicitly typed `ocio-sys` callers
+and callbacks accordingly. This preserves the native C ABI, including targets
+where `char` is unsigned, such as Linux ARM64. Byte buffers remain `u8`.
+
+## Backend selection
+
+The default backend now probes for a compatible system OpenColorIO, then builds
+the bundled source if none is found. Real build failures do not fall back to
+stub behavior. Use `system` for strict system-library selection or `bundled`
+to force a source build. With defaults disabled and no backend selected, the
+system library is required.
+
+Test-only stub builds now require `default-features = false, features = ["stub"]`.
+The `stub` feature conflicts with `auto`, `system`, and `bundled`, including
+features unified by other dependencies. For existing test scripts using
+`OCIO_RS_ENABLE_REAL=0`, disable default features; the explicit feature is
+preferred. Consequently `--all-features` is not a valid backend combination;
+test real and stub backends separately. docs.rs uses `stub` explicitly and does
+not execute native OCIO.
+
 ## 0.4.0
 
 ### Merge-parameter override snapshots
@@ -29,9 +75,8 @@ pointer-encoded texture indices now report an error instead of narrowing.
 
 `FixedFunctionTransform::try_style` and `GpuShaderDesc::try_language` report
 native values unavailable at the enabled interface level. Their existing
-infallible counterparts retain their compatibility fallbacks. A persistent
-GPU creator may opt into `ShaderCacheIdPolicy` for a single extraction; the
-caller remains responsible for stable cache identity and resource cleanup.
+infallible counterparts retain their compatibility fallbacks. In 0.4.0,
+`ShaderCacheIdPolicy` supported dynamic cache IDs; see the migration above.
 
 ### Packed image pointer-step padding
 

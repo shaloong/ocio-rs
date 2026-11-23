@@ -129,7 +129,7 @@ impl ConfigIOProxy {
         unsafe extern "C" fn read<P: ConfigIOProvider>(
             context: *mut c_void,
             kind: i32,
-            path: *const i8,
+            path: *const std::ffi::c_char,
             destination: *mut c_void,
             write: Write,
         ) -> bool {

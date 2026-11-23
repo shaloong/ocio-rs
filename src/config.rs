@@ -564,6 +564,14 @@ impl Config {
     /// Load a config from an `.ocio` file on disk.
     pub fn from_file(path: impl AsRef<str>) -> Result<Self> {
         let path = cstring(path)?;
+        Self::from_file_cstr(&path)
+    }
+
+    /// Load a config from a native C path without converting its bytes.
+    ///
+    /// This preserves non-UTF-8 filenames on Unix filesystems that allow them.
+    /// The bytes must use the path encoding expected by the native OCIO library.
+    pub fn from_file_cstr(path: &std::ffi::CStr) -> Result<Self> {
         crate::clear_last_error();
         let handle = unsafe { ocio_sys::ocio_config_create_from_file(path.as_ptr().cast()) };
         crate::handle_result(handle).map(|handle| Self { handle })
@@ -4112,7 +4120,10 @@ impl Config {
         }
         crate::clear_last_error();
         unsafe {
-            ocio_sys::ocio_config_set_family_separator(self.handle.as_ptr(), separator as i8);
+            ocio_sys::ocio_config_set_family_separator(
+                self.handle.as_ptr(),
+                separator as std::ffi::c_char,
+            );
         }
         crate::ocio_call_status()
     }

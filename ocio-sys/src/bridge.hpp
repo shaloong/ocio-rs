@@ -192,6 +192,7 @@ const char* ocio_const_config_text(void* handle, int field);
 int ocio_const_config_environment_mode(void* handle);
 const char* ocio_config_get_cache_id_explicit(void* config, bool read_only, const void* context);
 int32_t ocio_const_config_get_processor_cache_flags(void* config);
+int32_t ocio_current_config_get_processor_cache_flags(void);
 void ocio_const_config_set_processor_cache_flags(void* config, int32_t flags);
 void* ocio_const_config_get_color_space(void* handle, const char* name);
 void* ocio_const_config_get_context(void* handle);
@@ -749,6 +750,7 @@ void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDes
 void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
 bool ocio_cpu_processor_try_apply_rgba(void* handle, void* pixel);
+bool ocio_cpu_processor_try_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride);
@@ -829,7 +831,6 @@ void* ocio_gpu_shader_desc_borrow_native_creator(void* handle);
 typedef bool (*ocio_shader_assemble_callback)(void* context, const char* parameters,
     const char* textures, const char* helpers, const char* header, const char* body, const char* footer,
     const char** output);
-void ocio_gpu_shader_creator_set_persistent_assembler(void* creator, ocio_shader_assemble_callback assembler);
 typedef struct ocio_shader_texture_event {
     const char* texture_name;
     const char* sampler_name;
@@ -845,35 +846,17 @@ typedef bool (*ocio_shader_texture_callback)(void* context, const ocio_shader_te
 typedef bool (*ocio_shader_texture_control_callback)(void* context, const ocio_shader_texture_event* event,
     bool* store, bool* override_binding, uint32_t* binding);
 typedef bool (*ocio_shader_finalize_callback)(void* context, const char** shader_text);
-void ocio_gpu_shader_creator_set_persistent_finalizer(void* creator, ocio_shader_finalize_callback finalizer);
 // Kinds 0/1 query maximum width/allow-1D; kinds 2/3 notify their setters.
 // For setter events `value` contains the requested input (allow-1D is 0 or 1).
 typedef bool (*ocio_shader_texture_policy_callback)(void* context, int kind, uint32_t* value);
-// The caller owns context and must keep it alive until callbacks have been
-// detached. Detach before releasing context, including when native objects are
-// retained by caches or other shared pointers. Callbacks must not unwind.
-void* ocio_gpu_shader_creator_create_persistent_policy(void* template_desc, const char* cache_id, ocio_shader_texture_policy_callback policy, void* context);
-void ocio_gpu_shader_creator_set_persistent_texture_control(void* creator, ocio_shader_texture_control_callback texture);
-void ocio_gpu_shader_creator_detach_persistent_policy(void* creator);
-void ocio_gpu_shader_creator_extract_persistent_policy(void* processor, void* creator);
-void ocio_gpu_shader_creator_begin_manual(void* creator, const char* uid);
-// The callback is used only during extraction and must not unwind. Its result
-// remains valid until the next callback invocation or extraction returns.
-typedef bool (*ocio_shader_cache_id_callback)(void* context, const char** cache_id);
-typedef void* (*ocio_shader_clone_callback)(void* context);
-void* ocio_gpu_shader_creator_clone_with_policy(void* creator, ocio_shader_clone_callback clone);
-void ocio_gpu_shader_creator_extract_with_cache_policy(void* processor, void* creator, ocio_shader_cache_id_callback cache_id);
-const char* ocio_gpu_shader_creator_query_cache_policy(void* creator, ocio_shader_cache_id_callback cache_id);
 typedef bool (*ocio_shader_uniform_callback)(void* context, const char* name, int type,
     uint32_t index, bool has_max_size, uint32_t max_size, bool has_buffer_offset, size_t buffer_offset);
 typedef bool (*ocio_shader_lifecycle_callback)(void* context, int event, const char* unique_id);
 typedef bool (*ocio_shader_code_callback)(void* context, int section, const char* code, const char** replacement);
-void ocio_gpu_shader_creator_set_persistent_hooks(void* creator, ocio_shader_lifecycle_callback lifecycle, ocio_shader_code_callback code);
 // Ownership of getter transfers to the callback. It must be destroyed with
 // ocio_gpu_uniform_cache_destroy, even if the callback reports failure.
 typedef bool (*ocio_shader_uniform_registration_callback)(void* context, const char* name,
     int type, bool has_max_size, uint32_t max_size, void* getter, int* action);
-void ocio_gpu_shader_creator_set_persistent_uniform_control(void* creator, ocio_shader_uniform_registration_callback uniform);
 void* ocio_gpu_processor_extract_with_assembler(void* handle, void* template_desc,
     ocio_shader_assemble_callback callback, void* context);
 void* ocio_gpu_processor_extract_with_texture_callback(void* handle, void* template_desc,
@@ -1591,6 +1574,8 @@ int ocio_lut1d_transform_get_interpolation(void* handle);
 void ocio_lut1d_transform_set_interpolation(void* handle, int algo);
 void ocio_lut1d_transform_get_values(void* handle, double* data);
 void ocio_lut1d_transform_set_values(void* handle, const double* data);
+void ocio_lut1d_transform_get_values_checked(void* handle, double* data, size_t capacity);
+void ocio_lut1d_transform_set_values_checked(void* handle, const double* data, size_t capacity);
 
 // --- Lut3DTransform ---
 void* ocio_lut3d_transform_create(void);
@@ -1615,6 +1600,8 @@ int ocio_lut3d_transform_get_interpolation(void* handle);
 void ocio_lut3d_transform_set_interpolation(void* handle, int algo);
 void ocio_lut3d_transform_get_values(void* handle, double* data);
 void ocio_lut3d_transform_set_values(void* handle, const double* data);
+void ocio_lut3d_transform_get_values_checked(void* handle, double* data, size_t capacity);
+void ocio_lut3d_transform_set_values_checked(void* handle, const double* data, size_t capacity);
 
 // --- MatrixTransform ---
 void* ocio_matrix_transform_create(void);

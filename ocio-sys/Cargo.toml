@@ -11,13 +11,20 @@ build = "build.rs"
 
 [dependencies]
 
+[dev-dependencies]
+# Nested offline backend probes enable `auto`, which needs the CMake crate even
+# when the outer test run selects the stub backend.
+cmake = "0.1"
+
 [build-dependencies]
 cc = "1.0"
 cmake = { version = "0.1", optional = true }
 system-deps = "7"
 
 [features]
-default = []
+default = ["auto"]
+auto = ["dep:cmake"]
+stub = []
 # Registers the from-source CMake builder with system-deps. The build script
 # defaults it to `always` for compatibility; use `auto` to prefer pkg-config
 # and fall back to source. See SYSTEM_DEPS_OPENCOLORIO_BUILD_INTERNAL.
@@ -32,7 +39,7 @@ v2_6 = ["v2_5"]
 
 [package.metadata.docs.rs]
 no-default-features = true
-features = ["v2_6"]
+features = ["stub", "v2_6"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.system-deps.opencolorio]

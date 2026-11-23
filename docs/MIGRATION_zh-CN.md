@@ -1,5 +1,43 @@
 # 迁移说明
 
+## Windows 动态库查找
+
+构建不再把 DLL 复制到 Cargo 的共享输出目录。Windows 动态链接时，运行测试或
+应用前请把 OCIO 安装的 `bin` 和所需依赖 DLL 目录加入 `PATH`。
+
+## GPU creator 策略（相对 0.4.0 的破坏性变更）
+
+已移除 `PersistentPolicyCreator`、`ShaderCacheIdPolicy`、`ShaderClonePolicy`、
+`ShaderTextureControl` 及其专用的 `ocio-sys` 入口。普通 descriptor 提取和单次同步
+GPU hooks 不变。
+
+- 要跨次复用 Rust 状态，由应用持有，每次传给 `try_extract_with_hooks`。需要逐纹理
+  决定存储方式或绑定位置时，将闭包传给 `try_extract_with_texture_control`。
+  单次提取仍可使用 `ShaderTexturePolicy`。
+- 提取前已知的缓存 ID 可通过该次调用的 `ShaderCreatorOptions` 传入，这不等于
+  重写虚方法。若必须跨次使用同一个自定义 creator，或自定义虚方法 `getCacheID()`
+  或 `clone()`，可用 `GpuShaderCreator::from_native_shared_ptr` 接入 C++ creator，
+  再调用 `GPUProcessor::try_extract_to_creator`。这要求 OCIO C++ ABI 兼容，
+  没有等价的纯 Rust 替代方式。
+
+## 可移植的 C 字符类型
+
+底层 C `char` 参数、返回值和回调指针由 `i8` 改为 `std::ffi::c_char`；显式标注
+类型的 `ocio-sys` 调用和回调需要同步调整。这样可匹配 Linux ARM64 等平台的
+无符号 C `char`，保持原生 C ABI；字节缓冲区仍使用 `u8`。
+
+## 后端选择迁移
+
+默认后端现在先探测兼容的系统 OpenColorIO，未找到时构建 bundled 源码；真实
+后端构建失败不会静默回退到 stub。选择 `system` 可要求系统库，选择 `bundled`
+可强制源码构建。关闭默认 feature 且未选择后端时，要求系统库。
+
+仅供测试的 stub 必须使用 `default-features = false, features = ["stub"]`。
+`stub` 与 `auto`、`system`、`bundled` 不可同时启用，包括被其他依赖合并启用的
+情况。旧脚本使用 `OCIO_RS_ENABLE_REAL=0` 时也须关闭默认 feature；建议改用
+显式 `stub`。因此 `--all-features` 不是有效的后端组合，需分别测试真实与 stub
+后端。docs.rs 显式使用 stub，不执行原生 OCIO。
+
 ## 0.4.0
 
 ### 合并参数快照和 GPU 原始指针
@@ -28,9 +66,8 @@ IO proxy 或自定义变换状态，调用者还必须在其整个生命周期�
 ### 可失败枚举查询与动态缓存 ID
 
 `FixedFunctionTransform::try_style` 和 `GpuShaderDesc::try_language` 会报告当前
-接口级别无法表示的原生值；已有的非可失败方法保留兼容回退。持久 GPU creator
-可通过 `ShaderCacheIdPolicy` 为单次提取提供动态缓存 ID；调用方仍需保证缓存
-身份正确，并负责外部资源的清理。
+接口级别无法表示的原生值；已有的非可失败方法保留兼容回退。0.4.0 曾通过
+`ShaderCacheIdPolicy` 支持动态缓存 ID，其迁移方式见上文。
 
 ### packed 图像指针步进填充
 
