@@ -192,6 +192,7 @@ const char* ocio_const_config_text(void* handle, int field);
 int ocio_const_config_environment_mode(void* handle);
 const char* ocio_config_get_cache_id_explicit(void* config, bool read_only, const void* context);
 int32_t ocio_const_config_get_processor_cache_flags(void* config);
+int32_t ocio_current_config_get_processor_cache_flags(void);
 void ocio_const_config_set_processor_cache_flags(void* config, int32_t flags);
 void* ocio_const_config_get_color_space(void* handle, const char* name);
 void* ocio_const_config_get_context(void* handle);
@@ -749,6 +750,7 @@ void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDes
 void ocio_cpu_processor_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba(void* handle, void* pixel);
 bool ocio_cpu_processor_try_apply_rgba(void* handle, void* pixel);
+bool ocio_cpu_processor_try_apply_rgb(void* handle, void* pixel);
 void ocio_cpu_processor_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 bool ocio_cpu_processor_try_apply_rgba_pixels(void* handle, float* rgba, int64_t numPixels, int64_t stride);
 void ocio_cpu_processor_apply_rgb_pixels(void* handle, float* rgb, int64_t numPixels, int64_t stride);
@@ -1572,6 +1574,8 @@ int ocio_lut1d_transform_get_interpolation(void* handle);
 void ocio_lut1d_transform_set_interpolation(void* handle, int algo);
 void ocio_lut1d_transform_get_values(void* handle, double* data);
 void ocio_lut1d_transform_set_values(void* handle, const double* data);
+void ocio_lut1d_transform_get_values_checked(void* handle, double* data, size_t capacity);
+void ocio_lut1d_transform_set_values_checked(void* handle, const double* data, size_t capacity);
 
 // --- Lut3DTransform ---
 void* ocio_lut3d_transform_create(void);
@@ -1596,6 +1600,8 @@ int ocio_lut3d_transform_get_interpolation(void* handle);
 void ocio_lut3d_transform_set_interpolation(void* handle, int algo);
 void ocio_lut3d_transform_get_values(void* handle, double* data);
 void ocio_lut3d_transform_set_values(void* handle, const double* data);
+void ocio_lut3d_transform_get_values_checked(void* handle, double* data, size_t capacity);
+void ocio_lut3d_transform_set_values_checked(void* handle, const double* data, size_t capacity);
 
 // --- MatrixTransform ---
 void* ocio_matrix_transform_create(void);

@@ -3328,6 +3328,13 @@ fn gpu_texture_values_borrow_native_storage() {
     let cube = [0.5; 24];
     desc.add_texture_3d("cube", "cubeSampler", 2, Interpolation::Linear, &cube)
         .unwrap();
+    let info = desc.try_texture_3d_info(0).unwrap().unwrap();
+    assert_eq!(info.texture_name, "cube");
+    assert_eq!(info.sampler_name, "cubeSampler");
+    assert_eq!(info.edge_len, 2);
+    assert_eq!(info.interpolation, Interpolation::Linear);
+    assert_eq!(info.binding_index, desc.texture_3d_shader_binding_index(0));
+    assert!(desc.try_texture_3d_info(99).is_err());
     assert_eq!(desc.try_texture_value_count(0).unwrap(), samples.len());
     assert_eq!(desc.try_texture_3d_value_count(0).unwrap(), cube.len());
     assert!(desc.try_texture_value_count(99).is_err());

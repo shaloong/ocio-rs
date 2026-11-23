@@ -2136,6 +2136,17 @@ const char* ocio_config_get_cache_id_explicit(void* config, bool read_only, cons
 #endif
 }
 
+int32_t ocio_current_config_get_processor_cache_flags() {
+#ifdef OCIO_RS_STUB
+  return 0;
+#else
+  try {
+    const auto config = ocio::GetCurrentConfig();
+    return config ? config->getProcessorCacheFlags() : 0;
+  } catch (...) { ocio_rs_bridge::capture_current_exception(); return 0; }
+#endif
+}
+
 int32_t ocio_const_config_get_processor_cache_flags(void* config) {
 #ifdef OCIO_RS_STUB
   (void)config; return 0;
@@ -9456,20 +9467,25 @@ void ocio_cpu_processor_apply_v2(void* handle, void* srcImgDesc, void* dstImgDes
 #endif
 }
 
-void ocio_cpu_processor_apply_rgb(void* handle, void* pixel) {
+bool ocio_cpu_processor_try_apply_rgb(void* handle, void* pixel) {
 #ifdef OCIO_RS_STUB
   (void)handle; (void)pixel;
   ocio_rs_bridge::clear_last_error();
-  return;
+  return true;
 #else
   ocio_rs_bridge::clear_last_error();
   try {
-    ocio_rs_bridge::get_real_cpu_processor(handle)->applyRGB(static_cast<float*>(pixel));
+    ocio_rs_bridge::borrow_real_cpu_processor(handle)->applyRGB(static_cast<float*>(pixel));
+    return true;
   } catch (...) {
     ocio_rs_bridge::capture_current_exception();
-    return;
+    return false;
   }
 #endif
+}
+
+void ocio_cpu_processor_apply_rgb(void* handle, void* pixel) {
+  (void)ocio_cpu_processor_try_apply_rgb(handle, pixel);
 }
 
 bool ocio_cpu_processor_try_apply_rgba(void* handle, void* pixel) {
@@ -18373,12 +18389,28 @@ OCIO_RS_LOG_AFFINE_VEC3_ABI(lin_side_offset_value, getLinSideOffsetValue, setLin
 
 #undef OCIO_RS_LOG_AFFINE_VEC3_ABI
 
-void ocio_lut1d_transform_get_values(void* transform, double* data) {
+#ifndef OCIO_RS_STUB
+static void ocio_rs_check_lut_value_count(unsigned long edge, unsigned dimensions,
+                                         const double* data, const size_t* capacity) {
+  if (!capacity) return; // Legacy entry points leave capacity to the caller.
+  size_t count = 3;
+  for (unsigned i = 0; i < dimensions; ++i) {
+    if (edge && count > std::numeric_limits<size_t>::max() / edge)
+      throw std::invalid_argument("LUT value count overflow");
+    count *= edge;
+  }
+  if (count != *capacity || (count && !data))
+    throw std::invalid_argument("LUT value buffer length mismatch");
+}
+#endif
+
+static void ocio_lut1d_transform_get_values_impl(void* transform, double* data, const size_t* capacity) {
 #ifndef OCIO_RS_STUB
   try {
     auto lut = ocio_rs_bridge::get_real_lut1d_transform(transform);
     const auto length = lut->getLength();
-    for (unsigned long i = 0; i < length; ++i) {
+    ocio_rs_check_lut_value_count(length, 1, data, capacity);
+    for (size_t i = 0; i < length; ++i) {
       float r = 0.f, g = 0.f, b = 0.f;
       lut->getValue(i, r, g, b);
       data[i * 3 + 0] = r;
@@ -18387,29 +18419,47 @@ void ocio_lut1d_transform_get_values(void* transform, double* data) {
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
-  (void)transform; (void)data;
+  (void)transform; (void)data; (void)capacity;
 #endif
 }
 
-void ocio_lut1d_transform_set_values(void* transform, const double* data) {
+void ocio_lut1d_transform_get_values(void* transform, double* data) {
+  ocio_lut1d_transform_get_values_impl(transform, data, nullptr);
+}
+
+void ocio_lut1d_transform_get_values_checked(void* transform, double* data, size_t capacity) {
+  ocio_lut1d_transform_get_values_impl(transform, data, &capacity);
+}
+
+static void ocio_lut1d_transform_set_values_impl(void* transform, const double* data, const size_t* capacity) {
 #ifndef OCIO_RS_STUB
   try {
     auto lut = ocio_rs_bridge::get_real_lut1d_transform(transform);
     const auto length = lut->getLength();
-    for (unsigned long i = 0; i < length; ++i) {
+    ocio_rs_check_lut_value_count(length, 1, data, capacity);
+    for (size_t i = 0; i < length; ++i) {
       lut->setValue(i, static_cast<float>(data[i * 3 + 0]), static_cast<float>(data[i * 3 + 1]), static_cast<float>(data[i * 3 + 2]));
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
-  (void)transform; (void)data;
+  (void)transform; (void)data; (void)capacity;
 #endif
 }
 
-void ocio_lut3d_transform_get_values(void* transform, double* data) {
+void ocio_lut1d_transform_set_values(void* transform, const double* data) {
+  ocio_lut1d_transform_set_values_impl(transform, data, nullptr);
+}
+
+void ocio_lut1d_transform_set_values_checked(void* transform, const double* data, size_t capacity) {
+  ocio_lut1d_transform_set_values_impl(transform, data, &capacity);
+}
+
+static void ocio_lut3d_transform_get_values_impl(void* transform, double* data, const size_t* capacity) {
 #ifndef OCIO_RS_STUB
   try {
     auto lut = ocio_rs_bridge::get_real_lut3d_transform(transform);
     const auto size = lut->getGridSize();
+    ocio_rs_check_lut_value_count(size, 3, data, capacity);
     size_t out = 0;
     for (unsigned long b = 0; b < size; ++b) {
       for (unsigned long g = 0; g < size; ++g) {
@@ -18424,15 +18474,24 @@ void ocio_lut3d_transform_get_values(void* transform, double* data) {
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
-  (void)transform; (void)data;
+  (void)transform; (void)data; (void)capacity;
 #endif
 }
 
-void ocio_lut3d_transform_set_values(void* transform, const double* data) {
+void ocio_lut3d_transform_get_values(void* transform, double* data) {
+  ocio_lut3d_transform_get_values_impl(transform, data, nullptr);
+}
+
+void ocio_lut3d_transform_get_values_checked(void* transform, double* data, size_t capacity) {
+  ocio_lut3d_transform_get_values_impl(transform, data, &capacity);
+}
+
+static void ocio_lut3d_transform_set_values_impl(void* transform, const double* data, const size_t* capacity) {
 #ifndef OCIO_RS_STUB
   try {
     auto lut = ocio_rs_bridge::get_real_lut3d_transform(transform);
     const auto size = lut->getGridSize();
+    ocio_rs_check_lut_value_count(size, 3, data, capacity);
     size_t in = 0;
     for (unsigned long b = 0; b < size; ++b) {
       for (unsigned long g = 0; g < size; ++g) {
@@ -18444,8 +18503,16 @@ void ocio_lut3d_transform_set_values(void* transform, const double* data) {
     }
   } catch (...) { ocio_rs_bridge::capture_current_exception(); return; }
 #else
-  (void)transform; (void)data;
+  (void)transform; (void)data; (void)capacity;
 #endif
+}
+
+void ocio_lut3d_transform_set_values(void* transform, const double* data) {
+  ocio_lut3d_transform_set_values_impl(transform, data, nullptr);
+}
+
+void ocio_lut3d_transform_set_values_checked(void* transform, const double* data, size_t capacity) {
+  ocio_lut3d_transform_set_values_impl(transform, data, &capacity);
 }
 
 #ifndef OCIO_RS_STUB

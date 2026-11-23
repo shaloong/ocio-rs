@@ -256,6 +256,7 @@ unsafe extern "C" {
         context: *const c_void,
     ) -> *const c_char;
     pub fn ocio_const_config_get_processor_cache_flags(config: *mut c_void) -> i32;
+    pub fn ocio_current_config_get_processor_cache_flags() -> i32;
     pub fn ocio_const_config_set_processor_cache_flags(config: *mut c_void, flags: i32);
     pub fn ocio_const_config_get_color_space(
         handle: *mut c_void,
@@ -1882,6 +1883,7 @@ unsafe extern "C" {
     pub fn ocio_cpu_processor_apply_rgb(handle: *mut c_void, pixel: *mut c_void) -> ();
     pub fn ocio_cpu_processor_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> ();
     pub fn ocio_cpu_processor_try_apply_rgba(handle: *mut c_void, pixel: *mut c_void) -> bool;
+    pub fn ocio_cpu_processor_try_apply_rgb(handle: *mut c_void, pixel: *mut c_void) -> bool;
 
     // --- GPUProcessor ---
     pub fn ocio_gpu_processor_destroy(handle: *mut c_void);
@@ -4066,6 +4068,16 @@ unsafe extern "C" {
     pub fn ocio_lut1d_transform_set_direction(transform: *mut c_void, direction: i32) -> ();
 
     pub fn ocio_lut1d_transform_set_values(transform: *mut c_void, data: *const f64) -> ();
+    pub fn ocio_lut1d_transform_get_values_checked(
+        transform: *mut c_void,
+        data: *mut f64,
+        capacity: usize,
+    );
+    pub fn ocio_lut1d_transform_set_values_checked(
+        transform: *mut c_void,
+        data: *const f64,
+        capacity: usize,
+    );
 
     pub fn ocio_lut3d_transform_get_direction(transform: *mut c_void) -> i32;
 
@@ -4074,6 +4086,16 @@ unsafe extern "C" {
     pub fn ocio_lut3d_transform_set_direction(transform: *mut c_void, direction: i32) -> ();
 
     pub fn ocio_lut3d_transform_set_values(transform: *mut c_void, data: *const f64) -> ();
+    pub fn ocio_lut3d_transform_get_values_checked(
+        transform: *mut c_void,
+        data: *mut f64,
+        capacity: usize,
+    );
+    pub fn ocio_lut3d_transform_set_values_checked(
+        transform: *mut c_void,
+        data: *const f64,
+        capacity: usize,
+    );
 
     pub fn ocio_matrix_transform_create_fit(
         oldMin4: *const f64,

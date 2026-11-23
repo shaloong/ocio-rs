@@ -145,11 +145,11 @@ pub use look::Look;
 pub use named_transform::NamedTransform;
 pub use processor::{
     CPUProcessor, DynamicProperty, GPUProcessor, GpuShaderCreator, GpuShaderDesc,
-    GpuShaderDescView, GpuTexture2D, GpuTexture3D, GpuTextureChannel, GpuTextureDimensions,
-    GpuUniform, GpuUniformCache, GpuUniformCopy, GpuUniformType, GpuUniformValue,
-    PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes, PlanarBytesMut,
-    PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes, SignedPlanarBytesMut,
-    StaticCPUProcessor, TextureInfo,
+    GpuShaderDescView, GpuTexture2D, GpuTexture3D, GpuTexture3DInfo, GpuTextureChannel,
+    GpuTextureDimensions, GpuUniform, GpuUniformCache, GpuUniformCopy, GpuUniformType,
+    GpuUniformValue, PackedConversionLayout, PackedImageLayout, PlanarByteLayout, PlanarBytes,
+    PlanarBytesMut, PlanarF32Layout, Processor, SignedPlanarByteLayout, SignedPlanarBytes,
+    SignedPlanarBytesMut, StaticCPUProcessor, TextureInfo,
 };
 pub use processor::{
     ShaderCodeSection, ShaderCreatorOptions, ShaderExtractionHooks, ShaderFinalizeControl,
@@ -856,14 +856,17 @@ pub fn set_logging_level_to_override(level: crate::LoggingLevel) {
 /// The caller must meet the synchronization requirements of [`try_current_config`].
 ///
 /// ```compile_fail
-/// let _ = ocio_rs::processor_cache_flags(); // Reads a native global snapshot.
+/// let _ = ocio_rs::processor_cache_flags(); // Reads native global state.
 /// ```
 pub unsafe fn processor_cache_flags() -> crate::ProcessorCacheFlags {
-    unsafe { try_const_current_config() }
-        .ok()
-        .flatten()
-        .and_then(|config| config.processor_cache_flags().ok())
-        .unwrap_or(crate::ProcessorCacheFlags(0))
+    unsafe { read_current_processor_cache_flags() }.unwrap_or(crate::ProcessorCacheFlags(0))
+}
+
+unsafe fn read_current_processor_cache_flags() -> Result<crate::ProcessorCacheFlags> {
+    clear_last_error();
+    let flags = unsafe { ocio_sys::ocio_current_config_get_processor_cache_flags() };
+    ocio_call_status()?;
+    Ok(crate::ProcessorCacheFlags(flags as u32))
 }
 
 /// Updates the processor cache flags on the current global config, if any.
@@ -897,12 +900,12 @@ pub unsafe fn set_processor_cache_flags(flags: crate::ProcessorCacheFlags) {
 /// let _ = ocio_rs::try_set_processor_cache_flags(ocio_rs::ProcessorCacheFlags::DEFAULT);
 /// ```
 pub unsafe fn try_set_processor_cache_flags(flags: crate::ProcessorCacheFlags) -> Result<()> {
-    if let Some(current) = unsafe { try_const_current_config()? } {
-        if current.processor_cache_flags()? != flags {
-            let config = current.create_editable_copy()?;
-            config.try_set_processor_cache_flags(flags.0 as i32)?;
-            try_set_current_config(&config)?;
-        }
+    if unsafe { read_current_processor_cache_flags()? } == flags {
+        return Ok(());
+    }
+    if let Some(config) = unsafe { try_current_config()? } {
+        config.try_set_processor_cache_flags(flags.0 as i32)?;
+        try_set_current_config(&config)?;
     }
     Ok(())
 }

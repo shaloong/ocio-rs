@@ -2748,14 +2748,20 @@ impl CPUProcessor {
     /// single-pixel API. A mismatch returns an error without changing `rgb`.
     pub fn try_apply_rgb(&self, rgb: &mut [f32; 3]) -> Result<()> {
         self.require_f32_pixel_io()?;
-        crate::clear_last_error();
-        unsafe {
-            ocio_sys::ocio_cpu_processor_apply_rgb(
+        let ok = unsafe {
+            ocio_sys::ocio_cpu_processor_try_apply_rgb(
                 self.handle.as_ptr(),
-                rgb.as_mut_ptr() as *mut c_void,
-            );
+                rgb.as_mut_ptr().cast(),
+            )
+        };
+        if ok {
+            Ok(())
+        } else {
+            crate::ocio_call_status()?;
+            Err(OcioError::Ocio(
+                "OpenColorIO pixel processing failed without an error message".into(),
+            ))
         }
-        crate::ocio_call_status()
     }
 
     #[inline]
@@ -6564,6 +6570,21 @@ impl GpuTexture3D {
     }
 }
 
+/// Metadata for a 3D GPU LUT, without copying its texels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GpuTexture3DInfo {
+    /// OCIO-generated texture symbol.
+    pub texture_name: String,
+    /// Sampler symbol paired with the texture.
+    pub sampler_name: String,
+    /// Cube edge length in texels.
+    pub edge_len: u32,
+    /// Interpolation mode used by the shader.
+    pub interpolation: Interpolation,
+    /// Binding slot when available on the native OCIO version.
+    pub binding_index: Option<u32>,
+}
+
 #[derive(Debug, Clone)]
 /// Typed value payload for a GPU uniform extracted from OCIO.
 pub enum GpuUniformValue {
@@ -8440,26 +8461,9 @@ impl GpuShaderDesc {
     /// An out-of-range `index` is returned as an OCIO error. `Ok(None)` means
     /// OCIO did not report a usable texture resource without raising an error.
     pub fn try_texture_3d(&self, index: u32) -> Result<Option<GpuTexture3D>> {
-        let mut info = ocio_sys::OcioGpuTexture3DInfo {
-            texture_name: std::ptr::null(),
-            sampler_name: std::ptr::null(),
-            edge_len: 0,
-            interpolation: 0,
-            has_binding_index: false,
-            binding_index: 0,
-        };
-        crate::clear_last_error();
-        let ok = unsafe {
-            ocio_sys::ocio_gpu_shader_desc_get3d_texture_info(
-                self.handle.as_ptr(),
-                index,
-                &mut info,
-            )
-        };
-        crate::ocio_call_status()?;
-        if !ok {
+        let Some(info) = self.try_texture_3d_info(index)? else {
             return Ok(None);
-        }
+        };
         let edge = info.edge_len as usize;
         let value_count = edge
             .checked_mul(edge)
@@ -8485,19 +8489,51 @@ impl GpuShaderDesc {
                 "OCIO could not copy the reported GPU 3D texture payload".into(),
             ));
         }
+        Ok(Some(GpuTexture3D {
+            texture_name: info.texture_name,
+            sampler_name: info.sampler_name,
+            edge_len: info.edge_len,
+            interpolation: info.interpolation,
+            binding_index: info.binding_index,
+            values,
+        }))
+    }
+
+    /// Query 3D texture metadata without allocating or copying the texel buffer.
+    /// Borrow the texels separately with [`Self::texture_3d_values_ref`].
+    pub fn try_texture_3d_info(&self, index: u32) -> Result<Option<GpuTexture3DInfo>> {
+        let mut info = ocio_sys::OcioGpuTexture3DInfo {
+            texture_name: std::ptr::null(),
+            sampler_name: std::ptr::null(),
+            edge_len: 0,
+            interpolation: 0,
+            has_binding_index: false,
+            binding_index: 0,
+        };
+        crate::clear_last_error();
+        let ok = unsafe {
+            ocio_sys::ocio_gpu_shader_desc_get3d_texture_info(
+                self.handle.as_ptr(),
+                index,
+                &mut info,
+            )
+        };
+        crate::ocio_call_status()?;
+        if !ok {
+            return Ok(None);
+        }
         let Some(texture_name) = required_ocio_string(info.texture_name) else {
             return Ok(None);
         };
         let Some(sampler_name) = required_ocio_string(info.sampler_name) else {
             return Ok(None);
         };
-        Ok(Some(GpuTexture3D {
+        Ok(Some(GpuTexture3DInfo {
             texture_name,
             sampler_name,
             edge_len: info.edge_len,
             interpolation: interpolation_from_raw(info.interpolation),
             binding_index: info.has_binding_index.then_some(info.binding_index),
-            values,
         }))
     }
 
